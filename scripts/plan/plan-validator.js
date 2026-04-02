@@ -70,6 +70,8 @@ function validateChoice(choice, levelData, level, plan, classDef, actor) {
       return validateFeatSlot(levelData.archetypeFeats, 'Archetype Feat');
     case 'mythicFeat':
       return validateFeatSlot(levelData.mythicFeats, 'Mythic Feat');
+    case 'dualClassFeat':
+      return validateFeatSlot(levelData.dualClassFeats, 'Dual Class Feat');
     case 'skillIncrease':
       return validateSkillIncrease(levelData, level, plan);
     case 'spells':

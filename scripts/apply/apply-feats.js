@@ -7,6 +7,7 @@ const CATEGORY_TO_GROUP = {
   ancestryFeats: 'ancestry',
   archetypeFeats: 'archetype',
   mythicFeats: 'mythic',
+  dualClassFeats: 'class',
 };
 
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);

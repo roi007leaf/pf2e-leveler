@@ -53,6 +53,9 @@ function createEmptyLevelData(choices) {
       case 'mythicFeat':
         data.mythicFeats = [];
         break;
+      case 'dualClassFeat':
+        data.dualClassFeats = [];
+        break;
       case 'spells':
         data.spells = [];
         break;
@@ -117,6 +120,7 @@ export function getAllPlannedFeats(plan, upToLevel = MAX_LEVEL) {
     'ancestryFeats',
     'archetypeFeats',
     'mythicFeats',
+    'dualClassFeats',
   ];
   for (let level = 1; level <= upToLevel; level++) {
     const levelData = plan.levels[level];

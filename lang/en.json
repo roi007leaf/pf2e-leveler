@@ -37,6 +37,7 @@
       "ARCHETYPE_FEAT": "Free Archetype Feat",
       "MYTHIC_FEAT": "Mythic Feat",
       "SPELLCASTING": "Spellcasting",
+      "DUAL_CLASS_FEAT": "Dual Class Feat",
       "ABP_POTENCY": "Skill Potency (ABP)",
       "CLASS_SPECIFIC": "Class Options"
     },

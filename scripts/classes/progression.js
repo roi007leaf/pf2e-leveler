@@ -44,6 +44,10 @@ export function getChoicesForLevel(classDef, level, options = {}) {
     choices.push({ type: 'mythicFeat' });
   }
 
+  if (options.dualClass && [2, 4, 6, 8, 10, 12, 14, 16, 18, 20].includes(level)) {
+    choices.push({ type: 'dualClassFeat' });
+  }
+
   if (options.abp && [3, 6, 9, 13, 15, 17, 20].includes(level)) {
     choices.push({ type: 'abpPotency' });
   }
@@ -91,6 +95,9 @@ export function getLevelSummary(classDef, level, options = {}) {
         break;
       case 'abpPotency':
         parts.push('Potency');
+        break;
+      case 'dualClassFeat':
+        parts.push('Dual Class');
         break;
       case 'spells':
         parts.push('Spells');

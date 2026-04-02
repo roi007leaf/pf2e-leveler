@@ -187,6 +187,18 @@
         </div>
         {{/if}}
 
+        {{#if showDualClassFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-users"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.DUAL_CLASS_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=dualClassFeat category="dualClassFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
         {{#if showABP}}
         <div class="level-section">
           <div class="section-header">

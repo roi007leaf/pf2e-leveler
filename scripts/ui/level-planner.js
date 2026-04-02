@@ -5,7 +5,7 @@ import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, clearLevelFeat,
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../plan/plan-store.js';
 import { validateLevel } from '../plan/plan-validator.js';
 import { computeBuildState } from '../plan/build-state.js';
-import { getMaxSkillRank, isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled } from '../utils/pf2e-api.js';
+import { getMaxSkillRank, isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled } from '../utils/pf2e-api.js';
 import { localize } from '../utils/i18n.js';
 import { debug } from '../utils/logger.js';
 import { FeatPicker } from './feat-picker.js';
@@ -141,6 +141,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       mythic: isMythicEnabled(),
       abp: isABPEnabled(),
       gradualBoosts: isGradualBoostsEnabled(),
+      dualClass: isDualClassEnabled(),
     };
   }
 
@@ -191,6 +192,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       archetypeFeat: this._extractFeat(levelData.archetypeFeats),
       showMythicFeat: choiceTypes.has('mythicFeat'),
       mythicFeat: this._extractFeat(levelData.mythicFeats),
+      showDualClassFeat: choiceTypes.has('dualClassFeat'),
+      dualClassFeat: this._extractFeat(levelData.dualClassFeats),
       ...this._buildABPContext(level, options),
       ...this._buildSpellContext(classDef, level),
     };
