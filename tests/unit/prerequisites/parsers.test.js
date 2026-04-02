@@ -48,6 +48,23 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('ability');
     expect(result.ability).toBe('dex');
     expect(result.minValue).toBe(16);
+    expect(result.isModifier).toBe(false);
+  });
+
+  test('parses ability modifier requirement with plus sign', () => {
+    const result = parsePrerequisite('Dexterity +2');
+    expect(result.type).toBe('ability');
+    expect(result.ability).toBe('dex');
+    expect(result.minValue).toBe(2);
+    expect(result.isModifier).toBe(true);
+  });
+
+  test('parses ability modifier requirement with minus sign', () => {
+    const result = parsePrerequisite('Constitution -1');
+    expect(result.type).toBe('ability');
+    expect(result.ability).toBe('con');
+    expect(result.minValue).toBe(-1);
+    expect(result.isModifier).toBe(true);
   });
 
   test('parses level requirement', () => {

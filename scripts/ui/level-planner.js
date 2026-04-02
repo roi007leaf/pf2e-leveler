@@ -661,7 +661,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       mythicFeats: 'mythic',
     };
 
-    const buildState = computeBuildState(this.actor, this.plan, level - 1);
+    const buildState = computeBuildState(this.actor, this.plan, level);
 
     const picker = new FeatPicker(
       this.actor,

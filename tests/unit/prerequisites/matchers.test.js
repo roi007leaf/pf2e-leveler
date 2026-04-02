@@ -57,6 +57,30 @@ describe('matchAbility', () => {
     );
     expect(result.met).toBe(false);
   });
+
+  test('met when modifier format and mod is sufficient', () => {
+    const result = matchAbility(
+      { type: 'ability', ability: 'dex', minValue: 2, isModifier: true, text: 'Dexterity +2' },
+      { attributes: { dex: 4 } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when modifier format and mod is insufficient', () => {
+    const result = matchAbility(
+      { type: 'ability', ability: 'dex', minValue: 2, isModifier: true, text: 'Dexterity +2' },
+      { attributes: { dex: 1 } },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('met when modifier format and mod equals requirement', () => {
+    const result = matchAbility(
+      { type: 'ability', ability: 'str', minValue: 2, isModifier: true, text: 'Strength +2' },
+      { attributes: { str: 2 } },
+    );
+    expect(result.met).toBe(true);
+  });
 });
 
 describe('matchLevel', () => {

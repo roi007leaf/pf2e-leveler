@@ -8,11 +8,11 @@ export function matchSkill(parsed, buildState) {
 
 export function matchAbility(parsed, buildState) {
   const currentMod = buildState.attributes[parsed.ability] ?? 0;
+  if (parsed.isModifier) {
+    return { met: currentMod >= parsed.minValue, text: parsed.text };
+  }
   const currentScore = 10 + currentMod * 2;
-  return {
-    met: currentScore >= parsed.minValue,
-    text: parsed.text,
-  };
+  return { met: currentScore >= parsed.minValue, text: parsed.text };
 }
 
 export function matchLevel(parsed, buildState) {

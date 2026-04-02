@@ -16,7 +16,7 @@ const ABILITY_NAMES = {
 };
 
 const ABILITY_PATTERN = new RegExp(
-  `(${Object.keys(ABILITY_NAMES).join('|')})\\s+(\\d+)`,
+  `(${Object.keys(ABILITY_NAMES).join('|')})\\s+([+-]?\\d+)`,
   'i',
 );
 
@@ -63,11 +63,13 @@ function tryParseAbilityRequirement(text) {
 
   const abilityName = match[1].toLowerCase();
   const ability = ABILITY_NAMES[abilityName];
-  const minValue = parseInt(match[2], 10);
+  const raw = match[2];
+  const minValue = parseInt(raw, 10);
+  const isModifier = raw.startsWith('+') || raw.startsWith('-');
 
   if (!ability || isNaN(minValue)) return null;
 
-  return { type: 'ability', ability, minValue, text };
+  return { type: 'ability', ability, minValue, isModifier, text };
 }
 
 function tryParseLevelRequirement(text) {
