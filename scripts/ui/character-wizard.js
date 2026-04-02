@@ -430,7 +430,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.data.class?.slug) return false;
     const classDef = ClassRegistry.get(this.data.class.slug);
     if (!classDef?.spellcasting) return false;
-    return classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard' || classDef.slug === 'witch';
+    const spellbookClasses = ['wizard', 'witch', 'magus'];
+    return classDef.spellcasting.type === 'spontaneous' || spellbookClasses.includes(classDef.slug);
   }
 
   async _hasClassFeatAtLevel1() {
@@ -989,6 +990,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       totalCantrips = 10;
       const hasCurriculum = !!this.data.subclass?.curriculum;
       totalRank1 = hasCurriculum ? 7 : 6;
+    } else if (classDef.slug === 'magus') {
+      totalCantrips = 8;
+      totalRank1 = 4;
     }
 
     const grantedSpells = await this._resolveGrantedSpells();

@@ -270,7 +270,7 @@
               </tbody>
             </table>
 
-            {{#if isWizard}}
+            {{#if hasSpellbook}}
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-book"></i>
@@ -293,7 +293,7 @@
             {{/if}}
 
             {{#if plannedSpells.length}}
-            {{#unless isWizard}}
+            {{#unless hasSpellbook}}
             <div class="planned-spells">
               <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
                 <i class="section-header__icon fa-solid fa-book-sparkles"></i>

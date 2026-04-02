@@ -261,9 +261,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const apparitionContext = this._buildApparitionContext(classDef, level);
 
-    const canSelectSpells = classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard';
+    const spellbookClasses = ['wizard', 'witch', 'magus'];
+    const hasSpellbook = spellbookClasses.includes(classDef.slug);
+    const canSelectSpells = classDef.spellcasting.type === 'spontaneous' || hasSpellbook;
     const isWizard = classDef.slug === 'wizard';
-    const wizardSpellbookCount = isWizard ? 2 : 0;
+    const wizardSpellbookCount = hasSpellbook ? 2 : 0;
 
     return {
       showSpells: true,
@@ -271,6 +273,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       spellType: classDef.spellcasting.type,
       isSpontaneous: canSelectSpells,
       isWizard,
+      hasSpellbook,
       wizardSpellbookCount,
       spellSlots,
       hasNewRank,
