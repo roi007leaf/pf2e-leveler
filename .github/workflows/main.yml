@@ -1,0 +1,117 @@
+name: PF2E Leveler Release Pipeline
+
+env:
+  project_url: 'https://github.com/${{github.repository}}'
+  latest_manifest_url: 'https://github.com/${{github.repository}}/releases/latest/download/module.json'
+  release_module_url: 'https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.zip'
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, dev]
+  release:
+    types: [published]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NPM_CONFIG_AUDIT: false
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Validate Module Manifest
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Validating module.json syntax..."
+          cat module.json | jq empty
+          echo "Module manifest is valid JSON"
+
+      - name: Extract Version From Tag
+        id: get_version
+        if: github.event_name == 'release'
+        uses: battila7/get-version-action@v2
+
+      - name: Modify Module Manifest With Release-Specific Values
+        id: sub_manifest_link_version
+        if: github.event_name == 'release'
+        uses: cschleiden/replace-tokens@v1
+        with:
+          files: 'module.json'
+        env:
+          VERSION: ${{steps.get_version.outputs.version-without-v}}
+          URL: ${{ env.project_url }}
+          MANIFEST: ${{ env.latest_manifest_url }}
+          DOWNLOAD: ${{ env.release_module_url }}
+
+      - name: Create Module Archive
+        if: github.event_name == 'release'
+        run: |
+          zip                                    \
+            --recurse-paths                      \
+             ./module.zip                        \
+            module.json                          \
+            README.md                            \
+            LICENSE                              \
+            templates/                           \
+            scripts/                             \
+            styles/                              \
+            lang/
+
+      - name: Update Release With Files
+        id: create_version_release
+        if: github.event_name == 'release'
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          name: ${{ github.event.release.name }}
+          draft: ${{ github.event.release.unpublished }}
+          prerelease: ${{ github.event.release.prerelease }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: './module.json, ./module.zip'
+          tag: ${{ github.event.release.tag_name }}
+          body: ${{ github.event.release.body }}
+
+  publish-to-foundry:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'release' && !github.event.release.prerelease
+
+    steps:
+      - name: Publish to Foundry VTT
+        uses: JamesIves/fetch-api-data-action@v2
+        with:
+          endpoint: https://foundryvtt.com/_api/packages/release_version/
+          configuration: '{ "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": "${{ secrets.FVTT_API_TOKEN }}" }, "body": { "id": "pf2e-leveler", "dry-run": false, "release": { "version": "${{github.event.release.tag_name}}", "manifest": "https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.json", "notes": "https://github.com/${{github.repository}}/blob/main/README.md", "compatibility": { "minimum": "13", "verified": "13", "maximum": "" } } } }'
