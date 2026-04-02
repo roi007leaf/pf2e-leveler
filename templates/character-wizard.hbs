@@ -267,7 +267,7 @@
         </div>
       {{/if}}
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
-      <div class="wizard-item-grid wizard-item-grid--compact">
+      <div class="wizard-item-grid {{#if hasClassFeat}}wizard-item-grid--compact{{/if}}">
         {{#each ancestryFeats}}
         <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">

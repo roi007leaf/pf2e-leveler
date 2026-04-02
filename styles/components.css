@@ -246,7 +246,8 @@
 .pf2e-leveler .skill-btn {
   display: flex;
   align-items: center;
-  gap: var(--leveler-spacing-sm);
+  justify-content: center;
+  position: relative;
   padding: 5px var(--leveler-spacing-sm);
   background: var(--leveler-bg-surface);
   border: 1px solid var(--leveler-border);
@@ -279,6 +280,8 @@
 }
 
 .pf2e-leveler .skill-btn__rank {
+  position: absolute;
+  right: var(--leveler-spacing-sm);
   font-size: 0.65rem;
   padding: 1px 6px;
   border-radius: 8px;
