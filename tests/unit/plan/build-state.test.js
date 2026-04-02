@@ -91,4 +91,15 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 1);
     expect(state.ancestrySlug).toBe('human');
   });
+
+  test('includes focus-pool in feats when actor has focus pool', () => {
+    mockActor.system.resources = { focus: { max: 1, value: 1 } };
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.feats.has('focus-pool')).toBe(true);
+  });
+
+  test('excludes focus-pool when actor has no focus pool', () => {
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.feats.has('focus-pool')).toBe(false);
+  });
 });

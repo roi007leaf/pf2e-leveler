@@ -117,6 +117,14 @@ describe('matchFeat', () => {
     );
     expect(result.met).toBe(false);
   });
+
+  test('met when slug matches a class feature', () => {
+    const result = matchFeat(
+      { type: 'feat', slug: 'focus-pool', text: 'Focus Pool' },
+      { feats: new Set(), classFeatures: new Set(['focus-pool', 'spellstrike']) },
+    );
+    expect(result.met).toBe(true);
+  });
 });
 
 describe('matchProficiency', () => {

@@ -23,10 +23,8 @@ export function matchLevel(parsed, buildState) {
 }
 
 export function matchFeat(parsed, buildState) {
-  return {
-    met: buildState.feats.has(parsed.slug),
-    text: parsed.text,
-  };
+  const met = buildState.feats.has(parsed.slug) || !!buildState.classFeatures?.has(parsed.slug);
+  return { met, text: parsed.text };
 }
 
 export function matchProficiency(parsed, buildState) {

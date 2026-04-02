@@ -78,6 +78,8 @@ function computeFeats(actor, plan, atLevel) {
     if (feat.slug) feats.add(feat.slug);
   }
 
+  if (actor?.system?.resources?.focus?.max > 0) feats.add('focus-pool');
+
   return feats;
 }
 
