@@ -443,7 +443,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getSkillsNote() {
-    if (this.data.subclass?.grantedSkills?.length > 0) return null;
+    if (this.data.subclass) return null;
     const slug = this.data.class?.slug;
     if (SUBCLASS_TAGS[slug]) return 'Your subclass may also grant trained skills — select a subclass first.';
     return null;
