@@ -136,17 +136,38 @@
   margin-bottom: var(--leveler-spacing-sm);
 }
 
+.pf2e-leveler .wizard-rarity-filters {
+  display: flex;
+  gap: var(--leveler-spacing-md);
+  margin-bottom: var(--leveler-spacing-xs);
+  font-size: var(--leveler-font-sm);
+}
+
+.pf2e-leveler .wizard-rarity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--leveler-text-muted);
+}
+
+.pf2e-leveler .wizard-rarity-toggle input {
+  cursor: pointer;
+}
+
 .pf2e-leveler .wizard-item-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3px;
   overflow-y: auto;
-  max-height: 400px;
+  flex: 1;
+  min-height: 0;
   align-content: start;
 }
 
 .pf2e-leveler .wizard-item-grid--compact {
   max-height: 300px;
+  flex: none;
 }
 
 .pf2e-leveler .wizard-spell-tabs {
@@ -306,7 +327,7 @@
 }
 
 .pf2e-leveler .wizard-item__name {
-  font-size: var(--leveler-font-sm);
+  font-size: var(--leveler-font-md);
   font-weight: 600;
   display: block;
   overflow: hidden;

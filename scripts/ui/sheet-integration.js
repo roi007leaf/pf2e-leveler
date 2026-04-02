@@ -25,13 +25,12 @@ function onRenderCharacterSheet(sheet, html) {
   const actor = sheet.actor;
   if (actor.type !== 'character') return;
 
-  html.find('.pf2e-leveler-plan-btn').remove();
-  html.find('.pf2e-leveler-create-btn').remove();
+  const appElement = html.closest('.app');
+  appElement.find('.pf2e-leveler-plan-btn').remove();
+  appElement.find('.pf2e-leveler-create-btn').remove();
 
-  const headerCharLevel = html.find('section.char-level');
-  const windowTitle = html.find('.window-title');
-
-  if (headerCharLevel.length) headerCharLevel.css('position', 'relative');
+  const windowHeader = appElement.find('.window-header');
+  const windowTitle = windowHeader.find('.window-title');
 
   if (isLevel1WithoutClass(actor)) {
     const createTitle = localize('CREATION.BUTTON');
@@ -40,21 +39,22 @@ function onRenderCharacterSheet(sheet, html) {
         background: none;
         border: 1px solid rgba(176, 160, 138, 0.5);
         border-radius: 4px;
-        padding: 2px 8px;
+        padding: 1px 6px;
         cursor: pointer;
         color: #c4b49e;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
+        white-space: nowrap;
+        z-index: 1;
       ">
         <i class="fas fa-wand-magic-sparkles"></i>
         <span>${createTitle}</span>
       </button>
     `);
     createBtn.on('click', () => openWizard(actor));
-    if (headerCharLevel.length) headerCharLevel.prepend(createBtn);
-    else windowTitle.after(createBtn);
+    windowTitle.after(createBtn);
   }
 
   if (isSupportedClass(actor)) {
@@ -64,21 +64,22 @@ function onRenderCharacterSheet(sheet, html) {
         background: none;
         border: 1px solid rgba(176, 160, 138, 0.5);
         border-radius: 4px;
-        padding: 2px 8px;
+        padding: 1px 6px;
         cursor: pointer;
         color: #c4b49e;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
+        white-space: nowrap;
+        z-index: 1;
       ">
         <i class="fas fa-arrow-up-right-dots"></i>
         <span>${planTitle}</span>
       </button>
     `);
     planBtn.on('click', () => openPlanner(actor));
-    if (headerCharLevel.length) headerCharLevel.prepend(planBtn);
-    else windowTitle.after(planBtn);
+    windowTitle.after(planBtn);
   }
 }
 

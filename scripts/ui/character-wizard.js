@@ -43,6 +43,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.currentStep = 0;
     this.spellSubStep = 'cantrips';
     this._compendiumCache = {};
+    this._preloadCompendiums();
+  }
+
+  _preloadCompendiums() {
+    ['pf2e.feats-srd', 'pf2e.spells-srd', 'pf2e.classfeatures', 'pf2e.ancestries', 'pf2e.backgrounds', 'pf2e.classes'].forEach((key) => {
+      this._loadCompendium(key);
+    });
   }
 
   static DEFAULT_OPTIONS = {
@@ -87,6 +94,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const allComplete = this.visibleSteps.filter((s) => s !== 'summary').every((s) => this._isStepComplete(s));
 
+    const stepContext = await this._getStepContext();
+
     return {
       steps,
       stepId: this.stepId,
@@ -95,7 +104,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       isLast: this.currentStep === STEPS.length - 1,
       isSummary: this.stepId === 'summary',
       allComplete,
-      ...(await this._getStepContext()),
+      ...stepContext,
     };
   }
 
@@ -121,6 +130,19 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       btn.addEventListener('click', async () => {
         const uuid = btn.dataset.uuid;
         await this._selectItem(uuid);
+      });
+    });
+
+    el.querySelectorAll('[data-action="toggleRarity"]').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const hiddenRarities = new Set();
+        el.querySelectorAll('[data-action="toggleRarity"]').forEach((input) => {
+          if (!input.checked) hiddenRarities.add(input.dataset.rarity);
+        });
+        el.querySelectorAll('.wizard-item[data-rarity]').forEach((item) => {
+          const rarity = item.dataset.rarity || 'common';
+          item.style.display = hiddenRarities.has(rarity) ? 'none' : '';
+        });
       });
     });
 

@@ -25,9 +25,13 @@
         </div>
       {{/if}}
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
       <div class="wizard-item-grid">
         {{#each items}}
-        <div class="wizard-item" data-name="{{this.name}}">
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -50,9 +54,13 @@
         </div>
       {{/if}}
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
       <div class="wizard-item-grid">
         {{#each items}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -80,9 +88,13 @@
         </div>
       {{/if}}
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
       <div class="wizard-item-grid">
         {{#each items}}
-        <div class="wizard-item" data-name="{{this.name}}">
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -106,7 +118,7 @@
       {{/if}}
       <div class="wizard-item-grid">
         {{#each items}}
-        <div class="wizard-item" data-name="{{this.name}}">
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -129,9 +141,13 @@
         </div>
       {{/if}}
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
       <div class="wizard-item-grid">
         {{#each items}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -246,7 +262,7 @@
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each ancestryFeats}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -278,7 +294,7 @@
       {{/if}}
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each classFeats}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -334,7 +350,7 @@
       </div>
       <div class="wizard-item-grid" data-list="cantrips">
         {{#each cantrips}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -377,7 +393,7 @@
       </div>
       <div class="wizard-item-grid" data-list="rank1">
         {{#each rank1Spells}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}">
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>

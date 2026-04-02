@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.2
+
+### Added
+
+- Rarity toggle filters (Uncommon/Rare checkboxes) on all item selection grids
+- Compendium preloading on wizard open for instant step transitions
+- `data-rarity` attribute on all wizard items for filtering
+
+### Changed
+
+- Item grids now fill available page space instead of fixed max-height
+- Item name font size increased for readability
+- Buttons moved to window header to avoid overlapping the level badge
+
+### Fixed
+
+- Spellcasting entry tradition now correctly resolved from subclass selection
+
 ## 1.0.1
 
 ### Added
