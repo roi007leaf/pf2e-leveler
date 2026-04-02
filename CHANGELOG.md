@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+
+- Character creation crash (`f.includes is not a function`) when ancestry/heritage ChoiceSet rules contain object filters instead of strings (e.g. Elf, Goblin)
+
 ## 1.0.3
 
 ### Added

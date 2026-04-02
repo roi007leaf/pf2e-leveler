@@ -45,6 +45,7 @@ global.game = {
     version: '7.0.0',
   },
   i18n: {
+    has: jest.fn(() => false),
     localize: jest.fn((key) => key),
     format: jest.fn((key, data) => {
       let result = key;

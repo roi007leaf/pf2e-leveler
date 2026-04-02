@@ -880,7 +880,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const rules = item.system?.rules ?? [];
       for (const rule of rules) {
         if (rule.key !== 'ChoiceSet' || !rule.prompt) continue;
-        if (hasSubclass && rule.choices?.filter?.some?.((f) => f.includes(subclassTag))) continue;
+        if (hasSubclass && rule.choices?.filter?.some?.((f) => typeof f === 'string' && f.includes(subclassTag))) continue;
         if (hasSubclass && rule.flag && subclassTag?.includes(rule.flag)) continue;
         addChoice(sourceLabel, rule.prompt);
       }
