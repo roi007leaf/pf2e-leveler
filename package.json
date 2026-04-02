@@ -12,9 +12,11 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build": "echo 'No build step required for Foundry VTT modules'"
+    "build": "echo 'No build step required for Foundry VTT modules'",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "@babel/core": "^7.28.3",
     "@babel/preset-env": "^7.28.3",
     "@eslint/js": "^9.35.0",
