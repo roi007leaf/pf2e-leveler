@@ -173,10 +173,14 @@ async function applySpellcasting(actor, data) {
     if (level1Slots) {
       const slotUpdate = { _id: entry.id };
       for (const [rank, counts] of Object.entries(level1Slots)) {
-        if (rank === 'cantrips') continue;
         const max = Array.isArray(counts) ? counts[0] + counts[1] : counts;
-        slotUpdate[`system.slots.slot${rank}.max`] = max;
-        slotUpdate[`system.slots.slot${rank}.value`] = max;
+        if (rank === 'cantrips') {
+          slotUpdate['system.slots.slot0.max'] = max;
+          slotUpdate['system.slots.slot0.value'] = max;
+        } else {
+          slotUpdate[`system.slots.slot${rank}.max`] = max;
+          slotUpdate[`system.slots.slot${rank}.value`] = max;
+        }
       }
       await actor.updateEmbeddedDocuments('Item', [slotUpdate]);
     }

@@ -430,7 +430,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.data.class?.slug) return false;
     const classDef = ClassRegistry.get(this.data.class.slug);
     if (!classDef?.spellcasting) return false;
-    return classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard';
+    return classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard' || classDef.slug === 'witch';
   }
 
   async _hasClassFeatAtLevel1() {
@@ -506,7 +506,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'skills': {
         const maxSkills = await this._getAdditionalSkillCount();
         this._cachedMaxSkills = maxSkills;
-        return { skills: await this._buildSkillContext(), maxSkills, skillsNote: this._getSkillsNote() };
+        const selectedCount = this.data.skills.length;
+        return { skills: await this._buildSkillContext(), maxSkills, selectedCount, skillsNote: this._getSkillsNote() };
       }
       case 'feats': return await this._buildFeatContext();
       case 'spells': return await this._buildSpellContext();

@@ -226,7 +226,7 @@
 
     {{else if (eq stepId "skills")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SKILLS"}}</h2>
-      <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.SKILLS_HINT" count=maxSkills}}</p>
+      <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.SKILLS_HINT" count=maxSkills}} ({{selectedCount}}/{{maxSkills}})</p>
       {{#if skillsNote}}
       <div class="feat-slot__note" style="margin-bottom: var(--leveler-spacing-md);">
         <i class="fa-solid fa-circle-info"></i>
