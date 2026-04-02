@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.0.8
+## 1.0.9
+
+### Added
+
+- Auto-populate all tradition cantrips and rank-1 spells for prepared casters (Cleric, Druid) on character creation
 
 ### Fixed
 
