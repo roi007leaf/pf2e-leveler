@@ -17,7 +17,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.filteredFeats = [];
     this.searchText = '';
     this.sortMethod = game.settings.get(MODULE_ID, 'featSortMethod');
-    this.hideFailedPrereqs = false;
+    this.hideFailedPrereqs = category === 'archetype';
+    this.showUncommon = !game.settings.get(MODULE_ID, 'hideUncommonFeats');
+    this.showRare = !game.settings.get(MODULE_ID, 'hideRareFeats');
   }
 
   static DEFAULT_OPTIONS = {
@@ -48,10 +50,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     if (this.allFeats.length === 0) {
       const allCachedFeats = await loadFeats();
-      const hideUncommon = game.settings.get(MODULE_ID, 'hideUncommonFeats');
-
       this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
-        hideUncommon,
         sortMethod: this.sortMethod,
       });
     }
@@ -63,6 +62,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       category: this.category,
       targetLevel: this.targetLevel,
       hideFailedPrereqs: this.hideFailedPrereqs,
+      showUncommon: this.showUncommon,
+      showRare: this.showRare,
     };
   }
 
@@ -73,6 +74,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _applyFilters() {
     let feats = [...this.allFeats];
+    if (!this.showUncommon) {
+      feats = feats.filter((f) => f.system.traits.rarity !== 'uncommon');
+    }
+    if (!this.showRare) {
+      feats = feats.filter((f) => f.system.traits.rarity !== 'rare');
+    }
     if (this.searchText) {
       feats = filterBySearch(feats, this.searchText);
     }
@@ -119,6 +126,22 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
         this.sortMethod = e.target.value;
+        this._updateFeatList();
+      });
+    }
+
+    const uncommonToggle = el.querySelector('[data-action="toggleUncommon"]');
+    if (uncommonToggle) {
+      uncommonToggle.addEventListener('change', (e) => {
+        this.showUncommon = e.target.checked;
+        this._updateFeatList();
+      });
+    }
+
+    const rareToggle = el.querySelector('[data-action="toggleRare"]');
+    if (rareToggle) {
+      rareToggle.addEventListener('change', (e) => {
+        this.showRare = e.target.checked;
         this._updateFeatList();
       });
     }

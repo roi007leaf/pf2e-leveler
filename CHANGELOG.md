@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.5
+
+### Added
+
+- Rarity filter checkboxes (Uncommon/Rare) in the feat picker
+- "Hide Rare Feats" setting (default: on) to hide rare feats from the feat picker
+- Wizard spellbook counts for character creation (10 cantrips, 7 rank-1 for curriculum schools, 6 rank-1 for Unified Magic)
+
+### Changed
+
+- Character sheet buttons now use icon-only style with tooltips for cleaner integration
+- Archetype feat picker defaults to "Eligible Only" filter
+- Dedication feats filtered out of the class feat picker
+- Feat category matching uses item slug instead of name for locale-independent filtering
+
+### Fixed
+
+- Partial ability boosts beyond +4 no longer cost 2 boost points — you always select 4 attributes per milestone
+- Class KEY ability boost not counted in character creation boost totals
+- Feat prerequisite "Focus Pool" now recognized by checking actor's focus pool resource
+- Feat prerequisites now also match against class features (not just feats)
+- Feat picker build state includes same-level skill increases and boosts for prerequisite checks
+- Ability prerequisite with modifier format (e.g. "Dexterity +2") now parsed and matched correctly
+- Feat prerequisite "Focus Pool" now recognized by checking actor's focus pool resource
+- Feat prerequisites now also match against class features (not just feats)
+- Feat picker build state includes same-level skill increases and boosts for prerequisite checks
+- Ability prerequisite with modifier format (e.g. "Dexterity +2") now parsed and matched correctly
+
 ## 1.0.4
 
 ### Fixed

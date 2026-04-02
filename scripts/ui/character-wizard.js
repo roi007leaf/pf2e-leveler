@@ -797,7 +797,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const keyAbility = classDef?.keyAbility ?? [];
       if (keyAbility.length === 1) {
         this.data.boosts.class = [keyAbility[0]];
-        buildRow('class', this.data.class.name, 'Class', [], [], 0, [], []);
+        buildRow('class', this.data.class.name, 'Class', [keyAbility[0]], [], 0, [], []);
         boostRows[boostRows.length - 1].keyAbility = keyAbility[0];
       } else if (keyAbility.length > 1) {
         buildRow('class', this.data.class.name, 'Class', [], [], 1, keyAbility, this.data.boosts.class ?? []);
@@ -981,8 +981,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const level1Slots = classDef.spellcasting.slots?.[1] ?? {};
-    const totalCantrips = Array.isArray(level1Slots.cantrips) ? level1Slots.cantrips[0] + level1Slots.cantrips[1] : (level1Slots.cantrips ?? 5);
-    const totalRank1 = Array.isArray(level1Slots[1]) ? level1Slots[1][0] + level1Slots[1][1] : (level1Slots[1] ?? 2);
+    let totalCantrips = Array.isArray(level1Slots.cantrips) ? level1Slots.cantrips[0] + level1Slots.cantrips[1] : (level1Slots.cantrips ?? 5);
+    let totalRank1 = Array.isArray(level1Slots[1]) ? level1Slots[1][0] + level1Slots[1][1] : (level1Slots[1] ?? 2);
+
+    if (classDef.slug === 'wizard') {
+      totalCantrips = 10;
+      const hasCurriculum = !!this.data.subclass?.curriculum;
+      totalRank1 = hasCurriculum ? 7 : 6;
+    }
 
     const grantedSpells = await this._resolveGrantedSpells();
     const maxCantrips = totalCantrips - grantedSpells.cantrips.length;

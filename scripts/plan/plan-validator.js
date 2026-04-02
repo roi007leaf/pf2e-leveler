@@ -2,7 +2,6 @@ import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getChoicesForLevel, BOOSTS_PER_LEVEL } from '../classes/progression.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
-import { computeBuildState } from './build-state.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -81,7 +80,7 @@ function validateChoice(choice, levelData, level, plan, classDef, actor) {
   }
 }
 
-function validateBoosts(levelData, expectedCount, level, plan, actor) {
+function validateBoosts(levelData, expectedCount, _level, _plan, _actor) {
   const boosts = levelData.abilityBoosts;
   if (!boosts || boosts.length === 0) {
     return { severity: 'error', message: 'Ability boosts not selected' };
@@ -90,16 +89,10 @@ function validateBoosts(levelData, expectedCount, level, plan, actor) {
   if (unique.size !== boosts.length) {
     return { severity: 'error', message: 'Duplicate ability boosts' };
   }
-  const buildState = actor ? computeBuildState(actor, plan, level - 1) : null;
-  let totalCost = 0;
-  for (const attr of boosts) {
-    const mod = buildState?.attributes?.[attr] ?? 0;
-    totalCost += mod >= 4 ? 2 : 1;
-  }
-  if (totalCost !== expectedCount) {
+  if (boosts.length !== expectedCount) {
     return {
       severity: 'error',
-      message: `Need ${expectedCount} boost points, used ${totalCost}`,
+      message: `Need ${expectedCount} boosts, selected ${boosts.length}`,
     };
   }
   return null;

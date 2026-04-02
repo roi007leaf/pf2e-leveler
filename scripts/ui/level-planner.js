@@ -203,16 +203,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const selectedBoosts = levelData.abilityBoosts ?? [];
     const buildState = computeBuildState(this.actor, this.plan, this.selectedLevel - 1);
     const maxBoosts = choices?.find((c) => c.type === 'abilityBoosts')?.count ?? 4;
-    const boostsUsed = this._countBoostsUsed(selectedBoosts, buildState);
-    const boostsRemaining = maxBoosts - boostsUsed;
+    const boostsRemaining = maxBoosts - selectedBoosts.length;
 
     return ATTRIBUTES.map((key) => {
       const mod = buildState.attributes[key] ?? 0;
       const isPartial = mod >= 4;
-      const cost = isPartial ? 2 : 1;
       const selected = selectedBoosts.includes(key);
       const newMod = selected ? mod + 1 : mod;
-      const canAfford = !selected && boostsRemaining >= cost;
       return {
         key,
         label: key.toUpperCase(),
@@ -220,19 +217,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         newMod,
         selected,
         partial: isPartial,
-        cost,
-        disabled: !selected && !canAfford,
+        cost: 1,
+        disabled: !selected && boostsRemaining <= 0,
       };
     });
-  }
-
-  _countBoostsUsed(selectedBoosts, buildState) {
-    let used = 0;
-    for (const attr of selectedBoosts) {
-      const mod = buildState.attributes[attr] ?? 0;
-      used += mod >= 4 ? 2 : 1;
-    }
-    return used;
   }
 
   _buildSkillContext(levelData, level) {
@@ -630,7 +618,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _handleBoostToggle(attr) {
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
     let boosts = [...(levelData.abilityBoosts ?? [])];
-    const buildState = computeBuildState(this.actor, this.plan, this.selectedLevel - 1);
     const options = this._getVariantOptions();
     const classDef = ClassRegistry.get(this.plan.classSlug);
     const choices = getChoicesForLevel(classDef, this.selectedLevel, options);
@@ -638,13 +625,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (boosts.includes(attr)) {
       boosts = boosts.filter((b) => b !== attr);
-    } else {
-      const mod = buildState.attributes[attr] ?? 0;
-      const cost = mod >= 4 ? 2 : 1;
-      const used = this._countBoostsUsed(boosts, buildState);
-      if (used + cost <= maxBoosts) {
-        boosts.push(attr);
-      }
+    } else if (boosts.length < maxBoosts) {
+      boosts.push(attr);
     }
 
     setLevelBoosts(this.plan, this.selectedLevel, boosts);

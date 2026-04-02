@@ -233,6 +233,10 @@
         "NAME": "Hide Uncommon Feats",
         "HINT": "Hide uncommon and rarer feats from the feat picker by default"
       },
+      "HIDE_RARE": {
+        "NAME": "Hide Rare Feats",
+        "HINT": "Hide rare feats from the feat picker by default"
+      },
       "FEAT_SORT": {
         "NAME": "Default Feat Sort",
         "HINT": "How to sort feats in the feat picker by default",

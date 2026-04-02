@@ -38,6 +38,15 @@ export function registerSettings() {
     default: false,
   });
 
+  game.settings.register(MODULE_ID, 'hideRareFeats', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_RARE.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_RARE.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register(MODULE_ID, 'featSortMethod', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.FEAT_SORT.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.FEAT_SORT.HINT'),

@@ -47,7 +47,7 @@ describe('validateLevel', () => {
     setLevelBoosts(plan, 5, ['str', 'dex']);
     const result = validateLevel(plan, ALCHEMIST, 5);
     expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
-    expect(result.issues.some((i) => i.message.includes('boost points'))).toBe(true);
+    expect(result.issues.some((i) => i.message.includes('boosts'))).toBe(true);
   });
 
   test('duplicate boosts is incomplete', () => {

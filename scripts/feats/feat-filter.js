@@ -23,7 +23,7 @@ function normalizeQuery(query) {
 function matchesFeatCategory(traits, category, queries) {
   switch (category) {
     case 'class':
-      return queries.some((q) => traits.includes(q));
+      return queries.some((q) => traits.includes(q)) && !traits.includes('dedication');
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
@@ -55,6 +55,11 @@ export function filterBySearch(feats, searchText) {
 export function filterByRarity(feats, hideUncommon) {
   if (!hideUncommon) return feats;
   return feats.filter((feat) => feat.system.traits.rarity === 'common');
+}
+
+export function filterByRareRarity(feats, hideRare) {
+  if (!hideRare) return feats;
+  return feats.filter((feat) => feat.system.traits.rarity !== 'rare');
 }
 
 export function filterBySkill(feats, skillSlugs) {
@@ -100,6 +105,10 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
     result = filterByRarity(result, true);
   }
 
+  if (options.hideRare) {
+    result = filterByRareRarity(result, true);
+  }
+
   if (options.searchText) {
     result = filterBySearch(result, options.searchText);
   }
@@ -114,10 +123,11 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
 function buildCategoryQuery(category, actor) {
   switch (category) {
     case 'class':
-      return actor?.class?.name ?? '';
+      return actor?.class?.slug ?? actor?.class?.name?.toLowerCase() ?? '';
     case 'ancestry': {
-      const queries = [actor?.ancestry?.name ?? ''];
-      if (actor?.heritage?.name) queries.push(actor.heritage.name);
+      const queries = [actor?.ancestry?.slug ?? actor?.ancestry?.name?.toLowerCase() ?? ''];
+      const heritageSlug = actor?.heritage?.slug ?? actor?.heritage?.name?.toLowerCase();
+      if (heritageSlug) queries.push(heritageSlug);
       return queries;
     }
     default:
