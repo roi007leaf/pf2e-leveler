@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.7
+
+### Added
+
+- Spell selection in character creation and level-up planner for Witch and Magus (spellbook/familiar classes)
+- Magus spellbook counts for character creation (8 cantrips, 4 rank-1)
+- Live skill selection counter in character creation (e.g. "3/5")
+
+### Fixed
+
+- Cantrip slot count not set after character creation (showed 0 on character sheet)
+- Witch had no spell selection step in character creation or level-up planner
+- Magus had no spell selection step in character creation or level-up planner
+
 ## 1.0.6
 
 ### Added
