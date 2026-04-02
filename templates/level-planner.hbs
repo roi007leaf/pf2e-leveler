@@ -9,6 +9,9 @@
            data-action="selectLevel" data-level="{{this.level}}">
         <div class="sidebar-level__num">{{this.level}}</div>
         <div class="sidebar-level__summary" data-tooltip="{{this.summary}}">{{this.summary}}</div>
+        {{#if this.isCurrent}}
+          <span class="sidebar-level__current">CURRENT</span>
+        {{/if}}
         {{#if (eq this.status "complete")}}
           <i class="sidebar-level__status sidebar-level__status--complete fa-solid fa-check-circle"></i>
         {{else if (eq this.status "warning")}}

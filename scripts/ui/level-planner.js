@@ -152,11 +152,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         ? validateLevel(this.plan, classDef, level, options, this.actor).status
         : PLAN_STATUS.EMPTY;
 
+      const actorLevel = this.actor.system?.details?.level?.value ?? 1;
       levels.push({
         level,
         summary,
         status,
         active: level === this.selectedLevel,
+        isCurrent: level === actorLevel,
       });
     }
     return levels;

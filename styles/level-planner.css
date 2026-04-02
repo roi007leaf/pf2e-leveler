@@ -76,6 +76,17 @@
   text-overflow: ellipsis;
 }
 
+.pf2e-leveler .sidebar-level__current {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(176, 160, 138, 0.25);
+  color: var(--leveler-accent-light);
+  flex-shrink: 0;
+}
+
 .pf2e-leveler .sidebar-level__status {
   flex-shrink: 0;
   font-size: 12px;
