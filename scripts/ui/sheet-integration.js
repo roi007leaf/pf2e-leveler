@@ -30,28 +30,30 @@ function onRenderCharacterSheet(sheet, html) {
   appElement.find('.pf2e-leveler-create-btn').remove();
 
   const windowHeader = appElement.find('.window-header');
-  const windowTitle = windowHeader.find('.window-title');
+  const closeBtn = windowHeader.find('button.close, a.close, .header-button.close, [data-action="close"]').first();
 
   if (isLevel1WithoutClass(actor)) {
     const createTitle = localize('CREATION.BUTTON');
     const createBtn = $(`
-      <button type="button" class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}">
+      <a class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}" title="${createTitle}" role="button">
         <i class="fas fa-wand-magic-sparkles"></i>
-      </button>
+      </a>
     `);
     createBtn.on('click', () => openWizard(actor));
-    windowTitle.after(createBtn);
+    if (closeBtn.length) closeBtn.before(createBtn);
+    else windowHeader.append(createBtn);
   }
 
   if (isSupportedClass(actor)) {
     const planTitle = localize('UI.OPEN_PLANNER');
     const planBtn = $(`
-      <button type="button" class="pf2e-leveler-plan-btn header-control" data-tooltip="${planTitle}">
+      <a class="pf2e-leveler-plan-btn header-control" data-tooltip="${planTitle}" title="${planTitle}" role="button">
         <i class="fas fa-arrow-up-right-dots"></i>
-      </button>
+      </a>
     `);
     planBtn.on('click', () => openPlanner(actor));
-    windowTitle.after(planBtn);
+    if (closeBtn.length) closeBtn.before(planBtn);
+    else windowHeader.append(planBtn);
   }
 }
 
