@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.4
+
+### Added
+
+- Trait chip filter with autocomplete in the planner's spell picker
+- Rarity toggles (Uncommon/Rare checkboxes) in the planner's spell picker
+- Wizard spellbook spell selection in both planner and character creation
+- Dual Class variant rule support in the planner
+
+### Changed
+
+- Spell selection now available for Wizard (spellbook) alongside spontaneous casters
+- Prepared casters (Cleric, Druid, Witch, Magus) correctly skip spell selection
+- Trait chip and input font sizes increased for readability
+- Trait input padding increased for better usability
+
+### Fixed
+
+- Spell picker trait chips barely readable at small font size
+
 ## 1.0.3
 
 ### Added
