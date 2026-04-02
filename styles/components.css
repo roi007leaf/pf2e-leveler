@@ -282,10 +282,11 @@
 .pf2e-leveler .skill-btn__rank {
   position: absolute;
   right: var(--leveler-spacing-sm);
-  font-size: 0.65rem;
+  font-size: var(--leveler-font-sm);
   padding: 1px 6px;
   border-radius: 8px;
   white-space: nowrap;
+  opacity: 0.85;
 }
 
 .pf2e-leveler .skill-btn.rank-bg-untrained {
