@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.0.3
+
+### Added
+
+- Alternate Ancestry Boosts toggle in character creation
+- Subclass skill parsing from HTML description (e.g. Barbarian Bloodrager)
+- Sorcerer bloodline tradition detection via RollOption rules
+- Summoner eidolon tradition detection via HTML description (`<strong>Tradition</strong>`)
+- `signed` Handlebars helper for proper +/- display
+
+### Changed
+
+- Skill rank label absolutely positioned so skill names stay centered
+- Subclass skills note only shows when no subclass is selected
+- Feat grid fills available height when no class feat section present
+- Wizard item images increased to 40px for better visibility
+- Skill rank label font size increased for readability
+
+### Fixed
+
+- Negative ability modifier displayed as `+-1` instead of `-1`
+- Duplicate "Create Character" buttons on sheet re-render
+- Subclass granted skills not detected when only in HTML description
+- Skills step note showing even after subclass selection
+
 ## 1.0.2
 
 ### Added
