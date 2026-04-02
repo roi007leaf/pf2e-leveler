@@ -8,6 +8,7 @@ export function createCreationData() {
     background: null,
     class: null,
     subclass: null,
+    alternateAncestryBoosts: false,
     boosts: {
       free: [],
     },

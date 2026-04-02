@@ -63,7 +63,9 @@ async function applyBoosts(actor, data) {
   const freeBoosts = data.boosts.free ?? [];
 
   const ancestry = actor.ancestry;
-  if (ancestry && ancestryBoosts.length) {
+  if (ancestry && data.alternateAncestryBoosts) {
+    await ancestry.update({ 'system.alternateAncestryBoosts': ancestryBoosts });
+  } else if (ancestry && ancestryBoosts.length) {
     const boostSlots = ancestry.system?.boosts ?? {};
     const update = {};
     let boostIdx = 0;

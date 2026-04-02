@@ -168,6 +168,13 @@
     {{else if (eq stepId "boosts")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.BOOSTS"}}</h2>
 
+      {{#if hasAncestry}}
+      <label class="wizard-rarity-toggle" style="margin-bottom: var(--leveler-spacing-sm);">
+        <input type="checkbox" data-action="toggleAlternateBoosts" {{#if alternateAncestryBoosts}}checked{{/if}}>
+        Alternate Ancestry Boosts
+      </label>
+      {{/if}}
+
       <div class="boost-table">
         <div class="boost-row boost-row--header">
           <div class="boost-row__header"></div>

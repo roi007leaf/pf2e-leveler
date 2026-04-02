@@ -146,6 +146,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     });
 
+    el.querySelector('[data-action="toggleAlternateBoosts"]')?.addEventListener('change', (e) => {
+      this.data.alternateAncestryBoosts = e.target.checked;
+      this.data.boosts.ancestry = [];
+      this._saveAndRender();
+    });
+
     el.querySelectorAll('[data-action="toggleBoost"]').forEach((btn) => {
       btn.addEventListener('click', () => this._toggleBoost(btn.dataset.attr, btn.dataset.source));
     });
@@ -682,13 +688,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (this.data.ancestry?.uuid) {
       const item = await fromUuid(this.data.ancestry.uuid).catch(() => null);
-      const sets = this._parseBoostSets(item?.system?.boosts);
-      const flaws = this._extractFixedValues(item?.system?.flaws);
-      const fixed = sets.filter((s) => s.type === 'fixed').map((s) => s.attr);
-      const choices = sets.filter((s) => s.type === 'choice');
-      const totalFree = choices.length;
-      const allOptions = totalFree > 0 ? (choices.some((c) => c.options.length === 6) ? [...ATTRIBUTES] : choices[0].options) : [];
-      buildRow('ancestry', item?.name ?? '', 'Ancestry', fixed, flaws, totalFree, allOptions, this.data.boosts.ancestry ?? []);
+      if (this.data.alternateAncestryBoosts) {
+        buildRow('ancestry', item?.name ?? '', 'Ancestry (Alternate)', [], [], 2, [...ATTRIBUTES], this.data.boosts.ancestry ?? []);
+      } else {
+        const sets = this._parseBoostSets(item?.system?.boosts);
+        const flaws = this._extractFixedValues(item?.system?.flaws);
+        const fixed = sets.filter((s) => s.type === 'fixed').map((s) => s.attr);
+        const choices = sets.filter((s) => s.type === 'choice');
+        const totalFree = choices.length;
+        const allOptions = totalFree > 0 ? (choices.some((c) => c.options.length === 6) ? [...ATTRIBUTES] : choices[0].options) : [];
+        buildRow('ancestry', item?.name ?? '', 'Ancestry', fixed, flaws, totalFree, allOptions, this.data.boosts.ancestry ?? []);
+      }
     }
 
     if (this.data.background?.uuid) {
@@ -743,7 +753,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const summary = ATTRIBUTES.map((key) => ({ key, label: key.toUpperCase(), mod: totals[key] }));
-    return { boostRows, summary };
+    return { boostRows, summary, alternateAncestryBoosts: this.data.alternateAncestryBoosts, hasAncestry: !!this.data.ancestry };
   }
 
   _parseBoostSets(boostObj) {
