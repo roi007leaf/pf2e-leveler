@@ -1,0 +1,10 @@
+<div class="boost-grid">
+  {{#each attributes}}
+  <button type="button"
+    class="boost-btn {{#if this.selected}}selected{{/if}} {{#if this.partial}}partial{{/if}}"
+    data-action="toggleBoost" data-attr="{{this.key}}">
+    <span class="boost-btn__abbr">{{this.key}}</span>
+    <span class="boost-btn__mod">+{{this.mod}}</span>
+  </button>
+  {{/each}}
+</div>

@@ -1,0 +1,41 @@
+export const MONK = {
+  slug: 'monk',
+  nameKey: 'PF2E_LEVELER.MONK.NAME',
+  compendiumUuid: 'Compendium.pf2e.classes.Item.Monk',
+  keyAbility: ['str', 'dex'],
+  hp: 10,
+
+  featSchedule: {
+    class: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    general: [3, 7, 11, 15, 19],
+    ancestry: [5, 9, 13, 17],
+  },
+  skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+  abilityBoostSchedule: [5, 10, 15, 20],
+
+  classFeatures: [
+    { level: 3, name: 'Incredible Movement', key: 'incredible-movement' },
+    { level: 3, name: 'Mystic Strikes', key: 'mystic-strikes' },
+    { level: 5, name: 'Expert Strikes', key: 'expert-strikes' },
+    { level: 5, name: 'Perception Expertise', key: 'perception-expertise' },
+    { level: 7, name: 'Incredible Movement', key: 'incredible-movement' },
+    { level: 7, name: 'Path to Perfection', key: 'path-to-perfection' },
+    { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
+    { level: 9, name: 'Metal Strikes', key: 'metal-strikes' },
+    { level: 9, name: 'Monk Expertise', key: 'monk-expertise' },
+    { level: 11, name: 'Incredible Movement', key: 'incredible-movement' },
+    { level: 11, name: 'Second Path to Perfection', key: 'second-path-to-perfection' },
+    { level: 13, name: 'Graceful Mastery', key: 'graceful-mastery' },
+    { level: 13, name: 'Master Strikes', key: 'master-strikes' },
+    { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },
+    { level: 15, name: 'Incredible Movement', key: 'incredible-movement' },
+    { level: 15, name: 'Third Path to Perfection', key: 'third-path-to-perfection' },
+    { level: 17, name: 'Adamantine Strikes', key: 'adamantine-strikes' },
+    { level: 17, name: 'Graceful Legend', key: 'graceful-legend' },
+    { level: 19, name: 'Incredible Movement', key: 'incredible-movement' },
+    { level: 19, name: 'Perfected Form', key: 'perfected-form' },
+  ],
+
+  spellcasting: null,
+};

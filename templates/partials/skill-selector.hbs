@@ -1,0 +1,11 @@
+<select class="skill-select" data-action="selectSkillIncrease">
+  <option value="">{{localize "PF2E_LEVELER.UI.UNSET"}}</option>
+  {{#each availableSkills}}
+  <option value="{{this.slug}}"
+    class="rank-{{this.rankName}}"
+    {{#if this.selected}}selected{{/if}}
+    {{#if this.maxed}}disabled{{/if}}>
+    {{this.label}} ({{this.rankName}} → {{this.nextRankName}})
+  </option>
+  {{/each}}
+</select>

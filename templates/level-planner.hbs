@@ -1,0 +1,318 @@
+<div class="pf2e-leveler level-planner">
+  <div class="planner-sidebar">
+    <div class="sidebar-header">
+      {{localize "PF2E_LEVELER.UI.OPEN_PLANNER"}}
+    </div>
+    <div class="sidebar-levels">
+      {{#each sidebarLevels}}
+      <div class="sidebar-level {{#if this.active}}active{{/if}}"
+           data-action="selectLevel" data-level="{{this.level}}">
+        <div class="sidebar-level__num">{{this.level}}</div>
+        <div class="sidebar-level__summary" data-tooltip="{{this.summary}}">{{this.summary}}</div>
+        {{#if (eq this.status "complete")}}
+          <i class="sidebar-level__status sidebar-level__status--complete fa-solid fa-check-circle"></i>
+        {{else if (eq this.status "warning")}}
+          <i class="sidebar-level__status sidebar-level__status--warning fa-solid fa-exclamation-triangle"></i>
+        {{else if (eq this.status "incomplete")}}
+          <i class="sidebar-level__status sidebar-level__status--incomplete fa-solid fa-circle-xmark"></i>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{#if hasPlan}}
+    <div class="sidebar-actions">
+      <button type="button" class="sidebar-action-btn" data-action="exportPlan" data-tooltip="{{localize 'PF2E_LEVELER.UI.EXPORT'}}">
+        <i class="fa-solid fa-file-export"></i>
+      </button>
+      <button type="button" class="sidebar-action-btn" data-action="importPlan" data-tooltip="{{localize 'PF2E_LEVELER.UI.IMPORT'}}">
+        <i class="fa-solid fa-file-import"></i>
+      </button>
+      <button type="button" class="sidebar-action-btn sidebar-action-btn--danger" data-action="clearPlan" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+    {{/if}}
+  </div>
+
+  <div class="planner-content">
+    {{#if hasPlan}}
+      {{#if selectedLevel}}
+        <div class="planner-content__header">
+          <h2 class="planner-content__title">
+            {{format "PF2E_LEVELER.UI.LEVEL" level=selectedLevel}}
+          </h2>
+        </div>
+
+        {{#if classFeatures.length}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-medal"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEATURES"}}
+          </div>
+          <div class="level-section__body">
+            {{#each classFeatures}}
+            <div class="class-feature-item" data-action="viewFeat" data-uuid="{{this.uuid}}">
+              {{#if this.img}}
+              <img class="class-feature-item__icon" src="{{this.img}}" alt="">
+              {{else}}
+              <i class="class-feature-item__icon fa-solid fa-star"></i>
+              {{/if}}
+              <div class="class-feature-item__name">{{this.name}}</div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showBoosts}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-arrow-up"></i>
+            {{format "PF2E_LEVELER.BOOSTS.TITLE" count=boostCount}}
+          </div>
+          <div class="level-section__body">
+            <div class="boost-grid">
+              {{#each attributes}}
+              <button type="button"
+                class="boost-btn {{#if this.selected}}selected{{/if}} {{#if this.partial}}partial{{/if}}"
+                data-action="toggleBoost" data-attr="{{this.key}}"
+                {{#if this.disabled}}disabled{{/if}}>
+                <span class="boost-btn__abbr">{{this.label}}{{#if this.partial}} <small>(x2)</small>{{/if}}</span>
+                {{#if this.selected}}
+                  <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
+                {{else}}
+                  <span class="boost-btn__mod">+{{this.mod}}</span>
+                {{/if}}
+              </button>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showClassFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-book"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=classFeat category="classFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showSkillFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-wrench"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=skillFeat category="skillFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showGeneralFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-shield"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.GENERAL_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=generalFeat category="generalFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showAncestryFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-dna"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=ancestryFeat category="ancestryFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showSkillIncrease}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-chart-line"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.SKILL_INCREASE"}}
+          </div>
+          <div class="level-section__body">
+            <div class="skill-btn-grid">
+              {{#each availableSkills}}
+              <button type="button"
+                class="skill-btn rank-bg-{{this.rankName}} {{#if this.selected}}selected{{/if}}"
+                data-action="selectSkillIncrease" data-skill="{{this.slug}}"
+                {{#if this.maxed}}disabled{{/if}}>
+                <span class="skill-btn__name">{{this.label}}</span>
+                <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>
+              </button>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showArchetypeFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-masks-theater"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.ARCHETYPE_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=archetypeFeat category="archetypeFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showMythicFeat}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-bolt"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.MYTHIC_FEAT"}}
+          </div>
+          <div class="level-section__body">
+            {{> featSlot feat=mythicFeat category="mythicFeats" level=selectedLevel}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showABP}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-gem"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.ABP_POTENCY"}}
+          </div>
+          <div class="level-section__body">
+            <div class="abp-info">
+              {{#if abpHasNew}}
+              <span class="tag tag--info">{{localize "PF2E_LEVELER.ABP.NEW_POTENCY"}}</span>
+              {{/if}}
+              {{#if abpHasUpgrade2}}
+              <span class="tag tag--info">{{localize "PF2E_LEVELER.ABP.UPGRADE_TO_2"}}</span>
+              {{/if}}
+              {{#if abpHasUpgrade3}}
+              <span class="tag tag--info">{{localize "PF2E_LEVELER.ABP.UPGRADE_TO_3"}}</span>
+              {{/if}}
+              <p class="abp-note">{{localize "PF2E_LEVELER.ABP.NOTE"}}</p>
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showSpells}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-sparkles"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.SPELLCASTING"}}
+            {{#if hasNewRank}}
+              <span class="tag tag--success">{{format "PF2E_LEVELER.SPELLS.NEW_RANK" rank=newRank}}</span>
+            {{/if}}
+          </div>
+          <div class="level-section__body">
+            <table class="spell-slot-table">
+              <thead>
+                <tr>
+                  <th>{{localize "PF2E_LEVELER.SPELLS.RANK"}}</th>
+                  <th>{{localize "PF2E_LEVELER.SPELLS.SLOTS"}}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#each spellSlots}}
+                <tr class="{{#if this.isNew}}spell-slot-row--new{{else if this.changed}}spell-slot-row--changed{{/if}}">
+                  <td class="spell-slot-rank">{{this.rank}}</td>
+                  <td class="spell-slot-count">
+                    {{#if (and ../isSpontaneous this.hasNew)}}
+                      <span class="spell-slot-new">{{this.planned}}/{{this.newSlots}} new</span>
+                      <span class="spell-slot-breakdown">({{this.total}} total)</span>
+                    {{else if this.hasNew}}
+                      <span class="spell-slot-new">{{this.total}}</span>
+                      <span class="spell-slot-breakdown">(+{{this.newSlots}} new)</span>
+                    {{else}}
+                      {{this.total}}
+                    {{/if}}
+                    {{#if this.isDual}}
+                      <span class="spell-slot-breakdown">({{this.primary}} + {{this.secondary}})</span>
+                    {{/if}}
+                  </td>
+                  <td>
+                    {{#if (and ../isSpontaneous this.hasNew)}}
+                      <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="{{#if this.isCantrips}}0{{else}}{{this.rankNum}}{{/if}}" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD'}}" {{#if this.isFull}}disabled{{/if}}>
+                        <i class="fa-solid fa-plus"></i>
+                      </button>
+                    {{/if}}
+                  </td>
+                </tr>
+                {{/each}}
+              </tbody>
+            </table>
+
+            {{#if plannedSpells.length}}
+            <div class="planned-spells">
+              <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
+                <i class="section-header__icon fa-solid fa-book-sparkles"></i>
+                {{localize "PF2E_LEVELER.SPELLS.PLANNED"}}
+              </div>
+              {{#each plannedSpells}}
+              <div class="feat-slot feat-slot--filled">
+                <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
+                <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                <span class="feat-slot__level">Rank {{this.rank}}</span>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="Remove"></i>
+              </div>
+              {{/each}}
+            </div>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if showApparitions}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-ghost"></i>
+            {{localize "PF2E_LEVELER.ANIMIST.APPARITIONS"}}
+            <span class="tag tag--info">{{format "PF2E_LEVELER.SPELLS.ATTUNEMENT_SLOTS" count=attunementSlots}}</span>
+            {{#if newFocusPool}}
+              <span class="tag tag--info">{{format "PF2E_LEVELER.SPELLS.FOCUS_POOL" count=newFocusPool}}</span>
+            {{/if}}
+          </div>
+          <div class="level-section__body">
+            <div class="apparition-list">
+              {{#each availableApparitions}}
+              <div class="apparition-item">
+                <i class="fa-solid fa-ghost"></i>
+                <span>{{localize this.nameKey}}</span>
+              </div>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
+      {{else}}
+        <div class="planner-empty">
+          <i class="planner-empty__icon fa-solid fa-hat-wizard"></i>
+          <p>{{localize "PF2E_LEVELER.UI.OPEN_PLANNER"}}</p>
+        </div>
+      {{/if}}
+    {{else}}
+      <div class="planner-empty">
+        <i class="planner-empty__icon fa-solid fa-hat-wizard"></i>
+        {{#if unsupportedClass}}
+          <p>{{format "PF2E_LEVELER.UI.UNSUPPORTED_CLASS" className=actorClassName}}</p>
+        {{else}}
+          <p>{{localize "PF2E_LEVELER.UI.NO_CLASS"}}</p>
+        {{/if}}
+      </div>
+    {{/if}}
+  </div>
+</div>

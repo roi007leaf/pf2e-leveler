@@ -1,0 +1,12 @@
+<div class="sidebar-level {{#if active}}active{{/if}}"
+     data-action="selectLevel" data-level="{{level}}">
+  <div class="sidebar-level__num">{{level}}</div>
+  <div class="sidebar-level__summary">{{summary}}</div>
+  {{#if (eq status "complete")}}
+    <i class="sidebar-level__status sidebar-level__status--complete fa-solid fa-check-circle"></i>
+  {{else if (eq status "warning")}}
+    <i class="sidebar-level__status sidebar-level__status--warning fa-solid fa-exclamation-triangle"></i>
+  {{else if (eq status "incomplete")}}
+    <i class="sidebar-level__status sidebar-level__status--incomplete fa-solid fa-circle-xmark"></i>
+  {{/if}}
+</div>

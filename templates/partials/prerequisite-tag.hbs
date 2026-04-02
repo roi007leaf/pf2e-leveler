@@ -1,0 +1,10 @@
+{{#if (eq met true)}}
+  <span class='tag tag--success' data-tooltip='{{text}}'><i class='fa-solid fa-check'></i>
+    {{text}}</span>
+{{else if (eq met false)}}
+  <span class='tag tag--error' data-tooltip='{{text}}'><i class='fa-solid fa-xmark'></i>
+    {{text}}</span>
+{{else}}
+  <span class='tag tag--muted' data-tooltip='{{text}}'><i class='fa-solid fa-question'></i>
+    {{text}}</span>
+{{/if}}

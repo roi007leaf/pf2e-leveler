@@ -1,0 +1,39 @@
+{{#if showPractice}}
+<div class="level-section">
+  <div class="section-header">
+    <i class="section-header__icon fa-solid fa-ghost"></i>
+    {{localize "PF2E_LEVELER.ANIMIST.PRACTICE"}}
+  </div>
+  <div class="level-section__body">
+    <select class="skill-select" data-action="selectSubclass">
+      <option value="">{{localize "PF2E_LEVELER.UI.SELECT_SUBCLASS"}}</option>
+      {{#each subclasses}}
+      <option value="{{this.slug}}" {{#if (eq this.slug ../currentSubclass)}}selected{{/if}}>
+        {{localize this.nameKey}}
+      </option>
+      {{/each}}
+    </select>
+  </div>
+</div>
+{{/if}}
+
+{{#if showApparitions}}
+<div class="level-section">
+  <div class="section-header">
+    <i class="section-header__icon fa-solid fa-ghost"></i>
+    {{localize "PF2E_LEVELER.ANIMIST.APPARITIONS"}} ({{attunementSlots}})
+  </div>
+  <div class="level-section__body">
+    {{#each apparitionSlots}}
+    <select class="skill-select" data-action="selectApparition" data-slot="{{@index}}">
+      <option value="">{{localize "PF2E_LEVELER.UI.UNSET"}}</option>
+      {{#each ../availableApparitions}}
+      <option value="{{this.slug}}" {{#if (eq this.slug ../selectedSlug)}}selected{{/if}}>
+        {{localize this.nameKey}}
+      </option>
+      {{/each}}
+    </select>
+    {{/each}}
+  </div>
+</div>
+{{/if}}

@@ -1,0 +1,47 @@
+{{#if feat}}
+  <div class='feat-slot feat-slot--filled'>
+    <img
+      class='feat-slot__icon'
+      src='{{feat.img}}'
+      alt=''
+      data-action='viewFeat'
+      data-uuid='{{feat.uuid}}'
+    />
+    <span
+      class='feat-slot__name'
+      data-action='viewFeat'
+      data-uuid='{{feat.uuid}}'
+    >{{feat.name}}</span>
+    <span class='feat-slot__level'>Lvl {{feat.level}}</span>
+    <i
+      class='feat-slot__change fa-solid fa-pen-to-square'
+      data-action='openFeatPicker'
+      data-category='{{category}}'
+      data-level='{{level}}'
+      data-tooltip='Change'
+    ></i>
+    <i
+      class='feat-slot__clear fa-solid fa-xmark'
+      data-action='clearFeat'
+      data-category='{{category}}'
+      data-level='{{level}}'
+      data-tooltip='Remove'
+    ></i>
+  </div>
+  {{#if feat.manualSpellNote}}
+  <div class='feat-slot__note'>
+    <i class='fa-solid fa-circle-info'></i>
+    {{localize 'PF2E_LEVELER.UI.MANUAL_SPELL_NOTE'}}
+  </div>
+  {{/if}}
+{{else}}
+  <div
+    class='feat-slot feat-slot--empty'
+    data-action='openFeatPicker'
+    data-category='{{category}}'
+    data-level='{{level}}'
+  >
+    <i class='fa-solid fa-plus' style='opacity: 0.4;'></i>
+    <span class='feat-slot__name'>{{localize 'PF2E_LEVELER.UI.UNSET'}}</span>
+  </div>
+{{/if}}

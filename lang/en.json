@@ -1,0 +1,249 @@
+{
+  "PF2E_LEVELER": {
+    "MODULE_TITLE": "PF2e Leveler",
+    "UI": {
+      "OPEN_PLANNER": "Plan Levels",
+      "LEVEL": "Level {level}",
+      "COMPLETE": "Complete",
+      "WARNING": "Has Warnings",
+      "INCOMPLETE": "Incomplete",
+      "EMPTY": "No Choices",
+      "NO_PLAN": "No plan created yet. Select a class to begin.",
+      "NO_CLASS": "Assign a class to your character to start planning.",
+      "UNSUPPORTED_CLASS": "{className} is not yet supported.",
+      "SAVE": "Save Plan",
+      "CLEAR": "Clear Plan",
+      "EXPORT": "Export Plan",
+      "IMPORT": "Import Plan",
+      "CONFIRM_CLEAR": "Are you sure you want to clear this plan? All selections will be lost.",
+      "SELECT_CLASS": "Select Class",
+      "SELECT_SUBCLASS": "Select Subclass",
+      "APPLY": "Apply Selections",
+      "CONFIRM_APPLY_TITLE": "Apply Level-Up Plan",
+      "CONFIRM_APPLY": "Apply planned selections for level {level}?",
+      "UNSET": "Click to select",
+      "PLANNED": "Planned",
+      "MANUAL_SPELL_NOTE": "This feat grants a focus spell — you'll need to choose which spell on your character sheet after applying.",
+      "APPLIED": "Applied"
+    },
+    "SECTIONS": {
+      "CLASS_FEATURES": "Class Features",
+      "ABILITY_BOOSTS": "Ability Boosts",
+      "CLASS_FEAT": "Class Feat",
+      "SKILL_FEAT": "Skill Feat",
+      "GENERAL_FEAT": "General Feat",
+      "ANCESTRY_FEAT": "Ancestry Feat",
+      "SKILL_INCREASE": "Skill Increase",
+      "ARCHETYPE_FEAT": "Free Archetype Feat",
+      "MYTHIC_FEAT": "Mythic Feat",
+      "SPELLCASTING": "Spellcasting",
+      "ABP_POTENCY": "Skill Potency (ABP)",
+      "CLASS_SPECIFIC": "Class Options"
+    },
+    "FEAT_PICKER": {
+      "TITLE": "Select Feat",
+      "SEARCH": "Search feats...",
+      "NO_RESULTS": "No feats found",
+      "FILTER_LEVEL": "Max Level",
+      "FILTER_RARITY": "Rarity",
+      "SORT": "Sort",
+      "PREREQUISITES": "Prerequisites",
+      "PREREQ_MET": "Prerequisite met",
+      "PREREQ_UNMET": "Prerequisite not met",
+      "PREREQ_UNKNOWN": "Cannot verify prerequisite",
+      "SEND_TO_CHAT": "Send to Chat",
+      "SELECT": "Select",
+      "ELIGIBLE_ONLY": "Eligible Only",
+      "HIDE_UNMET": "Hide feats with unmet prerequisites",
+      "SHOW_ARCHETYPE": "Show Archetype Feats",
+      "HIDE_SKILL_FEATS": "Hide Skill Feats"
+    },
+    "BOOSTS": {
+      "TITLE": "Choose {count} Ability Boosts",
+      "CURRENT": "Current: +{mod}",
+      "PARTIAL": "Partial boost (+0.5)",
+      "ALREADY_SELECTED": "Already boosted"
+    },
+    "SKILLS": {
+      "TITLE": "Choose Skill Increase",
+      "UNTRAINED": "Untrained",
+      "TRAINED": "Trained",
+      "EXPERT": "Expert",
+      "MASTER": "Master",
+      "LEGENDARY": "Legendary",
+      "MAX_RANK": "Max rank for this level"
+    },
+    "SPELLS": {
+      "RANK": "Rank",
+      "SLOTS": "Slots",
+      "NEW_RANK": "New: {rank}-rank spells!",
+      "ATTUNEMENT_SLOTS": "{count} attunement slots",
+      "FOCUS_POOL": "Focus pool: {count}",
+      "ADD": "Add spell",
+      "PLANNED": "Planned Spells",
+      "SEARCH": "Search spells..."
+    },
+    "CREATION": {
+      "TITLE": "Character Creation",
+      "BUTTON": "Create Character",
+      "SEARCH": "Search...",
+      "CHANGE": "Change",
+      "BACK": "Back",
+      "NEXT": "Next",
+      "CREATE": "Create Character",
+      "CONFIRM_TITLE": "Create Character",
+      "CONFIRM_BODY": "Apply all selections to this character? This will add ancestry, heritage, background, class, feats, and other choices.",
+      "CREATION_COMPLETE": "Character created successfully!",
+      "BOOSTS_HINT": "Choose 4 different ability scores to boost.",
+      "SKILLS_HINT": "Choose {count} additional skills to train.",
+      "SPELLS_HINT": "Select your initial spells.",
+      "AUTO_TRAINED": "Class",
+      "PENDING_TITLE": "Additional Choices After Creation",
+      "PENDING_HINT": "The PF2e system will prompt you with the following choices after your character is created:",
+      "STEPS": {
+        "ANCESTRY": "Ancestry",
+        "HERITAGE": "Heritage",
+        "BACKGROUND": "Background",
+        "CLASS": "Class",
+        "SUBCLASS": "Subclass",
+        "BOOSTS": "Ability Boosts",
+        "SKILLS": "Skills",
+        "FEATS": "Feats",
+        "SPELLS": "Spells",
+        "SUMMARY": "Summary"
+      }
+    },
+    "ABP": {
+      "NEW_POTENCY": "New +1 skill potency",
+      "UPGRADE_TO_2": "Upgrade a skill potency to +2",
+      "UPGRADE_TO_3": "Upgrade a skill potency to +3",
+      "NOTE": "Skill potency bonuses are applied automatically by the ABP system when you select skills in the character sheet."
+    },
+    "REMINDERS": {
+      "TITLE": "Action Required",
+      "HEADER": "{actorName} (level {level}) has selections that need manual action:",
+      "OK": "Got it"
+    },
+    "MESSAGES": {
+      "GLOBAL_HEADER": "{actorName} has reached level {targetLevel}!",
+      "FEATS_SELECTED": "Feats Selected:",
+      "NO_FEATS": "None",
+      "SKILL_INCREASE": "Skill Increase:",
+      "BOOSTS_APPLIED": "Ability Boosts: {boosts}",
+      "SPELLS_ADDED": "Spells Added:"
+    },
+    "ALCHEMIST": {
+      "NAME": "Alchemist",
+      "RESEARCH_FIELD": "Research Field",
+      "SUBCLASS": {
+        "BOMBER": "Bomber",
+        "CHIRURGEON": "Chirurgeon",
+        "MUTAGENIST": "Mutagenist",
+        "TOXICOLOGIST": "Toxicologist"
+      }
+    },
+    "ANIMIST": {
+      "NAME": "Animist",
+      "PRACTICE": "Animistic Practice",
+      "APPARITIONS": "Apparition Attunement",
+      "PRIMARY_APPARITION": "Primary Apparition",
+      "SUBCLASS": {
+        "LITURGIST": "Liturgist",
+        "MEDIUM": "Medium",
+        "SEER": "Seer",
+        "SHAMAN": "Shaman"
+      },
+      "APPARITION": {
+        "CRAFTER": "Crafter in the Vault",
+        "CUSTODIAN": "Custodian of Groves and Gardens",
+        "ECHO": "Echo of Lost Moments",
+        "IMPOSTOR": "Impostor in Hidden Places",
+        "LURKER": "Lurker in Devouring Dark",
+        "MONARCH": "Monarch of the Fey Courts",
+        "REVELER": "Reveler in Lost Glee",
+        "STALKER": "Stalker in Darkened Boughs",
+        "STEWARD": "Steward of Stone and Fire",
+        "VANGUARD": "Vanguard of Roaring Waters",
+        "WITNESS": "Witness to Ancient Battles",
+        "SHEPHERD": "Shepherd of Errant Winds",
+        "SPEAKER": "Speaker in Sibilance"
+      }
+    },
+    "SORCERER": {
+      "NAME": "Sorcerer"
+    },
+    "BARBARIAN": { "NAME": "Barbarian" },
+    "BARD": { "NAME": "Bard" },
+    "CHAMPION": { "NAME": "Champion" },
+    "CLERIC": { "NAME": "Cleric" },
+    "COMMANDER": { "NAME": "Commander" },
+    "DRUID": { "NAME": "Druid" },
+    "EXEMPLAR": { "NAME": "Exemplar" },
+    "FIGHTER": { "NAME": "Fighter" },
+    "GUARDIAN": { "NAME": "Guardian" },
+    "GUNSLINGER": { "NAME": "Gunslinger" },
+    "INVENTOR": { "NAME": "Inventor" },
+    "INVESTIGATOR": { "NAME": "Investigator" },
+    "KINETICIST": { "NAME": "Kineticist" },
+    "MAGUS": { "NAME": "Magus" },
+    "MONK": { "NAME": "Monk" },
+    "ORACLE": { "NAME": "Oracle" },
+    "PSYCHIC": { "NAME": "Psychic" },
+    "RANGER": { "NAME": "Ranger" },
+    "ROGUE": { "NAME": "Rogue" },
+    "SUMMONER": { "NAME": "Summoner" },
+    "SWASHBUCKLER": { "NAME": "Swashbuckler" },
+    "THAUMATURGE": { "NAME": "Thaumaturge" },
+    "WITCH": { "NAME": "Witch" },
+    "WIZARD": { "NAME": "Wizard" },
+    "PREREQUISITES": {
+      "MET": "All prerequisites met",
+      "UNMET": "Prerequisites not met",
+      "DETAILS": "Prerequisites: {details}"
+    },
+    "NOTIFICATIONS": {
+      "APPLIED": "{actorName} level {level} selections applied successfully",
+      "APPLY_FAILED": "Failed to apply selections: {error}",
+      "NO_PLAN_FOR_LEVEL": "No plan found for level {level}",
+      "PLAN_SAVED": "Level-up plan saved",
+      "PLAN_CLEARED": "Level-up plan cleared",
+      "PLAN_EXPORTED": "Plan exported successfully",
+      "PLAN_IMPORTED": "Plan imported successfully",
+      "IMPORT_FAILED": "Failed to import plan: {error}",
+      "INVALID_BOOST_COUNT": "Please select exactly {count} ability boosts",
+      "MISSING_CLASS": "Character must have a class assigned",
+      "LEVEL_UP_START": "{actorName} is leveling up to {targetLevel}...",
+      "LEVEL_UP_COMPLETE": "{actorName} level-up complete!"
+    },
+    "SETTINGS": {
+      "SHOW_BUTTON": {
+        "NAME": "Show Plan Button",
+        "HINT": "Show the 'Plan Levels' button on character sheets"
+      },
+      "AUTO_APPLY": {
+        "NAME": "Auto-Apply on Level Up",
+        "HINT": "Automatically prompt to apply planned selections when a character levels up"
+      },
+      "SHOW_PREREQUISITES": {
+        "NAME": "Show Prerequisites",
+        "HINT": "Show prerequisite validation status on feats in the picker"
+      },
+      "HIDE_UNCOMMON": {
+        "NAME": "Hide Uncommon Feats",
+        "HINT": "Hide uncommon and rarer feats from the feat picker by default"
+      },
+      "FEAT_SORT": {
+        "NAME": "Default Feat Sort",
+        "HINT": "How to sort feats in the feat picker by default",
+        "LEVEL_DESC": "Level (High to Low)",
+        "LEVEL_ASC": "Level (Low to High)",
+        "ALPHA_ASC": "Alphabetical (A-Z)",
+        "ALPHA_DESC": "Alphabetical (Z-A)"
+      },
+      "ADDITIONAL_COMPENDIUMS": {
+        "NAME": "Additional Feat Compendiums",
+        "HINT": "Comma-separated list of additional compendium keys to search for feats (e.g. 'my-module.my-feats')"
+      }
+    }
+  }
+}

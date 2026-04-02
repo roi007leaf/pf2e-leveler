@@ -1,0 +1,38 @@
+<div class="pf2e-leveler feat-picker">
+  <div class="feat-picker__filters">
+    <input type="text" class="feat-picker__search"
+           placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
+           data-action="searchSpells">
+  </div>
+
+  <div class="feat-list spell-list">
+    {{#each spells}}
+    <div class="feat-option spell-option" data-uuid="{{this.uuid}}">
+      <img class="feat-option__img" src="{{this.img}}" alt="">
+      <div class="feat-option__info">
+        <div class="feat-option__header">
+          <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
+          <span class="feat-option__level">Rank {{this.system.level.value}}</span>
+        </div>
+        <div class="feat-option__traits">
+          {{#each this.system.traits.value}}
+          <span class="tag tag--muted">{{this}}</span>
+          {{/each}}
+          {{#if (notEqual this.system.traits.rarity "common")}}
+          <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="feat-option__actions">
+        <button type="button" class="feat-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
+          {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+        </button>
+      </div>
+    </div>
+    {{else}}
+    <div class="planner-empty" style="padding: 2rem;">
+      <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+    </div>
+    {{/each}}
+  </div>
+</div>

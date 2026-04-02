@@ -1,0 +1,65 @@
+<div class="pf2e-leveler feat-picker">
+  <div class="feat-picker__filters">
+    <input type="text" class="feat-picker__search"
+           placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEARCH'}}"
+           data-action="searchFeats">
+    <select data-action="sortFeats" style="width: auto;">
+      <option value="LEVEL_DESC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
+      <option value="LEVEL_ASC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_ASC"}}</option>
+      <option value="ALPHA_ASC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_ASC"}}</option>
+      <option value="ALPHA_DESC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_DESC"}}</option>
+    </select>
+    <button type="button" class="feat-picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
+      <i class="fa-solid fa-filter"></i>
+      {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
+    </button>
+  </div>
+
+  <div class="feat-list">
+    {{#each feats}}
+    <div class="feat-option {{#if this.prerequisitesFailed}}feat-option--dimmed{{/if}}"
+         data-uuid="{{this.uuid}}">
+      <img class="feat-option__img" src="{{this.img}}" alt="">
+      <div class="feat-option__info">
+        <div class="feat-option__header">
+          <span class="feat-option__name" data-action="viewFeat">{{this.name}}</span>
+          <span class="feat-option__level">Lvl {{this.system.level.value}}</span>
+        </div>
+        <div class="feat-option__traits">
+          {{#each this.system.traits.value}}
+          <span class="tag tag--muted">{{this}}</span>
+          {{/each}}
+          {{#if (notEqual this.system.traits.rarity "common")}}
+          <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
+          {{/if}}
+        </div>
+        {{#if this.prereqResults.length}}
+        <div class="prereq-tags">
+          {{#each this.prereqResults}}
+          {{#if (eq this.met true)}}
+            <span class="tag tag--success" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-check"></i> {{titleCase this.text}}</span>
+          {{else if (eq this.met false)}}
+            <span class="tag tag--error" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-xmark"></i> {{titleCase this.text}}</span>
+          {{else}}
+            <span class="tag tag--muted" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-question"></i> {{titleCase this.text}}</span>
+          {{/if}}
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+      <div class="feat-option__actions">
+        <button type="button" class="feat-option__chat-btn" data-action="sendToChat" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEND_TO_CHAT'}}">
+          <i class="fa-solid fa-comment"></i>
+        </button>
+        <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.prerequisitesFailed}}disabled{{/if}}>
+          {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+        </button>
+      </div>
+    </div>
+    {{else}}
+    <div class="planner-empty" style="padding: 2rem;">
+      <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+    </div>
+    {{/each}}
+  </div>
+</div>

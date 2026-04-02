@@ -1,0 +1,18 @@
+{{#if showResearchField}}
+<div class="level-section">
+  <div class="section-header">
+    <i class="section-header__icon fa-solid fa-flask"></i>
+    {{localize "PF2E_LEVELER.ALCHEMIST.RESEARCH_FIELD"}}
+  </div>
+  <div class="level-section__body">
+    <select class="skill-select" data-action="selectSubclass">
+      <option value="">{{localize "PF2E_LEVELER.UI.SELECT_SUBCLASS"}}</option>
+      {{#each subclasses}}
+      <option value="{{this.slug}}" {{#if (eq this.slug ../currentSubclass)}}selected{{/if}}>
+        {{localize this.nameKey}}
+      </option>
+      {{/each}}
+    </select>
+  </div>
+</div>
+{{/if}}

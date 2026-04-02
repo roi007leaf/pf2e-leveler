@@ -1,0 +1,41 @@
+export const THAUMATURGE = {
+  slug: 'thaumaturge',
+  nameKey: 'PF2E_LEVELER.THAUMATURGE.NAME',
+  compendiumUuid: 'Compendium.pf2e.classes.Item.Thaumaturge',
+  keyAbility: ['cha'],
+  hp: 8,
+
+  featSchedule: {
+    class: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    general: [3, 7, 11, 15, 19],
+    ancestry: [5, 9, 13, 17],
+  },
+  skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+  abilityBoostSchedule: [5, 10, 15, 20],
+
+  classFeatures: [
+    { level: 3, name: 'Lightning Reflexes', key: 'lightning-reflexes' },
+    { level: 5, name: 'Second Implement', key: 'second-implement' },
+    { level: 5, name: 'Weapon Expertise', key: 'weapon-expertise' },
+    { level: 7, name: 'Disciplined Mind', key: 'disciplined-mind' },
+    { level: 7, name: 'Implement Adept', key: 'implement-adept' },
+    { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
+    { level: 9, name: 'Intensify Vulnerability', key: 'intensify-vulnerability' },
+    { level: 9, name: 'Perception Expertise', key: 'perception-expertise' },
+    { level: 9, name: 'Thaumaturgic Expertise', key: 'thaumaturgic-expertise' },
+    { level: 11, name: 'Medium Armor Expertise', key: 'medium-armor-expertise' },
+    { level: 11, name: 'Second Adept', key: 'second-adept' },
+    { level: 13, name: 'Perfected Mind', key: 'perfected-mind' },
+    { level: 13, name: 'Weapon Mastery', key: 'weapon-mastery' },
+    { level: 15, name: 'Earned Resilience', key: 'earned-resilience' },
+    { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },
+    { level: 15, name: 'Third Implement', key: 'third-implement' },
+    { level: 17, name: 'Implement Paragon', key: 'implement-paragon' },
+    { level: 17, name: 'Thaumaturgic Mastery', key: 'thaumaturgic-mastery' },
+    { level: 19, name: 'Medium Armor Mastery', key: 'medium-armor-mastery' },
+    { level: 19, name: 'Unlimited Esoterica', key: 'unlimited-esoterica' },
+  ],
+
+  spellcasting: null,
+};

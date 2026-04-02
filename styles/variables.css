@@ -1,0 +1,42 @@
+:root {
+  --leveler-accent: #b0a08a;
+  --leveler-accent-light: #c4b49e;
+  --leveler-accent-dim: rgba(176, 160, 138, 0.15);
+  --leveler-success: #2e7d32;
+  --leveler-warning: #f57f17;
+  --leveler-error: #c62828;
+  --leveler-info: #1565c0;
+
+  --leveler-bg: #1e1e1e;
+  --leveler-bg-light: #262626;
+  --leveler-bg-surface: #2e2e2e;
+  --leveler-bg-hover: #383838;
+
+  --leveler-text: #e0e0e0;
+  --leveler-text-muted: #9e9e9e;
+  --leveler-text-bright: #ffffff;
+
+  --leveler-border: #3a3a3a;
+  --leveler-border-light: #4a4a4a;
+
+  --leveler-sidebar-width: 220px;
+  --leveler-spacing-xs: 4px;
+  --leveler-spacing-sm: 8px;
+  --leveler-spacing-md: 12px;
+  --leveler-spacing-lg: 16px;
+  --leveler-spacing-xl: 24px;
+
+  --leveler-radius-sm: 4px;
+  --leveler-radius-md: 6px;
+  --leveler-radius-lg: 8px;
+
+  --leveler-font-sm: 0.75rem;
+  --leveler-font-md: 0.875rem;
+  --leveler-font-lg: 1rem;
+
+  --leveler-rank-untrained: #757575;
+  --leveler-rank-trained: #5078c0;
+  --leveler-rank-expert: #8b5cf6;
+  --leveler-rank-master: #d4a017;
+  --leveler-rank-legendary: #c62828;
+}

@@ -1,0 +1,42 @@
+export const INVENTOR = {
+  slug: 'inventor',
+  nameKey: 'PF2E_LEVELER.INVENTOR.NAME',
+  compendiumUuid: 'Compendium.pf2e.classes.Item.Inventor',
+  keyAbility: ['int'],
+  hp: 8,
+
+  featSchedule: {
+    class: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    general: [3, 7, 11, 15, 19],
+    ancestry: [5, 9, 13, 17],
+  },
+  skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+  abilityBoostSchedule: [5, 10, 15, 20],
+
+  classFeatures: [
+    { level: 3, name: 'Expert Overdrive', key: 'expert-overdrive' },
+    { level: 3, name: 'Reconfigure', key: 'reconfigure' },
+    { level: 5, name: 'Inventor Weapon Expertise', key: 'inventor-weapon-expertise' },
+    { level: 7, name: 'Breakthrough Innovation', key: 'breakthrough-innovation' },
+    { level: 7, name: 'Lightning Reflexes', key: 'lightning-reflexes' },
+    { level: 7, name: 'Master Overdrive', key: 'master-overdrive' },
+    { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
+    { level: 9, name: 'Inventive Expertise', key: 'inventive-expertise' },
+    { level: 9, name: 'Offensive Boost', key: 'offensive-boost' },
+    { level: 11, name: 'Medium Armor Expertise', key: 'medium-armor-expertise' },
+    { level: 11, name: 'Resolve', key: 'resolve' },
+    { level: 13, name: 'Alertness', key: 'alertness' },
+    { level: 13, name: 'Complete Reconfiguration', key: 'complete-reconfiguration' },
+    { level: 13, name: 'Inventor Weapon Mastery', key: 'inventor-weapon-mastery' },
+    { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },
+    { level: 15, name: 'Legendary Overdrive', key: 'legendary-overdrive' },
+    { level: 15, name: 'Revolutionary Innovation', key: 'revolutionary-innovation' },
+    { level: 17, name: 'Inventive Mastery', key: 'inventive-mastery' },
+    { level: 17, name: 'Juggernaut', key: 'juggernaut' },
+    { level: 19, name: 'Infinite Invention', key: 'infinite-invention' },
+    { level: 19, name: 'Medium Armor Mastery', key: 'medium-armor-mastery' },
+  ],
+
+  spellcasting: null,
+};

@@ -1,0 +1,41 @@
+export const KINETICIST = {
+  slug: 'kineticist',
+  nameKey: 'PF2E_LEVELER.KINETICIST.NAME',
+  compendiumUuid: 'Compendium.pf2e.classes.Item.Kineticist',
+  keyAbility: ['con'],
+  hp: 8,
+
+  featSchedule: {
+    class: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    general: [3, 7, 11, 15, 19],
+    ancestry: [5, 9, 13, 17],
+  },
+  skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+  abilityBoostSchedule: [5, 10, 15, 20],
+
+  classFeatures: [
+    { level: 3, name: 'Extract Element', key: 'extract-element' },
+    { level: 3, name: 'Will Expertise', key: 'will-expertise' },
+    { level: 5, name: "Gate's Threshold", key: 'gates-threshold' },
+    { level: 7, name: 'Kinetic Durability', key: 'kinetic-durability' },
+    { level: 7, name: 'Kinetic Expertise', key: 'kinetic-expertise' },
+    { level: 9, name: "Gate's Threshold", key: 'gates-threshold' },
+    { level: 9, name: 'Perception Expertise', key: 'perception-expertise' },
+    { level: 11, name: 'Kinetic Quickness', key: 'kinetic-quickness' },
+    { level: 11, name: 'Reflow Elements', key: 'reflow-elements' },
+    { level: 11, name: 'Weapon Expertise', key: 'weapon-expertise' },
+    { level: 13, name: "Gate's Threshold", key: 'gates-threshold' },
+    { level: 13, name: 'Light Armor Expertise', key: 'light-armor-expertise' },
+    { level: 13, name: 'Weapon Specialization', key: 'weapon-specialization' },
+    { level: 15, name: 'Greater Kinetic Durability', key: 'greater-kinetic-durability' },
+    { level: 15, name: 'Kinetic Mastery', key: 'kinetic-mastery' },
+    { level: 17, name: 'Double Reflow', key: 'double-reflow' },
+    { level: 17, name: "Gate's Threshold", key: 'gates-threshold' },
+    { level: 19, name: 'Final Gate', key: 'final-gate' },
+    { level: 19, name: 'Kinetic Legend', key: 'kinetic-legend' },
+    { level: 19, name: 'Light Armor Mastery', key: 'light-armor-mastery' },
+  ],
+
+  spellcasting: null,
+};
