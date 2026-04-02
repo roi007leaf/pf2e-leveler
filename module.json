@@ -30,7 +30,6 @@
       "flags": {}
     }
   ],
-  "url": "https://github.com/roi007leaf/pf2e-leveler",
   "flags": {
     "hotReload": {
       "extensions": ["css", "hbs", "json"],
@@ -48,5 +47,8 @@
         }
       }
     ]
-  }
+  },
+  "url": "#{URL}#",
+  "manifest": "#{MANIFEST}#",
+  "download": "#{DOWNLOAD}#"
 }

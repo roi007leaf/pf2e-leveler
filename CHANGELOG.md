@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.0.1
+
+### Added
+
+- Dual Class variant rule support (second class feat slot at even levels)
+- Proficiency without Level variant detection
+- Stamina variant detection
+- Gradual Ability Boosts variant support in the level-up planner
+- CURRENT tag on the sidebar for the character's active level
+- GitHub Actions release pipeline and Husky pre-commit hooks
+
+### Fixed
+
+- Ability boosts now correctly apply to ancestry/background items per PF2e system format
+- Spellcasting entry tradition resolved from subclass (e.g. Diabolic Sorcerer → divine)
+- Spell slot max/value set correctly on spellcasting entries
+- Level-up auto-apply hook fixed (actor already updated when hook fires)
+- Gradual boosts stored in milestone keys (5/10/15/20) not individual level keys
+- Fighter and other martial classes now correctly show level 1 class feat in character creation
+- Ancestry/class feats filtered to level 1 in character creation
+- Pending ChoiceSet prompts filtered to level 1 features only
+- Skills step completion checks against required count, not just > 0
+- Spells step completion checks both cantrips and rank 1 counts
+- Free Archetype feat picker crash (proficiency matcher null check)
+- Chat messages whispered to GM and character owner only
+
 ## 1.0.0 - Initial Release
 
 ### Character Creation Wizard

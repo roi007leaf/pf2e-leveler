@@ -15,15 +15,15 @@ export function isMythicEnabled() {
 }
 
 export function isProficiencyWithoutLevelEnabled() {
-  return game.settings.get('pf2e', 'proficiencyVariant') === 'ProficiencyWithoutLevel';
+  try { return game.settings.get('pf2e', 'proficiencyVariant') === 'ProficiencyWithoutLevel'; } catch { return false; }
 }
 
 export function isStaminaEnabled() {
-  return game.settings.get('pf2e', 'staminaVariant') > 0;
+  try { return game.settings.get('pf2e', 'staminaVariant') > 0; } catch { return false; }
 }
 
 export function isDualClassEnabled() {
-  return game.settings.get('pf2e', 'dualClassVariant');
+  try { return game.settings.get('pf2e', 'dualClassVariant'); } catch { return false; }
 }
 
 export function getMaxSkillRank(level) {
