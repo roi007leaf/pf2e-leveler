@@ -207,11 +207,11 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   background: var(--leveler-bg-surface);
   border: 1px solid var(--leveler-border);
   border-radius: var(--leveler-radius-md);
-  padding: 4px 8px;
+  padding: 6px 10px;
   margin-bottom: var(--leveler-spacing-xs);
 }
 
@@ -221,16 +221,19 @@
   background: none;
   border: none;
   color: var(--leveler-text);
-  font-size: var(--leveler-font-sm);
+  font-size: var(--leveler-font-md);
   outline: none;
-  padding: 2px 0;
+  padding: 4px 0;
 }
 
 .pf2e-leveler .wizard-trait-chip {
   cursor: default;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+  font-size: var(--leveler-font-sm);
+  padding: 2px 8px;
+  color: var(--leveler-text-bright);
 }
 
 .pf2e-leveler .wizard-trait-chip i {
