@@ -284,9 +284,9 @@
 }
 
 .pf2e-leveler .wizard-item__img {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--leveler-radius-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--leveler-radius-md);
   object-fit: cover;
   flex-shrink: 0;
 }

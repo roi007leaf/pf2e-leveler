@@ -85,6 +85,9 @@ function registerHandlebarsHelpers() {
   Handlebars.registerHelper('json', (obj) => {
     return JSON.stringify(obj ?? null);
   });
+  Handlebars.registerHelper('signed', (num) => {
+    return num >= 0 ? `+${num}` : `${num}`;
+  });
   Handlebars.registerHelper('format', (key, options) => {
     return game.i18n.format(key, options.hash);
   });
