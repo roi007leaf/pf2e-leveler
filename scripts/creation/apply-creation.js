@@ -196,6 +196,42 @@ async function applySpellcasting(actor, data) {
     await actor.createEmbeddedDocuments('Item', [spellData]);
     debug(`Added spell: ${spellEntry.name}`);
   }
+
+  await addTraditionSpells(actor, entry, classDef, data);
+}
+
+async function addTraditionSpells(actor, entry, classDef, data) {
+  if (!classDef?.spellcasting) return;
+  const spellbookClasses = ['wizard', 'witch', 'magus'];
+  if (classDef.spellcasting.type !== 'prepared' || spellbookClasses.includes(classDef.slug)) return;
+
+  const tradition = resolveCreationTradition(classDef.spellcasting.tradition, data.subclass);
+  const pack = game.packs.get('pf2e.spells-srd');
+  if (!pack) return;
+
+  const index = await pack.getDocuments();
+  const existingUuids = new Set(actor.items?.filter((i) => i.type === 'spell').map((i) => i.sourceId ?? i.flags?.core?.sourceId) ?? []);
+
+  const toAdd = [];
+  for (const spell of index) {
+    if (existingUuids.has(spell.uuid)) continue;
+    const traits = spell.system?.traits?.value ?? [];
+    const traditions = spell.system?.traits?.traditions ?? [];
+    const rank = spell.system?.level?.value ?? 0;
+    const isCantrip = traits.includes('cantrip');
+    if (!isCantrip && rank > 1) continue;
+    if (traditions.length > 0 && !traditions.includes(tradition)) continue;
+    if (traditions.length === 0 && !traits.includes(tradition)) continue;
+
+    const spellData = foundry.utils.deepClone(spell.toObject());
+    spellData.system.location = { value: entry.id };
+    toAdd.push(spellData);
+  }
+
+  if (toAdd.length > 0) {
+    await actor.createEmbeddedDocuments('Item', toAdd);
+    debug(`Added ${toAdd.length} ${tradition} tradition spells for ${classDef.slug}`);
+  }
 }
 
 function resolveCreationTradition(tradition, subclass) {
