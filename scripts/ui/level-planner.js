@@ -273,17 +273,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const apparitionContext = this._buildApparitionContext(classDef, level);
 
-    const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
+    const canSelectSpells = classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard';
 
     return {
       showSpells: true,
       spellTradition: classDef.spellcasting.tradition,
       spellType: classDef.spellcasting.type,
-      isSpontaneous,
+      isSpontaneous: canSelectSpells,
       spellSlots,
       hasNewRank,
       newRank,
-      plannedSpells: isSpontaneous ? plannedSpells : [],
+      plannedSpells: canSelectSpells ? plannedSpells : [],
       highestRank: this._getHighestRank(currentSlots),
       ...apparitionContext,
     };

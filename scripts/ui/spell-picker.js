@@ -53,8 +53,15 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
 
+    const allTraits = new Set();
+    for (const s of this.allSpells) {
+      for (const t of (s.system?.traits?.value ?? [])) allTraits.add(t);
+    }
+    const traitOptions = [...allTraits].filter((t) => t !== 'cantrip').sort();
+
     return {
       spells: this.filteredSpells,
+      traitOptions,
       rank: this.rank,
       tradition: this.tradition,
     };
@@ -70,6 +77,39 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         this._updateList();
       });
     }
+
+    const traitInput = el.querySelector('[data-action="traitInput"]');
+    if (traitInput) {
+      const chipsContainer = el.querySelector('.wizard-trait-chips[data-target="spells"]');
+      traitInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ',') return;
+        e.preventDefault();
+        const trait = traitInput.value.trim().toLowerCase();
+        if (!trait) return;
+        traitInput.value = '';
+        const chip = document.createElement('span');
+        chip.className = 'wizard-trait-chip tag tag--info tag--tiny';
+        chip.dataset.trait = trait;
+        chip.innerHTML = `${trait} <i class="fa-solid fa-xmark"></i>`;
+        chip.querySelector('i').addEventListener('click', () => { chip.remove(); applyTraitFilter(el); });
+        chipsContainer.appendChild(chip);
+        applyTraitFilter(el);
+      });
+    }
+
+    el.querySelectorAll('[data-action="toggleRarity"]').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const hidden = new Set();
+        el.querySelectorAll('[data-action="toggleRarity"]').forEach((input) => {
+          if (!input.checked) hidden.add(input.dataset.rarity);
+        });
+        el.querySelectorAll('.spell-option[data-rarity]').forEach((item) => {
+          const rarity = item.dataset.rarity || 'common';
+          if (hidden.has(rarity)) item.style.display = 'none';
+          else if (item.style.display === 'none') item.style.display = '';
+        });
+      });
+    });
 
     const spellList = el.querySelector('.spell-list');
     if (spellList) {
@@ -134,6 +174,15 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _capitalize(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
+}
+
+function applyTraitFilter(el) {
+  const chips = [...el.querySelectorAll('.wizard-trait-chips[data-target="spells"] .wizard-trait-chip')].map((c) => c.dataset.trait);
+  el.querySelectorAll('.spell-option').forEach((item) => {
+    if (chips.length === 0) { item.style.display = ''; return; }
+    const traits = item.dataset.traits?.toLowerCase() ?? '';
+    item.style.display = chips.every((t) => traits.includes(t)) ? '' : 'none';
+  });
 }
 
 async function loadSpells() {

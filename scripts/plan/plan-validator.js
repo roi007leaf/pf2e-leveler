@@ -114,7 +114,7 @@ function validateFeatSlot(feats, label) {
 
 function validateSpells(levelData, level, classDef, actor) {
   if (!classDef?.spellcasting?.slots) return null;
-  if (classDef.spellcasting.type === 'prepared') return null;
+  if (classDef.spellcasting.type !== 'spontaneous' && classDef.slug !== 'wizard') return null;
 
   const currentSlots = classDef.spellcasting.slots[level];
   if (!currentSlots) return null;

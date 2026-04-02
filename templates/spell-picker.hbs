@@ -4,10 +4,18 @@
            placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
            data-action="searchSpells">
   </div>
+  <div style="display: flex; align-items: center; gap: var(--leveler-spacing-md); padding: 0 var(--leveler-spacing-md); margin-bottom: var(--leveler-spacing-xs);">
+    <div class="wizard-trait-input" style="flex: 1;">
+      <span class="wizard-trait-chips" data-target="spells"></span>
+      <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="spells" list="spell-trait-options">
+    </div>
+    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+  </div>
 
   <div class="feat-list spell-list">
     {{#each spells}}
-    <div class="feat-option spell-option" data-uuid="{{this.uuid}}">
+    <div class="feat-option spell-option" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
       <img class="feat-option__img" src="{{this.img}}" alt="">
       <div class="feat-option__info">
         <div class="feat-option__header">
@@ -16,7 +24,7 @@
         </div>
         <div class="feat-option__traits">
           {{#each this.system.traits.value}}
-          <span class="tag tag--muted">{{this}}</span>
+          <span class="tag tag--muted" data-tooltip="{{titleCase this}}">{{this}}</span>
           {{/each}}
           {{#if (notEqual this.system.traits.rarity "common")}}
           <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
@@ -35,4 +43,10 @@
     </div>
     {{/each}}
   </div>
+
+  <datalist id="spell-trait-options">
+    {{#each traitOptions}}
+    <option value="{{this}}">
+    {{/each}}
+  </datalist>
 </div>

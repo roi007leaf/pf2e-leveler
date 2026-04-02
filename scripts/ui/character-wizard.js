@@ -74,7 +74,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   get visibleSteps() {
     return STEPS.filter((s) => {
       if (s === 'subclass') return this._hasSubclass();
-      if (s === 'spells') return this._isCaster();
+      if (s === 'spells') return this._needsSpellSelection();
       return true;
     });
   }
@@ -425,6 +425,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return !!classDef?.spellcasting;
   }
 
+  _needsSpellSelection() {
+    if (!this.data.class?.slug) return false;
+    const classDef = ClassRegistry.get(this.data.class.slug);
+    if (!classDef?.spellcasting) return false;
+    return classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard';
+  }
+
   async _hasClassFeatAtLevel1() {
     if (!this.data.class?.uuid) return false;
     const classItem = await fromUuid(this.data.class.uuid).catch(() => null);
@@ -477,7 +484,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'skills': return this.data.skills.length >= (this._cachedMaxSkills ?? 1);
       case 'feats': return !!this.data.ancestryFeat;
       case 'spells': {
-        if (!this._isCaster()) return true;
+        if (!this._needsSpellSelection()) return true;
         const mc = this._cachedMaxCantrips ?? 1;
         const mr = this._cachedMaxRank1 ?? 0;
         return this.data.spells.cantrips.length >= mc && (mr <= 0 || this.data.spells.rank1.length >= mr);
