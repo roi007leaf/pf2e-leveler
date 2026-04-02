@@ -160,7 +160,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-granted='{{json this.grantedSpells}}' data-skills='{{json this.grantedSkills}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-granted='{{json this.grantedSpells}}' data-skills='{{json this.grantedSkills}}' data-curriculum='{{json this.curriculum}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -335,13 +335,13 @@
       </div>
 
       {{#if (eq spellSubStep "cantrips")}}
-      {{#if grantedCantrip}}
+      {{#each grantedCantrips}}
       <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
-        <img class="feat-slot__icon" src="{{grantedCantrip.img}}" alt="" data-action="viewItem" data-uuid="{{grantedCantrip.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{grantedCantrip.uuid}}">{{grantedCantrip.name}}</span>
-        <span class="tag tag--success tag--tiny">{{data.subclass.name}}</span>
+        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
+        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+        <span class="tag tag--success tag--tiny">{{this.source}}</span>
       </div>
-      {{/if}}
+      {{/each}}
       {{#each selectedCantrips}}
       <div class="feat-slot feat-slot--filled">
         <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
@@ -378,13 +378,13 @@
       {{/if}}
 
       {{#if (eq spellSubStep "rank1")}}
-      {{#if grantedRank1}}
+      {{#each grantedRank1s}}
       <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
-        <img class="feat-slot__icon" src="{{grantedRank1.img}}" alt="" data-action="viewItem" data-uuid="{{grantedRank1.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{grantedRank1.uuid}}">{{grantedRank1.name}}</span>
-        <span class="tag tag--success tag--tiny">{{data.subclass.name}}</span>
+        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
+        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+        <span class="tag tag--success tag--tiny">{{this.source}}</span>
       </div>
-      {{/if}}
+      {{/each}}
       {{#each selectedRank1}}
       <div class="feat-slot feat-slot--filled">
         <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">

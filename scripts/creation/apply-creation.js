@@ -117,6 +117,17 @@ async function applySpellcasting(actor, data) {
   const granted = data.subclass?.grantedSpells;
   if (granted?.cantrip) grantedUuids.push(granted.cantrip);
   if (granted?.rank1) grantedUuids.push(granted.rank1);
+
+  const curriculum = data.subclass?.curriculum;
+  if (curriculum) {
+    for (const uuid of (curriculum[0] ?? [])) {
+      if (!grantedUuids.includes(uuid)) grantedUuids.push(uuid);
+    }
+    for (const uuid of (curriculum[1] ?? [])) {
+      if (!grantedUuids.includes(uuid)) grantedUuids.push(uuid);
+    }
+  }
+
   const grantedEntries = grantedUuids.map((uuid) => ({ uuid, name: 'Granted' }));
 
   const allSpells = [...grantedEntries, ...data.spells.cantrips, ...data.spells.rank1];

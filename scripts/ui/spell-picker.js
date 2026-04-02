@@ -32,6 +32,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   get title() {
     if (this.isCantrip) return `${this.actor.name} — Cantrips`;
+    if (this.rank === -1) return `${this.actor.name} — ${this._capitalize(this.tradition)} Spellbook`;
     const ordinal = this._ordinal(this.rank);
     return `${this.actor.name} — ${ordinal}-Rank ${this._capitalize(this.tradition)} Spells`;
   }
@@ -43,7 +44,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!this._matchesTradition(s)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');
         if (this.isCantrip) return isCantrip;
-        return s.system.level.value === this.rank && !isCantrip;
+        if (isCantrip) return false;
+        if (this.rank === -1) return s.system.level.value >= 1;
+        return s.system.level.value === this.rank;
       });
     }
 

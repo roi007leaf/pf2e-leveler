@@ -116,12 +116,20 @@ function validateSpells(levelData, level, classDef, actor) {
   if (!classDef?.spellcasting?.slots) return null;
   if (classDef.spellcasting.type !== 'spontaneous' && classDef.slug !== 'wizard') return null;
 
+  const planned = levelData.spells ?? [];
+
+  if (classDef.slug === 'wizard') {
+    if (planned.length < 2) {
+      return { severity: 'error', message: `${2 - planned.length} spellbook spell(s) not yet selected` };
+    }
+    return null;
+  }
+
   const currentSlots = classDef.spellcasting.slots[level];
   if (!currentSlots) return null;
 
   const prevSlots = classDef.spellcasting.slots[level - 1] ?? getActorSpellCounts(actor);
 
-  const planned = levelData.spells ?? [];
   let totalNewSlots = 0;
 
   for (const [rank, counts] of Object.entries(currentSlots)) {

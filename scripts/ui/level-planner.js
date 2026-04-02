@@ -274,12 +274,16 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const apparitionContext = this._buildApparitionContext(classDef, level);
 
     const canSelectSpells = classDef.spellcasting.type === 'spontaneous' || classDef.slug === 'wizard';
+    const isWizard = classDef.slug === 'wizard';
+    const wizardSpellbookCount = isWizard ? 2 : 0;
 
     return {
       showSpells: true,
       spellTradition: classDef.spellcasting.tradition,
       spellType: classDef.spellcasting.type,
       isSpontaneous: canSelectSpells,
+      isWizard,
+      wizardSpellbookCount,
       spellSlots,
       hasNewRank,
       newRank,
@@ -592,14 +596,15 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const tradition = this._resolveSpellTradition(classDef);
     const entryType = classDef.spellcasting.type === 'dual' ? 'animist' : 'primary';
+    const pickerRank = classDef.slug === 'wizard' && rank === 0 ? -1 : rank;
 
     import('./spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
         this.actor,
         tradition,
-        rank,
+        pickerRank,
         (spell) => {
-          const isCantrip = rank === 0;
+          const isCantrip = rank === 0 && pickerRank === 0;
           addLevelSpell(this.plan, this.selectedLevel, {
             uuid: spell.uuid,
             name: spell.name,

@@ -166,9 +166,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const tradition = btn.dataset.tradition || null;
         const grantedSpells = btn.dataset.granted ? JSON.parse(btn.dataset.granted) : null;
         const grantedSkills = btn.dataset.skills ? JSON.parse(btn.dataset.skills) : [];
+        const curriculum = btn.dataset.curriculum ? JSON.parse(btn.dataset.curriculum) : null;
 
         const item = await fromUuid(uuid).catch(() => null);
-        if (item) { setSubclass(this.data, item, tradition, grantedSpells, grantedSkills); await this._saveAndRender(); }
+        if (item) { setSubclass(this.data, item, tradition, grantedSpells, grantedSkills, curriculum); await this._saveAndRender(); }
       });
     });
 
@@ -573,6 +574,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         tradition: this._resolveSubclassTradition(d),
         grantedSpells: this._parseGrantedSpells(d.system?.description?.value ?? ''),
         grantedSkills: this._parseGrantedSkills(d.system?.rules ?? [], d.system?.description?.value ?? ''),
+        curriculum: this._parseCurriculum(d.system?.description?.value ?? ''),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -582,21 +584,36 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _resolveGrantedSpells() {
     const granted = this.data.subclass?.grantedSpells;
-    if (!granted) return { cantrip: null, rank1: null };
+    const curriculum = this.data.subclass?.curriculum;
 
-    let cantrip = null;
-    let rank1 = null;
+    const cantrips = [];
+    const rank1s = [];
 
-    if (granted.cantrip) {
+    if (granted?.cantrip) {
       const spell = await fromUuid(granted.cantrip).catch(() => null);
-      if (spell) cantrip = { uuid: spell.uuid, name: spell.name, img: spell.img };
+      if (spell) cantrips.push({ uuid: spell.uuid, name: spell.name, img: spell.img, source: this.data.subclass.name });
     }
-    if (granted.rank1) {
+    if (granted?.rank1) {
       const spell = await fromUuid(granted.rank1).catch(() => null);
-      if (spell) rank1 = { uuid: spell.uuid, name: spell.name, img: spell.img };
+      if (spell) rank1s.push({ uuid: spell.uuid, name: spell.name, img: spell.img, source: this.data.subclass.name });
     }
 
-    return { cantrip, rank1 };
+    if (curriculum) {
+      for (const uuid of (curriculum[0] ?? [])) {
+        const spell = await fromUuid(uuid).catch(() => null);
+        if (spell && !cantrips.some((s) => s.uuid === spell.uuid)) {
+          cantrips.push({ uuid: spell.uuid, name: spell.name, img: spell.img, source: 'Curriculum' });
+        }
+      }
+      for (const uuid of (curriculum[1] ?? [])) {
+        const spell = await fromUuid(uuid).catch(() => null);
+        if (spell && !rank1s.some((s) => s.uuid === spell.uuid)) {
+          rank1s.push({ uuid: spell.uuid, name: spell.name, img: spell.img, source: 'Curriculum' });
+        }
+      }
+    }
+
+    return { cantrips, rank1s };
   }
 
   _parseGrantedSpells(html) {
@@ -631,6 +648,30 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     return result;
+  }
+
+  _parseCurriculum(html) {
+    if (!html || html.includes('No Curriculum')) return null;
+    const curriculumMatch = html.match(/Curriculum<\/strong>.*?<ul>(.*?)<\/ul>/is);
+    if (!curriculumMatch) return null;
+
+    const listHtml = curriculumMatch[1];
+    const curriculum = {};
+    const rankLabels = ['cantrips', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th'];
+    const rankNums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+    for (let i = 0; i < rankLabels.length; i++) {
+      const label = rankLabels[i];
+      const pattern = new RegExp(`${label}[:\\s]*.*?@UUID\\[Compendium\\.pf2e\\.spells-srd\\.Item\\.([^\\]]+)\\]`, 'gi');
+      let m;
+      const spells = [];
+      while ((m = pattern.exec(listHtml)) !== null) {
+        spells.push(`Compendium.pf2e.spells-srd.Item.${m[1]}`);
+      }
+      if (spells.length > 0) curriculum[rankNums[i]] = spells;
+    }
+
+    return Object.keys(curriculum).length > 0 ? curriculum : null;
   }
 
   _parseGrantedSkills(rules, html) {
@@ -944,13 +985,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const totalRank1 = Array.isArray(level1Slots[1]) ? level1Slots[1][0] + level1Slots[1][1] : (level1Slots[1] ?? 2);
 
     const grantedSpells = await this._resolveGrantedSpells();
-    const grantedCantripCount = grantedSpells.cantrip ? 1 : 0;
-    const grantedRank1Count = grantedSpells.rank1 ? 1 : 0;
-    const maxCantrips = totalCantrips - grantedCantripCount;
-    const maxRank1 = totalRank1 - grantedRank1Count;
+    const maxCantrips = totalCantrips - grantedSpells.cantrips.length;
+    const maxRank1 = totalRank1 - grantedSpells.rank1s.length;
 
     const allSpells = await this._loadCompendium('pf2e.spells-srd');
-    const grantedUuids = [grantedSpells.cantrip?.uuid, grantedSpells.rank1?.uuid].filter(Boolean);
+    const grantedUuids = [...grantedSpells.cantrips.map((s) => s.uuid), ...grantedSpells.rank1s.map((s) => s.uuid)];
     const selectedUuids = new Set([
       ...this.data.spells.cantrips.map((s) => s.uuid),
       ...this.data.spells.rank1.map((s) => s.uuid),
@@ -987,8 +1026,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       rank1Spells,
       selectedCantrips: this.data.spells.cantrips,
       selectedRank1: this.data.spells.rank1,
-      grantedCantrip: grantedSpells.cantrip,
-      grantedRank1: grantedSpells.rank1,
+      grantedCantrips: grantedSpells.cantrips,
+      grantedRank1s: grantedSpells.rank1s,
       traitOptions,
       maxCantrips,
       maxRank1,

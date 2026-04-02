@@ -52,8 +52,8 @@ export function setClass(data, item) {
   return data;
 }
 
-export function setSubclass(data, item, tradition, grantedSpells, grantedSkills) {
-  data.subclass = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug, tradition, grantedSpells, grantedSkills } : null;
+export function setSubclass(data, item, tradition, grantedSpells, grantedSkills, curriculum) {
+  data.subclass = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug, tradition, grantedSpells, grantedSkills, curriculum } : null;
   data.spells = { cantrips: [], rank1: [] };
   return data;
 }

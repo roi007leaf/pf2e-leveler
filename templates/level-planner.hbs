@@ -270,7 +270,30 @@
               </tbody>
             </table>
 
+            {{#if isWizard}}
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-book"></i>
+                Spellbook ({{plannedSpells.length}}/{{wizardSpellbookCount}} new spells)
+              </div>
+              {{#each plannedSpells}}
+              <div class="feat-slot feat-slot--filled">
+                <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
+                <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                <span class="feat-slot__level">Rank {{this.rank}}</span>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="Remove"></i>
+              </div>
+              {{/each}}
+              {{#unless (eq plannedSpells.length wizardSpellbookCount)}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="0" data-tooltip="Add spell to spellbook" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> Add to Spellbook
+              </button>
+              {{/unless}}
+            </div>
+            {{/if}}
+
             {{#if plannedSpells.length}}
+            {{#unless isWizard}}
             <div class="planned-spells">
               <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
                 <i class="section-header__icon fa-solid fa-book-sparkles"></i>
@@ -285,6 +308,7 @@
               </div>
               {{/each}}
             </div>
+            {{/unless}}
             {{/if}}
           </div>
         </div>
