@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.4
+## 1.0.3
 
 ### Added
 
@@ -8,22 +8,6 @@
 - Rarity toggles (Uncommon/Rare checkboxes) in the planner's spell picker
 - Wizard spellbook spell selection in both planner and character creation
 - Dual Class variant rule support in the planner
-
-### Changed
-
-- Spell selection now available for Wizard (spellbook) alongside spontaneous casters
-- Prepared casters (Cleric, Druid, Witch, Magus) correctly skip spell selection
-- Trait chip and input font sizes increased for readability
-- Trait input padding increased for better usability
-
-### Fixed
-
-- Spell picker trait chips barely readable at small font size
-
-## 1.0.3
-
-### Added
-
 - Alternate Ancestry Boosts toggle in character creation
 - Subclass skill parsing from HTML description (e.g. Barbarian Bloodrager)
 - Sorcerer bloodline tradition detection via RollOption rules
@@ -32,6 +16,10 @@
 
 ### Changed
 
+- Spell selection now available for Wizard (spellbook) alongside spontaneous casters
+- Prepared casters (Cleric, Druid, Witch, Magus) correctly skip spell selection
+- Trait chip and input font sizes increased for readability
+- Trait input padding increased for better usability
 - Skill rank label absolutely positioned so skill names stay centered
 - Subclass skills note only shows when no subclass is selected
 - Feat grid fills available height when no class feat section present
@@ -40,6 +28,7 @@
 
 ### Fixed
 
+- Spell picker trait chips barely readable at small font size
 - Negative ability modifier displayed as `+-1` instead of `-1`
 - Duplicate "Create Character" buttons on sheet re-render
 - Subclass granted skills not detected when only in HTML description
