@@ -565,7 +565,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         rarity: d.system?.traits?.rarity ?? 'common',
         tradition: this._resolveSubclassTradition(d),
         grantedSpells: this._parseGrantedSpells(d.system?.description?.value ?? ''),
-        grantedSkills: this._parseGrantedSkills(d.system?.rules ?? []),
+        grantedSkills: this._parseGrantedSkills(d.system?.rules ?? [], d.system?.description?.value ?? ''),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -626,26 +626,58 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return result;
   }
 
-  _parseGrantedSkills(rules) {
+  _parseGrantedSkills(rules, html) {
     const skills = [];
     for (const rule of rules) {
       if (rule.key !== 'ActiveEffectLike') continue;
       const match = rule.path?.match(/^system\.skills\.(\w+)\.rank$/);
       if (match && rule.value >= 1) skills.push(match[1]);
     }
+    if (skills.length === 0 && html) {
+      const text = html.replace(/<[^>]+>/g, ' ');
+      const trainedMatch = text.match(/trained in (?:the )?(.+?)(?:\.|,\s*and a number)/i);
+      if (trainedMatch) {
+        const skillText = trainedMatch[1];
+        for (const skill of SKILLS) {
+          if (skillText.toLowerCase().includes(skill)) skills.push(skill);
+        }
+      }
+    }
     return skills;
   }
 
   _resolveSubclassTradition(item) {
     const rules = item.system?.rules ?? [];
+
     for (const rule of rules) {
       if (rule.key === 'ActiveEffectLike' && typeof rule.path === 'string' && rule.path.includes('proficiencies.aliases')) {
         return rule.value;
       }
     }
+
+    for (const rule of rules) {
+      if (rule.key === 'RollOption' && typeof rule.option === 'string') {
+        const match = rule.option.match(/tradition:(\w+)/);
+        if (match) return match[1];
+      }
+    }
+
     const desc = item.system?.description?.value ?? '';
     const listMatch = desc.match(/Spell List\s+(\w+)/i);
     if (listMatch) return listMatch[1].toLowerCase();
+
+    const strongTradMatch = desc.match(/<strong>Tradition<\/strong>\s*(\w+)/i);
+    if (strongTradMatch) {
+      const trad = strongTradMatch[1].toLowerCase();
+      if (['arcane', 'divine', 'occult', 'primal'].includes(trad)) return trad;
+    }
+
+    const tradMatch = desc.match(/tradition is (\w+)/i) ?? desc.match(/(\w+) tradition/i);
+    if (tradMatch) {
+      const trad = tradMatch[1].toLowerCase();
+      if (['arcane', 'divine', 'occult', 'primal'].includes(trad)) return trad;
+    }
+
     return null;
   }
 
