@@ -131,7 +131,9 @@ async function applySpellcasting(actor, data) {
   const grantedEntries = grantedUuids.map((uuid) => ({ uuid, name: 'Granted' }));
 
   const allSpells = [...grantedEntries, ...data.spells.cantrips, ...data.spells.rank1];
-  if (allSpells.length === 0) return;
+
+  const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
+  if (allSpells.length === 0 && !classDef?.spellcasting) return;
 
   await waitForSystem();
 

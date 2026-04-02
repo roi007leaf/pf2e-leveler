@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.8
+
+### Fixed
+
+- Prepared casters (Cleric, Druid) missing spellcasting entry and slots after character creation
+- Versatile Heritage feats not showing in ancestry feat selection (e.g. Dragonblood feats for Orc)
+
 ## 1.0.7
 
 ### Added
@@ -13,6 +20,8 @@
 - Cantrip slot count not set after character creation (showed 0 on character sheet)
 - Witch had no spell selection step in character creation or level-up planner
 - Magus had no spell selection step in character creation or level-up planner
+- Prepared casters (Cleric, Druid) missing spellcasting entry and slots after character creation
+- Versatile Heritage feats not showing in ancestry feat selection (e.g. Dragonblood feats for Orc)
 
 ## 1.0.6
 

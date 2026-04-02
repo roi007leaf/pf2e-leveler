@@ -956,9 +956,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const allFeats = await this._loadCompendium('pf2e.feats-srd');
     const ancestrySlug = this.data.ancestry.name.toLowerCase().replace(/\s+/g, '-');
+    const heritageSlug = this.data.heritage?.name?.toLowerCase().replace(/\s+/g, '-');
+    const ancestryTraits = [ancestrySlug];
+    if (heritageSlug && heritageSlug !== ancestrySlug) ancestryTraits.push(heritageSlug);
 
     const ancestryFeats = allFeats.filter(
-      (f) => f.traits.includes(ancestrySlug) && !f.traits.includes('classfeature') && f.level <= 1,
+      (f) => ancestryTraits.some((t) => f.traits.includes(t)) && !f.traits.includes('classfeature') && f.level <= 1,
     );
 
     let classFeats = [];
