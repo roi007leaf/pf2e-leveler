@@ -1,13 +1,13 @@
 import { MODULE_ID, SKILLS, ATTRIBUTES } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setSubclass, setSkills, setAncestryFeat, setClassFeat, addSpell, removeSpell } from '../creation/creation-model.js';
+import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setSubclass, setSkills, setLanguages, setLores, setAncestryFeat, setClassFeat, addSpell, removeSpell } from '../creation/creation-model.js';
 import { getCreationData, saveCreationData, clearCreationData } from '../creation/creation-store.js';
 import { applyCreation } from '../creation/apply-creation.js';
 import { localize } from '../utils/i18n.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-const STEPS = ['ancestry', 'heritage', 'background', 'class', 'subclass', 'boosts', 'skills', 'feats', 'spells', 'summary'];
+const STEPS = ['ancestry', 'heritage', 'background', 'class', 'subclass', 'boosts', 'languages', 'skills', 'feats', 'spells', 'summary'];
 
 const SUBCLASS_TAGS = {
   alchemist: 'alchemist-research-field',
@@ -74,6 +74,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   get visibleSteps() {
     return STEPS.filter((s) => {
       if (s === 'subclass') return this._hasSubclass();
+      if (s === 'languages') return !!this.data.ancestry;
       if (s === 'spells') return this._needsSpellSelection();
       return true;
     });
@@ -160,16 +161,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       btn.addEventListener('click', () => this._toggleSkill(btn.dataset.skill));
     });
 
+    el.querySelectorAll('[data-action="toggleLanguage"]').forEach((btn) => {
+      btn.addEventListener('click', () => this._toggleLanguage(btn.dataset.language));
+    });
+
     el.querySelectorAll('[data-action="selectSubclass"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const uuid = btn.dataset.uuid;
         const tradition = btn.dataset.tradition || null;
         const grantedSpells = btn.dataset.granted ? JSON.parse(btn.dataset.granted) : null;
         const grantedSkills = btn.dataset.skills ? JSON.parse(btn.dataset.skills) : [];
+        const grantedLores = btn.dataset.lores ? JSON.parse(btn.dataset.lores) : [];
         const curriculum = btn.dataset.curriculum ? JSON.parse(btn.dataset.curriculum) : null;
 
         const item = await fromUuid(uuid).catch(() => null);
-        if (item) { setSubclass(this.data, item, tradition, grantedSpells, grantedSkills, curriculum); await this._saveAndRender(); }
+        if (item) { setSubclass(this.data, item, tradition, grantedSpells, grantedSkills, grantedLores, curriculum); await this._saveAndRender(); }
       });
     });
 
@@ -180,7 +186,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           clearHeritage: () => setHeritage(this.data, null),
           clearBackground: () => setBackground(this.data, null),
           clearClass: () => setClass(this.data, null),
-          clearSubclass: () => setSubclass(this.data, null, null),
+          clearSubclass: () => setSubclass(this.data, null, null, null, null, null, null),
           clearAncestryFeat: () => setAncestryFeat(this.data, null),
           clearClassFeat: () => setClassFeat(this.data, null),
         };
@@ -354,6 +360,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._saveAndRender();
   }
 
+  async _toggleLanguage(lang) {
+    let languages = [...this.data.languages];
+    if (languages.includes(lang)) {
+      languages = languages.filter((l) => l !== lang);
+    } else {
+      const max = await this._getAdditionalLanguageCount();
+      if (languages.length < max) {
+        languages.push(lang);
+      }
+    }
+    setLanguages(this.data, languages);
+    this._saveAndRender();
+  }
+
   _openSpellPicker(rank, isCantrip) {
     if (!this._isCaster()) return;
     const classDef = ClassRegistry.get(this.data.class.slug);
@@ -377,7 +397,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _filterItems(el, query) {
-    el.querySelectorAll('.wizard-item').forEach((item) => {
+    el.querySelectorAll('.wizard-item, .skill-btn[data-name]').forEach((item) => {
       const name = item.dataset.name?.toLowerCase() ?? '';
       item.style.display = name.includes(query) ? '' : 'none';
     });
@@ -483,6 +503,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'class': return !!this.data.class;
       case 'subclass': return !this._hasSubclass() || !!this.data.subclass;
       case 'boosts': return this.data.boosts.free.length === 4;
+      case 'languages': return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills': return this.data.skills.length >= (this._cachedMaxSkills ?? 1);
       case 'feats': return !!this.data.ancestryFeat;
       case 'spells': {
@@ -504,11 +525,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'class': return { items: await this._loadCompendium('pf2e.classes') };
       case 'subclass': return { items: await this._loadSubclasses() };
       case 'boosts': return await this._buildBoostContext();
+      case 'languages': return await this._buildLanguageContext();
       case 'skills': {
         const maxSkills = await this._getAdditionalSkillCount();
         this._cachedMaxSkills = maxSkills;
         const selectedCount = this.data.skills.length;
-        return { skills: await this._buildSkillContext(), maxSkills, selectedCount, skillsNote: this._getSkillsNote() };
+        const bgLores = await this._getBackgroundLores();
+        const subclassLores = (this.data.subclass?.grantedLores ?? []).map((name) => ({ name, source: this.data.subclass.name }));
+        const allLores = [...bgLores, ...subclassLores];
+        setLores(this.data, allLores.map((l) => l.name));
+        return { skills: await this._buildSkillContext(), maxSkills, selectedCount, skillsNote: this._getSkillsNote(), lores: allLores };
       }
       case 'feats': return await this._buildFeatContext();
       case 'spells': return await this._buildSpellContext();
@@ -576,6 +602,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         tradition: this._resolveSubclassTradition(d),
         grantedSpells: this._parseGrantedSpells(d.system?.description?.value ?? ''),
         grantedSkills: this._parseGrantedSkills(d.system?.rules ?? [], d.system?.description?.value ?? ''),
+        grantedLores: this._parseSubclassLores(d.system?.rules ?? [], d.system?.description?.value ?? ''),
         curriculum: this._parseCurriculum(d.system?.description?.value ?? ''),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -922,6 +949,98 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     return choices;
+  }
+
+  async _buildLanguageContext() {
+    const ancestryItem = this.data.ancestry?.uuid ? await fromUuid(this.data.ancestry.uuid).catch(() => null) : null;
+    const grantedSlugs = ancestryItem?.system?.languages?.value ?? [];
+    const suggestedSlugs = new Set(ancestryItem?.system?.additionalLanguages?.value ?? []);
+    const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
+    const intMod = this._computeIntMod();
+    const maxAdditional = Math.max(0, baseCount + intMod);
+    this._cachedMaxLanguages = maxAdditional;
+
+    const langMap = this._getLanguageMap();
+
+    const granted = grantedSlugs.map((slug) => ({
+      slug,
+      label: langMap[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1),
+      granted: true,
+      selected: false,
+    }));
+
+    const allLanguageSlugs = Object.keys(langMap);
+    const choosable = allLanguageSlugs
+      .filter((slug) => !grantedSlugs.includes(slug) && slug !== 'CommonLanguage')
+      .map((slug) => ({
+        slug,
+        label: langMap[slug],
+        suggested: suggestedSlugs.has(slug),
+        selected: this.data.languages.includes(slug),
+      }))
+      .sort((a, b) => {
+        if (a.suggested !== b.suggested) return a.suggested ? -1 : 1;
+        return a.label.localeCompare(b.label);
+      });
+
+    return {
+      grantedLanguages: granted,
+      choosableLanguages: choosable,
+      maxLanguages: maxAdditional,
+      selectedLanguageCount: this.data.languages.length,
+    };
+  }
+
+  _getLanguageMap() {
+    const configLangs = CONFIG.PF2E?.languages;
+    if (configLangs && typeof configLangs === 'object') {
+      const map = {};
+      for (const [key, value] of Object.entries(configLangs)) {
+        const raw = typeof value === 'string' ? value : (value?.label ?? key);
+        map[key] = game.i18n.has(raw) ? game.i18n.localize(raw) : raw;
+      }
+      if (Object.keys(map).length > 0) return map;
+    }
+    return {};
+  }
+
+  async _getAdditionalLanguageCount() {
+    const ancestryItem = this.data.ancestry?.uuid ? await fromUuid(this.data.ancestry.uuid).catch(() => null) : null;
+    const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
+    const intMod = this._computeIntMod();
+    return Math.max(0, baseCount + intMod);
+  }
+
+  async _getBackgroundLores() {
+    if (!this.data.background?.uuid) return [];
+    const item = await fromUuid(this.data.background.uuid).catch(() => null);
+    if (!item) return [];
+    return (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source: 'Background' }));
+  }
+
+  _parseSubclassLores(rules, html) {
+    const lores = [];
+    for (const rule of rules) {
+      if (rule.key !== 'ActiveEffectLike') continue;
+      const match = rule.path?.match(/^system\.skills\.([^.]+)\.rank$/);
+      if (match && rule.value >= 1) {
+        const slug = match[1];
+        if (!SKILLS.includes(slug) && slug.endsWith('-lore')) {
+          const name = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+          lores.push(name);
+        }
+      }
+    }
+    if (lores.length === 0 && html) {
+      const text = html.replace(/<[^>]+>/g, ' ');
+      const loreMatch = text.match(/trained in ([^.]*?\bLore\b[^.]*)/i);
+      if (loreMatch) {
+        const loreText = loreMatch[1];
+        const matches = loreText.match(/[\w\s]+Lore/gi) ?? [];
+        for (const m of matches) lores.push(m.trim());
+      }
+    }
+    return lores;
   }
 
   async _buildSkillContext() {

@@ -16,6 +16,8 @@ export async function applyCreation(actor, data) {
 
   await applyBoosts(actor, data);
 
+  await applyLanguages(actor, data);
+
   if (data.skills.length > 0) {
     const updates = {};
     for (const skill of data.skills) {
@@ -24,6 +26,8 @@ export async function applyCreation(actor, data) {
     await actor.update(updates);
     debug(`Trained ${data.skills.length} skills`);
   }
+
+  await applyLores(actor, data);
 
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
@@ -109,6 +113,37 @@ async function applyBoosts(actor, data) {
     const buildSource = foundry.utils.mergeObject(actor.toObject().system.build ?? {}, { attributes: { boosts: {} } });
     buildSource.attributes.boosts[1] = freeBoosts;
     await actor.update({ 'system.build': buildSource });
+  }
+}
+
+async function applyLanguages(actor, data) {
+  const additionalLangs = data.languages ?? [];
+  if (additionalLangs.length === 0) return;
+
+  const current = actor.system?.details?.languages?.value ?? [];
+  const merged = [...new Set([...current, ...additionalLangs])];
+  await actor.update({ 'system.details.languages.value': merged });
+  debug(`Applied ${additionalLangs.length} additional languages: ${additionalLangs.join(', ')}`);
+}
+
+async function applyLores(actor, data) {
+  const lores = data.lores ?? [];
+  if (lores.length === 0) return;
+
+  const existingLores = actor.items?.filter((i) => i.type === 'lore').map((i) => i.name) ?? [];
+  const toCreate = lores
+    .filter((name) => !existingLores.includes(name))
+    .map((name) => ({
+      name,
+      type: 'lore',
+      system: {
+        proficient: { value: 1 },
+      },
+    }));
+
+  if (toCreate.length > 0) {
+    await actor.createEmbeddedDocuments('Item', toCreate);
+    debug(`Created ${toCreate.length} lore skills: ${toCreate.map((l) => l.name).join(', ')}`);
   }
 }
 
@@ -256,6 +291,8 @@ async function createCreationMessage(actor, data) {
   if (data.background) parts.push(`**Background:** ${data.background.name}`);
   if (data.class) parts.push(`**Class:** ${data.class.name}`);
   if (data.subclass) parts.push(`**Subclass:** ${data.subclass.name}`);
+  if (data.languages?.length) parts.push(`**Languages:** ${data.languages.join(', ')}`);
+  if (data.lores?.length) parts.push(`**Lore Skills:** ${data.lores.join(', ')}`);
   if (data.ancestryFeat) parts.push(`**Ancestry Feat:** ${data.ancestryFeat.name}`);
   if (data.classFeat) parts.push(`**Class Feat:** ${data.classFeat.name}`);
 

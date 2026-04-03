@@ -2,6 +2,7 @@ export const BOOSTS_PER_LEVEL = 4;
 
 export const FREE_ARCHETYPE_FEAT_LEVELS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
 export const MYTHIC_FEAT_LEVELS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
+export const ANCESTRAL_PARAGON_FEAT_LEVELS = [3, 7, 11, 15, 19];
 
 export const GRADUAL_BOOST_LEVELS = [2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20];
 
@@ -42,6 +43,10 @@ export function getChoicesForLevel(classDef, level, options = {}) {
 
   if (options.mythic && MYTHIC_FEAT_LEVELS.includes(level)) {
     choices.push({ type: 'mythicFeat' });
+  }
+
+  if (options.ancestralParagon && ANCESTRAL_PARAGON_FEAT_LEVELS.includes(level)) {
+    choices.push({ type: 'ancestryFeat' });
   }
 
   if (options.dualClass && [2, 4, 6, 8, 10, 12, 14, 16, 18, 20].includes(level)) {

@@ -5,7 +5,7 @@ import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, clearLevelFeat,
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../plan/plan-store.js';
 import { validateLevel } from '../plan/plan-validator.js';
 import { computeBuildState } from '../plan/build-state.js';
-import { getMaxSkillRank, isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled } from '../utils/pf2e-api.js';
+import { getMaxSkillRank, isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { localize } from '../utils/i18n.js';
 import { debug } from '../utils/logger.js';
 import { FeatPicker } from './feat-picker.js';
@@ -142,6 +142,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       abp: isABPEnabled(),
       gradualBoosts: isGradualBoostsEnabled(),
       dualClass: isDualClassEnabled(),
+      ancestralParagon: isAncestralParagonEnabled(),
     };
   }
 

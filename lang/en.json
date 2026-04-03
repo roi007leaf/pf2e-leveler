@@ -97,6 +97,11 @@
       "CREATION_COMPLETE": "Character created successfully!",
       "BOOSTS_HINT": "Choose 4 different ability scores to boost.",
       "SKILLS_HINT": "Choose {count} additional skills to train.",
+      "LANGUAGES_HINT": "Choose {count} additional languages.",
+      "GRANTED_LANGUAGES": "Granted Languages",
+      "ADDITIONAL_LANGUAGES": "Additional Languages",
+      "NO_LANGUAGES": "No additional language choices available.",
+      "LORE_SKILLS": "Lore Skills",
       "SPELLS_HINT": "Select your initial spells.",
       "AUTO_TRAINED": "Class",
       "PENDING_TITLE": "Additional Choices After Creation",
@@ -108,6 +113,7 @@
         "CLASS": "Class",
         "SUBCLASS": "Subclass",
         "BOOSTS": "Ability Boosts",
+        "LANGUAGES": "Languages",
         "SKILLS": "Skills",
         "FEATS": "Feats",
         "SPELLS": "Spells",
@@ -244,6 +250,10 @@
         "LEVEL_ASC": "Level (Low to High)",
         "ALPHA_ASC": "Alphabetical (A-Z)",
         "ALPHA_DESC": "Alphabetical (Z-A)"
+      },
+      "ANCESTRAL_PARAGON": {
+        "NAME": "Ancestral Paragon",
+        "HINT": "Enable the Ancestral Paragon variant rule. Characters gain an additional ancestry feat at levels 3, 7, 11, 15, and 19."
       },
       "ADDITIONAL_COMPENDIUMS": {
         "NAME": "Additional Feat Compendiums",

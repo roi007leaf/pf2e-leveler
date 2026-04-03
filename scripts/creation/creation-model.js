@@ -12,6 +12,8 @@ export function createCreationData() {
     boosts: {
       free: [],
     },
+    languages: [],
+    lores: [],
     skills: [],
     ancestryFeat: null,
     classFeat: null,
@@ -28,6 +30,7 @@ function clearBoostsForPrefix(data, prefix) {
 export function setAncestry(data, item) {
   data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img } : null;
   data.heritage = null;
+  data.languages = [];
   clearBoostsForPrefix(data, 'ancestry');
   return data;
 }
@@ -52,8 +55,8 @@ export function setClass(data, item) {
   return data;
 }
 
-export function setSubclass(data, item, tradition, grantedSpells, grantedSkills, curriculum) {
-  data.subclass = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug, tradition, grantedSpells, grantedSkills, curriculum } : null;
+export function setSubclass(data, item, tradition, grantedSpells, grantedSkills, grantedLores, curriculum) {
+  data.subclass = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug, tradition, grantedSpells, grantedSkills, grantedLores, curriculum } : null;
   data.spells = { cantrips: [], rank1: [] };
   return data;
 }
@@ -69,6 +72,16 @@ export function getAllBoosts(data) {
 
 export function setSkills(data, skills) {
   data.skills = skills;
+  return data;
+}
+
+export function setLanguages(data, languages) {
+  data.languages = languages;
+  return data;
+}
+
+export function setLores(data, lores) {
+  data.lores = lores;
   return data;
 }
 

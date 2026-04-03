@@ -62,6 +62,16 @@ export function registerSettings() {
     },
   });
 
+  game.settings.register(MODULE_ID, 'ancestralParagon', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ANCESTRAL_PARAGON.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ANCESTRAL_PARAGON.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    requiresReload: true,
+  });
+
   game.settings.register(MODULE_ID, 'additionalFeatCompendiums', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.HINT'),

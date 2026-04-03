@@ -129,6 +129,30 @@
   flex-shrink: 0;
 }
 
+.pf2e-leveler .subclass-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--leveler-spacing-sm);
+  padding: var(--leveler-spacing-sm) var(--leveler-spacing-md);
+  margin: var(--leveler-spacing-md) 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--leveler-warning);
+  background: rgba(245, 127, 23, 0.15);
+  border: 2px solid rgba(245, 127, 23, 0.5);
+  border-radius: var(--leveler-radius-md);
+}
+
+.pf2e-leveler .subclass-warning-banner i {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.pf2e-leveler .subclass-warning-banner strong {
+  color: #ffb74d;
+  text-decoration: underline;
+}
+
 .pf2e-leveler .feat-slot__change,
 .pf2e-leveler .feat-slot__clear {
   opacity: 0;
@@ -277,6 +301,7 @@
   flex: 1;
   font-size: var(--leveler-font-sm);
   font-weight: 600;
+  text-align: center;
 }
 
 .pf2e-leveler .skill-btn__rank {

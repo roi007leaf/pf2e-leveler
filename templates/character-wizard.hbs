@@ -160,7 +160,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-granted='{{json this.grantedSpells}}' data-skills='{{json this.grantedSkills}}' data-curriculum='{{json this.curriculum}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-granted='{{json this.grantedSpells}}' data-skills='{{json this.grantedSkills}}' data-lores='{{json this.grantedLores}}' data-curriculum='{{json this.curriculum}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -224,6 +224,50 @@
         </div>
       </div>
 
+    {{else if (eq stepId "languages")}}
+      <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.LANGUAGES"}}</h2>
+
+      {{#if grantedLanguages.length}}
+      <div class="section-header">
+        <i class="section-header__icon fa-solid fa-comment"></i>
+        {{localize "PF2E_LEVELER.CREATION.GRANTED_LANGUAGES"}}
+      </div>
+      <div class="skill-btn-grid">
+        {{#each grantedLanguages}}
+        <button type="button" class="skill-btn selected" disabled>
+          <span class="skill-btn__name">{{this.label}}</span>
+          <span class="skill-btn__rank rank-text-trained">Ancestry</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#if maxLanguages}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-plus"></i>
+        {{localize "PF2E_LEVELER.CREATION.ADDITIONAL_LANGUAGES"}}
+      </div>
+      <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.LANGUAGES_HINT" count=maxLanguages}} ({{selectedLanguageCount}}/{{maxLanguages}})</p>
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="skill-btn-grid">
+        {{#each choosableLanguages}}
+        <button type="button"
+          class="skill-btn {{#if this.selected}}selected{{/if}}"
+          data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+          {{#if this.suggested}}<span class="skill-btn__rank tag tag--info tag--tiny">Ancestry suggestion</span>{{/if}}
+          {{#unless this.suggested}}<span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">Selected</span>{{/unless}}
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#unless maxLanguages}}
+      {{#unless grantedLanguages.length}}
+      <p class="wizard-hint">{{localize "PF2E_LEVELER.CREATION.NO_LANGUAGES"}}</p>
+      {{/unless}}
+      {{/unless}}
+
     {{else if (eq stepId "skills")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SKILLS"}}</h2>
       <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.SKILLS_HINT" count=maxSkills}} ({{selectedCount}}/{{maxSkills}})</p>
@@ -251,6 +295,21 @@
         {{/if}}
         {{/each}}
       </div>
+
+      {{#if lores.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-book-open"></i>
+        {{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}
+      </div>
+      <div class="skill-btn-grid">
+        {{#each lores}}
+        <button type="button" class="skill-btn selected" disabled>
+          <span class="skill-btn__name">{{this.name}}</span>
+          <span class="skill-btn__rank rank-text-trained">{{this.source}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
 
     {{else if (eq stepId "feats")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}</h2>
@@ -465,10 +524,22 @@
           <span class="wizard-summary__value">{{data.boosts.free}}</span>
         </div>
         {{/if}}
+        {{#if data.languages.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.STEPS.LANGUAGES"}}</span>
+          <span class="wizard-summary__value">{{data.languages}}</span>
+        </div>
+        {{/if}}
         {{#if data.skills.length}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.STEPS.SKILLS"}}</span>
           <span class="wizard-summary__value">{{data.skills}}</span>
+        </div>
+        {{/if}}
+        {{#if data.lores.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}</span>
+          <span class="wizard-summary__value">{{data.lores}}</span>
         </div>
         {{/if}}
         {{#if data.ancestryFeat}}
@@ -486,9 +557,9 @@
       </div>
 
       {{#if data.subclass}}
-      <div class="feat-slot__note" style="margin: var(--leveler-spacing-md) 0;">
-        <i class="fa-solid fa-exclamation-triangle" style="color: var(--leveler-warning);"></i>
-        When prompted after creation, make sure to select <strong>{{data.subclass.name}}</strong> as your subclass choice.
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select <strong>{{data.subclass.name}}</strong> as your subclass choice.</span>
       </div>
       {{/if}}
 

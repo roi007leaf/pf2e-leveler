@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- Ancestral Paragon variant rule support
+  - New module setting to enable the variant (Module Settings > PF2e Leveler)
+  - When enabled, adds ancestry feat slots at levels 3, 7, 11, 15, and 19
+  - Works with existing plan migration — enabling/disabling updates plans automatically
+
+- Language selection step in character creation wizard (between Ability Boosts and Skills)
+  - Shows granted languages from ancestry (e.g., Common, Dwarven)
+  - Choose additional languages based on ancestry allowance + INT modifier
+  - Full language list with search, ancestry-appropriate options highlighted
+- Lore skills auto-populated from background and subclass during character creation
+  - Background lore skills (e.g., "Warfare Lore") shown in Skills step and applied as trained
+  - Subclass lore skills parsed from rules and descriptions
+- Languages and lore skills shown in creation summary and chat message
+
+### Changed
+
+- Subclass choice warning banner made significantly more prominent with larger text, bold styling, and visible orange border
+
 ## 1.0.9
 
 ### Added
