@@ -33,4 +33,16 @@ describe('applySkillIncreases', () => {
     const result = await applySkillIncreases(mockActor, plan, 5);
     expect(result).toEqual([]);
   });
+
+  test('applies Intelligence bonus trained skills', async () => {
+    mockActor.system = { skills: { arcana: { rank: 0 } } };
+    const plan = {
+      levels: { 5: { intBonusSkills: ['arcana'] } },
+    };
+    const result = await applySkillIncreases(mockActor, plan, 5);
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.skills.arcana.rank': 1,
+    });
+    expect(result).toEqual([{ skill: 'arcana', toRank: 1, intBonus: true }]);
+  });
 });

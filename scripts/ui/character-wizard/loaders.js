@@ -1,0 +1,324 @@
+import { SUBCLASS_TAGS } from '../../constants.js';
+
+export async function loadCompendium(wizard, key) {
+  if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
+  const pack = game.packs.get(key);
+  if (!pack) return [];
+  const docs = await pack.getDocuments();
+  const items = docs.map((d) => ({
+    uuid: d.uuid,
+    name: d.name,
+    img: d.img,
+    type: d.type,
+    slug: d.slug ?? d.name.toLowerCase().replace(/\s+/g, '-'),
+    description: d.system?.description?.value?.substring(0, 150) ?? '',
+    traits: d.system?.traits?.value ?? [],
+    otherTags: d.system?.traits?.otherTags ?? [],
+    traditions: d.system?.traits?.traditions ?? d.system?.traditions?.value ?? [],
+    rarity: d.system?.traits?.rarity ?? 'common',
+    level: d.system?.level?.value ?? 0,
+    category: d.system?.category ?? null,
+    usage: d.system?.usage?.value ?? null,
+    range: d.system?.range ?? null,
+  }));
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[key] = items;
+  return items;
+}
+
+export async function loadDeities(wizard) {
+  const cacheKey = 'deities';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const pack = game.packs.get('pf2e.deities');
+  if (!pack) return [];
+  const docs = await pack.getDocuments();
+  const items = docs
+    .filter((d) => d.system?.category === 'deity')
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      font: d.system?.font ?? [],
+      sanctification: d.system?.sanctification ?? {},
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export async function loadHeritages(wizard) {
+  if (!wizard.data.ancestry) return [];
+  const ancestrySlug = wizard.data.ancestry.name.toLowerCase().replace(/\s+/g, '-');
+  const all = await loadRawHeritages(wizard);
+  return all.filter((h) => {
+    if (h.ancestrySlug === ancestrySlug) return true;
+    if (h.traits.includes(ancestrySlug)) return true;
+    if (!h.ancestrySlug) return true;
+    return false;
+  });
+}
+
+export async function loadSubclasses(wizard) {
+  const tag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  if (!tag) return [];
+  return loadTaggedClassFeatures(wizard, tag, `subclass-${tag}`, { includeSubclassData: true });
+}
+
+export async function loadTheses(wizard) {
+  if (wizard.data.class?.slug !== 'wizard') return [];
+  return loadTaggedClassFeatures(wizard, 'wizard-arcane-thesis', 'wizard-theses');
+}
+
+export async function loadThaumaturgeImplements(wizard) {
+  if (wizard.data.class?.slug !== 'thaumaturge') return [];
+  return loadTaggedClassFeatures(wizard, 'thaumaturge-implement', 'thaumaturge-implements');
+}
+
+export async function loadCommanderTactics(wizard) {
+  if (wizard.data.class?.slug !== 'commander') return [];
+  const cacheKey = 'commander-tactics';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+
+  const pack = game.packs.get('pf2e.actionspf2e');
+  if (!pack) return [];
+  const docs = await pack.getDocuments();
+  const items = docs
+    .filter((d) => d.type === 'action')
+    .filter((d) => (d.system?.traits?.value ?? []).includes('tactic'))
+    .filter((d) => {
+      const tags = d.system?.traits?.otherTags ?? [];
+      return tags.includes('commander-mobility-tactic') || tags.includes('commander-offensive-tactic');
+    })
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      slug: d.slug ?? d.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+      rarity: d.system?.traits?.rarity ?? 'common',
+      traits: d.system?.traits?.value ?? [],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export async function loadExemplarIkons(wizard) {
+  if (wizard.data.class?.slug !== 'exemplar') return [];
+  return loadTaggedClassFeatures(wizard, 'exemplar-ikon', 'exemplar-ikons');
+}
+
+export async function loadInventorWeaponOptions(wizard) {
+  const all = await loadCompendium(wizard, 'pf2e.equipment-srd');
+  return all
+    .filter((item) => item.type === 'weapon')
+    .filter((item) => item.level === 0)
+    .filter((item) => ['simple', 'martial', 'advanced'].includes(item.category))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadInventorArmorOptions(wizard) {
+  const all = await loadCompendium(wizard, 'pf2e.equipment-srd');
+  const allowed = new Set(['power-suit', 'subterfuge-suit']);
+  return all
+    .filter((item) => item.type === 'armor' && allowed.has(item.slug))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadInventorWeaponModifications(wizard, selectedItem) {
+  const all = await loadCompendium(wizard, 'pf2e.classfeatures');
+  const slugs = ['advanced-design', 'blunt-shot', 'complex-simplicity', 'dynamic-weighting', 'entangling-form', 'hampering-spikes', 'hefty-composition', 'modular-head', 'pacification-tools', 'razor-prongs', 'segmented-frame'];
+  const item = selectedItem ?? {};
+  const category = item.category;
+  const traits = new Set(item.traits ?? []);
+  const isAdvanced = category === 'advanced';
+  const isSimple = category === 'simple';
+  const isMelee = !item.range;
+  const isRanged = !!item.range;
+  const isThrown = [...traits].some((trait) => trait.startsWith('thrown-'));
+  const isOneHand = item.usage === 'held-in-one-hand';
+
+  return all
+    .filter((entry) => slugs.includes(entry.slug))
+    .filter((entry) => {
+      switch (entry.slug) {
+        case 'advanced-design': return true;
+        case 'blunt-shot': return isRanged && !isThrown && !isAdvanced;
+        case 'complex-simplicity': return isSimple;
+        case 'dynamic-weighting': return isOneHand && isMelee && !isAdvanced && !traits.has('agile') && !traits.has('attached') && !traits.has('free-hand');
+        case 'entangling-form':
+        case 'hampering-spikes':
+        case 'hefty-composition':
+        case 'pacification-tools':
+        case 'razor-prongs':
+          return isMelee && !isAdvanced;
+        case 'modular-head':
+        case 'segmented-frame':
+          return !isAdvanced;
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadInventorArmorModifications(wizard, selectedItem) {
+  const all = await loadCompendium(wizard, 'pf2e.classfeatures');
+  const slugs = ['harmonic-oscillator', 'metallic-reactance', 'muscular-exoskeleton', 'otherworldly-protection', 'phlogistonic-regulator', 'speed-boosters', 'subtle-dampeners'];
+  const armorSlug = selectedItem?.slug ?? null;
+  return all
+    .filter((entry) => slugs.includes(entry.slug))
+    .filter((entry) => {
+      if (entry.slug === 'muscular-exoskeleton') return armorSlug === 'power-suit';
+      if (entry.slug === 'subtle-dampeners') return armorSlug === 'subterfuge-suit';
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadKineticImpulses(wizard, data) {
+  const all = await loadCompendium(wizard, 'pf2e.feats-srd');
+  const firstElement = data.subclass?.slug?.replace(/-gate$/, '');
+  const secondElement = data.secondElement?.slug?.replace(/-gate$/, '');
+  const selected = new Set((data.kineticImpulses ?? []).map((entry) => entry.uuid));
+  const selectedElements = new Set((data.kineticImpulses ?? []).map((entry) => entry.element).filter(Boolean));
+  const lockedElement = data.kineticGateMode === 'dual-gate' && selectedElements.size === 1 ? [...selectedElements][0] : null;
+
+  return all
+    .filter((item) => item.type === 'feat')
+    .filter((item) => item.level === 1)
+    .filter((item) => item.traits.includes('impulse'))
+    .filter((item) => !item.traits.includes('composite'))
+    .filter((item) => data.kineticGateMode === 'dual-gate'
+      ? item.traits.includes(firstElement) || item.traits.includes(secondElement)
+      : item.traits.includes(firstElement))
+    .filter((item) => {
+      if (!lockedElement || selected.has(item.uuid)) return true;
+      const element = item.traits.find((trait) => [firstElement, secondElement].includes(trait)) ?? null;
+      return element !== lockedElement;
+    })
+    .map((item) => ({
+      ...item,
+      element: item.traits.find((trait) => [firstElement, secondElement].includes(trait)) ?? null,
+      selected: selected.has(item.uuid),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSubclassData = false } = {}) {
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const pack = game.packs.get('pf2e.classfeatures');
+  if (!pack) return [];
+  const docs = await pack.getDocuments();
+  const items = await Promise.all(docs
+    .filter((d) => (d.system?.traits?.otherTags ?? []).includes(tag))
+    .map(async (d) => {
+      const base = {
+        uuid: d.uuid,
+        name: d.name,
+        img: d.img,
+        slug: d.slug ?? d.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+        description: d.system?.description?.value ?? '',
+        traits: d.system?.traits?.value ?? [],
+        rarity: d.system?.traits?.rarity ?? 'common',
+      };
+      if (!includeSubclassData) return base;
+      return {
+        ...base,
+        tradition: wizard._resolveSubclassTradition(d),
+        spellUuids: parseSpellUuidsFromDescription(d.system?.rules ?? [], d.system?.description?.value ?? ''),
+        choiceSets: await wizard._parseChoiceSets(d.system?.rules ?? []),
+        grantedSkills: wizard._parseGrantedSkills(d.system?.rules ?? [], d.system?.description?.value ?? ''),
+        grantedLores: wizard._parseSubclassLores(d.system?.rules ?? [], d.system?.description?.value ?? ''),
+        curriculum: parseCurriculum(d.system?.description?.value ?? ''),
+      };
+    }));
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export function parseVesselSpell(html) {
+  if (!html) return null;
+  const match = html.match(/Vessel Spell(?:<\/strong>)?\s*@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]/i)
+    ?? html.match(/Vessel Spell(?:<\/strong>)?.*?data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/i);
+  if (!match) return null;
+  return match[1].startsWith('Compendium.') ? match[1] : `Compendium.pf2e.spells-srd.Item.${match[1]}`;
+}
+
+export function parseCurriculum(html) {
+  if (!html || /No Curriculum/i.test(html)) return null;
+  const start = html.search(/(?:Additional\s+)?Curriculum/i);
+  if (start < 0) return null;
+  let section = html.slice(start);
+  const endMatch = section.match(/(?:Additional\s+)?School Spells/i);
+  if (endMatch) section = section.slice(0, endMatch.index);
+  const normalized = section
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:ul|ol|p|strong|em)[^>]*>/gi, '')
+    .replace(/&nbsp;/gi, ' ');
+
+  const curriculum = {};
+  const rankMap = { cantrip: 0, cantrips: 0, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6, '7th': 7, '8th': 8, '9th': 9 };
+  for (const rawLine of normalized.split(/\n+/)) {
+    const line = rawLine.trim().replace(/^[*\-\u2022]\s*/, '').trim();
+    if (!line) continue;
+    const rankMatch = line.match(/^(cantrips?|1st|2nd|3rd|4th|5th|6th|7th|8th|9th)(?:-rank)?(?:\s*:|\s+)/i);
+    if (!rankMatch) continue;
+    const rank = rankMap[rankMatch[1].toLowerCase()];
+    const spells = [];
+    const uuidPattern = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]|data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/gi;
+    let match;
+    while ((match = uuidPattern.exec(line)) !== null) {
+      spells.push(match[2] ?? `Compendium.pf2e.spells-srd.Item.${match[1]}`);
+    }
+    if (spells.length > 0) curriculum[rank] = spells;
+  }
+  return curriculum;
+}
+
+export async function loadRawHeritages(wizard) {
+  const cacheKey = 'heritages';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const packKeys = ['pf2e.heritages', 'pf2e.ancestryfeatures'];
+  let docs = [];
+  for (const key of packKeys) {
+    const pack = game.packs.get(key);
+    if (pack) {
+      const items = await pack.getDocuments();
+      docs = docs.concat(items.filter((d) => d.type === 'heritage'));
+    }
+  }
+  const items = docs.map((d) => ({
+    uuid: d.uuid,
+    name: d.name,
+    img: d.img,
+    slug: d.slug ?? d.name.toLowerCase().replace(/\s+/g, '-'),
+    traits: d.system?.traits?.value ?? [],
+    rarity: d.system?.traits?.rarity ?? 'common',
+    ancestrySlug: d.system?.ancestry?.slug ?? null,
+  }));
+  items.sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export function parseSpellUuidsFromDescription(rules, html) {
+  const uuids = new Set();
+  for (const rule of rules) {
+    if (rule.key === 'GrantItem' && typeof rule.uuid === 'string' && rule.uuid.includes('spells-srd')) {
+      uuids.add(rule.uuid);
+    }
+  }
+  if (html) {
+    const re1 = /data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/g;
+    const re2 = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]/g;
+    let match;
+    while ((match = re1.exec(html)) !== null) uuids.add(match[1]);
+    while ((match = re2.exec(html)) !== null) uuids.add(`Compendium.pf2e.spells-srd.Item.${match[1]}`);
+  }
+  return [...uuids];
+}

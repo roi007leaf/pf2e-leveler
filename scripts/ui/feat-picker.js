@@ -92,6 +92,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _enrichWithPrerequisites(feats) {
     const showPrereqs = game.settings.get(MODULE_ID, 'showPrerequisites');
+    const ownedSlugs = this.buildState?.feats ?? new Set();
+    const takenLevelMap = this._buildTakenLevelMap();
     for (const feat of feats) {
       if (showPrereqs) {
         const check = checkPrerequisites(feat, this.buildState);
@@ -101,7 +103,24 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         feat.prereqResults = [];
         feat.prerequisitesFailed = false;
       }
+      const slug = feat.slug ?? feat.name?.toLowerCase().replace(/\s+/g, '-');
+      feat.alreadyTaken = ownedSlugs.has(slug) && feat.system.maxTakable === 1;
+      feat.takenAtLevel = feat.alreadyTaken ? (takenLevelMap.get(slug) ?? null) : null;
     }
+  }
+
+  _buildTakenLevelMap() {
+    if (this._takenLevelMap) return this._takenLevelMap;
+    const map = new Map();
+    const actorFeats = this.actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+    for (const feat of actorFeats) {
+      if (feat.slug) {
+        const level = feat.system?.level?.taken ?? feat.system?.level?.value ?? null;
+        map.set(feat.slug, level);
+      }
+    }
+    this._takenLevelMap = map;
+    return map;
   }
 
   _activateListeners(el) {

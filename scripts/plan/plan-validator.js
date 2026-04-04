@@ -1,6 +1,6 @@
 import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getChoicesForLevel, BOOSTS_PER_LEVEL } from '../classes/progression.js';
+import { getChoicesForLevel } from '../classes/progression.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
@@ -95,7 +95,33 @@ function validateBoosts(levelData, expectedCount, _level, _plan, _actor) {
       message: `Need ${expectedCount} boosts, selected ${boosts.length}`,
     };
   }
+
+  const intBenefitCount = getIntBenefitCount(levelData, _level, _plan, _actor);
+  if ((levelData.intBonusSkills?.length ?? 0) !== intBenefitCount) {
+    return {
+      severity: 'error',
+      message: `Need ${intBenefitCount} Intelligence bonus skill selection(s), selected ${levelData.intBonusSkills?.length ?? 0}`,
+    };
+  }
+  if ((levelData.intBonusLanguages?.length ?? 0) !== intBenefitCount) {
+    return {
+      severity: 'error',
+      message: `Need ${intBenefitCount} Intelligence bonus language selection(s), selected ${levelData.intBonusLanguages?.length ?? 0}`,
+    };
+  }
   return null;
+}
+
+function getIntBenefitCount(levelData, level, plan, actor) {
+  if (!levelData?.abilityBoosts?.includes('int')) return 0;
+  const before = actor?.system?.abilities?.int?.mod ?? 0;
+  const plannedPrior = Object.entries(plan.levels ?? {})
+    .filter(([lvl]) => Number(lvl) < level)
+    .flatMap(([, data]) => data?.abilityBoosts ?? [])
+    .filter((attr) => attr === 'int').length;
+  const current = before + plannedPrior;
+  const increased = current >= 4 ? current : current + 1;
+  return Math.max(0, Math.trunc(increased) - Math.trunc(current));
 }
 
 function validateFeatSlot(feats, label) {
@@ -180,5 +206,3 @@ function validateSkillIncrease(levelData, level, _plan) {
   }
   return null;
 }
-
-

@@ -1,4 +1,5 @@
 import { MODULE_ID } from '../constants.js';
+import { bindRarityToggles } from './shared/rarity-filters.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -56,6 +57,16 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
 
+    // Mark spells the actor already has
+    const ownedUuids = new Set(
+      (this.actor.items ?? [])
+        .filter((i) => i.type === 'spell')
+        .map((i) => i.sourceId ?? i.flags?.core?.sourceId ?? i.uuid),
+    );
+    for (const s of this.filteredSpells) {
+      s.alreadyKnown = ownedUuids.has(s.uuid);
+    }
+
     const allTraits = new Set();
     for (const s of this.allSpells) {
       for (const t of (s.system?.traits?.value ?? [])) allTraits.add(t);
@@ -100,18 +111,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    el.querySelectorAll('[data-action="toggleRarity"]').forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const hidden = new Set();
-        el.querySelectorAll('[data-action="toggleRarity"]').forEach((input) => {
-          if (!input.checked) hidden.add(input.dataset.rarity);
-        });
-        el.querySelectorAll('.spell-option[data-rarity]').forEach((item) => {
-          const rarity = item.dataset.rarity || 'common';
-          if (hidden.has(rarity)) item.style.display = 'none';
-          else if (item.style.display === 'none') item.style.display = '';
-        });
-      });
+    bindRarityToggles(el, {
+      toggleSelector: '[data-action="toggleRarity"]',
+      itemSelector: '.spell-option[data-rarity]',
     });
 
     const spellList = el.querySelector('.spell-list');

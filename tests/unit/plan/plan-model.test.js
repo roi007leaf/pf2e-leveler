@@ -7,6 +7,8 @@ import {
   clearLevelFeat,
   setLevelBoosts,
   setLevelSkillIncrease,
+  toggleLevelIntBonusSkill,
+  toggleLevelIntBonusLanguage,
   getAllPlannedFeats,
   getAllPlannedSkillIncreases,
   getAllPlannedBoosts,
@@ -48,6 +50,8 @@ describe('createPlan', () => {
   test('level 5 has boosts, ancestry feat, skill increase', () => {
     const plan = createPlan('alchemist');
     expect(plan.levels[5].abilityBoosts).toEqual([]);
+    expect(plan.levels[5].intBonusSkills).toEqual([]);
+    expect(plan.levels[5].intBonusLanguages).toEqual([]);
     expect(plan.levels[5].ancestryFeats).toEqual([]);
     expect(plan.levels[5].skillIncreases).toEqual([]);
   });
@@ -106,6 +110,24 @@ describe('setLevelSkillIncrease', () => {
     const plan = createPlan('alchemist');
     setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
     expect(plan.levels[3].skillIncreases).toEqual([{ skill: 'athletics', toRank: 2 }]);
+  });
+});
+
+describe('Intelligence bonus selections', () => {
+  test('toggles Intelligence bonus skill', () => {
+    const plan = createPlan('alchemist');
+    toggleLevelIntBonusSkill(plan, 5, 'arcana');
+    expect(plan.levels[5].intBonusSkills).toEqual(['arcana']);
+    toggleLevelIntBonusSkill(plan, 5, 'arcana');
+    expect(plan.levels[5].intBonusSkills).toEqual([]);
+  });
+
+  test('toggles Intelligence bonus language', () => {
+    const plan = createPlan('alchemist');
+    toggleLevelIntBonusLanguage(plan, 5, 'draconic');
+    expect(plan.levels[5].intBonusLanguages).toEqual(['draconic']);
+    toggleLevelIntBonusLanguage(plan, 5, 'draconic');
+    expect(plan.levels[5].intBonusLanguages).toEqual([]);
   });
 });
 

@@ -89,6 +89,58 @@
               </button>
               {{/each}}
             </div>
+            {{#if intelligenceBenefit}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
+              <i class="fa-solid fa-circle-info"></i>
+              {{#if intelligenceBenefit.gainsSingle}}
+              Intelligence increases your modifier at this level. Choose 1 additional trained skill and 1 additional language below.
+              {{else}}
+              Intelligence increases your modifier at this level. Choose {{intelligenceBenefit.count}} additional trained skills and {{intelligenceBenefit.count}} additional languages below.
+              {{/if}}
+            </div>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if intBonusSkillOptions}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-brain"></i>
+            Intelligence Bonus Skills ({{intBonusSkillCount}}/{{intelligenceBenefit.count}})
+          </div>
+          <div class="level-section__body">
+            <div class="skill-btn-grid">
+              {{#each intBonusSkillOptions}}
+              <button type="button"
+                class="skill-btn {{#if this.selected}}selected{{/if}}"
+                data-action="toggleIntBonusSkill" data-skill="{{this.slug}}"
+                {{#if this.disabled}}disabled{{/if}}>
+                <span class="skill-btn__name">{{this.label}}</span>
+              </button>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if intBonusLanguageOptions}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-language"></i>
+            Intelligence Bonus Languages ({{intBonusLanguageCount}}/{{intelligenceBenefit.count}})
+          </div>
+          <div class="level-section__body">
+            <div class="skill-btn-grid">
+              {{#each intBonusLanguageOptions}}
+              <button type="button"
+                class="skill-btn {{#if this.selected}}selected{{/if}}"
+                data-action="toggleIntBonusLanguage" data-language="{{this.slug}}"
+                {{#if this.disabled}}disabled{{/if}}>
+                <span class="skill-btn__name">{{this.label}}</span>
+              </button>
+              {{/each}}
+            </div>
           </div>
         </div>
         {{/if}}
@@ -270,6 +322,22 @@
               </tbody>
             </table>
 
+            {{#if showGrantedSpells}}
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-gift"></i>
+                Granted Spells
+              </div>
+              {{#each grantedSpells}}
+              <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
+                <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
+                <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                <span class="feat-slot__level">Rank {{this.rank}}</span>
+              </div>
+              {{/each}}
+            </div>
+            {{/if}}
+
             {{#if hasSpellbook}}
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
@@ -309,6 +377,23 @@
               {{/each}}
             </div>
             {{/unless}}
+            {{/if}}
+
+            {{#if showFocusSpells}}
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-sun"></i>
+                Focus Spells
+                {{#if newFocusSpell}}<span class="tag tag--success tag--tiny">New!</span>{{/if}}
+              </div>
+              {{#each focusSpells}}
+              <div class="feat-slot feat-slot--filled" style="{{#if this.isNew}}border-color: var(--leveler-success);{{/if}}">
+                <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
+                <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                <span class="tag tag--info tag--tiny">{{this.tier}}</span>
+              </div>
+              {{/each}}
+            </div>
             {{/if}}
           </div>
         </div>

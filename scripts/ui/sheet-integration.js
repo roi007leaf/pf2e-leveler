@@ -1,8 +1,8 @@
 import { MODULE_ID } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { localize } from '../utils/i18n.js';
-import { LevelPlanner } from './level-planner.js';
-import { CharacterWizard } from './character-wizard.js';
+import { LevelPlanner } from './level-planner/index.js';
+import { CharacterWizard } from './character-wizard/index.js';
 
 export function registerSheetIntegration() {
   Hooks.on('renderCharacterSheetPF2e', onRenderCharacterSheet);

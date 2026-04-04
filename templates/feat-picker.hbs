@@ -25,12 +25,13 @@
 
   <div class="feat-list">
     {{#each feats}}
-    <div class="feat-option {{#if this.prerequisitesFailed}}feat-option--dimmed{{/if}}"
+    <div class="feat-option {{#if this.prerequisitesFailed}}feat-option--dimmed{{/if}} {{#if this.alreadyTaken}}feat-option--taken{{/if}}"
          data-uuid="{{this.uuid}}">
       <img class="feat-option__img" src="{{this.img}}" alt="">
       <div class="feat-option__info">
         <div class="feat-option__header">
           <span class="feat-option__name" data-action="viewFeat">{{this.name}}</span>
+          {{#if this.alreadyTaken}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> Taken</span>{{/if}}
           <span class="feat-option__level">Lvl {{this.system.level.value}}</span>
         </div>
         <div class="feat-option__traits">
@@ -59,9 +60,13 @@
         <button type="button" class="feat-option__chat-btn" data-action="sendToChat" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEND_TO_CHAT'}}">
           <i class="fa-solid fa-comment"></i>
         </button>
-        <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.prerequisitesFailed}}disabled{{/if}}>
-          {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
-        </button>
+        {{#if this.alreadyTaken}}
+          <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} — {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
+        {{else}}
+          <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.prerequisitesFailed}}disabled{{/if}}>
+            {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+          </button>
+        {{/if}}
       </div>
     </div>
     {{else}}

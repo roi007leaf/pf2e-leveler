@@ -1,5 +1,163 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- **Language selection step** in character creation wizard
+  - Granted languages from ancestry shown as locked selections
+  - Additional language choices based on ancestry allowance + INT modifier
+  - Full searchable language list with ancestry-appropriate suggestions highlighted
+- **Lore skills** auto-populated from background and subclass during character creation
+- **Focus spell support** for character creation and level planner
+  - Focus spells detected from subclass data file and displayed in Focus tab
+  - Focus spellcasting entry created automatically during character creation
+  - Focus pool set to 1 when focus spells are granted
+  - Planner shows focus spells at the level they're unlocked (via feat)
+- **Subclass choices step** for subclasses with ChoiceSet options (e.g., Elemental bloodline element selection)
+  - Choice-dependent granted spells resolved based on selection
+- **Deity selection step** for Champion and Cleric
+  - Searchable deity list with heal/harm font filter checkboxes
+  - Deity stored and applied as embedded item
+- **Sanctification step** for Champion (holy/unholy)
+  - Filters available causes by selected sanctification
+- **Divine Font step** for Cleric (heal/harm)
+  - Auto-set when deity only allows one font
+  - Creates Divine Font spellcasting entry with 4 rank-1 slots
+  - Scales to 5 slots at level 5, 6 at level 15 (planner)
+- **Champion devotion spell selection** (Shields of the Spirit, Lay on Hands, Touch of the Void)
+  - Available options based on deity's divine font
+  - Creates focus spellcasting entry during character creation
+- **Summoner link spells** (Evolution Surge + Boost Eidolon) auto-added as focus spells
+- **Subclass spell data file** (`subclass-spells.js`) with all ranks for all subclasses
+  - Macro to regenerate data from compendium (`generate-subclass-spells.js`)
+  - Covers sorcerer bloodlines, oracle mysteries, druid orders, wizard schools, witch patrons, bard muses, magus studies, psychic minds, summoner eidolons
+- **Granted spells per level** shown in planner for subclass-granted spells at new ranks
+- **Spellstrike indicator** on Magus spell selection (green "Spellstrike" tag on attack spells)
+- **Wizard curriculum spellcasting entry** created automatically with extra slots for school spells
+- **Wizard Arcane Thesis step** added to character creation
+  - Wizard-only step shown alongside other class-specific creation steps
+  - Selected thesis shown in summary and creation chat output
+- **Animist apparition support** added to character creation
+  - Apparitions step supports choosing two apparitions and marking a primary apparition
+  - Adds apparition lore, vessel spell, and separate apparition spellcasting entry on apply
+- **Psychic subconscious mind step** added to character creation
+  - Psychic now captures both Conscious Mind and Subconscious Mind at level 1
+  - Selected subconscious mind drives Psychic key ability in the boost flow
+- **Thaumaturge implement step** added to character creation
+  - First Implement is now an explicit wizard step with summary/chat output and follow-up reminder
+- **Commander tactics step** added to character creation
+  - Supports selecting the five starting tactics from the action compendium
+- **Exemplar ikons step** added to character creation
+  - Supports selecting the three starting ikons with summary/chat output and follow-up reminder
+- **Inventor innovation details step** added to character creation
+  - Weapon and Armor Innovation now collect their base item and initial modification in the wizard
+- **Kineticist kinetic gate step** added to character creation
+  - Captures single vs dual gate, optional second element, and starting impulses in the wizard
+- **Witch familiar spellbook** correctly sized (10 cantrips + 6 rank-1 including patron lesson)
+- **Focus spells from feats** auto-detected and added during level-up (scans feat rules and description for spell UUIDs)
+- **Already-known spells** marked with "Known" tag in spell picker to prevent confusion
+- **Feat taken indicators** in both creation wizard and level planner feat picker
+  - Feats with `maxTakable > 1` remain selectable
+  - Tooltip shows level taken and explains why feat can't be re-selected
+
+### Improved
+
+- **Selected spells** now display as compact chips instead of full-width rows
+- **Selected items** (ancestry/heritage/background/class/subclass) hidden from selection list
+- **Boost rows** dim unselected options when complete
+- **Subclass choice buttons** show green highlight when selected
+- **Generic subclass ChoiceSet support** expanded beyond inline arrays
+  - Filter-backed PF2E choice sets now resolve into real wizard options and keep readable labels in summary/chat output
+- **Subclass summaries** now use readable combined labels
+  - UUID-backed and slug-backed follow-up choices now resolve to item names or formatted labels in the Summary step and creation chat
+- **Compact spell chips** are clickable to view spell details
+- **Spell rarity filters** added to character creation spell selection
+  - Cantrip and 1st-rank spell tabs now expose uncommon, rare, and unique spells via toggle filters
+- **Class step pickers** now use more consistent count headers
+  - Tactics, Ikons, Apparitions, and Kineticist impulse picking all show selected progress more clearly
+- **Generic class option rendering** now uses inspectable item cards whenever an option resolves to a UUID
+  - UUID-backed subclass and follow-up choices render like feat cards with clickable item names instead of plain button lists
+- **Level planner Intelligence bonus pickers** now behave more like normal single-choice selectors
+  - Single-slot bonus skill/language choices swap directly when clicking a different option
+  - Planner preserves sidebar/content scroll position across quick save-rerender cycles
+- **Character creation apply step** now embeds selected subclass and class-option items consistently
+  - Chosen subclasses, follow-up subclass choices, implements, tactics, ikons, thesis, subconscious mind, apparitions, kineticist picks, and inventor details now apply to the created actor instead of living only in wizard state
+- **Sorcerer granted spell detection** completely rewritten — uses data-driven lookup instead of fragile HTML parsing
+- **Spell rank validation** — rank 2+ spells blocked from being added at level 1
+
+- **Character creation loading overlay** now acts as a real PF2E prompt checklist
+  - Shows saved wizard selections during apply, highlights the currently open PF2E prompt when matched, and keeps unresolved prompts visible as pending instead of hiding them
+- **Feat Choices step** now supports granted-feat and nested follow-up choice sets
+  - Heritage/background/class-granted feats with `ChoiceSet`s now surface in the wizard, can introduce further sub-choices dynamically, and appear in Summary/apply overlay output
+- **Generic ChoiceSet rendering** now covers more PF2E rule shapes
+  - UUID-backed options render as inspectable item cards
+  - Config- and filter-driven skill choices render as skills instead of compendium feats
+  - Common ancestry prompts now stay common-only even when PF2E expresses ancestry through filters instead of `itemType`
+
+### Fixed
+
+- **Planner prerequisite checks** now recognize feat aliases more reliably
+  - Parenthetical feat variants like `Efficient Alchemy (Alchemist)` now satisfy prerequisites that reference the base feat name
+- **Planner ability boosts** now surface Intelligence modifier benefits
+  - When a planned ability boost increases INT modifier, the planner now requires matching bonus trained skill and bonus language selections and applies them during level-up
+- **Planner Intelligence bonus language labels** now localize PF2E language keys correctly
+  - Bonus language pickers show readable names like `Draconic` instead of raw localization keys
+- **Planner same-level Intelligence bonus skills** now feed into the skill increase picker
+  - If an INT bonus trains a skill on that level, the regular skill increase section immediately reflects the new trained rank
+- **Wizard curriculum parsing and selection** updated for current PF2E v13 school formats
+  - Handles markdown-style curriculum blocks and rank labels written without a colon
+- **Wizard curriculum spell application** corrected
+  - Curriculum spells no longer spill into the regular wizard spellcasting entry
+  - Only the chosen curriculum spells are added to the dedicated curriculum entry
+- **Wizard curriculum UI** now matches the rest of the spell selection interface
+  - Uses standard chips/cards styling and enforces the correct curriculum selection limits
+- **Kineticist impulse picker** now shows proper selection counts and hides remaining options once full
+- **Kineticist dual gate filtering** now only offers valid opposite-element impulse picks for the second choice
+- **Generic subclass option cards** now render compendium-backed choices as real item cards
+  - Applies to both filter-backed and inline stored choice sets, including slug-based kineticist impulse options
+- **Dragon Instinct choice handling** now respects distinct dragon selections
+  - Object-backed dragon options no longer all appear selected at once and now render in the richer card-style choice UI
+- **Generic subclass lore parsing** now splits multiple lore grants correctly
+  - Text like `Underworld Lore and Warfare Lore` is no longer collapsed into one fake lore entry
+- **Rogue racket key abilities** now apply correctly in character creation
+  - Mastermind uses INT, Ruffian uses STR, Scoundrel uses CHA, and Eldritch Trickster follows the selected dedication's class key ability
+- **Psychic level-1 spell grants** now apply correctly
+  - Conscious Mind grants its three level-1 psi cantrips and granted 1st-rank spell without reducing normal Psychic spell picks
+
+- **Granted feat ChoiceSets** now stay incomplete until selections are actually made
+  - The Feat Choices step no longer shows as complete while heritage/background/class-granted feat prompts are still unanswered
+- **Adopted Ancestry and similar feat prompts** now parse correctly from granted items
+  - Granted feat prompts honor PF2E's slug-valued ancestry choices, common-only ancestry restrictions, and nested follow-up choices such as ancestry-specific weapon selections
+- **Focus spell grants** now start with available focus points instead of looking already spent
+  - Character creation and feat-driven focus entry creation now refill the pool when PF2E has already initialized `focus.max` but left `focus.value` at `0`
+
+### Architecture
+
+- **Class handler pattern** — class-specific creation behavior extracted from wizard into handlers
+  - `BaseClassHandler` for martial classes (no spells)
+  - `CasterBaseHandler` for all standard casters (spell resolution, application)
+  - `ChampionHandler` for deity, sanctification, devotion spells
+  - `ClericHandler` for deity, divine font
+  - `SummonerHandler` for link spells (Evolution Surge, Boost Eidolon)
+  - `WizardHandler` for curriculum spellcasting entry
+  - `WitchHandler` for familiar spellbook counts
+- **Spell apply logic moved to handlers** — `applySpellcasting`, `applyFocusSpells`, `applyDivineFont` extracted from `apply-creation.js` into class-specific handlers
+- **Shared constants** — `SUBCLASS_TAGS`, `SPELLBOOK_CLASSES` extracted to `constants.js`
+- **`capitalize()`** deduplicated to single source in `utils/pf2e-api.js`
+- **Thaumaturge implements** removed from subclass selection (not a true subclass)
+- **ARCHITECTURE.md** — comprehensive system guide documenting module structure, PF2e integration, handler pattern, and data structures
+
+## 1.1.1
+
+### Improved
+
+- Selected spells in character creation now display as compact chips instead of full-width rows
+- Selected ancestry/heritage/background/class/subclass is now hidden from the selection list
+- Feats already taken are marked as "Taken" with disabled selection in both character creation and level planner feat picker
+  - Feats that can be taken multiple times remain selectable
+  - Tooltip explains why a feat cannot be selected again
+
 ## 1.1.0
 
 ### Added

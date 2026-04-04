@@ -31,6 +31,8 @@ function createEmptyLevelData(choices) {
     switch (choice.type) {
       case 'abilityBoosts':
         data.abilityBoosts = [];
+        data.intBonusSkills = [];
+        data.intBonusLanguages = [];
         break;
       case 'classFeat':
         data.classFeats = [];
@@ -108,6 +110,28 @@ export function setLevelBoosts(plan, level, boosts) {
 export function setLevelSkillIncrease(plan, level, skillIncrease) {
   if (!plan.levels[level]) plan.levels[level] = {};
   plan.levels[level].skillIncreases = [skillIncrease];
+  return plan;
+}
+
+export function toggleLevelIntBonusSkill(plan, level, skill) {
+  if (!plan.levels[level]) plan.levels[level] = {};
+  if (!plan.levels[level].intBonusSkills) plan.levels[level].intBonusSkills = [];
+  const skills = [...plan.levels[level].intBonusSkills];
+  const index = skills.indexOf(skill);
+  if (index >= 0) skills.splice(index, 1);
+  else skills.push(skill);
+  plan.levels[level].intBonusSkills = skills;
+  return plan;
+}
+
+export function toggleLevelIntBonusLanguage(plan, level, language) {
+  if (!plan.levels[level]) plan.levels[level] = {};
+  if (!plan.levels[level].intBonusLanguages) plan.levels[level].intBonusLanguages = [];
+  const languages = [...plan.levels[level].intBonusLanguages];
+  const index = languages.indexOf(language);
+  if (index >= 0) languages.splice(index, 1);
+  else languages.push(language);
+  plan.levels[level].intBonusLanguages = languages;
   return plan;
 }
 

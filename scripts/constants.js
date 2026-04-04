@@ -45,6 +45,32 @@ export const FEAT_CATEGORIES = {
   MYTHIC: 'mythic',
 };
 
+export const SUBCLASS_TAGS = {
+  alchemist: 'alchemist-research-field',
+  animist: 'animistic-practice',
+  barbarian: 'barbarian-instinct',
+  bard: 'bard-muse',
+  champion: 'champion-cause',
+  cleric: 'cleric-doctrine',
+  druid: 'druid-order',
+  gunslinger: 'gunslinger-way',
+  inventor: 'inventor-innovation',
+  investigator: 'investigator-methodology',
+  kineticist: 'kineticist-kinetic-gate',
+  magus: 'magus-hybrid-study',
+  oracle: 'oracle-mystery',
+  psychic: 'psychic-conscious-mind',
+  ranger: 'ranger-hunters-edge',
+  rogue: 'rogue-racket',
+  sorcerer: 'sorcerer-bloodline',
+  summoner: 'summoner-eidolon',
+  swashbuckler: 'swashbuckler-style',
+  witch: 'witch-patron',
+  wizard: 'wizard-arcane-school',
+};
+
+export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus'];
+
 export const PLAN_STATUS = {
   COMPLETE: 'complete',
   WARNING: 'warning',

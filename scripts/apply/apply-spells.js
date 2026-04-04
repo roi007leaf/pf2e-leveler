@@ -1,4 +1,7 @@
+import { SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
+import { capitalize } from '../utils/pf2e-api.js';
+import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { debug, warn } from '../utils/logger.js';
 
 export async function applySpells(actor, plan, level) {
@@ -14,7 +17,49 @@ export async function applySpells(actor, plan, level) {
   const levelData = plan.levels[level];
   const addedSpells = await addPlannedSpells(actor, entries, levelData);
 
+  // Add subclass granted spells for new ranks at this level
+  const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
+  addedSpells.push(...grantedSpells);
+
+  // Scale divine font slots for Cleric
+  await updateDivineFont(actor, plan, level);
+
   return addedSpells;
+}
+
+async function updateDivineFont(actor, plan, level) {
+  if (plan.classSlug !== 'cleric') return;
+
+  const fontEntry = actor.items?.find((i) =>
+    i.type === 'spellcastingEntry' && i.name?.includes('Font'),
+  );
+  if (!fontEntry) return;
+
+  // Font slots: 4 at level 1, 5 at level 5, 6 at level 15
+  let maxSlots = 4;
+  if (level >= 15) maxSlots = 6;
+  else if (level >= 5) maxSlots = 5;
+
+  // Find the highest spell rank for font slots
+  const classDef = ClassRegistry.get(plan.classSlug);
+  const slots = classDef?.spellcasting?.slots?.[level];
+  if (!slots) return;
+
+  const ranks = Object.keys(slots).filter((k) => k !== 'cantrips').map(Number).filter((n) => !isNaN(n));
+  const highestRank = Math.max(...ranks, 1);
+
+  const update = { _id: fontEntry.id };
+  // Clear old font slots
+  for (let r = 1; r <= 10; r++) {
+    update[`system.slots.slot${r}.max`] = 0;
+    update[`system.slots.slot${r}.value`] = 0;
+  }
+  // Set new font slots at highest rank
+  update[`system.slots.slot${highestRank}.max`] = maxSlots;
+  update[`system.slots.slot${highestRank}.value`] = maxSlots;
+
+  await actor.updateEmbeddedDocuments('Item', [update]);
+  debug(`Updated divine font: ${maxSlots} slots at rank ${highestRank}`);
 }
 
 async function ensureSpellcastingEntries(actor, classDef) {
@@ -158,6 +203,49 @@ async function addPlannedSpells(actor, entries, levelData) {
   return added;
 }
 
+async function addGrantedSpells(actor, entries, classDef, _plan, level) {
+  const tag = SUBCLASS_TAGS[classDef.slug];
+  if (!tag) return [];
+
+  const subclassItem = actor.items?.find((i) =>
+    i.type === 'feat' && (i.system?.traits?.otherTags ?? []).includes(tag),
+  );
+  if (!subclassItem?.slug) return [];
+
+  const slots = classDef.spellcasting.slots;
+  const prevSlots = slots[level - 1];
+  const currentSlots = slots[level];
+  if (!currentSlots) return [];
+
+  const added = [];
+  const entry = entries.primary ?? entries.animist;
+  if (!entry) return [];
+
+  for (const rank of Object.keys(currentSlots)) {
+    if (rank === 'cantrips') continue;
+    const rankNum = parseInt(rank);
+    if (isNaN(rankNum)) continue;
+    if (prevSlots?.[rank]) continue;
+
+    const resolved = resolveSubclassSpells(subclassItem.slug, {}, rankNum);
+    if (!resolved?.grantedSpell) continue;
+
+    const spell = await resolveSpell(resolved.grantedSpell);
+    if (!spell) continue;
+
+    const existing = actor.items?.find((i) => i.type === 'spell' && i.sourceId === spell.uuid);
+    if (existing) continue;
+
+    const spellData = foundry.utils.deepClone(spell.toObject());
+    spellData.system.location = { value: entry.id };
+    await actor.createEmbeddedDocuments('Item', [spellData]);
+    added.push({ name: spell.name, rank: rankNum });
+    debug(`Added granted spell: ${spell.name} (rank ${rankNum})`);
+  }
+
+  return added;
+}
+
 function resolveTargetEntry(entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
@@ -173,6 +261,3 @@ async function resolveSpell(uuid) {
   }
 }
 
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}

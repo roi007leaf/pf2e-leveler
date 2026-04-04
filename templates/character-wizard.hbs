@@ -1,4 +1,62 @@
 <div class="pf2e-leveler character-wizard">
+  {{#if isApplying}}
+  <div class="wizard-apply-overlay">
+    <div class="wizard-apply-card">
+      <div class="wizard-apply-card__eyebrow">Creating Character</div>
+      <div class="wizard-apply-card__title">{{data.class.name}}{{#if data.subclass}} · {{data.subclass.name}}{{/if}}</div>
+      <div class="wizard-apply-card__status">{{applyStatus}}</div>
+      <div class="wizard-apply-card__bar">
+        <div class="wizard-apply-card__fill" style="width: {{applyProgressPercent}}%;"></div>
+      </div>
+      <div class="wizard-apply-card__percent">{{applyProgressPercent}}%</div>
+      {{#if activeApplyPrompt}}
+      <div class="wizard-apply-card__section">
+        <div class="wizard-apply-card__section-title">Current PF2E Prompt</div>
+        <div class="wizard-apply-card__rows">
+          <div class="wizard-apply-card__row">
+            <div class="wizard-apply-card__label">Prompt</div>
+            <div class="wizard-apply-card__value">{{activeApplyPrompt.prompt}}</div>
+          </div>
+          <div class="wizard-apply-card__row">
+            <div class="wizard-apply-card__label">Use</div>
+            <div class="wizard-apply-card__value">{{activeApplyPrompt.value}}</div>
+          </div>
+          <div class="wizard-apply-card__row">
+            <div class="wizard-apply-card__label">Source</div>
+            <div class="wizard-apply-card__value">{{activeApplyPrompt.label}}</div>
+          </div>
+        </div>
+      </div>
+      {{/if}}
+      {{#if applySelectionRows.length}}
+      <div class="wizard-apply-card__section">
+        <div class="wizard-apply-card__section-title">Selections</div>
+        <div class="wizard-apply-card__rows">
+          {{#each applySelectionRows}}
+          <div class="wizard-apply-card__row">
+            <div class="wizard-apply-card__label">{{this.label}}</div>
+            <div class="wizard-apply-card__value">{{this.value}}</div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+      {{#if applyPromptRows.length}}
+      <div class="wizard-apply-card__section">
+        <div class="wizard-apply-card__section-title">Use These In PF2E Prompts</div>
+        <div class="wizard-apply-card__rows">
+          {{#each applyPromptRows}}
+          <div class="wizard-apply-card__row">
+            <div class="wizard-apply-card__label">{{#if this.prompt}}{{this.prompt}}{{else}}{{this.label}}{{/if}}</div>
+            <div class="wizard-apply-card__value">{{this.value}}{{#if this.pending}} <span class="wizard-apply-card__hint">(wizard selection missing)</span>{{else if this.label}} <span class="wizard-apply-card__hint">({{this.label}})</span>{{/if}}</div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+  {{/if}}
   <div class="wizard-sidebar">
     <div class="sidebar-header">
       {{localize "PF2E_LEVELER.CREATION.TITLE"}}
@@ -160,7 +218,579 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-granted='{{json this.grantedSpells}}' data-skills='{{json this.grantedSkills}}' data-lores='{{json this.grantedLores}}' data-curriculum='{{json this.curriculum}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectSubclass" data-uuid="{{this.uuid}}" data-tradition="{{this.tradition}}" data-spelluuids='{{json this.spellUuids}}' data-skills='{{json this.grantedSkills}}' data-lores='{{json this.grantedLores}}' data-choicesets='{{json this.choiceSets}}' data-curriculum='{{json this.curriculum}}'>{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "subclassChoices")}}
+      <h2>{{subclassName}} Options</h2>
+
+      {{#each choiceSets}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{this.prompt}}
+      </div>
+      {{#if this.isItemChoice}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each this.options}}
+        <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+            {{#if this.summary}}
+            <div class="wizard-item__desc">{{this.summary}}</div>
+            {{/if}}
+            <div class="wizard-item__traits">
+              {{#each this.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.selected}}
+            <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> Selected</span>
+          {{else}}
+            <button type="button"
+              class="wizard-item__select"
+              data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}">
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+            </button>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <div class="skill-btn-grid">
+        {{#each this.options}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/each}}
+
+    {{else if (eq stepId "featChoices")}}
+      <h2>Feat Choices</h2>
+
+      {{#each featChoiceSections}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{this.featName}}
+      </div>
+
+      {{#each this.choiceSets}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{this.prompt}}
+      </div>
+      {{#if this.isItemChoice}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each this.options}}
+        <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+            {{#if this.summary}}
+            <div class="wizard-item__desc">{{this.summary}}</div>
+            {{/if}}
+            <div class="wizard-item__traits">
+              {{#each this.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.selected}}
+            <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> Selected</span>
+          {{else}}
+            <button type="button"
+              class="wizard-item__select"
+              data-action="selectFeatChoice" data-slot="{{../../slot}}" data-flag="{{../flag}}" data-value="{{this.value}}">
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+            </button>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <div class="skill-btn-grid">
+        {{#each this.options}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectFeatChoice" data-slot="{{../../slot}}" data-flag="{{../flag}}" data-value="{{this.value}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/each}}
+      {{/each}}
+
+    {{else if (eq stepId "implement")}}
+      <h2>Implement</h2>
+      {{#if data.implement}}
+        <div class="wizard-selected">
+          <img src="{{data.implement.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.implement.uuid}}">{{data.implement.name}}</span>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearImplement" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
+      <div class="wizard-item-grid">
+        {{#each items}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "tactics")}}
+      <h2>Tactics</h2>
+      <p class="wizard-hint">Choose five starting tactics for your folio.</p>
+      {{#if selectedTactics.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        Selected Tactics ({{selectedTacticsCount}}/{{maxTactics}})
+      </div>
+      <div class="wizard-spell-chips">
+        {{#each selectedTactics}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleTactic" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}"></i>
+        </span>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#unless (eq selectedTactics.length maxTactics)}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-plus"></i>
+        Available Tactics ({{selectedTacticsCount}}/{{maxTactics}})
+      </div>
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each tactics}}
+        {{#unless this.selected}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="toggleTactic" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}">+</button>
+        </div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/unless}}
+
+    {{else if (eq stepId "ikons")}}
+      <h2>Ikons</h2>
+      <p class="wizard-hint">Choose three starting ikons.</p>
+      {{#if selectedIkons.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-gem"></i>
+        Selected Ikons ({{selectedIkonsCount}}/{{maxIkons}})
+      </div>
+      <div class="wizard-spell-chips">
+        {{#each selectedIkons}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleIkon" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}"></i>
+        </span>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#unless (eq selectedIkons.length maxIkons)}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-plus"></i>
+        Available Ikons ({{selectedIkonsCount}}/{{maxIkons}})
+      </div>
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each ikons}}
+        {{#unless this.selected}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="toggleIkon" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}">+</button>
+        </div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/unless}}
+
+    {{else if (eq stepId "innovationDetails")}}
+      <h2>Innovation Details</h2>
+      {{#if innovationType}}
+      <p class="wizard-hint">Choose your innovation's base item and initial modification.</p>
+
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-hammer"></i>
+        {{innovationItemLabel}}
+      </div>
+      {{#if data.innovationItem}}
+        <div class="wizard-selected">
+          <img src="{{data.innovationItem.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.innovationItem.uuid}}">{{data.innovationItem.name}}</span>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationItem" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      {{#unless data.innovationItem}}
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each innovationItems}}
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if this.category}}<span class="tag tag--muted tag--tiny">{{this.category}}</span>{{/if}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectInnovationItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+      {{/unless}}
+
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-screwdriver-wrench"></i>
+        {{innovationModificationLabel}}
+      </div>
+      {{#if data.innovationModification}}
+        <div class="wizard-selected">
+          <img src="{{data.innovationModification.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.innovationModification.uuid}}">{{data.innovationModification.name}}</span>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationModification" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      {{#if data.innovationItem}}
+        {{#unless data.innovationModification}}
+        <div class="wizard-item-grid wizard-item-grid--compact">
+          {{#each innovationModifications}}
+          <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+            <img src="{{this.img}}" alt="" class="wizard-item__img">
+            <div class="wizard-item__info">
+              <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <div class="wizard-item__traits">
+                {{#if (notEqual this.rarity "common")}}
+                <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+                {{/if}}
+              </div>
+            </div>
+            <button type="button" class="wizard-item__select" data-action="selectInnovationModification" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          </div>
+          {{/each}}
+        </div>
+        {{/unless}}
+      {{else}}
+      <p class="wizard-hint">Choose the base innovation item first.</p>
+      {{/if}}
+      {{/if}}
+
+    {{else if (eq stepId "kineticGate")}}
+      <h2>Kinetic Gate</h2>
+      <p class="wizard-hint">Choose whether you start with a single gate or dual gate, then select your starting impulses.</p>
+
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-door-open"></i>
+        Gate Mode
+      </div>
+      <div class="skill-btn-grid">
+        {{#each gateModes}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectKineticGateMode" data-value="{{this.value}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+        </button>
+        {{/each}}
+      </div>
+
+      {{#if requiresSecondElement}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-leaf"></i>
+        Second Element
+      </div>
+      {{#if data.secondElement}}
+        <div class="wizard-selected">
+          <img src="{{data.secondElement.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.secondElement.uuid}}">{{data.secondElement.name}}</span>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSecondElement" data-tooltip="Clear"></i>
+        </div>
+      {{else}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each secondElementOptions}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectSecondElement" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
+
+      {{#if selectedImpulses.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-burst"></i>
+        Selected Impulses ({{selectedImpulseCount}}/{{maxImpulses}})
+      </div>
+      <div class="wizard-spell-chips">
+        {{#each selectedImpulses}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          {{#if this.element}}<span class="tag tag--info tag--tiny">{{this.element}}</span>{{/if}}
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleKineticImpulse" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}"></i>
+        </span>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      {{#if gateModes}}
+      {{#unless impulsesFull}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list"></i>
+        Impulses ({{selectedImpulseCount}}/{{maxImpulses}})
+      </div>
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each impulseOptions}}
+        {{#unless this.selected}}
+        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if this.element}}<span class="tag tag--info tag--tiny">{{this.element}}</span>{{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="toggleKineticImpulse" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}">+</button>
+        </div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/unless}}
+      {{/if}}
+
+    {{else if (eq stepId "subconsciousMind")}}
+      <h2>Subconscious Mind</h2>
+      {{#if data.subconsciousMind}}
+        <div class="wizard-selected">
+          <img src="{{data.subconsciousMind.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.subconsciousMind.uuid}}">{{data.subconsciousMind.name}}</span>
+          {{#if data.subconsciousMind.keyAbility}}
+          <span class="tag tag--info tag--tiny">{{titleCase data.subconsciousMind.keyAbility}}</span>
+          {{/if}}
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSubconsciousMind" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
+      <div class="wizard-item-grid">
+        {{#each items}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if this.keyAbility}}
+              <span class="tag tag--info tag--tiny">{{titleCase this.keyAbility}}</span>
+              {{/if}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "thesis")}}
+      <h2>Arcane Thesis</h2>
+      {{#if data.thesis}}
+        <div class="wizard-selected">
+          <img src="{{data.thesis.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.thesis.uuid}}">{{data.thesis.name}}</span>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearThesis" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+      </div>
+      <div class="wizard-item-grid">
+        {{#each items}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+        </div>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "apparitions")}}
+      <h2>Apparitions</h2>
+      <p class="wizard-hint">Choose two apparitions to attune to, then mark one of them as your primary apparition.</p>
+      {{#if selectedApparitions.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-ghost"></i>
+        Selected Apparitions ({{selectedApparitionsCount}}/{{maxApparitions}})
+      </div>
+      <div class="wizard-spell-chips">
+        {{#each selectedApparitions}}
+        <span class="wizard-spell-chip {{#if (eq ../primaryApparition this.uuid)}}wizard-spell-chip--granted{{/if}}">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          {{#if (eq ../primaryApparition this.uuid)}}
+          <span class="tag tag--success tag--tiny">Primary</span>
+          {{/if}}
+        </span>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#unless (eq selectedApparitionsCount maxApparitions)}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-plus"></i>
+        Available Apparitions ({{selectedApparitionsCount}}/{{maxApparitions}})
+      </div>
+      <div class="wizard-item-grid">
+        {{#each apparitions}}
+        <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#each this.lores}}
+              <span class="tag tag--muted tag--tiny">{{this}}</span>
+              {{/each}}
+            </div>
+          </div>
+          {{#if this.selected}}
+          <button type="button" class="wizard-item__select" data-action="setPrimaryApparition" data-uuid="{{this.uuid}}">{{#if this.primary}}Primary{{else}}Make Primary{{/if}}</button>
+          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">-</button>
+          {{else}}
+          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">+</button>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/unless}}
+
+    {{else if (eq stepId "sanctification")}}
+      <h2>{{#if stepTitle}}{{stepTitle}}{{else}}Sanctification{{/if}}</h2>
+      {{#if stepHint}}
+      <p class="wizard-hint">{{stepHint}}</p>
+      {{else}}
+      <p class="wizard-hint">{{deityName}} {{#if (eq modal "must")}}requires{{else}}allows{{/if}} the following sanctification:</p>
+      {{/if}}
+      <div class="skill-btn-grid">
+        {{#each sanctificationOptions}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectSanctification" data-value="{{this.value}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+        </button>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "divineFont")}}
+      <h2>{{#if stepTitle}}{{stepTitle}}{{else}}Divine Font{{/if}}</h2>
+      {{#if stepHint}}
+      <p class="wizard-hint">{{stepHint}}</p>
+      {{else}}
+      <p class="wizard-hint">Choose your divine font. This determines whether you channel heal or harm spells.</p>
+      {{/if}}
+      <div class="skill-btn-grid">
+        {{#each divineFontOptions}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectDivineFont" data-value="{{this.value}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+        </button>
+        {{/each}}
+      </div>
+
+    {{else if (eq stepId "deity")}}
+      <h2>Deity</h2>
+      {{#if data.deity}}
+        <div class="wizard-selected">
+          <img src="{{data.deity.img}}" alt="" class="wizard-selected__img">
+          <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.deity.uuid}}">{{data.deity.name}}</span>
+          {{#each data.deity.font}}
+          <span class="tag tag--info tag--tiny">{{this}}</span>
+          {{/each}}
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearDeity" data-tooltip="Clear"></i>
+        </div>
+      {{/if}}
+      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleFont" data-font="heal" checked> Heal</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleFont" data-font="harm" checked> Harm</label>
+      </div>
+      <div class="wizard-item-grid">
+        {{#each items}}
+        <div class="wizard-item" data-name="{{this.name}}" data-font="{{this.font}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#each this.font}}
+              <span class="tag tag--muted tag--tiny">{{this}}</span>
+              {{/each}}
+            </div>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -186,7 +816,7 @@
         </div>
 
         {{#each boostRows}}
-        <div class="boost-row">
+        <div class="boost-row {{#if this.complete}}boost-row--complete{{/if}}">
           <div class="boost-row__header">
             <span class="boost-row__type">{{this.type}}</span>
             <span class="boost-row__label">{{this.label}}</span>
@@ -328,7 +958,7 @@
       <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-item-grid {{#if hasClassFeat}}wizard-item-grid--compact{{/if}}">
         {{#each ancestryFeats}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+        <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -341,7 +971,11 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectAncestryFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          {{#if this.taken}}
+            <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> Selected</span>
+          {{else}}
+            <button type="button" class="wizard-item__select" data-action="selectAncestryFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          {{/if}}
         </div>
         {{/each}}
       </div>
@@ -360,7 +994,7 @@
       {{/if}}
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each classFeats}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+        <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -373,7 +1007,11 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectClassFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          {{#if this.taken}}
+            <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> Selected</span>
+          {{else}}
+            <button type="button" class="wizard-item__select" data-action="selectClassFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          {{/if}}
         </div>
         {{/each}}
       </div>
@@ -383,33 +1021,54 @@
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SPELLS"}}</h2>
 
       <div class="wizard-spell-tabs">
+        {{#if maxCantrips}}
         <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'cantrips')}}active{{/if}}" data-action="spellSubStep" data-substep="cantrips">
           <i class="fa-solid fa-sparkles"></i> Cantrips ({{selectedCantrips.length}}/{{maxCantrips}})
         </button>
+        {{/if}}
         {{#if maxRank1}}
         <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'rank1')}}active{{/if}}" data-action="spellSubStep" data-substep="rank1">
           <i class="fa-solid fa-book-open"></i> 1st-Rank ({{selectedRank1.length}}/{{maxRank1}})
         </button>
         {{/if}}
+        {{#if hasCurriculum}}
+        <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'curriculum')}}active{{/if}}" data-action="spellSubStep" data-substep="curriculum">
+          <i class="fa-solid fa-graduation-cap"></i> Curriculum ({{curriculumSelectedCount}}/{{curriculumTargetCount}})
+        </button>
+        {{/if}}
+        {{#if focusSpells.length}}
+        <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'focus')}}active{{/if}}" data-action="spellSubStep" data-substep="focus">
+          <i class="fa-solid fa-sun"></i> Focus ({{focusSpells.length}})
+        </button>
+        {{/if}}
       </div>
 
       {{#if (eq spellSubStep "cantrips")}}
-      {{#each grantedCantrips}}
-      <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
-        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-        <span class="tag tag--success tag--tiny">{{this.source}}</span>
+      <div class="wizard-spell-chips">
+        {{#each grantedCantrips}}
+        <span class="wizard-spell-chip wizard-spell-chip--granted">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <span class="tag tag--success tag--tiny">{{this.source}}</span>
+        </span>
+        {{/each}}
+        {{#each selectedCantrips}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCantrip" data-uuid="{{this.uuid}}"></i>
+        </span>
+        {{/each}}
       </div>
-      {{/each}}
-      {{#each selectedCantrips}}
-      <div class="feat-slot feat-slot--filled">
-        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-        <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeCantrip" data-uuid="{{this.uuid}}"></i>
-      </div>
-      {{/each}}
       {{#unless cantripsFull}}
       <input type="text" class="feat-picker__search" placeholder="Search cantrips..." data-action="searchCantrips">
+      {{#if showSpellRarityFilters}}
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="unique" checked> Unique</label>
+      </div>
+      {{/if}}
       <div class="wizard-trait-input">
         <span class="wizard-trait-chips" data-target="cantrips"></span>
         <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="cantrips" list="trait-options">
@@ -427,6 +1086,7 @@
               {{#if (notEqual this.rarity "common")}}
               <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
               {{/if}}
+              {{#if ../isMagus}}{{#if (includes this.traits "attack")}}<span class="tag tag--success tag--tiny">Spellstrike</span>{{/if}}{{/if}}
             </div>
           </div>
           <button type="button" class="wizard-item__select" data-action="addCantrip" data-uuid="{{this.uuid}}">+</button>
@@ -437,22 +1097,31 @@
       {{/if}}
 
       {{#if (eq spellSubStep "rank1")}}
-      {{#each grantedRank1s}}
-      <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
-        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-        <span class="tag tag--success tag--tiny">{{this.source}}</span>
+      <div class="wizard-spell-chips">
+        {{#each grantedRank1s}}
+        <span class="wizard-spell-chip wizard-spell-chip--granted">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <span class="tag tag--success tag--tiny">{{this.source}}</span>
+        </span>
+        {{/each}}
+        {{#each selectedRank1}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeRank1" data-uuid="{{this.uuid}}"></i>
+        </span>
+        {{/each}}
       </div>
-      {{/each}}
-      {{#each selectedRank1}}
-      <div class="feat-slot feat-slot--filled">
-        <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewItem" data-uuid="{{this.uuid}}">
-        <span class="feat-slot__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-        <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeRank1" data-uuid="{{this.uuid}}"></i>
-      </div>
-      {{/each}}
       {{#unless rank1Full}}
       <input type="text" class="feat-picker__search" placeholder="Search 1st-rank spells..." data-action="searchRank1">
+      {{#if showSpellRarityFilters}}
+      <div class="wizard-rarity-filters">
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="unique" checked> Unique</label>
+      </div>
+      {{/if}}
       <div class="wizard-trait-input">
         <span class="wizard-trait-chips" data-target="rank1"></span>
         <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="rank1" list="trait-options">
@@ -470,6 +1139,7 @@
               {{#if (notEqual this.rarity "common")}}
               <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
               {{/if}}
+              {{#if ../isMagus}}{{#if (includes this.traits "attack")}}<span class="tag tag--success tag--tiny">Spellstrike</span>{{/if}}{{/if}}
             </div>
           </div>
           <button type="button" class="wizard-item__select" data-action="addRank1" data-uuid="{{this.uuid}}">+</button>
@@ -477,6 +1147,89 @@
         {{/each}}
       </div>
       {{/unless}}
+      {{/if}}
+
+      {{#if (eq spellSubStep "curriculum")}}
+      <p class="wizard-hint">Choose {{maxCurriculumCantrips}} curriculum cantrip and {{maxCurriculumRank1}} 1st-rank curriculum spells to add to your spellbook. Separately, your curriculum entry still gets 1 extra cantrip slot and 1 extra 1st-rank slot.</p>
+      {{#if curriculumCantripOptions.length}}
+      <p class="wizard-hint" style="margin-top:0">Cantrips:</p>
+      <div class="wizard-spell-chips">
+        {{#each curriculumCantripSelected}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumCantrip" data-uuid="{{this.uuid}}"></i>
+        </span>
+        {{/each}}
+      </div>
+      {{#unless curriculumCantripsFull}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each curriculumCantripOptions}}
+        {{#unless this.selected}}
+        <div class="wizard-item">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="addCurriculumCantrip" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumCantrips}}">+</button>
+        </div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/unless}}
+      {{/if}}
+      <p class="wizard-hint" style="margin-top:0">1st-rank spells:</p>
+      <div class="wizard-spell-chips">
+        {{#each curriculumRank1Selected}}
+        <span class="wizard-spell-chip">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumRank1" data-uuid="{{this.uuid}}"></i>
+        </span>
+        {{/each}}
+      </div>
+      {{#unless curriculumRank1Full}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each curriculumRank1Options}}
+        {{#unless this.selected}}
+        <div class="wizard-item">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          </div>
+          <button type="button" class="wizard-item__select" data-action="addCurriculumRank1" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumRank1}}">+</button>
+        </div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/unless}}
+      {{/if}}
+
+      {{#if (eq spellSubStep "focus")}}
+      {{#if isDevotionChoice}}
+      <p class="wizard-hint">Choose one focus spell.</p>
+      <div class="skill-btn-grid">
+        {{#each focusSpells}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectDevotionSpell" data-uuid="{{this.uuid}}">
+          <img src="{{this.img}}" alt="" style="width: 24px; height: 24px; border-radius: 2px; margin-right: 4px;">
+          <span class="skill-btn__name">{{this.name}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{else}}
+      <p class="wizard-hint">These focus spells will be added to your character automatically.</p>
+      <div class="wizard-spell-chips">
+        {{#each focusSpells}}
+        <span class="wizard-spell-chip wizard-spell-chip--granted">
+          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+          <span class="tag tag--success tag--tiny">Focus</span>
+        </span>
+        {{/each}}
+      </div>
+      {{/if}}
       {{/if}}
 
       <datalist id="trait-options">
@@ -512,10 +1265,102 @@
           <span class="wizard-summary__value">{{data.class.name}}</span>
         </div>
         {{/if}}
-        {{#if data.subclass}}
+        {{#if showSubclassSummary}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.STEPS.SUBCLASS"}}</span>
-          <span class="wizard-summary__value">{{data.subclass.name}}</span>
+          <span class="wizard-summary__value">{{subclassSummaryLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if implementLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Implement</span>
+          <span class="wizard-summary__value">{{implementLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if tacticsSummary.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Tactics</span>
+          <span class="wizard-summary__value">
+            {{#each tacticsSummary}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}
+          </span>
+        </div>
+        {{/if}}
+        {{#if ikonsSummary.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Ikons</span>
+          <span class="wizard-summary__value">
+            {{#each ikonsSummary}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}
+          </span>
+        </div>
+        {{/if}}
+        {{#if innovationItemLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Innovation Item</span>
+          <span class="wizard-summary__value">{{innovationItemLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if innovationModificationLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Innovation Modification</span>
+          <span class="wizard-summary__value">{{innovationModificationLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if kineticGateModeLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Kinetic Gate</span>
+          <span class="wizard-summary__value">{{kineticGateModeLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if secondElementLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Second Element</span>
+          <span class="wizard-summary__value">{{secondElementLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if kineticImpulsesSummary.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Impulses</span>
+          <span class="wizard-summary__value">
+            {{#each kineticImpulsesSummary}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}
+          </span>
+        </div>
+        {{/if}}
+        {{#if subconsciousMindLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Subconscious Mind</span>
+          <span class="wizard-summary__value">{{subconsciousMindLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if thesisLabel}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Arcane Thesis</span>
+          <span class="wizard-summary__value">{{thesisLabel}}</span>
+        </div>
+        {{/if}}
+        {{#if apparitionsSummary.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Apparitions</span>
+          <span class="wizard-summary__value">
+            {{#each apparitionsSummary}}{{#unless @first}}, {{/unless}}{{this.name}}{{#if this.primary}} (Primary){{/if}}{{/each}}
+          </span>
+        </div>
+        {{/if}}
+        {{#if data.deity}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.STEPS.DEITY"}}</span>
+          <span class="wizard-summary__value">{{data.deity.name}}</span>
+        </div>
+        {{/if}}
+        {{#if data.sanctification}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{sanctificationLabel}}</span>
+          <span class="wizard-summary__value">{{sanctificationValue}}</span>
+        </div>
+        {{/if}}
+        {{#if data.divineFont}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{divineFontLabel}}</span>
+          <span class="wizard-summary__value">{{divineFontValue}}</span>
         </div>
         {{/if}}
         {{#if data.boosts.free.length}}
@@ -545,13 +1390,35 @@
         {{#if data.ancestryFeat}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</span>
-          <span class="wizard-summary__value">{{data.ancestryFeat.name}}</span>
+          <span class="wizard-summary__value">{{data.ancestryFeat.name}}{{#if ancestryFeatChoiceLabels.length}} ({{#each ancestryFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
         </div>
         {{/if}}
         {{#if data.classFeat}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</span>
-          <span class="wizard-summary__value">{{data.classFeat.name}}</span>
+          <span class="wizard-summary__value">{{data.classFeat.name}}{{#if classFeatChoiceLabels.length}} ({{#each classFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
+        </div>
+        {{/if}}
+        {{#each grantedFeatChoiceSummaries}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Granted Feat Choice</span>
+          <span class="wizard-summary__value">{{this.featName}}{{#if this.sourceName}} ({{this.sourceName}}){{/if}}: {{#each this.labels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}</span>
+        </div>
+        {{/each}}
+        {{#if curriculumSummarySpells.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Curriculum Spells</span>
+          <span class="wizard-summary__value">
+            {{#each curriculumSummarySpells}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}
+          </span>
+        </div>
+        {{/if}}
+        {{#if focusSpells.length}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">Focus Spells</span>
+          <span class="wizard-summary__value">
+            {{#each focusSpells}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}
+          </span>
         </div>
         {{/if}}
       </div>
@@ -560,6 +1427,55 @@
       <div class="subclass-warning-banner">
         <i class="fa-solid fa-exclamation-triangle"></i>
         <span>When prompted after creation, make sure to select <strong>{{data.subclass.name}}</strong> as your subclass choice.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.implement}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select <strong>{{data.implement.name}}</strong> as your implement.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.tactics.length}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select your chosen commander tactics: <strong>{{#each data.tactics}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}</strong>.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.ikons.length}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select your chosen ikons: <strong>{{#each data.ikons}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}</strong>.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.innovationItem}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select your inventor innovation details: <strong>{{data.innovationItem.name}}</strong>{{#if data.innovationModification}} with <strong>{{data.innovationModification.name}}</strong>{{/if}}.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.kineticGateMode}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select your kinetic gate choices: <strong>{{kineticGateModeLabel}}</strong>{{#if data.secondElement}}, <strong>{{data.secondElement.name}}</strong>{{/if}}{{#if data.kineticImpulses.length}} with <strong>{{#each data.kineticImpulses}}{{#unless @first}}, {{/unless}}{{this.name}}{{/each}}</strong>{{/if}}.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.subconsciousMind}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select <strong>{{data.subconsciousMind.name}}</strong> as your subconscious mind.</span>
+      </div>
+      {{/if}}
+
+      {{#if data.thesis}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>When prompted after creation, make sure to select <strong>{{data.thesis.name}}</strong> as your arcane thesis.</span>
       </div>
       {{/if}}
 
@@ -582,17 +1498,17 @@
 
     <div class="wizard-nav">
       {{#unless isFirst}}
-      <button type="button" class="wizard-nav__btn" data-action="prevStep">
+      <button type="button" class="wizard-nav__btn" data-action="prevStep" {{#if isApplying}}disabled{{/if}}>
         <i class="fa-solid fa-arrow-left"></i> {{localize "PF2E_LEVELER.CREATION.BACK"}}
       </button>
       {{/unless}}
       <div class="wizard-nav__spacer"></div>
       {{#if isSummary}}
-      <button type="button" class="wizard-nav__btn wizard-nav__btn--apply" data-action="applyCreation" {{#unless allComplete}}disabled{{/unless}}>
+      <button type="button" class="wizard-nav__btn wizard-nav__btn--apply" data-action="applyCreation" {{#unless allComplete}}disabled{{/unless}} {{#if isApplying}}disabled{{/if}}>
         <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "PF2E_LEVELER.CREATION.CREATE"}}
       </button>
       {{else}}
-      <button type="button" class="wizard-nav__btn wizard-nav__btn--next" data-action="nextStep">
+      <button type="button" class="wizard-nav__btn wizard-nav__btn--next" data-action="nextStep" {{#if isApplying}}disabled{{/if}}>
         {{localize "PF2E_LEVELER.CREATION.NEXT"}} <i class="fa-solid fa-arrow-right"></i>
       </button>
       {{/if}}

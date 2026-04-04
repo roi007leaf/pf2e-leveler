@@ -1,6 +1,7 @@
 import { ATTRIBUTES, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getAllPlannedFeats, getAllPlannedSkillIncreases, getAllPlannedBoosts } from './plan-model.js';
+import { getAllPlannedFeats, getAllPlannedBoosts } from './plan-model.js';
+import { slugify } from '../utils/pf2e-api.js';
 
 export function computeBuildState(actor, plan, atLevel) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -55,10 +56,20 @@ function computeSkills(actor, plan, atLevel, classDef) {
     }
   }
 
-  const increases = getAllPlannedSkillIncreases(plan, atLevel);
-  for (const inc of increases) {
-    if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
-      skills[inc.skill] = inc.toRank;
+  for (let level = 1; level <= atLevel; level++) {
+    const levelData = plan.levels?.[level];
+    if (!levelData) continue;
+
+    for (const skill of levelData.intBonusSkills ?? []) {
+      if ((skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED) < PROFICIENCY_RANKS.TRAINED) {
+        skills[skill] = PROFICIENCY_RANKS.TRAINED;
+      }
+    }
+
+    for (const inc of levelData.skillIncreases ?? []) {
+      if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
+        skills[inc.skill] = inc.toRank;
+      }
     }
   }
 
@@ -70,12 +81,12 @@ function computeFeats(actor, plan, atLevel) {
 
   const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
   for (const feat of existingFeats) {
-    if (feat.slug) feats.add(feat.slug);
+    for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
 
   const plannedFeats = getAllPlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
-    if (feat.slug) feats.add(feat.slug);
+    for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
 
   if (actor?.system?.resources?.focus?.max > 0) feats.add('focus-pool');
@@ -90,7 +101,24 @@ function computeClassFeatures(classDef, atLevel) {
   for (const feature of classDef.classFeatures) {
     if (feature.level <= atLevel) {
       features.add(feature.key);
+      if (feature.name) features.add(slugify(feature.name));
     }
   }
   return features;
+}
+
+function getFeatAliases(feat) {
+  const aliases = new Set();
+
+  if (feat?.slug) aliases.add(feat.slug);
+
+  const name = feat?.name?.trim();
+  if (name) {
+    aliases.add(slugify(name));
+
+    const baseName = name.replace(/\s*\([^)]*\)\s*$/u, '').trim();
+    if (baseName && baseName !== name) aliases.add(slugify(baseName));
+  }
+
+  return aliases;
 }

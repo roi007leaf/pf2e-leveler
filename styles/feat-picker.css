@@ -91,6 +91,10 @@
   opacity: 0.5;
 }
 
+.pf2e-leveler .feat-option--taken {
+  opacity: 0.4;
+}
+
 .pf2e-leveler .feat-option__img {
   width: 32px;
   height: 32px;

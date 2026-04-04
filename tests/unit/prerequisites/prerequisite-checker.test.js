@@ -113,6 +113,21 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].text).toBe('Some Obscure Requirement');
   });
 
+  test('matches feat prerequisites against parenthetical feat aliases', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Efficient Alchemy' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['efficient-alchemy-alchemist', 'efficient-alchemy']),
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('met level prerequisite', () => {
     const feat = {
       system: { prerequisites: { value: [{ value: '4th level' }] } },

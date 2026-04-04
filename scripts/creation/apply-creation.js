@@ -1,21 +1,23 @@
-import { ClassRegistry } from '../classes/registry.js';
+import { getClassHandler } from './class-handlers/registry.js';
 import { debug, info, warn } from '../utils/logger.js';
+import { capitalize } from '../utils/pf2e-api.js';
 
-export async function applyCreation(actor, data) {
+export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
+  const reportProgress = (progress, message) => {
+    if (typeof onProgress === 'function') onProgress({ progress, message });
+  };
 
+  reportProgress(0.05, 'Applying ancestry, background, and class...');
   if (data.ancestry) await applyItem(actor, data.ancestry, 'ancestry');
   if (data.heritage) await applyItem(actor, data.heritage, 'heritage');
   if (data.background) await applyItem(actor, data.background, 'background');
   if (data.class) await applyItem(actor, data.class, 'class');
-  if (data.subclass) await applyItem(actor, data.subclass, 'subclass');
-
-  await waitForSystem();
-  await waitForSystem();
+  reportProgress(0.28, 'Waiting for the PF2E system to finish initializing items...');
   await waitForSystem();
 
+  reportProgress(0.42, 'Applying boosts, languages, and skills...');
   await applyBoosts(actor, data);
-
   await applyLanguages(actor, data);
 
   if (data.skills.length > 0) {
@@ -27,19 +29,28 @@ export async function applyCreation(actor, data) {
     debug(`Trained ${data.skills.length} skills`);
   }
 
+  reportProgress(0.58, 'Applying lore and level 1 feats...');
   await applyLores(actor, data);
 
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
 
-  await applySpellcasting(actor, data);
+  reportProgress(0.72, 'Applying selected class options...');
+  await applySelectedItems(actor, data);
 
+  // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
+  const handler = getClassHandler(data.class?.slug);
+  reportProgress(0.86, 'Finalizing class-specific features...');
+  await handler.applyExtras(actor, data);
+
+  reportProgress(0.97, 'Creating summary message...');
   await createCreationMessage(actor, data);
+  reportProgress(1, 'Character creation complete.');
 
   info(`Character creation complete for ${actor.name}`);
 }
 
-async function applyItem(actor, entry, type) {
+export async function applyItem(actor, entry, type) {
   const item = await fromUuid(entry.uuid).catch(() => null);
   if (!item) {
     warn(`Failed to resolve ${type}: ${entry.uuid}`);
@@ -147,159 +158,265 @@ async function applyLores(actor, data) {
   }
 }
 
-async function applySpellcasting(actor, data) {
-  const grantedUuids = [];
-  const granted = data.subclass?.grantedSpells;
-  if (granted?.cantrip) grantedUuids.push(granted.cantrip);
-  if (granted?.rank1) grantedUuids.push(granted.rank1);
-
-  const curriculum = data.subclass?.curriculum;
-  if (curriculum) {
-    for (const uuid of (curriculum[0] ?? [])) {
-      if (!grantedUuids.includes(uuid)) grantedUuids.push(uuid);
-    }
-    for (const uuid of (curriculum[1] ?? [])) {
-      if (!grantedUuids.includes(uuid)) grantedUuids.push(uuid);
-    }
+async function applySelectedItems(actor, data) {
+  const entries = getAdditionalSelectedItems(data);
+  for (const entry of entries) {
+    await applyItem(actor, entry, entry._type ?? 'selected item');
   }
+}
 
-  const grantedEntries = grantedUuids.map((uuid) => ({ uuid, name: 'Granted' }));
+export function getAdditionalSelectedItems(data) {
+  const selected = [];
+  const seen = new Set();
+  const add = (entry, type) => {
+    if (!entry?.uuid || seen.has(entry.uuid)) return;
+    seen.add(entry.uuid);
+    selected.push({ ...entry, _type: type });
+  };
 
-  const allSpells = [...grantedEntries, ...data.spells.cantrips, ...data.spells.rank1];
+  add(data.implement, 'implement');
+  for (const entry of (data.tactics ?? [])) add(entry, 'tactic');
+  for (const entry of (data.ikons ?? [])) add(entry, 'ikon');
+  add(data.innovationItem, 'innovation item');
+  add(data.innovationModification, 'innovation modification');
+  add(data.secondElement, 'second element');
+  for (const entry of (data.kineticImpulses ?? [])) add(entry, 'kinetic impulse');
+  add(data.subconsciousMind, 'subconscious mind');
+  add(data.thesis, 'arcane thesis');
+  for (const entry of (data.apparitions ?? [])) add(entry, 'apparition');
+  for (const feat of [data.ancestryFeat, data.classFeat]) {
+    const choiceSets = feat?.choiceSets ?? [];
+    const currentChoices = feat?.choices ?? {};
+    for (const choiceSet of choiceSets) {
+      const selectedValue = currentChoices[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
 
-  const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
-  if (allSpells.length === 0 && !classDef?.spellcasting) return;
-
-  await waitForSystem();
-
-  let entry = actor.items?.find((i) => i.type === 'spellcastingEntry');
-
-  if (entry && data.subclass?.tradition) {
-    await entry.update({ 'system.tradition.value': data.subclass.tradition });
-  }
-
-  if (!entry && data.class?.slug) {
-    const classDef = ClassRegistry.get(data.class.slug);
-    if (classDef?.spellcasting) {
-      const sc = classDef.spellcasting;
-      const tradition = resolveCreationTradition(sc.tradition, data.subclass);
-      const ability = classDef.keyAbility.length === 1 ? classDef.keyAbility[0] : 'cha';
-      const created = await actor.createEmbeddedDocuments('Item', [{
-        name: `${capitalize(data.class.name)} Spells`,
-        type: 'spellcastingEntry',
-        system: {
-          tradition: { value: tradition },
-          prepared: { value: sc.type === 'dual' ? 'prepared' : sc.type },
-          ability: { value: ability },
-          proficiency: { value: 1 },
-        },
-      }]);
-      entry = created[0];
-      debug(`Created spellcasting entry: ${data.class.name} Spells`);
-    }
-  }
-
-  if (!entry) {
-    debug('No spellcasting entry found, skipping spell application');
-    return;
-  }
-
-  if (data.class?.slug) {
-    const classDef = ClassRegistry.get(data.class.slug);
-    const level1Slots = classDef?.spellcasting?.slots?.[1];
-    if (level1Slots) {
-      const slotUpdate = { _id: entry.id };
-      for (const [rank, counts] of Object.entries(level1Slots)) {
-        const max = Array.isArray(counts) ? counts[0] + counts[1] : counts;
-        if (rank === 'cantrips') {
-          slotUpdate['system.slots.slot0.max'] = max;
-          slotUpdate['system.slots.slot0.value'] = max;
-        } else {
-          slotUpdate[`system.slots.slot${rank}.max`] = max;
-          slotUpdate[`system.slots.slot${rank}.value`] = max;
-        }
+      let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
+      if (!uuid) {
+        const match = choiceSet.options?.find((option) => option.value === selectedValue);
+        uuid = match?.uuid ?? null;
       }
-      await actor.updateEmbeddedDocuments('Item', [slotUpdate]);
+      if (!uuid) continue;
+
+      add({
+        uuid,
+        name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
+        img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
+      }, `feat choice (${choiceSet.flag})`);
     }
   }
 
-  for (const spellEntry of allSpells) {
-    const spell = await fromUuid(spellEntry.uuid).catch(() => null);
-    if (!spell) continue;
-    const spellData = foundry.utils.deepClone(spell.toObject());
-    spellData.system.location = { value: entry.id };
-    await actor.createEmbeddedDocuments('Item', [spellData]);
-    debug(`Added spell: ${spellEntry.name}`);
+  for (const section of (data.grantedFeatSections ?? [])) {
+    const currentChoices = data.grantedFeatChoices?.[section.slot] ?? {};
+    for (const choiceSet of (section.choiceSets ?? [])) {
+      const selectedValue = currentChoices[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
+
+      let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
+      if (!uuid) {
+        const match = choiceSet.options?.find((option) => option.value === selectedValue);
+        uuid = match?.uuid ?? null;
+      }
+      if (!uuid) continue;
+
+      add({
+        uuid,
+        name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
+        img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
+      }, `granted feat choice (${choiceSet.flag})`);
+    }
   }
 
-  await addTraditionSpells(actor, entry, classDef, data);
-}
+  const choiceSets = data.subclass?.choiceSets ?? [];
+  const currentChoices = data.subclass?.choices ?? {};
+  for (const choiceSet of choiceSets) {
+    const selectedValue = currentChoices[choiceSet.flag];
+    if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
 
-async function addTraditionSpells(actor, entry, classDef, data) {
-  if (!classDef?.spellcasting) return;
-  const spellbookClasses = ['wizard', 'witch', 'magus'];
-  if (classDef.spellcasting.type !== 'prepared' || spellbookClasses.includes(classDef.slug)) return;
+    let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
+    if (!uuid) {
+      const match = choiceSet.options?.find((option) => option.value === selectedValue);
+      uuid = match?.uuid ?? null;
+    }
+    if (!uuid) continue;
 
-  const tradition = resolveCreationTradition(classDef.spellcasting.tradition, data.subclass);
-  const pack = game.packs.get('pf2e.spells-srd');
-  if (!pack) return;
-
-  const index = await pack.getDocuments();
-  const existingUuids = new Set(actor.items?.filter((i) => i.type === 'spell').map((i) => i.sourceId ?? i.flags?.core?.sourceId) ?? []);
-
-  const toAdd = [];
-  for (const spell of index) {
-    if (existingUuids.has(spell.uuid)) continue;
-    const traits = spell.system?.traits?.value ?? [];
-    const traditions = spell.system?.traits?.traditions ?? [];
-    const rank = spell.system?.level?.value ?? 0;
-    const isCantrip = traits.includes('cantrip');
-    if (!isCantrip && rank > 1) continue;
-    if (traditions.length > 0 && !traditions.includes(tradition)) continue;
-    if (traditions.length === 0 && !traits.includes(tradition)) continue;
-
-    const spellData = foundry.utils.deepClone(spell.toObject());
-    spellData.system.location = { value: entry.id };
-    toAdd.push(spellData);
+    add({
+      uuid,
+      name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
+      img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
+    }, `subclass choice (${choiceSet.flag})`);
   }
 
-  if (toAdd.length > 0) {
-    await actor.createEmbeddedDocuments('Item', toAdd);
-    debug(`Added ${toAdd.length} ${tradition} tradition spells for ${classDef.slug}`);
-  }
-}
-
-function resolveCreationTradition(tradition, subclass) {
-  if (['bloodline', 'patron'].includes(tradition)) {
-    return subclass?.tradition ?? 'arcane';
-  }
-  return tradition;
-}
-
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
+  return selected;
 }
 
 function waitForSystem() {
-  return new Promise((resolve) => setTimeout(resolve, 200));
+  return new Promise((resolve) => setTimeout(resolve, 600));
 }
 
 async function createCreationMessage(actor, data) {
-  const parts = [];
-  if (data.ancestry) parts.push(`**Ancestry:** ${data.ancestry.name}`);
-  if (data.heritage) parts.push(`**Heritage:** ${data.heritage.name}`);
-  if (data.background) parts.push(`**Background:** ${data.background.name}`);
-  if (data.class) parts.push(`**Class:** ${data.class.name}`);
-  if (data.subclass) parts.push(`**Subclass:** ${data.subclass.name}`);
-  if (data.languages?.length) parts.push(`**Languages:** ${data.languages.join(', ')}`);
-  if (data.lores?.length) parts.push(`**Lore Skills:** ${data.lores.join(', ')}`);
-  if (data.ancestryFeat) parts.push(`**Ancestry Feat:** ${data.ancestryFeat.name}`);
-  if (data.classFeat) parts.push(`**Class Feat:** ${data.classFeat.name}`);
+  const sections = [];
+  const subclassChoiceLabels = await getSelectedSubclassChoiceLabels(data.subclass);
+  const identityRows = [];
+  if (data.ancestry) identityRows.push({ label: 'Ancestry', value: data.ancestry.name });
+  if (data.heritage) identityRows.push({ label: 'Heritage', value: data.heritage.name });
+  if (data.background) identityRows.push({ label: 'Background', value: data.background.name });
+  if (data.class) identityRows.push({ label: 'Class', value: data.class.name });
+  if (data.subclass) {
+    const subclassLabel = subclassChoiceLabels.length > 0
+      ? `${data.subclass.name} (${subclassChoiceLabels.join(', ')})`
+      : data.subclass.name;
+    identityRows.push({ label: 'Subclass', value: subclassLabel });
+  }
+  if (identityRows.length) {
+    sections.push(buildChatRowsSection('Character', identityRows));
+  }
 
-  const content = `<h2>${actor.name} has been created!</h2><p>${parts.join('<br>')}</p>`;
+  const classChoices = [];
+  if (data.implement) classChoices.push({ label: 'Implement', value: data.implement.name });
+  if (data.tactics?.length) classChoices.push({ label: 'Tactics', value: data.tactics.map((entry) => entry.name).join(', ') });
+  if (data.ikons?.length) classChoices.push({ label: 'Ikons', value: data.ikons.map((entry) => entry.name).join(', ') });
+  if (data.innovationItem) classChoices.push({ label: 'Innovation Item', value: data.innovationItem.name });
+  if (data.innovationModification) classChoices.push({ label: 'Innovation Mod', value: data.innovationModification.name });
+  if (data.kineticGateMode) classChoices.push({ label: 'Kinetic Gate', value: data.kineticGateMode === 'dual-gate' ? 'Dual Gate' : 'Single Gate' });
+  if (data.secondElement) classChoices.push({ label: 'Second Element', value: data.secondElement.name });
+  if (data.kineticImpulses?.length) classChoices.push({ label: 'Impulses', value: data.kineticImpulses.map((entry) => entry.name).join(', ') });
+  if (data.subconsciousMind) classChoices.push({ label: 'Subconscious Mind', value: data.subconsciousMind.name });
+  if (data.thesis) classChoices.push({ label: 'Arcane Thesis', value: data.thesis.name });
+  if (data.apparitions?.length) {
+    const labels = data.apparitions.map((entry) =>
+      entry.uuid === data.primaryApparition ? `${entry.name} (Primary)` : entry.name,
+    );
+    classChoices.push({ label: 'Apparitions', value: labels.join(', ') });
+  }
+  if (data.deity) classChoices.push({ label: 'Deity', value: data.deity.name });
+  if (data.sanctification) {
+    const handler = getClassHandler(data.class?.slug);
+    const sanctStep = handler.getExtraSteps().find((s) => s.id === 'sanctification');
+    const sanctLabel = sanctStep?.label ?? 'Sanctification';
+    classChoices.push({ label: sanctLabel, value: data.sanctification === 'none' ? 'None' : capitalize(data.sanctification) });
+  }
+  if (data.divineFont) {
+    const handler = getClassHandler(data.class?.slug);
+    const fontStep = handler.getExtraSteps().find((s) => s.id === 'divineFont');
+    const fontLabel = fontStep?.label ?? 'Divine Font';
+    classChoices.push({ label: fontLabel, value: capitalize(data.divineFont) });
+  }
+  if (classChoices.length) {
+    sections.push(buildChatRowsSection('Choices', classChoices));
+  }
+
+  const training = [];
+  if (data.languages?.length) training.push({ label: 'Languages', value: data.languages.map((slug) => localizeLanguageSlug(slug)).join(', ') });
+  if (data.lores?.length) training.push({ label: 'Lore Skills', value: data.lores.join(', ') });
+  if (data.devotionSpell) {
+    training.push({ label: 'Focus Spell', value: data.devotionSpell.name });
+  } else {
+    const handler = getClassHandler(data.class?.slug);
+    const focusSpells = await handler.resolveFocusSpells(data);
+    if (focusSpells.length > 0) {
+      training.push({ label: 'Focus Spells', value: focusSpells.map((s) => s.name).join(', ') });
+    }
+  }
+  if (data.ancestryFeat) {
+    const labels = await getSelectedSubclassChoiceLabels(data.ancestryFeat);
+    training.push({ label: 'Ancestry Feat', value: labels.length ? `${data.ancestryFeat.name} (${labels.join(', ')})` : data.ancestryFeat.name });
+  }
+  if (data.classFeat) {
+    const labels = await getSelectedSubclassChoiceLabels(data.classFeat);
+    training.push({ label: 'Class Feat', value: labels.length ? `${data.classFeat.name} (${labels.join(', ')})` : data.classFeat.name });
+  }
+  for (const section of (data.grantedFeatSections ?? [])) {
+    const labels = await getSelectedSubclassChoiceLabels({
+      choiceSets: section.choiceSets ?? [],
+      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+    });
+    if (labels.length > 0) {
+      const sourceSuffix = section.sourceName ? ` (${section.sourceName})` : '';
+      training.push({ label: 'Granted Feat Choice', value: `${section.featName}${sourceSuffix}: ${labels.join(', ')}` });
+    }
+  }
+  if (training.length) {
+    sections.push(buildChatRowsSection('Starting Benefits', training));
+  }
+
+  const content = buildChatCard({
+    eyebrow: 'Character Created',
+    title: `${actor.name} is ready`,
+    accent: '#c6a15b',
+    sections,
+  });
   const whisper = [];
   for (const user of game.users) {
     if (user.isGM || actor.testUserPermission(user, 'OWNER')) whisper.push(user.id);
   }
   await ChatMessage.create({ content, speaker: { alias: actor.name }, whisper });
+}
+
+async function getSelectedSubclassChoiceLabels(subclass) {
+  const currentChoices = subclass?.choices ?? {};
+  const labels = [];
+
+  for (const choiceSet of (subclass?.choiceSets ?? [])) {
+    const selectedValue = currentChoices[choiceSet.flag];
+    if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
+
+    const match = choiceSet.options?.find((option) => option.value === selectedValue);
+    if (match?.label) {
+      labels.push(match.label);
+      continue;
+    }
+
+    if (selectedValue.startsWith('Compendium.')) {
+      const item = await fromUuid(selectedValue).catch(() => null);
+      if (item?.name) {
+        labels.push(item.name);
+        continue;
+      }
+    }
+
+    labels.push(formatChoiceLabel(selectedValue));
+  }
+
+  return labels.filter((label) => typeof label === 'string' && label.length > 0);
+}
+
+function formatChoiceLabel(value) {
+  return value
+    .split(/[-_]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function buildChatCard({ eyebrow, title, accent, sections }) {
+  return `
+    <section style="border:1px solid rgba(0,0,0,0.15); border-left:4px solid ${accent}; border-radius:12px; padding:12px 14px; background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,245,245,0.96)); box-shadow:0 2px 10px rgba(0,0,0,0.08);">
+      <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:${accent}; margin-bottom:4px;">${eyebrow}</div>
+      <div style="font-size:30px; font-weight:800; line-height:0.95; margin-bottom:12px; color:#1f1f1f;">${title}</div>
+      <div style="display:grid; gap:10px;">${sections.join('')}</div>
+    </section>
+  `;
+}
+
+function buildChatRowsSection(label, rows) {
+  return `
+    <div style="padding:10px 12px; background:rgba(255,255,255,0.72); border:1px solid rgba(0,0,0,0.08); border-radius:10px;">
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#666; margin-bottom:8px;">${label}</div>
+      <div style="display:grid; gap:6px;">
+        ${rows.map((row) => `
+          <div style="display:grid; grid-template-columns:140px 1fr; gap:10px; align-items:start;">
+            <div style="font-size:12px; font-weight:700; color:#555;">${row.label}</div>
+            <div style="font-size:12px; font-weight:600; color:#222;">${row.value}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function localizeLanguageSlug(slug) {
+  const raw = CONFIG.PF2E?.languages?.[slug];
+  const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
+  return game.i18n?.has?.(label) ? game.i18n.localize(label) : label;
 }
