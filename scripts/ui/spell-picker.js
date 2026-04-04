@@ -6,13 +6,15 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 let cachedSpells = null;
 
 export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor(actor, tradition, rank, onSelect) {
+  constructor(actor, tradition, rank, onSelect, options = {}) {
     super();
     this.actor = actor;
     this.tradition = tradition;
     this.rank = rank;
     this.isCantrip = rank === 0;
     this.onSelect = onSelect;
+    this.excludedUuids = new Set(options.excludedUuids ?? []);
+    this.maxRank = Number.isInteger(options.maxRank) ? options.maxRank : null;
     this.allSpells = [];
     this.filteredSpells = [];
     this.searchText = '';
@@ -39,14 +41,24 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
+    const ownedUuids = new Set(
+      (this.actor.items ?? [])
+        .filter((i) => i.type === 'spell')
+        .map((i) => i.sourceId ?? i.flags?.core?.sourceId ?? i.uuid),
+    );
+
     if (this.allSpells.length === 0) {
       const all = await loadSpells();
       this.allSpells = all.filter((s) => {
         if (!this._matchesTradition(s)) return false;
+        if (ownedUuids.has(s.uuid) || this.excludedUuids.has(s.uuid)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');
         if (this.isCantrip) return isCantrip;
         if (isCantrip) return false;
-        if (this.rank === -1) return s.system.level.value >= 1;
+        if (this.rank === -1) {
+          if (this.maxRank != null) return s.system.level.value >= 1 && s.system.level.value <= this.maxRank;
+          return s.system.level.value >= 1;
+        }
         return s.system.level.value === this.rank;
       });
     }
@@ -56,17 +68,6 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       : [...this.allSpells];
 
     this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Mark spells the actor already has
-    const ownedUuids = new Set(
-      (this.actor.items ?? [])
-        .filter((i) => i.type === 'spell')
-        .map((i) => i.sourceId ?? i.flags?.core?.sourceId ?? i.uuid),
-    );
-    for (const s of this.filteredSpells) {
-      s.alreadyKnown = ownedUuids.has(s.uuid);
-    }
-
     const allTraits = new Set();
     for (const s of this.allSpells) {
       for (const t of (s.system?.traits?.value ?? [])) allTraits.add(t);

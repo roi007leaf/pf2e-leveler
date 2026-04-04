@@ -52,6 +52,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
   return hydratedChoiceSets.map((cs) => ({
     ...cs,
     isItemChoice: cs.options.some((opt) => !!extractChoiceUuid(opt) || !!opt?.img || !!opt?.description),
+    isWeaponChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
     options: cs.options.map((opt) => {
       const value = extractChoiceValue(opt);
       const label = extractChoiceLabel(opt) || value;
@@ -61,6 +62,9 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
         value,
         label,
         uuid,
+        category: opt?.category ?? null,
+        range: opt?.range ?? null,
+        isRanged: !!opt?.isRanged,
         selected: currentChoices[cs.flag] === value,
       };
     }),
@@ -94,6 +98,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name, skipDirectSection: true },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
+    ...getSelectedHandlerChoiceSourceItems(wizard),
   ];
 
   const resolveSelectedChoiceItem = async (choiceSet, currentChoices) => {
@@ -110,8 +115,8 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     if (!item?.uuid || scannedItems.has(item.uuid)) return;
     scannedItems.add(item.uuid);
 
-    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? []);
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
+    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices);
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
@@ -162,15 +167,15 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
   if (!item || !Array.isArray(parsedChoiceSets) || parsedChoiceSets.length === 0) return false;
   const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
-  if (!subclassTag) return false;
+  if (typeof subclassTag !== 'string' || subclassTag.length === 0) return false;
 
   const rules = item.system?.rules ?? [];
   return rules.some((rule) => {
     if (rule.key !== 'ChoiceSet') return false;
     if (typeof rule.flag === 'string' && subclassTag.includes(rule.flag)) return true;
 
-    const filters = JSON.stringify(rule.choices?.filter ?? []);
-    return filters.includes(subclassTag);
+    const filters = JSON.stringify(rule?.choices?.filter ?? []);
+    return typeof filters === 'string' && filters.includes(subclassTag);
   });
 }
 
@@ -262,6 +267,7 @@ export async function getPendingChoices(wizard) {
       if (hasSubclass && rule.choices?.filter?.some?.((f) => typeof f === 'string' && f.includes(subclassTag))) continue;
       if (hasSubclass && rule.flag && subclassTag?.includes(rule.flag)) continue;
       if (optionSource?.choices?.[rule.flag]) continue;
+      if (optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[rule.flag]) continue;
       if (wizard.data.implement && rule.flag === 'implement') continue;
       if (wizard.data.tactics?.length >= 5 && ['firstTactic', 'secondTactic', 'thirdTactic', 'fourthTactic', 'fifthTactic'].includes(rule.flag)) continue;
       if (wizard.data.ikons?.length >= 3 && ['firstIkon', 'secondIkon', 'thirdIkon'].includes(rule.flag)) continue;
@@ -295,16 +301,17 @@ export async function getPendingChoices(wizard) {
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name },
+    ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
 
-  for (const { uuid, label } of topItems) {
+  for (const { uuid, label, optionSource } of topItems) {
     if (!uuid) continue;
     const item = await fromUuid(uuid).catch(() => null);
     if (!item) continue;
-    const optionSource = uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
+    const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
       : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
-        : null;
-    await scanItem(item, label, optionSource);
+        : null);
+    await scanItem(item, label, sourceChoices);
 
     if (item.system?.items) {
       for (const feature of Object.values(item.system.items)) {
@@ -319,15 +326,18 @@ export async function getPendingChoices(wizard) {
   return choices;
 }
 
-export async function parseChoiceSets(wizard, rules) {
+export async function parseChoiceSets(wizard, rules, currentChoices = {}) {
   const sets = [];
-  for (const rule of rules) {
+  for (const [index, rule] of (rules ?? []).entries()) {
     if (rule.key !== 'ChoiceSet') continue;
-    if (!rule.flag) continue;
-    const options = await resolveChoiceSetOptions(wizard, rule);
+    const flag = getChoiceSetFlag(rule, index);
+    if (!flag) continue;
+    const normalizedRule = { ...rule, flag };
+    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(rules, currentChoices))) continue;
+    const options = await resolveChoiceSetOptions(wizard, normalizedRule);
     if (options.length > 0) {
-      const prompt = rule.prompt ? (game.i18n.has(rule.prompt) ? game.i18n.localize(rule.prompt) : rule.prompt) : rule.flag;
-      sets.push({ flag: rule.flag, prompt, options });
+      const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
+      sets.push({ flag: normalizedRule.flag, prompt, options });
     }
   }
   return sets;
@@ -368,6 +378,9 @@ async function resolveChoiceSetOptions(wizard, rule) {
       traits: item.traits ?? [],
       rarity: item.rarity ?? 'common',
       type: item.type ?? null,
+      category: item.category ?? null,
+      range: item.range ?? null,
+      isRanged: !!item.isRanged,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -389,6 +402,48 @@ function resolveConfigChoiceOptions(configPath) {
       return { value: key, label };
     })
     .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+function getChoiceSetFlag(rule, index = 0) {
+  if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
+  if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
+  return typeof index === 'number' ? `choiceSet${index + 1}` : null;
+}
+
+function buildChoiceSetRollOptions(rules, currentChoices) {
+  const values = {};
+  for (const [index, rule] of (rules ?? []).entries()) {
+    if (rule?.key !== 'ChoiceSet') continue;
+    const flag = getChoiceSetFlag(rule, index);
+    const selectedValue = currentChoices?.[flag];
+    if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
+    values[flag] = selectedValue;
+    if (typeof rule.rollOption === 'string' && rule.rollOption.length > 0) {
+      values[rule.rollOption] = selectedValue;
+    }
+  }
+  return values;
+}
+
+function matchesChoiceSetPredicate(predicate, rollOptions) {
+  if (!predicate) return true;
+  if (typeof predicate === 'string') return matchesChoiceSetPredicateString(predicate, rollOptions);
+  if (Array.isArray(predicate)) return predicate.every((entry) => matchesChoiceSetPredicate(entry, rollOptions));
+  if (typeof predicate !== 'object') return true;
+  if (Array.isArray(predicate.or)) return predicate.or.some((entry) => matchesChoiceSetPredicate(entry, rollOptions));
+  if (Array.isArray(predicate.and)) return predicate.and.every((entry) => matchesChoiceSetPredicate(entry, rollOptions));
+  if ('not' in predicate) return !matchesChoiceSetPredicate(predicate.not, rollOptions);
+  if (Array.isArray(predicate.nor)) return predicate.nor.every((entry) => !matchesChoiceSetPredicate(entry, rollOptions));
+  return true;
+}
+
+function matchesChoiceSetPredicateString(predicate, rollOptions) {
+  const text = String(predicate ?? '');
+  const separator = text.indexOf(':');
+  if (separator < 0) return !!rollOptions[text];
+  const key = text.slice(0, separator);
+  const value = text.slice(separator + 1);
+  return String(rollOptions[key] ?? '') === value;
 }
 
 function isCommonAncestryChoiceSet(rule) {
@@ -459,17 +514,20 @@ async function enrichChoiceOption(wizard, choice) {
     };
   }
 
-  return {
-    value,
-    label: label ?? item.name ?? value,
-    uuid: item.uuid,
-    img: item.img ?? null,
+    return {
+      value,
+      label: label ?? item.name ?? value,
+      uuid: item.uuid,
+      img: item.img ?? null,
     traits: item.system?.traits?.value ?? [],
-    rarity: item.system?.traits?.rarity ?? 'common',
-    type: item.type ?? null,
-    description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
-    summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
-  };
+      rarity: item.system?.traits?.rarity ?? 'common',
+      type: item.type ?? null,
+      category: item.system?.category ?? null,
+      range: normalizeRangeValue(item.system?.range ?? null),
+      isRanged: isRangedWeaponItem(item),
+      description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
+      summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
+    };
 }
 
 export function extractChoiceValue(choice) {
@@ -550,6 +608,10 @@ function normalizeChoiceLookupValue(value) {
 }
 
 async function loadChoiceSetCandidates(wizard, choiceConfig) {
+  if (choiceConfig?.ownedItems) {
+    return loadOwnedChoiceSetCandidates(wizard, choiceConfig);
+  }
+
   const itemType = typeof choiceConfig.itemType === 'string' ? choiceConfig.itemType.toLowerCase() : null;
   const packKeys = getChoiceSetPackKeys(itemType, choiceConfig.filter ?? []);
   const lists = [];
@@ -573,6 +635,16 @@ async function loadChoiceSetCandidates(wizard, choiceConfig) {
   }
 
   return lists.flat();
+}
+
+function loadOwnedChoiceSetCandidates(wizard, choiceConfig) {
+  const allowedTypes = new Set((choiceConfig?.types ?? []).map((type) => String(type).toLowerCase()));
+  const ownedItems = wizard.actor?.items?.contents
+    ?? (Array.isArray(wizard.actor?.items) ? wizard.actor.items : Array.from(wizard.actor?.items ?? []));
+
+  return ownedItems
+    .filter((item) => allowedTypes.size === 0 || allowedTypes.has(String(item.type ?? '').toLowerCase()))
+    .map((item) => normalizeChoiceCandidate(item));
 }
 
 function getChoiceSetPackKeys(itemType, filters) {
@@ -625,9 +697,19 @@ function matchesChoiceSetFilter(item, filter) {
 
 function matchesChoiceSetFilterString(item, filter) {
   const parts = filter.split(':');
-  if (parts[0] !== 'item' || parts.length < 3) return true;
+  if (parts[0] !== 'item' || parts.length < 2) return true;
 
   const [, field, ...rest] = parts;
+  if (field === 'melee') return !isRangedWeapon(item);
+  if (field === 'ranged') return isRangedWeapon(item);
+  if (field === 'thrown-melee') return isThrownMeleeWeapon(item);
+  if (field === 'magical') return !!item.isMagical || (item.traits ?? []).includes('magical');
+  if (field === 'damage' && rest[0] === 'type') {
+    const value = rest.slice(1).join(':');
+    return (item.damageTypes ?? []).includes(value);
+  }
+
+  if (parts.length < 3) return true;
   const value = rest.join(':');
 
   switch (field) {
@@ -648,4 +730,110 @@ function matchesChoiceSetFilterString(item, filter) {
     default:
       return true;
   }
+}
+
+function normalizeChoiceCandidate(item) {
+  const damageTypeEntries = [];
+  const rawSystem = item?.system ?? {};
+  const rawDamage = rawSystem.damage;
+  if (typeof rawDamage?.damageType === 'string') damageTypeEntries.push(rawDamage.damageType);
+  if (Array.isArray(rawDamage?.instances)) {
+    for (const instance of rawDamage.instances) {
+      if (typeof instance?.type === 'string') damageTypeEntries.push(instance.type);
+      if (typeof instance?.damageType === 'string') damageTypeEntries.push(instance.damageType);
+    }
+  }
+
+  return {
+    uuid: item.uuid,
+    name: item.name,
+    img: item.img ?? null,
+    type: item.type,
+    slug: item.slug ?? item.name?.toLowerCase().replace(/\s+/g, '-') ?? '',
+    description: rawSystem?.description?.value?.substring?.(0, 150) ?? '',
+    traits: rawSystem?.traits?.value ?? [],
+    otherTags: rawSystem?.traits?.otherTags ?? [],
+    traditions: rawSystem?.traits?.traditions ?? rawSystem?.traditions?.value ?? [],
+    rarity: rawSystem?.traits?.rarity ?? 'common',
+    level: rawSystem?.level?.value ?? 0,
+    category: rawSystem?.category ?? null,
+    usage: rawSystem?.usage?.value ?? null,
+    range: normalizeRangeValue(rawSystem?.range ?? null),
+    isRanged: isRangedWeaponData(rawSystem),
+    damageTypes: [...new Set(damageTypeEntries.filter((type) => typeof type === 'string' && type.length > 0))],
+    isMagical: !!rawSystem?.traits?.value?.includes?.('magical'),
+  };
+}
+
+function hasMeaningfulRange(range) {
+  return normalizeRangeValue(range) !== null;
+}
+
+function normalizeRangeValue(range) {
+  if (!range) return null;
+  if (typeof range === 'number' && range > 0) return String(range);
+  if (typeof range === 'string') return range.trim() || null;
+  if (typeof range?.value === 'number' && range.value > 0) return String(range.value);
+  if (typeof range?.value === 'string' && range.value.trim().length > 0) return range.value.trim();
+  if (typeof range?.increment === 'number' && range.increment > 0) return String(range.increment);
+  if (typeof range?.increment === 'string' && range.increment.trim().length > 0) return range.increment.trim();
+  if (typeof range?.max === 'number' && range.max > 0) return String(range.max);
+  if (typeof range?.max === 'string' && range.max.trim().length > 0) return range.max.trim();
+  return null;
+}
+
+function hasRangedTrait(item) {
+  const traits = item?.traits ?? [];
+  return traits.some((trait) => /^range-increment-\d+/i.test(String(trait)))
+    || traits.some((trait) => String(trait).toLowerCase() === 'ranged');
+}
+
+function hasThrownMeleeTrait(item) {
+  const traits = item?.traits ?? [];
+  return traits.some((trait) => /^thrown(?:-\d+)?$/i.test(String(trait)));
+}
+
+function isRangedWeapon(item) {
+  if (typeof item?.isRanged === 'boolean') return item.isRanged;
+  return (hasMeaningfulRange(item?.range) || hasRangedTrait(item)) && !hasThrownMeleeTrait(item);
+}
+
+function isThrownMeleeWeapon(item) {
+  return hasThrownMeleeTrait(item);
+}
+
+function isRangedWeaponData(system) {
+  const item = {
+    range: system?.range ?? null,
+    traits: system?.traits?.value ?? [],
+  };
+  return isRangedWeapon(item);
+}
+
+function isRangedWeaponItem(item) {
+  return isRangedWeapon({
+    range: item?.system?.range ?? null,
+    traits: item?.system?.traits?.value ?? [],
+  });
+}
+
+export function getSelectedHandlerChoiceSourceItems(wizard) {
+  const items = [];
+  const add = (entry) => {
+    if (!entry?.uuid || !entry?.name) return;
+    items.push({ uuid: entry.uuid, label: entry.name });
+  };
+
+  add(wizard.data.implement);
+  add(wizard.data.innovationItem);
+  add(wizard.data.innovationModification);
+  add(wizard.data.secondElement);
+  add(wizard.data.subconsciousMind);
+  add(wizard.data.thesis);
+  for (const entry of (wizard.data.tactics ?? [])) add(entry);
+  for (const entry of (wizard.data.ikons ?? [])) add(entry);
+  for (const entry of (wizard.data.kineticImpulses ?? [])) add(entry);
+  for (const entry of (wizard.data.apparitions ?? [])) add(entry);
+
+  return items;
 }

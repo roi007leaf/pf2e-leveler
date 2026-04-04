@@ -158,6 +158,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         spells: btn.dataset.spells ? JSON.parse(btn.dataset.spells) : {},
         vesselSpell: btn.dataset.vesselSpell || null,
       }, Number(btn.dataset.max ?? 2));
+      wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
   });
@@ -169,6 +170,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         name: btn.dataset.name,
         img: btn.dataset.img,
       }, Number(btn.dataset.max ?? 5));
+      wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
   });
@@ -180,6 +182,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         name: btn.dataset.name,
         img: btn.dataset.img,
       }, Number(btn.dataset.max ?? 3));
+      wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
   });
@@ -198,6 +201,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         usage: item.system?.usage?.value ?? null,
         range: item.system?.range ?? null,
       });
+      wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
   });
@@ -207,6 +211,7 @@ export function activateCharacterWizardListeners(wizard, el) {
       const item = await fromUuid(btn.dataset.uuid).catch(() => null);
       if (!item) return;
       setInnovationModification(wizard.data, item);
+      wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
   });
@@ -223,6 +228,7 @@ export function activateCharacterWizardListeners(wizard, el) {
       const item = await fromUuid(btn.dataset.uuid).catch(() => null);
       if (!item) return;
       setSecondElement(wizard.data, item);
+      wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
   });
@@ -235,6 +241,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         img: btn.dataset.img,
         element: btn.dataset.element,
       }, 2);
+      wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
   });
@@ -445,10 +452,44 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
+  el.querySelectorAll('[data-action="searchChoiceSetItems"]').forEach((input) => {
+    input.addEventListener('input', () => applyChoiceSetFilters(input.closest('.wizard-choice-block')));
+  });
+
+  el.querySelectorAll('[data-action="filterWeaponChoice"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const block = btn.closest('.wizard-choice-block');
+      if (!block) return;
+      block.querySelectorAll('[data-action="filterWeaponChoice"]').forEach((entry) => entry.classList.remove('selected'));
+      btn.classList.add('selected');
+      applyChoiceSetFilters(block);
+    });
+  });
+
   const searchInput = el.querySelector('[data-action="searchItems"]');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       wizard._filterItems(el, e.target.value.toLowerCase());
     });
   }
+}
+
+function applyChoiceSetFilters(block) {
+  if (!block) return;
+  const query = block.querySelector('[data-action="searchChoiceSetItems"]')?.value?.toLowerCase() ?? '';
+  const activeFilter = block.querySelector('[data-action="filterWeaponChoice"].selected')?.dataset.filter ?? 'all';
+
+  block.querySelectorAll('.wizard-item').forEach((item) => {
+    const name = item.dataset.name?.toLowerCase() ?? '';
+    const category = item.dataset.category?.toLowerCase() ?? '';
+    const isRanged = item.dataset.isRanged === 'true';
+
+    const matchesQuery = !query || name.includes(query);
+    const matchesFilter = activeFilter === 'all'
+      || (activeFilter === 'melee' && !isRanged)
+      || (activeFilter === 'ranged' && isRanged)
+      || category === activeFilter;
+
+    item.style.display = matchesQuery && matchesFilter ? '' : 'none';
+  });
 }

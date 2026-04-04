@@ -15,12 +15,11 @@
 
   <div class="feat-list spell-list">
     {{#each spells}}
-    <div class="feat-option spell-option {{#if this.alreadyKnown}}feat-option--taken{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
+    <div class="feat-option spell-option" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
       <img class="feat-option__img" src="{{this.img}}" alt="">
       <div class="feat-option__info">
         <div class="feat-option__header">
           <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
-          {{#if this.alreadyKnown}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> Known</span>{{/if}}
           <span class="feat-option__level">Rank {{this.system.level.value}}</span>
         </div>
         <div class="feat-option__traits">

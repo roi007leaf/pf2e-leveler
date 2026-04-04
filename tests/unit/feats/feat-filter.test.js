@@ -1,6 +1,9 @@
 import {
   filterFeatsByCategory,
+  filterByDedication,
+  filterByGeneralSkillFeats,
   filterBySearch,
+  filterBySkill,
   filterByRarity,
   sortFeats,
 } from '../../../scripts/feats/feat-filter.js';
@@ -34,6 +37,13 @@ describe('filterFeatsByCategory', () => {
     expect(result.every((f) => f.system.traits.value.includes('alchemist'))).toBe(true);
   });
 
+  test('can include dedication feats in class feat filtering when requested', () => {
+    const result = filterFeatsByCategory(feats, 'class', 'fighter', 5, { includeDedications: true });
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Fighter Dedication' }),
+    ]);
+  });
+
   test('respects target level', () => {
     const result = filterFeatsByCategory(feats, 'class', 'alchemist', 1);
     expect(result).toHaveLength(1);
@@ -42,6 +52,13 @@ describe('filterFeatsByCategory', () => {
 
   test('filters general feats', () => {
     const result = filterFeatsByCategory(feats, 'general', '', 5);
+    const names = result.map((f) => f.name);
+    expect(names).toContain('Toughness');
+    expect(names).not.toContain('Battle Medicine');
+  });
+
+  test('can include skill feats in general feat filtering when requested', () => {
+    const result = filterFeatsByCategory(feats, 'general', '', 5, { includeSkillFeats: true });
     const names = result.map((f) => f.name);
     expect(names).toContain('Toughness');
     expect(names).toContain('Battle Medicine');
@@ -60,10 +77,112 @@ describe('filterFeatsByCategory', () => {
   });
 });
 
+describe('dedication and skill filters', () => {
+  beforeEach(() => {
+    global.game = {
+      ...global.game,
+      i18n: {
+        has: jest.fn(() => false),
+        localize: jest.fn((key) => key),
+      },
+    };
+    global.CONFIG = {
+      ...global.CONFIG,
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          arc: 'Arcana',
+          cra: 'Crafting',
+        },
+      },
+    };
+  });
+
+  test('filterByDedication hides dedication feats when disabled', () => {
+    const feats = [
+      makeFeat('Wizard Dedication', 2, ['archetype', 'dedication']),
+      makeFeat('Basic Wizard Spellcasting', 4, ['archetype']),
+    ];
+
+    const result = filterByDedication(feats, false);
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Basic Wizard Spellcasting' }),
+    ]);
+  });
+
+  test('filterBySkill matches skill feats by prerequisite skill text', () => {
+    const feats = [
+      {
+        ...makeFeat('Battle Medicine', 1, ['skill']),
+        system: {
+          ...makeFeat('Battle Medicine', 1, ['skill']).system,
+          prerequisites: { value: [{ value: 'Trained in Medicine' }] },
+        },
+      },
+      {
+        ...makeFeat('Arcane Sense', 1, ['skill']),
+        system: {
+          ...makeFeat('Arcane Sense', 1, ['skill']).system,
+          prerequisites: { value: [{ value: 'Trained in Arcana' }] },
+        },
+      },
+    ];
+
+    const result = filterBySkill(feats, ['arc']);
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Arcane Sense' }),
+    ]);
+  });
+
+  test('handles object-valued PF2E skill config entries', () => {
+    global.CONFIG = {
+      ...global.CONFIG,
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          arc: { label: 'Arcana' },
+          cra: { short: 'Crafting' },
+        },
+      },
+    };
+
+    const feats = [
+      {
+        ...makeFeat('Arcane Sense', 1, ['skill']),
+        system: {
+          ...makeFeat('Arcane Sense', 1, ['skill']).system,
+          prerequisites: { value: [{ value: 'Trained in Arcana' }] },
+        },
+      },
+    ];
+
+    const result = filterBySkill(feats, ['arc']);
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Arcane Sense' }),
+    ]);
+  });
+
+  test('filterByGeneralSkillFeats hides skill feats when disabled', () => {
+    const feats = [
+      makeFeat('Toughness', 1, ['general']),
+      makeFeat('Battle Medicine', 1, ['general', 'skill']),
+      makeFeat('Arcane Sense', 1, ['skill']),
+    ];
+
+    expect(filterByGeneralSkillFeats(feats, false)).toEqual([
+      expect.objectContaining({ name: 'Toughness' }),
+      expect.objectContaining({ name: 'Battle Medicine' }),
+    ]);
+
+    expect(filterByGeneralSkillFeats(feats, true)).toEqual(feats);
+  });
+});
+
 describe('filterBySearch', () => {
   const feats = [
     makeFeat('Quick Bomber', 1, ['alchemist']),
     makeFeat('Battle Medicine', 1, ['skill']),
+    makeFeat('Fighter Dedication', 2, ['archetype', 'dedication']),
   ];
 
   test('filters by name', () => {
@@ -72,9 +191,16 @@ describe('filterBySearch', () => {
     expect(result[0].name).toBe('Quick Bomber');
   });
 
+  test('also filters by traits', () => {
+    const result = filterBySearch(feats, 'archetype');
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Fighter Dedication' }),
+    ]);
+  });
+
   test('returns all for empty search', () => {
-    expect(filterBySearch(feats, '')).toHaveLength(2);
-    expect(filterBySearch(feats, null)).toHaveLength(2);
+    expect(filterBySearch(feats, '')).toHaveLength(3);
+    expect(filterBySearch(feats, null)).toHaveLength(3);
   });
 });
 

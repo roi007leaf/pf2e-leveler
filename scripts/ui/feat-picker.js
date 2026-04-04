@@ -1,6 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { loadFeats } from '../feats/feat-cache.js';
-import { getFeatsForSelection, filterBySearch, sortFeats } from '../feats/feat-filter.js';
+import { getFeatsForSelection, filterByDedication, filterByGeneralSkillFeats, filterBySearch, filterBySkill, sortFeats } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -20,6 +20,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.hideFailedPrereqs = category === 'archetype';
     this.showUncommon = !game.settings.get(MODULE_ID, 'hideUncommonFeats');
     this.showRare = !game.settings.get(MODULE_ID, 'hideRareFeats');
+    this.selectedSkill = '';
+    this.showDedications = category !== 'class';
+    this.showSkillFeats = false;
   }
 
   static DEFAULT_OPTIONS = {
@@ -52,6 +55,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const allCachedFeats = await loadFeats();
       this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
         sortMethod: this.sortMethod,
+        includeDedications: this.category === 'class',
+        includeSkillFeats: this.category === 'general',
       });
     }
 
@@ -64,6 +69,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       hideFailedPrereqs: this.hideFailedPrereqs,
       showUncommon: this.showUncommon,
       showRare: this.showRare,
+      showSkillFilter: this.category === 'skill',
+      showGeneralSkillToggle: this.category === 'general',
+      skillOptions: this._getSkillOptions(),
+      selectedSkill: this.selectedSkill,
+      showDedicationToggle: ['class', 'archetype'].includes(this.category),
+      showDedications: this.showDedications,
+      showSkillFeats: this.showSkillFeats,
     };
   }
 
@@ -82,6 +94,15 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (this.searchText) {
       feats = filterBySearch(feats, this.searchText);
+    }
+    if (this.category === 'skill' && this.selectedSkill) {
+      feats = filterBySkill(feats, [this.selectedSkill]);
+    }
+    if (this.category === 'general') {
+      feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
+    }
+    if (['class', 'archetype'].includes(this.category)) {
+      feats = filterByDedication(feats, this.showDedications);
     }
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) {
@@ -165,6 +186,32 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
+    const skillSelect = el.querySelector('[data-action="filterSkillFeats"]');
+    if (skillSelect) {
+      skillSelect.addEventListener('change', (e) => {
+        this.selectedSkill = e.target.value;
+        this._updateFeatList();
+      });
+    }
+
+    const dedicationToggle = el.querySelector('[data-action="toggleDedications"]');
+    if (dedicationToggle) {
+      dedicationToggle.addEventListener('click', () => {
+        this.showDedications = !this.showDedications;
+        dedicationToggle.classList.toggle('active', this.showDedications);
+        this._updateFeatList();
+      });
+    }
+
+    const skillFeatToggle = el.querySelector('[data-action="toggleGeneralSkillFeats"]');
+    if (skillFeatToggle) {
+      skillFeatToggle.addEventListener('click', () => {
+        this.showSkillFeats = !this.showSkillFeats;
+        skillFeatToggle.classList.toggle('active', this.showSkillFeats);
+        this._updateFeatList();
+      });
+    }
+
     const featList = el.querySelector('.feat-list');
     if (featList) {
       featList.addEventListener('click', async (e) => {
@@ -223,5 +270,20 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       listContainer.innerHTML = newList.innerHTML;
     }
   }
-}
 
+  _getSkillOptions() {
+    if (this.category !== 'skill') return [];
+    const configSkills = globalThis.CONFIG?.PF2E?.skills ?? {};
+    const options = Object.entries(configSkills).map(([slug, rawEntry]) => {
+      const rawLabel = typeof rawEntry === 'string'
+        ? rawEntry
+        : rawEntry?.label ?? rawEntry?.short ?? rawEntry?.long ?? slug;
+      return {
+        slug,
+        label: typeof rawLabel === 'string' && game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel,
+      };
+    });
+    options.sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    return options;
+  }
+}

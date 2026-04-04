@@ -1,4 +1,4 @@
-import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL } from '../constants.js';
+import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getChoicesForLevel } from '../classes/progression.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
@@ -133,11 +133,12 @@ function validateFeatSlot(feats, label) {
 
 function validateSpells(levelData, level, classDef, actor) {
   if (!classDef?.spellcasting?.slots) return null;
-  if (classDef.spellcasting.type !== 'spontaneous' && classDef.slug !== 'wizard') return null;
+  const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
+  if (classDef.spellcasting.type !== 'spontaneous' && !hasSpellbook) return null;
 
   const planned = levelData.spells ?? [];
 
-  if (classDef.slug === 'wizard') {
+  if (hasSpellbook) {
     if (planned.length < 2) {
       return { severity: 'error', message: `${2 - planned.length} spellbook spell(s) not yet selected` };
     }

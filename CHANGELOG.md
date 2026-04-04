@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.2.2
+
+### Improved
+
+- Character creation loading overlay now focuses on PF2E prompts only
+  - Removed the redundant `Selections` block so the apply overlay is cleaner and easier to use during system `ChoiceSet` prompts
+- Planner feat picker gained more targeted filters
+  - Added a `Skill Feats` toggle to the General Feat picker alongside the existing skill and dedication filters
+
+### Fixed
+
+- Weapon choice-set handling now matches PF2E more closely
+  - Melee-only weapon prompts such as Barrow's Edge now classify ranged weapons correctly, respect thrown-melee exceptions, and use the same weapon state for both candidate filtering and the on-screen weapon filters
+- Loading overlay prompt rows now follow nested selected choice items
+  - Chosen follow-up options like granted ikon weapons now appear in the PF2E prompt checklist instead of stopping at the parent choice
+- Feat-choice handling is more robust after reopening the wizard
+  - Rebuilt feat choice sections now preserve saved selections instead of dropping them when the wizard reparses live item rules
+- Character wizard step refresh and completion state now update more reliably
+  - Background, feat, and feat-choice selections now force a fresh wizard-part rerender so the selected state appears immediately
+  - Sidebar completion for Languages and Skills now recalculates from current INT-dependent requirements instead of staying stale until those steps are visited
+- Planner spellbook spell selection now behaves correctly for spellbook casters
+  - Wizard and other spellbook classes no longer show the spontaneous rank-row add flow alongside spellbook additions
+  - Spellbook pickers now hide already known spells, hide spells already selected for the same planned level, and cap available spell ranks to the highest rank the character can cast at that level
+
 ## 1.2.1
 
 ### Improved

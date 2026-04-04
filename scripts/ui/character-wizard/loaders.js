@@ -19,7 +19,10 @@ export async function loadCompendium(wizard, key) {
     level: d.system?.level?.value ?? 0,
     category: d.system?.category ?? null,
     usage: d.system?.usage?.value ?? null,
-    range: d.system?.range ?? null,
+    range: normalizeRangeValue(d.system?.range ?? null),
+    isRanged: isRangedWeaponData(d.system),
+    damageTypes: extractDamageTypes(d),
+    isMagical: (d.system?.traits?.value ?? []).includes('magical'),
   }));
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[key] = items;
@@ -44,6 +47,39 @@ export async function loadDeities(wizard) {
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
+}
+
+function extractDamageTypes(item) {
+  const damageTypes = [];
+  const rawDamage = item?.system?.damage;
+  if (typeof rawDamage?.damageType === 'string') damageTypes.push(rawDamage.damageType);
+  if (Array.isArray(rawDamage?.instances)) {
+    for (const instance of rawDamage.instances) {
+      if (typeof instance?.type === 'string') damageTypes.push(instance.type);
+      if (typeof instance?.damageType === 'string') damageTypes.push(instance.damageType);
+    }
+  }
+  return [...new Set(damageTypes.filter((type) => typeof type === 'string' && type.length > 0))];
+}
+
+function normalizeRangeValue(range) {
+  if (!range) return null;
+  if (typeof range === 'number' && range > 0) return String(range);
+  if (typeof range === 'string') return range.trim() || null;
+  if (typeof range?.value === 'number' && range.value > 0) return String(range.value);
+  if (typeof range?.value === 'string' && range.value.trim().length > 0) return range.value.trim();
+  if (typeof range?.increment === 'number' && range.increment > 0) return String(range.increment);
+  if (typeof range?.increment === 'string' && range.increment.trim().length > 0) return range.increment.trim();
+  if (typeof range?.max === 'number' && range.max > 0) return String(range.max);
+  if (typeof range?.max === 'string' && range.max.trim().length > 0) return range.max.trim();
+  return null;
+}
+
+function isRangedWeaponData(system) {
+  const traits = system?.traits?.value ?? [];
+  const hasThrownMeleeTrait = traits.some((trait) => /^thrown(?:-\d+)?$/i.test(String(trait)));
+  const hasRange = normalizeRangeValue(system?.range ?? null) !== null;
+  return hasRange && !hasThrownMeleeTrait;
 }
 
 export async function loadHeritages(wizard) {

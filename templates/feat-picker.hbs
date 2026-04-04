@@ -3,6 +3,14 @@
     <input type="text" class="feat-picker__search"
            placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEARCH'}}"
            data-action="searchFeats">
+    {{#if showSkillFilter}}
+    <select data-action="filterSkillFeats" class="feat-picker__select">
+      <option value="">All Skills</option>
+      {{#each skillOptions}}
+      <option value="{{this.slug}}" {{#if (eq ../selectedSkill this.slug)}}selected{{/if}}>{{this.label}}</option>
+      {{/each}}
+    </select>
+    {{/if}}
     <select data-action="sortFeats" style="width: auto;">
       <option value="LEVEL_DESC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
       <option value="LEVEL_ASC">{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_ASC"}}</option>
@@ -13,6 +21,18 @@
       <i class="fa-solid fa-filter"></i>
       {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
     </button>
+    {{#if showDedicationToggle}}
+    <button type="button" class="feat-picker__prereq-toggle {{#if showDedications}}active{{/if}}" data-action="toggleDedications">
+      <i class="fa-solid fa-diagram-project"></i>
+      Dedications
+    </button>
+    {{/if}}
+    {{#if showGeneralSkillToggle}}
+    <button type="button" class="feat-picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
+      <i class="fa-solid fa-screwdriver-wrench"></i>
+      Skill Feats
+    </button>
+    {{/if}}
   </div>
   <div class="feat-picker__rarity-filters" style="display: flex; gap: 0.75rem; padding: 0 0.5rem 0.25rem;">
     <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">

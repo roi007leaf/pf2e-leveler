@@ -150,6 +150,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._featChoiceDataDirty) {
       await this._refreshAllFeatChoiceData();
     }
+    this._cachedMaxLanguages = await this._getAdditionalLanguageCount();
+    this._cachedMaxSkills = await this._getAdditionalSkillCount();
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: 'Feat Choices',
@@ -287,7 +289,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       tradition = this.data.subclass?.tradition ?? 'arcane';
     }
 
-    import('./spell-picker.js').then(({ SpellPicker }) => {
+    import('../spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
         this.actor,
         tradition,
@@ -390,7 +392,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _saveAndRender() {
     this._captureWizardScroll();
     await saveCreationData(this.actor, this.data);
-    this.render({ parts: ['wizard'] });
+    await this.render({ force: true, parts: ['wizard'] });
   }
 
   _captureWizardScroll() {

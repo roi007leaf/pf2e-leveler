@@ -297,7 +297,7 @@
                 <tr class="{{#if this.isNew}}spell-slot-row--new{{else if this.changed}}spell-slot-row--changed{{/if}}">
                   <td class="spell-slot-rank">{{this.rank}}</td>
                   <td class="spell-slot-count">
-                    {{#if (and ../isSpontaneous this.hasNew)}}
+                    {{#if (and ../hasRankSpellSelections this.hasNew)}}
                       <span class="spell-slot-new">{{this.planned}}/{{this.newSlots}} new</span>
                       <span class="spell-slot-breakdown">({{this.total}} total)</span>
                     {{else if this.hasNew}}
@@ -311,7 +311,7 @@
                     {{/if}}
                   </td>
                   <td>
-                    {{#if (and ../isSpontaneous this.hasNew)}}
+                    {{#if (and ../hasRankSpellSelections this.hasNew)}}
                       <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="{{#if this.isCantrips}}0{{else}}{{this.rankNum}}{{/if}}" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD'}}" {{#if this.isFull}}disabled{{/if}}>
                         <i class="fa-solid fa-plus"></i>
                       </button>
@@ -342,7 +342,7 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-book"></i>
-                Spellbook ({{plannedSpells.length}}/{{wizardSpellbookCount}} new spells)
+                Spellbook ({{plannedSpells.length}}/{{spellbookSelectionCount}} new spells)
               </div>
               {{#each plannedSpells}}
               <div class="feat-slot feat-slot--filled">
@@ -352,8 +352,8 @@
                 <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="Remove"></i>
               </div>
               {{/each}}
-              {{#unless (eq plannedSpells.length wizardSpellbookCount)}}
-              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="0" data-tooltip="Add spell to spellbook" style="margin-top: 4px; padding: 4px 12px;">
+              {{#unless (eq plannedSpells.length spellbookSelectionCount)}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="-1" data-tooltip="Add spell to spellbook" style="margin-top: 4px; padding: 4px 12px;">
                 <i class="fa-solid fa-plus"></i> Add to Spellbook
               </button>
               {{/unless}}

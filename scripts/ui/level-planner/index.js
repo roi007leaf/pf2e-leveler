@@ -361,9 +361,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const tradition = this._resolveSpellTradition(classDef);
     const entryType = classDef.spellcasting.type === 'dual' ? 'animist' : 'primary';
-    const pickerRank = classDef.slug === 'wizard' && rank === 0 ? -1 : rank;
+    const pickerRank = rank;
+    const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
+    const excludedUuids = (levelData.spells ?? []).map((spell) => spell.uuid);
+    const currentSlots = classDef.spellcasting.slots?.[this.selectedLevel] ?? {};
+    const maxRank = rank === -1 ? this._getHighestRank(currentSlots) : null;
 
-    import('./spell-picker.js').then(({ SpellPicker }) => {
+    import('../spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
         this.actor,
         tradition,
@@ -380,6 +384,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           });
           this._savePlanAndRender();
         },
+        { excludedUuids, maxRank },
       );
       picker.render(true);
     });

@@ -2,6 +2,7 @@
   {{#if isApplying}}
   <div class="wizard-apply-overlay">
     <div class="wizard-apply-card">
+      <div class="wizard-apply-card__scroll">
       <div class="wizard-apply-card__eyebrow">Creating Character</div>
       <div class="wizard-apply-card__title">{{data.class.name}}{{#if data.subclass}} · {{data.subclass.name}}{{/if}}</div>
       <div class="wizard-apply-card__status">{{applyStatus}}</div>
@@ -28,21 +29,8 @@
         </div>
       </div>
       {{/if}}
-      {{#if applySelectionRows.length}}
-      <div class="wizard-apply-card__section">
-        <div class="wizard-apply-card__section-title">Selections</div>
-        <div class="wizard-apply-card__rows">
-          {{#each applySelectionRows}}
-          <div class="wizard-apply-card__row">
-            <div class="wizard-apply-card__label">{{this.label}}</div>
-            <div class="wizard-apply-card__value">{{this.value}}</div>
-          </div>
-          {{/each}}
-        </div>
-      </div>
-      {{/if}}
-      {{#if applyPromptRows.length}}
-      <div class="wizard-apply-card__section">
+        {{#if applyPromptRows.length}}
+        <div class="wizard-apply-card__section">
         <div class="wizard-apply-card__section-title">Use These In PF2E Prompts</div>
         <div class="wizard-apply-card__rows">
           {{#each applyPromptRows}}
@@ -54,6 +42,7 @@
         </div>
       </div>
       {{/if}}
+      </div>
     </div>
   </div>
   {{/if}}
@@ -281,20 +270,34 @@
       <h2>Feat Choices</h2>
 
       {{#each featChoiceSections}}
-      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
-        <i class="section-header__icon fa-solid fa-list-check"></i>
-        {{this.featName}}
-      </div>
+        <div class="section-header wizard-choice-source" style="margin-top: var(--leveler-spacing-md);">
+          <i class="section-header__icon fa-solid fa-list-check"></i>
+          {{this.featName}}
+        </div>
 
       {{#each this.choiceSets}}
+      <div class="wizard-choice-block">
       <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
         <i class="section-header__icon fa-solid fa-list-check"></i>
         {{this.prompt}}
       </div>
       {{#if this.isItemChoice}}
+      {{#if this.isWeaponChoice}}
+      <div class="wizard-choice-filters">
+        <input type="text" class="feat-picker__search wizard-choice-filters__search" placeholder="Filter weapons..." data-action="searchChoiceSetItems">
+        <div class="wizard-choice-filters__buttons">
+          <button type="button" class="skill-btn wizard-choice-filter selected" data-action="filterWeaponChoice" data-filter="all">All</button>
+          <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="melee">Melee</button>
+          <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="ranged">Ranged</button>
+          <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="simple">Simple</button>
+          <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="martial">Martial</button>
+          <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="advanced">Advanced</button>
+        </div>
+      </div>
+      {{/if}}
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each this.options}}
-        <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+        <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}" data-type="{{this.type}}" data-category="{{this.category}}" data-is-ranged="{{#if this.isRanged}}true{{else}}false{{/if}}">
           {{#if this.img}}
           <img src="{{this.img}}" alt="" class="wizard-item__img">
           {{/if}}
@@ -335,6 +338,7 @@
         {{/each}}
       </div>
       {{/if}}
+      </div>
       {{/each}}
       {{/each}}
 

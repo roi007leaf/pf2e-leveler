@@ -60,6 +60,17 @@
   font-size: var(--leveler-font-md);
 }
 
+.pf2e-leveler .feat-picker__select {
+  width: auto;
+  min-width: 170px;
+  padding: var(--leveler-spacing-sm);
+  background: var(--leveler-bg-surface);
+  border: 1px solid var(--leveler-border);
+  border-radius: var(--leveler-radius-md);
+  color: var(--leveler-text);
+  font-size: var(--leveler-font-sm);
+}
+
 .pf2e-leveler .feat-picker__search::placeholder {
   color: var(--leveler-text-muted);
 }

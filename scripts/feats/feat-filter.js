@@ -1,12 +1,12 @@
-import { slugify } from '../utils/pf2e-api.js';
-
-export function filterFeatsByCategory(feats, category, searchQuery, targetLevel) {
+export function filterFeatsByCategory(feats, category, searchQuery, targetLevel, options = {}) {
   const normalizedQuery = normalizeQuery(searchQuery);
   const existingFeatNames = new Set();
+  const includeDedications = !!options.includeDedications;
+  const includeSkillFeats = !!options.includeSkillFeats;
 
   return feats.filter((feat) => {
     const traits = feat.system.traits.value.map((t) => t.toLowerCase());
-    const matchesCategory = matchesFeatCategory(traits, category, normalizedQuery);
+    const matchesCategory = matchesFeatCategory(traits, category, normalizedQuery, { includeDedications, includeSkillFeats });
     const withinLevel = feat.system.level.value <= targetLevel;
     const notDuplicate = checkNotDuplicate(feat, existingFeatNames);
 
@@ -20,16 +20,20 @@ function normalizeQuery(query) {
   return [query.toLowerCase()];
 }
 
-function matchesFeatCategory(traits, category, queries) {
+function matchesFeatCategory(traits, category, queries, options = {}) {
+  const includeDedications = !!options.includeDedications;
+  const includeSkillFeats = !!options.includeSkillFeats;
   switch (category) {
     case 'class':
-      return queries.some((q) => traits.includes(q)) && !traits.includes('dedication');
+      return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
+        || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
       return traits.includes('skill');
     case 'general':
-      return traits.includes('general');
+      return (traits.includes('general') && (includeSkillFeats || !traits.includes('skill')))
+        || (includeSkillFeats && !traits.includes('general') && traits.includes('skill'));
     case 'archetype':
       return traits.includes('archetype');
     case 'mythic':
@@ -49,7 +53,11 @@ function checkNotDuplicate(feat, seen) {
 export function filterBySearch(feats, searchText) {
   if (!searchText) return feats;
   const lower = searchText.toLowerCase();
-  return feats.filter((feat) => feat.name.toLowerCase().includes(lower));
+  return feats.filter((feat) => {
+    const name = feat.name.toLowerCase();
+    const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).join(' ');
+    return name.includes(lower) || traits.includes(lower);
+  });
 }
 
 export function filterByRarity(feats, hideUncommon) {
@@ -64,12 +72,30 @@ export function filterByRareRarity(feats, hideRare) {
 
 export function filterBySkill(feats, skillSlugs) {
   if (!skillSlugs || skillSlugs.length === 0) return feats;
+  const normalizedSkills = skillSlugs.map((skill) => String(skill).toLowerCase());
+  const skillLabels = getSkillLabels(normalizedSkills);
+
   return feats.filter((feat) => {
     const prereqs = feat.system.prerequisites?.value ?? [];
-    return skillSlugs.some((skill) =>
-      prereqs.some((p) => p.value.toLowerCase().includes(skill)),
-    );
+    const traits = feat.system.traits?.value?.map((trait) => String(trait).toLowerCase()) ?? [];
+    const prereqTexts = prereqs.map((p) => String(p.value ?? '').toLowerCase());
+
+    return normalizedSkills.some((skill) => {
+      const label = skillLabels.get(skill) ?? skill;
+      return traits.includes(skill)
+        || prereqTexts.some((text) => text.includes(skill) || text.includes(label));
+    });
   });
+}
+
+export function filterByDedication(feats, showDedications) {
+  if (showDedications) return feats;
+  return feats.filter((feat) => !(feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('dedication'));
+}
+
+export function filterByGeneralSkillFeats(feats, showSkillFeats) {
+  if (showSkillFeats) return feats;
+  return feats.filter((feat) => (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('general'));
 }
 
 export function sortFeats(feats, method) {
@@ -99,7 +125,10 @@ export function sortFeats(feats, method) {
 export function getFeatsForSelection(feats, category, actor, targetLevel, options = {}) {
   const classTraits = buildCategoryQuery(category, actor);
 
-  let result = filterFeatsByCategory(feats, category, classTraits, targetLevel);
+  let result = filterFeatsByCategory(feats, category, classTraits, targetLevel, {
+    includeDedications: !!options.includeDedications,
+    includeSkillFeats: !!options.includeSkillFeats,
+  });
 
   if (options.hideUncommon) {
     result = filterByRarity(result, true);
@@ -133,4 +162,19 @@ function buildCategoryQuery(category, actor) {
     default:
       return '';
   }
+}
+
+function getSkillLabels(skillSlugs) {
+  const labels = new Map();
+  const configSkills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  for (const skill of skillSlugs) {
+    const rawEntry = configSkills[skill];
+    const rawLabel = typeof rawEntry === 'string'
+      ? rawEntry
+      : rawEntry?.label ?? rawEntry?.short ?? rawEntry?.long ?? null;
+    if (!rawLabel) continue;
+    const localized = typeof rawLabel === 'string' && game?.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+    labels.set(skill, String(localized).toLowerCase());
+  }
+  return labels;
 }

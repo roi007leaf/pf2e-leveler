@@ -136,6 +136,9 @@ describe('CharacterWizard subclass choice-set parsing', () => {
             traits: [],
             rarity: 'common',
             type: 'feat',
+            category: null,
+            range: null,
+            isRanged: false,
           },
           {
             value: 'Compendium.pf2e.classfeatures.Item.animal-instinct-bear',
@@ -145,6 +148,9 @@ describe('CharacterWizard subclass choice-set parsing', () => {
             traits: [],
             rarity: 'common',
             type: 'feat',
+            category: null,
+            range: null,
+            isRanged: false,
           },
         ],
       },
@@ -1366,6 +1372,511 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(wizard.data.grantedFeatSections).toEqual([]);
   });
 
+  it('does not crash on malformed stale subclass-selector rule filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.barbarian',
+      name: 'Barbarian',
+      slug: 'barbarian',
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.barbarian') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              instinct: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.instinct',
+                name: 'Instinct',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.instinct') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Instinct',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'instinct',
+                prompt: 'Select an instinct.',
+                choices: {
+                  get filter() {
+                    return undefined;
+                  },
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await expect(wizard._refreshGrantedFeatChoiceSections()).resolves.toBeUndefined();
+  });
+
+  it('surfaces nested choice sets from selected ikons and honors rollOption predicates', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ikons = [
+      {
+        uuid: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        name: "Barrow's Edge",
+        img: 'icons/svg/item-bag.svg',
+      },
+    ];
+    wizard.actor.items = {
+      contents: [
+        {
+          uuid: 'Actor.test.Item.clan-dagger',
+          name: 'Clan Dagger',
+          img: 'icons/svg/item-bag.svg',
+          type: 'weapon',
+          slug: 'clan-dagger',
+          system: {
+            traits: { value: [], otherTags: [], rarity: 'common' },
+            level: { value: 0 },
+            usage: { value: 'held-in-one-hand' },
+            range: null,
+            damage: { damageType: 'piercing' },
+          },
+        },
+      ],
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.barrows-edge') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: "Barrow's Edge",
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                prompt: 'Select an origin.',
+                rollOption: 'barrows-edge-origin',
+                choices: [
+                  { value: 'granted', label: 'Granted Weapon' },
+                  { value: 'existing', label: 'Existing Weapon' },
+                ],
+              },
+              {
+                key: 'ChoiceSet',
+                flag: 'existingIkon',
+                prompt: 'Select an existing weapon.',
+                predicate: ['barrows-edge-origin:existing'],
+                choices: {
+                  ownedItems: true,
+                  types: ['weapon'],
+                  filter: [
+                    'item:melee',
+                    { or: ['item:damage:type:slashing', 'item:damage:type:piercing'] },
+                    { not: 'item:trait:consumable' },
+                  ],
+                },
+              },
+              {
+                key: 'ChoiceSet',
+                flag: 'grantedIkon',
+                prompt: 'Select a granted weapon.',
+                predicate: ['barrows-edge-origin:granted'],
+                choices: {
+                  itemType: 'weapon',
+                  filter: [
+                    'item:level:0',
+                    'item:melee',
+                    { nor: ['item:magical', 'item:trait:consumable'] },
+                    { or: ['item:damage:type:slashing', 'item:damage:type:piercing'] },
+                  ],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    wizard._loadCompendium = jest.fn(async (packKey) => {
+      if (packKey === 'pf2e.equipment-srd') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.dagger',
+            name: 'Dagger',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'dagger',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'simple',
+            usage: 'held-in-one-hand',
+            range: null,
+            damageTypes: ['piercing'],
+            isMagical: false,
+          },
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.club',
+            name: 'Club',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'club',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'simple',
+            usage: 'held-in-one-hand',
+            range: null,
+            damageTypes: ['bludgeoning'],
+            isMagical: false,
+          },
+        ];
+      }
+      return [];
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual([
+      expect.objectContaining({
+        slot: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        featName: "Barrow's Edge",
+        choiceSets: [
+          expect.objectContaining({
+            flag: 'barrows-edge-origin',
+            prompt: 'Select an origin.',
+          }),
+        ],
+      }),
+    ]);
+
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.classfeatures.Item.barrows-edge': {
+        'barrows-edge-origin': 'granted',
+      },
+    };
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections[0].choiceSets).toEqual([
+      expect.objectContaining({ flag: 'barrows-edge-origin', prompt: 'Select an origin.' }),
+      expect.objectContaining({
+        flag: 'grantedIkon',
+        prompt: 'Select a granted weapon.',
+        options: [expect.objectContaining({ label: 'Dagger' })],
+      }),
+    ]);
+  });
+
+  it('treats range objects without a real increment as melee for granted weapon choice filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ikons = [
+      {
+        uuid: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        name: "Barrow's Edge",
+        img: 'icons/svg/item-bag.svg',
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.barrows-edge') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: "Barrow's Edge",
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                prompt: 'Select an origin.',
+                rollOption: 'barrows-edge-origin',
+                choices: [
+                  { value: 'granted', label: 'Granted Weapon' },
+                ],
+              },
+              {
+                key: 'ChoiceSet',
+                flag: 'grantedIkon',
+                prompt: 'Select a granted weapon.',
+                predicate: ['barrows-edge-origin:granted'],
+                choices: {
+                  itemType: 'weapon',
+                  filter: [
+                    'item:level:0',
+                    'item:melee',
+                    { or: ['item:damage:type:piercing', 'item:damage:type:slashing'] },
+                  ],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    wizard._loadCompendium = jest.fn(async (packKey) => {
+      if (packKey === 'pf2e.equipment-srd') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.dagger',
+            name: 'Dagger',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'dagger',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'simple',
+            usage: 'held-in-one-hand',
+            range: { increment: null, max: null },
+            damageTypes: ['piercing'],
+            isMagical: false,
+          },
+        ];
+      }
+      return [];
+    });
+
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.classfeatures.Item.barrows-edge': {
+        'barrows-edge-origin': 'granted',
+      },
+    };
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections[0].choiceSets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'grantedIkon',
+          options: [expect.objectContaining({ label: 'Dagger' })],
+        }),
+      ]),
+    );
+  });
+
+  it('treats range-increment traits as ranged for melee weapon choice filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    wizard._loadCompendium = jest.fn(async (packKey) => {
+      if (packKey === 'pf2e.equipment-srd') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.arbalest',
+            name: 'Arbalest',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'arbalest',
+            traits: ['range-increment-110'],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'martial',
+            usage: 'held-in-two-hands',
+            range: null,
+            damageTypes: ['piercing'],
+            isMagical: false,
+          },
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.adze',
+            name: 'Adze',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'adze',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'martial',
+            usage: 'held-in-one-hand',
+            range: null,
+            damageTypes: ['slashing'],
+            isMagical: false,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const reparsed = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'grantedIkon',
+        prompt: 'Select a granted weapon.',
+        choices: {
+          itemType: 'weapon',
+          filter: [
+            'item:melee',
+            { or: ['item:damage:type:piercing', 'item:damage:type:slashing'] },
+          ],
+        },
+      },
+    ]);
+
+    expect(reparsed[0].options).toEqual([
+      expect.objectContaining({ label: 'Adze' }),
+    ]);
+  });
+
+  it('treats numeric range values as ranged for melee weapon choice filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    wizard._loadCompendium = jest.fn(async (packKey) => {
+      if (packKey === 'pf2e.equipment-srd') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.arbalest',
+            name: 'Arbalest',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'arbalest',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'martial',
+            usage: 'held-in-two-hands',
+            range: 110,
+            damageTypes: ['piercing'],
+            isMagical: false,
+          },
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.adze',
+            name: 'Adze',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'adze',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'martial',
+            usage: 'held-in-one-hand',
+            range: null,
+            damageTypes: ['slashing'],
+            isMagical: false,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const reparsed = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'grantedIkon',
+        prompt: 'Select a granted weapon.',
+        choices: {
+          itemType: 'weapon',
+          filter: [
+            'item:melee',
+            { or: ['item:damage:type:piercing', 'item:damage:type:slashing'] },
+          ],
+        },
+      },
+    ]);
+
+    expect(reparsed[0].options).toEqual([
+      expect.objectContaining({ label: 'Adze' }),
+    ]);
+  });
+
+  it('keeps thrown melee weapons in melee weapon choice filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    wizard._loadCompendium = jest.fn(async (packKey) => {
+      if (packKey === 'pf2e.equipment-srd') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.trident',
+            name: 'Trident',
+            img: 'icons/svg/item-bag.svg',
+            type: 'weapon',
+            slug: 'trident',
+            traits: ['thrown-20'],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: 'martial',
+            usage: 'held-in-one-hand',
+            range: 20,
+            damageTypes: ['piercing'],
+            isMagical: false,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const reparsed = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'grantedIkon',
+        prompt: 'Select a granted weapon.',
+        choices: {
+          itemType: 'weapon',
+          filter: [
+            'item:melee',
+            'item:damage:type:piercing',
+          ],
+        },
+      },
+    ]);
+
+    expect(reparsed[0].options).toEqual([
+      expect.objectContaining({ label: 'Trident', isRanged: false }),
+    ]);
+  });
+
+  it('marks weapon choice sets so the UI can show weapon filters', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.grantedFeatSections = [
+      {
+        slot: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        featName: "Barrow's Edge",
+        choiceSets: [
+          {
+            flag: 'grantedIkon',
+            prompt: 'Select a granted weapon.',
+            options: [
+              {
+                value: 'Compendium.pf2e.equipment-srd.Item.dagger',
+                label: 'Dagger',
+                uuid: 'Compendium.pf2e.equipment-srd.Item.dagger',
+                img: 'icons/svg/item-bag.svg',
+                type: 'weapon',
+                category: 'simple',
+                range: null,
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const context = await wizard._buildFeatChoicesContext();
+    expect(context.featChoiceSections[0].choiceSets[0]).toEqual(expect.objectContaining({
+      isWeaponChoice: true,
+    }));
+    expect(context.featChoiceSections[0].choiceSets[0].options[0]).toEqual(expect.objectContaining({
+      category: 'simple',
+      range: null,
+    }));
+  });
+
   it('parses config-driven skill choice sets into skill options instead of item lists', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
@@ -1608,6 +2119,214 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         value: 'Android',
       }),
     ]);
+  });
+
+  it('includes nested selected weapon choices in the apply overlay prompt rows', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ikons = [
+      {
+        uuid: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        name: "Barrow's Edge",
+        img: 'icons/svg/item-bag.svg',
+      },
+    ];
+    wizard.data.grantedFeatSections = [
+      {
+        slot: 'Compendium.pf2e.classfeatures.Item.barrows-edge',
+        featName: "Barrow's Edge",
+        choiceSets: [
+          {
+            flag: 'barrows-edge-origin',
+            prompt: 'What item will be your ikon?',
+            options: [
+              { value: 'granted', label: 'Grant me a new item.' },
+              { value: 'existing', label: 'Use an existing item in my inventory.' },
+            ],
+          },
+          {
+            flag: 'grantedIkon',
+            prompt: 'Make a selection.',
+            options: [
+              {
+                value: 'Compendium.pf2e.equipment-srd.Item.adze',
+                label: 'Adze',
+                uuid: 'Compendium.pf2e.equipment-srd.Item.adze',
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.classfeatures.Item.barrows-edge': {
+        'barrows-edge-origin': 'granted',
+        grantedIkon: 'Compendium.pf2e.equipment-srd.Item.adze',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.barrows-edge') {
+        return {
+          uuid,
+          name: "Barrow's Edge",
+          type: 'classfeature',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                rollOption: 'barrows-edge-origin',
+                prompt: 'What item will be your ikon?',
+                choices: [
+                  { value: 'granted', label: 'Grant me a new item.' },
+                  { value: 'existing', label: 'Use an existing item in my inventory.' },
+                ],
+              },
+              {
+                key: 'ChoiceSet',
+                flag: 'grantedIkon',
+                prompt: 'Make a selection.',
+                predicate: ['barrows-edge-origin:granted'],
+                choices: {
+                  itemType: 'weapon',
+                  filter: ['item:melee'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.equipment-srd.Item.adze') {
+        return {
+          uuid,
+          name: 'Adze',
+          type: 'weapon',
+          system: {
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Barrow's Edge",
+        prompt: 'What item will be your ikon?',
+        value: 'Grant me a new item.',
+      }),
+      expect.objectContaining({
+        label: "Barrow's Edge",
+        prompt: 'Make a selection.',
+        value: 'Adze',
+      }),
+    ]));
+  });
+
+  it('preserves saved granted feat choices when feat sections are rebuilt on reopen', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.heritage = {
+      uuid: 'Compendium.pf2e.heritages.Item.adaptive-anadi',
+      name: 'Adaptive Anadi',
+    };
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.feats-srd.Item.adopted-ancestry': {
+        ancestry: 'dwarf',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.heritages.Item.adaptive-anadi') {
+        return {
+          uuid,
+          type: 'heritage',
+          system: {
+            rules: [
+              { key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry' },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.adopted-ancestry') {
+        return {
+          uuid,
+          name: 'Adopted Ancestry',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'ancestry',
+                prompt: 'Select a common ancestry.',
+                choices: [
+                  { value: 'dwarf', label: 'Dwarf', uuid: 'Compendium.pf2e.ancestries.Item.dwarf' },
+                  { value: 'elf', label: 'Elf', uuid: 'Compendium.pf2e.ancestries.Item.elf' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featChoiceSections[0].choiceSets[0]).toEqual(expect.objectContaining({
+      hasSelection: true,
+    }));
+    expect(context.featChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: 'Dwarf', selected: true }),
+      expect.objectContaining({ label: 'Elf', selected: false }),
+    ]));
+  });
+
+  it('preserves saved ancestry feat choices when choice sets are rebuilt on reopen', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestryFeat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.natural-ambition',
+      name: 'Natural Ambition',
+      choiceSets: [],
+      choices: {
+        grantedClassFeat: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.natural-ambition') {
+        return {
+          uuid,
+          name: 'Natural Ambition',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'grantedClassFeat',
+                prompt: 'Choose a class feat.',
+                choices: [
+                  { value: 'Compendium.pf2e.feats-srd.Item.reactive-shield', label: 'Reactive Shield' },
+                  { value: 'Compendium.pf2e.feats-srd.Item.power-attack', label: 'Power Attack' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshAllFeatChoiceData();
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featChoiceSections[0].choiceSets[0]).toEqual(expect.objectContaining({
+      hasSelection: true,
+    }));
+    expect(context.featChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: 'Reactive Shield', selected: true }),
+      expect.objectContaining({ label: 'Power Attack', selected: false }),
+    ]));
   });
 
   it('keeps unresolved choice sets visible in the apply overlay prompt rows', async () => {

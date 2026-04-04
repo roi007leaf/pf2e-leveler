@@ -9,24 +9,32 @@
 .pf2e-leveler .wizard-apply-overlay {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: 120;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 12, 16, 0.66);
+  overflow: auto;
+    background: rgba(10, 12, 16, 0.66);
   backdrop-filter: blur(2px);
 }
 
 .pf2e-leveler .wizard-apply-card {
   width: min(520px, 100%);
-  padding: 20px 22px;
+  max-height: calc(100vh - 64px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(circle at top left, rgba(198, 161, 91, 0.16), transparent 40%),
-    linear-gradient(180deg, rgba(33, 37, 43, 0.98), rgba(20, 23, 29, 0.98));
+      radial-gradient(circle at top left, rgba(198, 161, 91, 0.16), transparent 40%),
+      linear-gradient(180deg, rgba(33, 37, 43, 0.98), rgba(20, 23, 29, 0.98));
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+}
+
+.pf2e-leveler .wizard-apply-card__scroll {
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  padding: 20px 22px;
 }
 
 .pf2e-leveler .wizard-apply-card__eyebrow {
@@ -477,6 +485,34 @@
 .pf2e-leveler .wizard-item__name--static:hover {
   text-decoration: none;
   color: var(--leveler-text);
+}
+
+.pf2e-leveler .wizard-choice-source {
+  font-size: calc(var(--leveler-font-lg) + 0.1rem);
+  font-weight: 700;
+}
+
+.pf2e-leveler .wizard-choice-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--leveler-spacing-sm);
+}
+
+.pf2e-leveler .wizard-choice-filters__search {
+  max-width: 360px;
+}
+
+.pf2e-leveler .wizard-choice-filters__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pf2e-leveler .wizard-choice-filter {
+  width: auto;
+  min-width: 0;
+  padding-inline: 12px;
 }
 
 .pf2e-leveler .wizard-selected__name {

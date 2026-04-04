@@ -24,9 +24,9 @@ export async function buildSpellContext(planner, classDef, level) {
   const apparitionContext = buildApparitionContext(classDef, level);
 
   const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
-  const canSelectSpells = classDef.spellcasting.type === 'spontaneous' || hasSpellbook;
-  const isWizard = classDef.slug === 'wizard';
-  const wizardSpellbookCount = hasSpellbook ? 2 : 0;
+  const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
+  const hasRankSpellSelections = isSpontaneous;
+  const spellbookSelectionCount = hasSpellbook ? 2 : 0;
 
   const focusSpellData = await getFocusSpellsForLevel(planner, level);
   const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
@@ -35,14 +35,14 @@ export async function buildSpellContext(planner, classDef, level) {
     showSpells: true,
     spellTradition: classDef.spellcasting.tradition,
     spellType: classDef.spellcasting.type,
-    isSpontaneous: canSelectSpells,
-    isWizard,
+    isSpontaneous,
+    hasRankSpellSelections,
     hasSpellbook,
-    wizardSpellbookCount,
+    spellbookSelectionCount,
     spellSlots,
     hasNewRank,
     newRank,
-    plannedSpells: canSelectSpells ? plannedSpells : [],
+    plannedSpells: (isSpontaneous || hasSpellbook) ? plannedSpells : [],
     highestRank,
     grantedSpells,
     showGrantedSpells: grantedSpells.length > 0,
