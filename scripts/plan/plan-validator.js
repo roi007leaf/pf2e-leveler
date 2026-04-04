@@ -1,6 +1,8 @@
-import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES } from '../constants.js';
+import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getChoicesForLevel } from '../classes/progression.js';
+import { getChoicesForLevel, getGradualBoostGroupLevels } from '../classes/progression.js';
+import { resolveSubclassSpells } from '../data/subclass-spells.js';
+import { computeBuildState } from './build-state.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
@@ -80,7 +82,7 @@ function validateChoice(choice, levelData, level, plan, classDef, actor) {
   }
 }
 
-function validateBoosts(levelData, expectedCount, _level, _plan, _actor) {
+function validateBoosts(levelData, expectedCount, level, plan, actor) {
   const boosts = levelData.abilityBoosts;
   if (!boosts || boosts.length === 0) {
     return { severity: 'error', message: 'Ability boosts not selected' };
@@ -96,7 +98,17 @@ function validateBoosts(levelData, expectedCount, _level, _plan, _actor) {
     };
   }
 
-  const intBenefitCount = getIntBenefitCount(levelData, _level, _plan, _actor);
+  if (expectedCount === 1) {
+    const duplicate = findDuplicateGradualBoost(level, plan);
+    if (duplicate) {
+      return {
+        severity: 'error',
+        message: `${duplicate.toUpperCase()} already selected in this gradual ability boost set`,
+      };
+    }
+  }
+
+  const intBenefitCount = getIntBenefitCount(levelData, level, plan, actor);
   if ((levelData.intBonusSkills?.length ?? 0) !== intBenefitCount) {
     return {
       severity: 'error',
@@ -112,16 +124,25 @@ function validateBoosts(levelData, expectedCount, _level, _plan, _actor) {
   return null;
 }
 
+function findDuplicateGradualBoost(level, plan) {
+  const seen = new Set();
+  for (const groupLevel of getGradualBoostGroupLevels(level)) {
+    const boosts = plan?.levels?.[groupLevel]?.abilityBoosts ?? [];
+    for (const boost of boosts) {
+      if (seen.has(boost)) return boost;
+      seen.add(boost);
+    }
+  }
+  return null;
+}
+
 function getIntBenefitCount(levelData, level, plan, actor) {
   if (!levelData?.abilityBoosts?.includes('int')) return 0;
-  const before = actor?.system?.abilities?.int?.mod ?? 0;
-  const plannedPrior = Object.entries(plan.levels ?? {})
-    .filter(([lvl]) => Number(lvl) < level)
-    .flatMap(([, data]) => data?.abilityBoosts ?? [])
-    .filter((attr) => attr === 'int').length;
-  const current = before + plannedPrior;
-  const increased = current >= 4 ? current : current + 1;
-  return Math.max(0, Math.trunc(increased) - Math.trunc(current));
+  const before = computeBuildState(actor, plan, level - 1);
+  const after = computeBuildState(actor, plan, level);
+  const beforeInt = before.attributes.int ?? 0;
+  const afterInt = after.attributes.int ?? 0;
+  return Math.max(0, afterInt - beforeInt);
 }
 
 function validateFeatSlot(feats, label) {
@@ -149,6 +170,8 @@ function validateSpells(levelData, level, classDef, actor) {
   if (!currentSlots) return null;
 
   const prevSlots = classDef.spellcasting.slots[level - 1] ?? getActorSpellCounts(actor);
+  const subclassItem = getSubclassItem(actor, classDef);
+  const subclassChoices = getSubclassChoices(subclassItem);
 
   let totalNewSlots = 0;
 
@@ -156,7 +179,15 @@ function validateSpells(levelData, level, classDef, actor) {
     const total = Array.isArray(counts) ? counts[0] + counts[1] : counts;
     const prevVal = prevSlots?.[rank];
     const prevTotal = prevVal == null ? 0 : (Array.isArray(prevVal) ? prevVal[0] + prevVal[1] : prevVal);
-    totalNewSlots += Math.max(0, total - prevTotal);
+    const gainedSlots = Math.max(0, total - prevTotal);
+    if (gainedSlots === 0) continue;
+
+    const rankNum = Number(rank);
+    const grantedCount = Number.isFinite(rankNum)
+      ? getGrantedSpellCount(subclassItem?.slug, subclassChoices, rankNum)
+      : 0;
+
+    totalNewSlots += Math.max(0, gainedSlots - grantedCount);
   }
 
   if (totalNewSlots === 0) return null;
@@ -167,6 +198,25 @@ function validateSpells(levelData, level, classDef, actor) {
   }
 
   return null;
+}
+
+function getSubclassItem(actor, classDef) {
+  const subclassTag = SUBCLASS_TAGS[classDef?.slug];
+  if (!actor || !subclassTag) return null;
+  return actor.items?.find?.((item) =>
+    item.type === 'feat' && item.system?.traits?.otherTags?.includes?.(subclassTag),
+  ) ?? null;
+}
+
+function getSubclassChoices(subclassItem) {
+  const rawChoices = subclassItem?.flags?.pf2e?.rulesSelections ?? {};
+  return rawChoices && typeof rawChoices === 'object' ? rawChoices : {};
+}
+
+function getGrantedSpellCount(subclassSlug, subclassChoices, rankNum) {
+  if (!subclassSlug) return 0;
+  const resolved = resolveSubclassSpells(subclassSlug, subclassChoices, rankNum);
+  return resolved?.grantedSpell ? 1 : 0;
 }
 
 function getActorSpellCounts(actor) {

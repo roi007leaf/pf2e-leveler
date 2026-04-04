@@ -59,6 +59,36 @@ describe('computeBuildState', () => {
     expect(state.skills.athletics).toBe(2);
   });
 
+  test('applies actor-owned skill rank rules with selected heritage skill at matching level', () => {
+    mockActor.items = [
+      {
+        type: 'heritage',
+        slug: 'skilled-human',
+        flags: {
+          pf2e: {
+            rulesSelections: {
+              skill: 'athletics',
+            },
+          },
+        },
+        system: {
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              path: 'system.skills.{item|flags.pf2e.rulesSelections.skill}.rank',
+              value: 2,
+              predicate: ['self:level:5'],
+            },
+          ],
+        },
+      },
+    ];
+    mockActor.system.skills.athletics.rank = 1;
+
+    expect(computeBuildState(mockActor, plan, 4).skills.athletics).toBe(1);
+    expect(computeBuildState(mockActor, plan, 5).skills.athletics).toBe(2);
+  });
+
   test('applies Intelligence bonus skill training before same-level skill increases', () => {
     toggleLevelIntBonusSkill(plan, 5, 'athletics');
     setLevelSkillIncrease(plan, 5, { skill: 'athletics', toRank: 2 });

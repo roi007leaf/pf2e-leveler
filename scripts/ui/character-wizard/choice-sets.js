@@ -1,4 +1,6 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
+import { debug } from '../../utils/logger.js';
+import { buildSkillContext } from './skills-languages.js';
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
@@ -96,12 +98,13 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
   const sections = [];
   const seenSections = new Set();
   const scannedItems = new Set();
+  const shouldLogDeityDomains = wizard.data.class?.slug === 'cleric' && !!wizard.data.deity;
 
   const topItems = [
-    { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name, skipDirectSection: true },
-    { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name, skipDirectSection: true },
-    { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name, skipDirectSection: true },
-    { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name, skipDirectSection: true },
+    { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name },
+    { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
+    { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
+    { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
     ...getSelectedHandlerChoiceSourceItems(wizard),
@@ -109,10 +112,26 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
   const resolveSelectedChoiceItem = async (choiceSet, currentChoices) => {
     const selectedValue = currentChoices?.[choiceSet.flag];
-    if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') return null;
+    let resolvedSelectedValue = typeof selectedValue === 'string' && selectedValue !== '[object Object]'
+      ? selectedValue
+      : null;
 
-    const option = choiceSet.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
-    const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+    if (!resolvedSelectedValue) {
+      resolvedSelectedValue = getHandlerManagedChoiceValue(wizard, choiceSet);
+    }
+    if (typeof resolvedSelectedValue !== 'string' || resolvedSelectedValue === '[object Object]') return null;
+
+    const option = choiceSet.options?.find((entry) => extractChoiceValue(entry) === resolvedSelectedValue);
+    const uuid = option?.uuid ?? (resolvedSelectedValue.startsWith('Compendium.') ? resolvedSelectedValue : null);
+    if (shouldLogDeityDomains && (choiceSet.flag === 'deity' || String(choiceSet.prompt ?? '').includes('Deity'))) {
+      debug('Cleric deity choice traversal', {
+        flag: choiceSet.flag ?? null,
+        prompt: choiceSet.prompt ?? null,
+        resolvedSelectedValue,
+        matchedOptionUuid: option?.uuid ?? null,
+        matchedOptionLabel: option ? extractChoiceLabel(option) : null,
+      });
+    }
     if (!uuid) return null;
     return resolveDocument(wizard, uuid);
   };
@@ -123,6 +142,24 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
     const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices);
+    if (shouldLogDeityDomains && (item.type === 'deity' || item.name === 'Domain Initiate' || item.uuid === wizard.data.deity?.uuid)) {
+      debug('Cleric deity scan item', {
+        item: item.name,
+        uuid: item.uuid,
+        type: item.type ?? null,
+        sourceName,
+        parsedChoiceSets: parsedChoiceSets.map((entry) => ({
+          flag: entry.flag,
+          prompt: entry.prompt,
+          optionCount: entry.options?.length ?? 0,
+          options: (entry.options ?? []).map((opt) => ({
+            value: extractChoiceValue(opt),
+            label: extractChoiceLabel(opt),
+            uuid: extractChoiceUuid(opt),
+          })),
+        })),
+      });
+    }
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
@@ -134,6 +171,14 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
         sourceName,
         choiceSets: parsedChoiceSets,
       });
+      if (shouldLogDeityDomains) {
+        debug('Added granted feat choice section', {
+          featName: item.name,
+          slot: item.uuid,
+          sourceName,
+          choiceSetFlags: parsedChoiceSets.map((entry) => entry.flag),
+        });
+      }
     }
 
     for (const choiceSet of parsedChoiceSets) {
@@ -167,7 +212,70 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     await scanItem(item, entry.label, entry);
   }
 
+  maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections, shouldLogDeityDomains);
+
+  if (shouldLogDeityDomains) {
+    debug('Final cleric granted feat sections', sections.map((section) => ({
+      featName: section.featName,
+      slot: section.slot,
+      sourceName: section.sourceName,
+      choiceSets: (section.choiceSets ?? []).map((entry) => ({
+        flag: entry.flag,
+        prompt: entry.prompt,
+        optionCount: entry.options?.length ?? 0,
+      })),
+    })));
+  }
+
   return sections;
+}
+
+function maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections, shouldLogDeityDomains) {
+  if (wizard.data.class?.slug !== 'cleric' || !wizard.data.deity) return;
+  if (!isCloisteredClericDoctrine(wizard.data.subclass)) return;
+
+  const hasExistingDomainInitiate = sections.some((section) =>
+    section.featName === 'Domain Initiate'
+    || String(section.slot ?? '').includes('domain-initiate'),
+  );
+  if (hasExistingDomainInitiate) return;
+
+  const options = normalizeDeityDomainChoiceOptions(wizard.data.deity?.domains);
+  if (options.length === 0) return;
+
+  const syntheticSlot = '__cleric-domain-initiate__';
+  if (seenSections.has(syntheticSlot)) return;
+  seenSections.add(syntheticSlot);
+
+  sections.push({
+    slot: syntheticSlot,
+    featName: 'Domain Initiate',
+    sourceName: 'Cleric -> Domain Initiate',
+    choiceSets: [
+      {
+        flag: 'domainInitiate',
+        prompt: game.i18n?.has?.('PF2E.SpecificRule.Prompt.DeitysDomain')
+          ? game.i18n.localize('PF2E.SpecificRule.Prompt.DeitysDomain')
+          : "Select a deity's domain.",
+        options,
+      },
+    ],
+  });
+
+  if (shouldLogDeityDomains) {
+    debug('Added synthetic cleric Domain Initiate section', {
+      deity: wizard.data.deity.name,
+      doctrine: wizard.data.subclass?.name ?? null,
+      optionCount: options.length,
+      options: options.map((option) => option.label),
+    });
+  }
+}
+
+function isCloisteredClericDoctrine(subclass) {
+  const slug = String(subclass?.slug ?? '').toLowerCase();
+  const name = String(subclass?.name ?? '').toLowerCase();
+  return slug === 'cloistered-cleric' || name === 'cloistered cleric';
 }
 
 function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
@@ -229,12 +337,15 @@ function isHandlerManagedChoiceRule(rule, managedStepIds) {
   if (!rule || typeof rule !== 'object') return false;
 
   const prompt = String(rule.prompt ?? '').toLowerCase();
+  const normalizedPrompt = game.i18n?.has?.(rule.prompt)
+    ? game.i18n.localize(rule.prompt).trim().toLowerCase()
+    : prompt.trim();
   const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
 
   if (managedStepIds.has('deity')) {
     if (rule.flag === 'deity') return true;
-    if (prompt.includes('deity')) return true;
     if (filterText.includes('item:type:deity') || filterText.includes('item:category:deity')) return true;
+    if (normalizedPrompt === 'select a deity.' || normalizedPrompt === 'select a deity') return true;
   }
 
   if (managedStepIds.has('sanctification')) {
@@ -248,6 +359,29 @@ function isHandlerManagedChoiceRule(rule, managedStepIds) {
   }
 
   return false;
+}
+
+function getHandlerManagedChoiceValue(wizard, choiceSet) {
+  const prompt = String(choiceSet?.prompt ?? '').trim().toLowerCase();
+  const localizedPrompt = game.i18n?.has?.(choiceSet?.prompt)
+    ? game.i18n.localize(choiceSet.prompt).trim().toLowerCase()
+    : prompt;
+  const filters = Array.isArray(choiceSet?.choices?.filter)
+    ? choiceSet.choices.filter.filter((entry) => typeof entry === 'string')
+    : [];
+  const filterText = JSON.stringify(filters).toLowerCase();
+
+  if (
+    choiceSet?.flag === 'deity'
+    || localizedPrompt === 'select a deity.'
+    || localizedPrompt === 'select a deity'
+    || filterText.includes('item:type:deity')
+    || filterText.includes('item:category:deity')
+  ) {
+    return wizard.data.deity?.uuid ?? null;
+  }
+
+  return null;
 }
 
 export async function getSelectedChoiceLabels(wizard, choiceContainer) {
@@ -376,7 +510,7 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}) {
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
     if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(rules, currentChoices))) continue;
-    const options = await resolveChoiceSetOptions(wizard, normalizedRule);
+    const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
       sets.push({ flag: normalizedRule.flag, prompt, options });
@@ -385,19 +519,19 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}) {
   return sets;
 }
 
-async function resolveChoiceSetOptions(wizard, rule) {
-  if (isSkillChoiceSet(rule)) {
-    return resolveConfigChoiceOptions('skills');
-  }
-
-  if (typeof rule.choices === 'string') {
-    return resolveConfigChoiceOptions(rule.choices);
-  }
-
+async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
   if (Array.isArray(rule.choices)) {
     return Promise.all(rule.choices
       .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
       .map((c) => enrichChoiceOption(wizard, c)));
+  }
+
+  if (isSkillChoiceSet(rule)) {
+    return resolveSkillChoiceSetOptions(wizard, rule, currentChoices);
+  }
+
+  if (typeof rule.choices === 'string') {
+    return resolveStringChoiceOptions(wizard, rule.choices);
   }
 
   if (!rule.choices || typeof rule.choices !== 'object') return [];
@@ -428,6 +562,52 @@ async function resolveChoiceSetOptions(wizard, rule) {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}) {
+  const options = resolveConfigChoiceOptions('skills');
+  const skillContext = await buildSkillContext(wizard);
+  const unavailableSkills = new Set();
+  for (const entry of skillContext.filter((candidate) => candidate.autoTrained || candidate.selected)) {
+    unavailableSkills.add(normalizeSkillIdentity(entry.slug));
+    unavailableSkills.add(normalizeSkillIdentity(entry.label));
+  }
+
+  const selectedSkills = new Set(
+    Object.values(currentChoices)
+      .filter((value) => typeof value === 'string' && value !== '[object Object]')
+      .map((value) => normalizeSkillIdentity(value)),
+  );
+
+  const currentSelected = normalizeSkillIdentity(currentChoices?.[rule.flag] ?? null);
+
+  return options.filter((option) => {
+    const optionKeys = [
+      normalizeSkillIdentity(option.value),
+      normalizeSkillIdentity(option.label),
+    ];
+    if (optionKeys.includes(currentSelected)) return true;
+    if (optionKeys.some((key) => hasMatchingSkillIdentity(unavailableSkills, key))) return false;
+    if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+    return true;
+  });
+}
+
+function normalizeSkillIdentity(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/^pf2e\.skill/i, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function hasMatchingSkillIdentity(knownSkills, candidate) {
+  if (!candidate) return false;
+  for (const known of knownSkills) {
+    if (known === candidate) return true;
+    if (candidate.length >= 3 && known.startsWith(candidate)) return true;
+    if (known.length >= 3 && candidate.startsWith(known)) return true;
+  }
+  return false;
+}
+
 function resolveConfigChoiceOptions(configPath) {
   const candidatePaths = [
     configPath,
@@ -445,6 +625,89 @@ function resolveConfigChoiceOptions(configPath) {
       return { value: key, label };
     })
     .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+}
+
+async function resolveStringChoiceOptions(wizard, choicePath) {
+  const configOptions = resolveConfigChoiceOptions(choicePath);
+  if (configOptions.length > 0) return configOptions;
+
+  if (choicePath === 'system.details.deities.domains') {
+    const storedOptions = normalizeDeityDomainChoiceOptions(wizard.data.deity?.domains);
+    if (storedOptions.length > 0) return storedOptions;
+
+    const deityItem = wizard.data.deity?.uuid ? await resolveDocument(wizard, wizard.data.deity.uuid) : null;
+    const resolvedOptions = normalizeDeityDomainChoiceOptions(deityItem?.system?.domains);
+    if (resolvedOptions.length > 0) return resolvedOptions;
+  }
+
+  if (!String(choicePath ?? '').startsWith('system.')) return [];
+
+  const candidateUuids = [
+    wizard.data.deity?.uuid,
+    wizard.data.ancestry?.uuid,
+    wizard.data.heritage?.uuid,
+    wizard.data.background?.uuid,
+    wizard.data.class?.uuid,
+    wizard.data.subclass?.uuid,
+  ].filter((uuid) => typeof uuid === 'string' && uuid.length > 0);
+
+  for (const uuid of candidateUuids) {
+    const item = await resolveDocument(wizard, uuid);
+    const value = foundry.utils.getProperty(item, choicePath);
+    const options = normalizePropertyChoiceOptions(value);
+    if (options.length > 0) return options;
+  }
+
+  return [];
+}
+
+function normalizeDeityDomainChoiceOptions(domains) {
+  if (!domains || typeof domains !== 'object') return [];
+
+  const primary = Array.isArray(domains.primary) ? domains.primary : [];
+  const alternate = Array.isArray(domains.alternate) ? domains.alternate : [];
+  const options = [
+    ...primary.map((value) => ({ value: String(value), label: formatChoiceLabel(String(value)) })),
+    ...alternate.map((value) => ({
+      value: String(value),
+      label: `${formatChoiceLabel(String(value))} (apocryphal)`,
+    })),
+  ];
+
+  return options.filter((entry) => entry.value.length > 0);
+}
+
+function normalizePropertyChoiceOptions(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => {
+        if (typeof entry === 'string') {
+          return { value: entry, label: formatChoiceLabel(entry) };
+        }
+        if (entry && typeof entry === 'object') {
+          const optionValue = entry.value ?? entry.slug ?? entry.id ?? entry.name ?? entry.label ?? null;
+          if (!optionValue) return null;
+          const rawLabel = entry.label ?? entry.name ?? optionValue;
+          const label = game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : String(rawLabel);
+          return { value: String(optionValue), label };
+        }
+        return null;
+      })
+      .filter((entry) => !!entry)
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, entry]) => {
+        const rawLabel = typeof entry === 'string' ? entry : (entry?.label ?? entry?.name ?? key);
+        const label = game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : String(rawLabel);
+        return { value: key, label };
+      })
+      .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  }
+
+  return [];
 }
 
 function getChoiceSetFlag(rule, index = 0) {
@@ -868,6 +1131,7 @@ export function getSelectedHandlerChoiceSourceItems(wizard) {
     items.push({ uuid: entry.uuid, label: entry.name });
   };
 
+  add(wizard.data.deity);
   add(wizard.data.implement);
   add(wizard.data.innovationItem);
   add(wizard.data.innovationModification);

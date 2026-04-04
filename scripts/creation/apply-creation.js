@@ -1,4 +1,5 @@
 import { getClassHandler } from './class-handlers/registry.js';
+import { ClassRegistry } from '../classes/registry.js';
 import { debug, info, warn } from '../utils/logger.js';
 import { capitalize } from '../utils/pf2e-api.js';
 import { format, localize } from '../utils/i18n.js';
@@ -10,10 +11,10 @@ export async function applyCreation(actor, data, onProgress = null) {
   };
 
   reportProgress(0.05, 'Applying ancestry, background, and class...');
-  if (data.ancestry) await applyItem(actor, data.ancestry, 'ancestry');
-  if (data.heritage) await applyItem(actor, data.heritage, 'heritage');
-  if (data.background) await applyItem(actor, data.background, 'background');
-  if (data.class) await applyItem(actor, data.class, 'class');
+  if (data.ancestry) await applyItem(actor, data.ancestry, 'ancestry', getStoredChoiceSelections(data, data.ancestry.uuid));
+  if (data.heritage) await applyItem(actor, data.heritage, 'heritage', getStoredChoiceSelections(data, data.heritage.uuid));
+  if (data.background) await applyItem(actor, data.background, 'background', getStoredChoiceSelections(data, data.background.uuid));
+  if (data.class) await applyItem(actor, data.class, 'class', getStoredChoiceSelections(data, data.class.uuid));
   reportProgress(0.28, 'Waiting for the PF2E system to finish initializing items...');
   await waitForSystem();
 
@@ -51,13 +52,14 @@ export async function applyCreation(actor, data, onProgress = null) {
   info(`Character creation complete for ${actor.name}`);
 }
 
-export async function applyItem(actor, entry, type) {
+export async function applyItem(actor, entry, type, choices = {}) {
   const item = await fromUuid(entry.uuid).catch(() => null);
   if (!item) {
     warn(`Failed to resolve ${type}: ${entry.uuid}`);
     return;
   }
   const itemData = foundry.utils.deepClone(item.toObject());
+  applyStoredChoices(itemData, choices);
   await actor.createEmbeddedDocuments('Item', [itemData]);
   debug(`Applied ${type}: ${entry.name}`);
 }
@@ -68,6 +70,7 @@ async function applyFeat(actor, entry, group, level) {
   const itemData = foundry.utils.deepClone(item.toObject());
   itemData.system.location = `${group}-${level}`;
   itemData.system.level = { ...itemData.system.level, taken: level };
+  applyStoredChoices(itemData, entry.choices ?? {});
   await actor.createEmbeddedDocuments('Item', [itemData]);
   debug(`Applied feat: ${entry.name} (${group}-${level})`);
 }
@@ -162,16 +165,144 @@ async function applyLores(actor, data) {
 async function applySelectedItems(actor, data) {
   const entries = getAdditionalSelectedItems(data);
   for (const entry of entries) {
+    if (entry._type === 'spell') {
+      await applySelectedSpell(actor, entry, data);
+      continue;
+    }
     await applyItem(actor, entry, entry._type ?? 'selected item');
   }
 }
 
 export function getAdditionalSelectedItems(data) {
-  void data;
-  // PF2E system-owned ChoiceSet selections are intentionally not embedded here.
-  // The wizard records the user's intended answers for summary/overlay help, while
-  // the system applies the resulting class features/items from its own prompts.
-  return [];
+  const containers = [
+    { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
+    { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
+    { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    ...((data.grantedFeatSections ?? []).map((section) => ({
+      choiceSets: section.choiceSets ?? [],
+      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+    }))),
+  ];
+
+  const seen = new Set();
+  const entries = [];
+
+  for (const container of containers) {
+    for (const choiceSet of (container.choiceSets ?? [])) {
+      const selectedValue = container.choices?.[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') continue;
+      const option = choiceSet.options?.find((candidate) => candidate.value === selectedValue);
+      const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+      if (!uuid || seen.has(uuid) || !isSpellChoiceOption(option, uuid)) continue;
+      seen.add(uuid);
+      entries.push({
+        uuid,
+        name: option?.label ?? choiceSet.prompt ?? 'Selected Spell',
+        _type: 'spell',
+      });
+    }
+  }
+
+  return entries;
+}
+
+function applyStoredChoices(itemData, choices = {}) {
+  const entries = Object.entries(choices).filter(([, value]) => typeof value === 'string' && value !== '[object Object]');
+  if (entries.length === 0) return;
+
+  itemData.flags ??= {};
+  itemData.flags.pf2e ??= {};
+  itemData.flags.pf2e.rulesSelections = Object.fromEntries(entries);
+}
+
+function getStoredChoiceSelections(data, uuid) {
+  if (!uuid) return {};
+  if (data.subclass?.uuid === uuid) return data.subclass.choices ?? {};
+  if (data.ancestryFeat?.uuid === uuid) return data.ancestryFeat.choices ?? {};
+  if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
+  return data.grantedFeatChoices?.[uuid] ?? {};
+}
+
+function isSpellChoiceOption(option, uuid) {
+  if (option?.type === 'spell') return true;
+  if (option?.uuid?.includes?.('Compendium.pf2e.spells-srd.Item.')) return true;
+  return uuid.includes('Compendium.pf2e.spells-srd.Item.');
+}
+
+async function applySelectedSpell(actor, entry, data) {
+  const spell = await fromUuid(entry.uuid).catch(() => null);
+  if (!spell) return;
+
+  const existing = actor.items?.find((item) =>
+    item.type === 'spell' && (item.sourceId ?? item.flags?.core?.sourceId ?? item.uuid) === spell.uuid,
+  );
+  if (existing) return;
+
+  const focusLike = isFocusLikeSpell(spell);
+  const spellEntry = await ensureSpellcastingEntry(actor, spell, data, { focusLike });
+  const spellData = foundry.utils.deepClone(spell.toObject());
+  spellData.system.location = { value: spellEntry.id };
+  await actor.createEmbeddedDocuments('Item', [spellData]);
+
+  if (focusLike) {
+    await ensureFocusPool(actor);
+  }
+
+  debug(`Applied selected spell choice: ${spell.name}`);
+}
+
+function isFocusLikeSpell(spell) {
+  const traits = spell.system?.traits?.value ?? [];
+  if (traits.includes('focus')) return true;
+  const traditions = spell.system?.traits?.traditions ?? [];
+  return traditions.length === 0;
+}
+
+async function ensureSpellcastingEntry(actor, spell, data, { focusLike = false } = {}) {
+  const existing = actor.items?.find((item) =>
+    item.type === 'spellcastingEntry' && (focusLike ? item.system?.prepared?.value === 'focus' : true),
+  );
+  if (existing) return existing;
+
+  const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
+  const tradition = resolveSpellTradition(spell, data, classDef, focusLike);
+  const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
+  const name = focusLike ? `${capitalize(data.class?.slug ?? 'Focus')} Focus Spells` : 'Innate Spells';
+  const prepared = focusLike ? 'focus' : (classDef?.spellcasting ? classDef.spellcasting.type : 'innate');
+
+  const created = await actor.createEmbeddedDocuments('Item', [{
+    name,
+    type: 'spellcastingEntry',
+    system: {
+      tradition: { value: tradition },
+      prepared: { value: prepared },
+      ability: { value: ability },
+      proficiency: { value: 1 },
+    },
+  }]);
+
+  return created[0];
+}
+
+function resolveSpellTradition(spell, data, classDef, focusLike) {
+  if (focusLike && data.subclass?.tradition) return data.subclass.tradition;
+  if (classDef?.spellcasting?.tradition && !['bloodline', 'patron'].includes(classDef.spellcasting.tradition)) {
+    return classDef.spellcasting.tradition;
+  }
+  if (data.subclass?.tradition) return data.subclass.tradition;
+  const traditions = spell.system?.traits?.traditions ?? [];
+  return traditions[0] ?? 'arcane';
+}
+
+async function ensureFocusPool(actor) {
+  const currentMax = actor.system?.resources?.focus?.max ?? 0;
+  const currentValue = actor.system?.resources?.focus?.value ?? 0;
+  const newMax = Math.min(3, Math.max(1, currentMax + 1));
+  const newValue = Math.max(currentValue, newMax);
+  await actor.update({
+    'system.resources.focus.max': newMax,
+    'system.resources.focus.value': newValue,
+  });
 }
 
 function waitForSystem() {

@@ -1,7 +1,7 @@
 import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
-import { getChoicesForLevel, getLevelSummary } from '../../classes/progression.js';
-import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders } from '../../plan/plan-model.js';
+import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
+import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData } from '../../plan/plan-model.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -351,6 +351,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render(true);
   }
 
+  async _clearSelectedLevel() {
+    const classDef = ClassRegistry.get(this.plan?.classSlug);
+    if (!classDef) return;
+
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: game.i18n.localize('PF2E_LEVELER.UI.CLEAR_LEVEL') },
+      content: `<p>${game.i18n.format('PF2E_LEVELER.UI.CONFIRM_CLEAR_LEVEL', { level: this.selectedLevel })}</p>`,
+      modal: true,
+    });
+    if (!confirmed) return;
+
+    resetLevelData(this.plan, this.selectedLevel, classDef, this._getVariantOptions());
+    this._savePlanAndRender();
+  }
+
   _openSpellPicker(rank) {
     const classDef = ClassRegistry.get(this.plan.classSlug);
     if (!classDef?.spellcasting) return;
@@ -360,6 +375,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const pickerRank = rank;
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
     const excludedUuids = (levelData.spells ?? []).map((spell) => spell.uuid);
+    const excludedSelections = (levelData.spells ?? []).map((spell) => ({ uuid: spell.uuid, rank: spell.rank }));
     const currentSlots = classDef.spellcasting.slots?.[this.selectedLevel] ?? {};
     const maxRank = rank === -1 ? this._getHighestRank(currentSlots) : null;
 
@@ -374,13 +390,14 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             uuid: spell.uuid,
             name: spell.name,
             img: spell.img,
-            rank: isCantrip ? 0 : spell.system.level.value,
+            rank: isCantrip ? 0 : pickerRank,
+            baseRank: spell.system.level.value,
             isCantrip,
             entryType,
           });
           this._savePlanAndRender();
         },
-        { excludedUuids, maxRank },
+        { excludedUuids, excludedSelections, maxRank },
       );
       picker.render(true);
     });
@@ -397,9 +414,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const classDef = ClassRegistry.get(this.plan.classSlug);
     const choices = getChoicesForLevel(classDef, this.selectedLevel, options);
     const maxBoosts = choices.find((c) => c.type === 'abilityBoosts')?.count ?? 4;
+    const usedBoostsInSet = this._getUsedBoostsInSet(this.selectedLevel, options.gradualBoosts);
 
     if (boosts.includes(attr)) {
       boosts = boosts.filter((b) => b !== attr);
+    } else if (usedBoostsInSet.has(attr)) {
+      return;
     } else if (boosts.length < maxBoosts) {
       boosts.push(attr);
     }
@@ -415,6 +435,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedLevelData.intBonusLanguages = selectedLevelData.intBonusLanguages.slice(0, max);
     }
     this._savePlanAndRender();
+  }
+
+  _getUsedBoostsInSet(level, gradualBoosts = this._getVariantOptions().gradualBoosts) {
+    if (!gradualBoosts) return new Set();
+    const used = new Set();
+    for (const groupLevel of getGradualBoostGroupLevels(level)) {
+      if (groupLevel === level) continue;
+      const boosts = this.plan?.levels?.[groupLevel]?.abilityBoosts ?? [];
+      for (const boost of boosts) used.add(boost);
+    }
+    return used;
   }
 
   _handleIntBonusSkillToggle(skill) {
@@ -503,6 +534,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._capturePlannerScroll();
     this._buildStateCache = new Map();
     this._subclassSlug = undefined;
+    this._subclassItem = undefined;
     await savePlan(this.actor, this.plan);
     this.render(true);
   }

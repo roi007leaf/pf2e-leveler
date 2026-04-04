@@ -152,6 +152,12 @@
   color: var(--leveler-text-bright);
 }
 
+.pf2e-leveler .planner-content__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--leveler-spacing-xs);
+}
+
 .pf2e-leveler .level-section {
   margin-bottom: var(--leveler-spacing-lg);
 }

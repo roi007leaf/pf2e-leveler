@@ -296,7 +296,16 @@ export function getAllBoosts(data) {
 }
 
 export function setDeity(data, item) {
-  data.deity = item ? { uuid: item.uuid, name: item.name, img: item.img, font: item.font ?? [], sanctification: item.sanctification ?? {} } : null;
+  data.deity = item
+    ? {
+      uuid: item.uuid,
+      name: item.name,
+      img: item.img,
+      font: item.font ?? [],
+      sanctification: item.sanctification ?? {},
+      domains: item.domains ?? { primary: [], alternate: [] },
+    }
+    : null;
   // Auto-set sanctification / divine font if deity only allows one option
   const font = item?.font ?? [];
   const sanctWhat = item?.sanctification?.what ?? [];

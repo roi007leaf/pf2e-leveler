@@ -30,6 +30,17 @@ export function isAncestralParagonEnabled() {
   try { return game.settings.get('pf2e-leveler', 'ancestralParagon'); } catch { return false; }
 }
 
+export function getCampaignFeatSectionIds() {
+  try {
+    const sections = game.settings.get('pf2e', 'campaignFeatSections');
+    return Array.isArray(sections)
+      ? sections.map((section) => section?.id).filter((id) => typeof id === 'string' && id.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function getMaxSkillRank(level) {
   if (level >= 15) return 4;
   if (level >= 7) return 3;

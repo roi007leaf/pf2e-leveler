@@ -1,5 +1,6 @@
 import { ATTRIBUTES, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
-import { computeBuildState } from '../../plan/build-state.js';
+import { getGradualBoostGroupLevels } from '../../classes/progression.js';
+import { applyActorSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 
 export function buildAttributeContext(planner, levelData, choices) {
@@ -7,6 +8,8 @@ export function buildAttributeContext(planner, levelData, choices) {
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   const maxBoosts = choices?.find((c) => c.type === 'abilityBoosts')?.count ?? 4;
   const boostsRemaining = maxBoosts - selectedBoosts.length;
+  const variantOptions = planner._getVariantOptions?.() ?? {};
+  const usedBoostsInSet = getUsedBoostsInSet(planner, planner.selectedLevel, variantOptions.gradualBoosts);
 
   return ATTRIBUTES.map((key) => {
     const mod = buildState.attributes[key] ?? 0;
@@ -21,9 +24,20 @@ export function buildAttributeContext(planner, levelData, choices) {
       selected,
       partial: isPartial,
       cost: 1,
-      disabled: !selected && boostsRemaining <= 0,
+      disabled: !selected && (boostsRemaining <= 0 || usedBoostsInSet.has(key)),
     };
   });
+}
+
+function getUsedBoostsInSet(planner, level, gradualBoosts) {
+  if (!gradualBoosts) return new Set();
+  const used = new Set();
+  for (const groupLevel of getGradualBoostGroupLevels(level)) {
+    if (groupLevel === level) continue;
+    const boosts = planner.plan?.levels?.[groupLevel]?.abilityBoosts ?? [];
+    for (const boost of boosts) used.add(boost);
+  }
+  return used;
 }
 
 export function buildIntelligenceBenefitContext(planner, level) {
@@ -111,6 +125,7 @@ export function localizeLanguageLabel(label) {
 export function buildSkillContext(planner, levelData, level) {
   const maxRank = getMaxSkillRank(level);
   const buildState = computeBuildState(planner.actor, planner.plan, level - 1);
+  applyActorSkillRankRules(buildState.skills, planner.actor, level);
   for (const skill of levelData.intBonusSkills ?? []) {
     buildState.skills[skill] = Math.max(buildState.skills[skill] ?? 0, 1);
   }

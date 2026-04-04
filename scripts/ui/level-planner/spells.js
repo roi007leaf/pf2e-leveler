@@ -28,7 +28,8 @@ export async function buildSpellContext(planner, classDef, level) {
 
   const levelData = getLevelData(planner.plan, level) ?? {};
   const plannedSpells = levelData.spells ?? [];
-  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells);
+  const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
+  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells);
   const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
   const highestRank = getHighestRank(currentSlots);
   const newRank = hasNewRank ? ordinalRank(highestRank) : null;
@@ -41,7 +42,6 @@ export async function buildSpellContext(planner, classDef, level) {
   const spellbookSelectionCount = hasSpellbook ? 2 : 0;
 
   const focusSpellData = await getFocusSpellsForLevel(planner, level);
-  const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
 
   return {
     showSpells: true,
@@ -125,9 +125,39 @@ export function getSubclassSlug(planner) {
   return planner._subclassSlug;
 }
 
+export function getSubclassItem(planner) {
+  if (planner._subclassItem !== undefined) return planner._subclassItem;
+  const subclassTag = SUBCLASS_TAGS[planner.plan.classSlug];
+  if (!subclassTag) {
+    planner._subclassItem = null;
+    return null;
+  }
+
+  planner._subclassItem = planner.actor.items?.find((item) =>
+    item.type === 'feat' && (item.system?.traits?.otherTags ?? []).includes(subclassTag),
+  ) ?? null;
+
+  return planner._subclassItem;
+}
+
+export function getSubclassChoices(planner) {
+  const item = getSubclassItem(planner);
+  const rawChoices = item?.flags?.pf2e?.rulesSelections ?? {};
+  const choices = {};
+
+  for (const [key, value] of Object.entries(rawChoices)) {
+    if (typeof value === 'string' && value !== '[object Object]') {
+      choices[key] = value;
+    }
+  }
+
+  return choices;
+}
+
 export async function getGrantedSpellsForLevel(planner, classDef, level) {
   const subclassSlug = getSubclassSlug(planner);
   if (!subclassSlug || !classDef?.spellcasting) return [];
+  const subclassChoices = getSubclassChoices(planner);
 
   const slots = classDef.spellcasting.slots;
   const currentSlots = slots[level];
@@ -144,7 +174,7 @@ export async function getGrantedSpellsForLevel(planner, classDef, level) {
     const prevHas = prevSlots?.[rank];
     if (prevHas) continue;
 
-    const resolved = resolveSubclassSpells(subclassSlug, {}, rankNum);
+    const resolved = resolveSubclassSpells(subclassSlug, subclassChoices, rankNum);
     if (!resolved?.grantedSpell) continue;
 
     grantedEntries.push({ uuid: resolved.grantedSpell, rank: rankNum });
@@ -186,10 +216,14 @@ export function findFeatLevel(planner, slugs) {
   return null;
 }
 
-export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells) {
+export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells = []) {
   const plannedByRank = {};
   for (const spell of plannedSpells) {
     plannedByRank[spell.rank] = (plannedByRank[spell.rank] ?? 0) + 1;
+  }
+  const grantedByRank = {};
+  for (const spell of grantedSpells) {
+    grantedByRank[spell.rank] = (grantedByRank[spell.rank] ?? 0) + 1;
   }
 
   const display = [];
@@ -221,7 +255,9 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
     const prevVal = prevSlots?.[rank];
     const prevTotal = prevVal == null ? null : (Array.isArray(prevVal) ? prevVal[0] + prevVal[1] : prevVal);
     const isNew = prevTotal === null;
-    const newSlots = isNew ? total : total - prevTotal;
+    const gainedSlots = isNew ? total : total - prevTotal;
+    const grantedCount = grantedByRank[rankNum] ?? 0;
+    const newSlots = Math.max(0, gainedSlots - grantedCount);
     const changed = isNew || prevTotal !== total;
     const planned = plannedByRank[rankNum] ?? 0;
     const isFull = planned >= newSlots;
@@ -233,6 +269,8 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
       secondary,
       total,
       newSlots,
+      gainedSlots,
+      grantedCount,
       planned,
       hasNew: newSlots > 0,
       isFull,

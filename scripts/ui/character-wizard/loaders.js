@@ -43,6 +43,7 @@ export async function loadDeities(wizard) {
       img: d.img,
       font: d.system?.font ?? [],
       sanctification: d.system?.sanctification ?? {},
+      domains: d.system?.domains ?? { primary: [], alternate: [] },
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;

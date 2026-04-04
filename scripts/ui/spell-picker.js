@@ -14,6 +14,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.isCantrip = rank === 0;
     this.onSelect = onSelect;
     this.excludedUuids = new Set(options.excludedUuids ?? []);
+    this.excludedSelections = new Set((options.excludedSelections ?? []).map((entry) => `${entry.uuid}:${entry.rank}`));
     this.maxRank = Number.isInteger(options.maxRank) ? options.maxRank : null;
     this.allSpells = [];
     this.filteredSpells = [];
@@ -42,25 +43,25 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
-    const ownedUuids = new Set(
-      (this.actor.items ?? [])
-        .filter((i) => i.type === 'spell')
-        .map((i) => i.sourceId ?? i.flags?.core?.sourceId ?? i.uuid),
+    const ownedSelections = new Set(
+      getOwnedSpells(this.actor)
+        .map((spell) => `${spell.uuid}:${spell.rank}`),
     );
 
     if (this.allSpells.length === 0) {
       const all = await loadSpells();
       this.allSpells = all.filter((s) => {
         if (!this._matchesTradition(s)) return false;
-        if (ownedUuids.has(s.uuid) || this.excludedUuids.has(s.uuid)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');
         if (this.isCantrip) return isCantrip;
         if (isCantrip) return false;
         if (this.rank === -1) {
+          if (ownedSelections.has(`${s.uuid}:${s.system.level.value}`) || this.excludedUuids.has(s.uuid)) return false;
           if (this.maxRank != null) return s.system.level.value >= 1 && s.system.level.value <= this.maxRank;
           return s.system.level.value >= 1;
         }
-        return s.system.level.value === this.rank;
+        if (ownedSelections.has(`${s.uuid}:${this.rank}`) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
+        return s.system.level.value <= this.rank;
       });
     }
 
@@ -190,6 +191,26 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _capitalize(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
+}
+
+function getOwnedSpells(actor) {
+  const items = actor?.items?.filter?.((i) => i.type === 'spell')
+    ?? actor?.items?.contents?.filter?.((i) => i.type === 'spell')
+    ?? [];
+
+  return items.map((spell) => ({
+    uuid: spell.sourceId ?? spell.flags?.core?.sourceId ?? spell.uuid,
+    rank: getSpellRank(spell.system ?? {}),
+  }));
+}
+
+function getSpellRank(system) {
+  return Number(
+    system?.location?.heightenedLevel
+      ?? system?.heightenedLevel
+      ?? system?.level?.value
+      ?? 0,
+  );
 }
 
 function applyTraitFilter(el) {

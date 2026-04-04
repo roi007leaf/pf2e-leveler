@@ -1,16 +1,32 @@
 .pf2e-leveler.feat-picker {
   display: flex;
   flex-direction: column;
-  position: absolute;
-  inset: 0;
+  position: relative;
+  min-height: 100%;
+  height: 100%;
   background: var(--leveler-bg);
   color: var(--leveler-text);
 }
 
-#pf2e-leveler-feat-picker .window-content {
+#pf2e-leveler-feat-picker .window-content,
+#pf2e-leveler-spell-picker .window-content {
   position: relative;
   overflow: hidden;
   padding: 0;
+}
+
+.pf2e-leveler .spell-picker__secondary-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--leveler-spacing-md);
+  padding: 0 var(--leveler-spacing-md);
+  margin-bottom: var(--leveler-spacing-xs);
+  flex-wrap: wrap;
+}
+
+.pf2e-leveler .spell-picker__trait-input {
+  flex: 1 1 260px;
+  margin-bottom: 0;
 }
 
 .pf2e-leveler .feat-picker__filters {

@@ -1,16 +1,21 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { PLAN_STATUS } from '../../../scripts/constants.js';
+import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 import { validatePlan, validateLevel } from '../../../scripts/plan/plan-validator.js';
+import * as buildState from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
+  addLevelSpell,
   setLevelBoosts,
   setLevelFeat,
+  setLevelSkillIncrease,
 } from '../../../scripts/plan/plan-model.js';
 
 beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
+  ClassRegistry.register(SORCERER);
 });
 
 describe('validateLevel', () => {
@@ -56,6 +61,56 @@ describe('validateLevel', () => {
     const result = validateLevel(plan, ALCHEMIST, 5);
     expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
     expect(result.issues.some((i) => i.message.includes('Duplicate'))).toBe(true);
+  });
+
+  test('duplicate gradual boosts across the same set is incomplete', () => {
+    const plan = createPlan('alchemist', { gradualBoosts: true });
+    setLevelBoosts(plan, 2, ['str']);
+    setLevelBoosts(plan, 3, ['dex']);
+    setLevelBoosts(plan, 4, ['str']);
+    const result = validateLevel(plan, ALCHEMIST, 4, { gradualBoosts: true });
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues.some((i) => i.message.includes('gradual ability boost set'))).toBe(true);
+  });
+
+  test('spontaneous granted subclass spells count toward level completion', () => {
+    const actor = {
+      items: [
+        {
+          type: 'feat',
+          slug: 'bloodline-genie',
+          flags: { pf2e: { rulesSelections: { genie: 'ifrit' } } },
+          system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+        },
+      ],
+    };
+    const plan = createPlan('sorcerer');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general-1', name: 'Keen Follower', slug: 'keen-follower' });
+    setLevelSkillIncrease(plan, 3, { skill: 'arcana', toRank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-1', name: 'Acid Arrow', rank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-2', name: 'Acidic Burst', rank: 2 });
+
+    const result = validateLevel(plan, SORCERER, 3, {}, actor);
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('intelligence bonus selections validate correctly when INT increases from +4 to +5', () => {
+    const plan = createPlan('alchemist', { gradualBoosts: true });
+    setLevelBoosts(plan, 9, ['int']);
+    plan.levels[9].intBonusSkills = ['diplomacy'];
+    plan.levels[9].intBonusLanguages = ['aklo'];
+    setLevelFeat(plan, 9, 'ancestryFeats', { uuid: 'a', name: 'A', slug: 'a' });
+    setLevelSkillIncrease(plan, 9, { skill: 'crafting', toRank: 1 });
+
+    jest.spyOn(buildState, 'computeBuildState')
+      .mockImplementation((_actor, _plan, atLevel) => ({
+        attributes: { int: atLevel >= 9 ? 5 : 4 },
+      }));
+
+    const result = validateLevel(plan, ALCHEMIST, 9, { gradualBoosts: true }, {});
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
   });
 });
 

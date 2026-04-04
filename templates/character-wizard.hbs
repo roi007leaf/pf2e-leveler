@@ -36,7 +36,7 @@
           {{#each applyPromptRows}}
           <div class="wizard-apply-card__row">
             <div class="wizard-apply-card__label">{{#if this.prompt}}{{this.prompt}}{{else}}{{this.label}}{{/if}}</div>
-            <div class="wizard-apply-card__value">{{this.value}}{{#if this.pending}} <span class="wizard-apply-card__hint">({{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.WIZARD_SELECTION_MISSING"}})</span>{{else if this.label}} <span class="wizard-apply-card__hint">({{this.label}})</span>{{/if}}</div>
+            <div class="wizard-apply-card__value">{{this.value}}{{#unless this.pending}}{{#if this.label}} <span class="wizard-apply-card__hint">({{this.label}})</span>{{/if}}{{/unless}}</div>
           </div>
           {{/each}}
         </div>

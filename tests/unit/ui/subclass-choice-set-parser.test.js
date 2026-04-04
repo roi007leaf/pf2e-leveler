@@ -1095,6 +1095,65 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }));
   });
 
+  it('builds feat choice sections for direct heritage choice sets like Skilled Human', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.heritage = {
+      uuid: 'Compendium.pf2e.heritages.Item.skilled-human',
+      name: 'Skilled Human',
+    };
+
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'Acrobatics',
+          arc: 'Arcana',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.heritages.Item.skilled-human') {
+        return {
+          uuid,
+          name: 'Skilled Human',
+          type: 'heritage',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      await wizard._refreshGrantedFeatChoiceSections();
+      const context = await wizard._buildFeatChoicesContext();
+
+      expect(context.featChoiceSections).toEqual([
+        expect.objectContaining({
+          slot: 'Compendium.pf2e.heritages.Item.skilled-human',
+          featName: 'Skilled Human',
+        }),
+      ]);
+      expect(context.featChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'acr', label: 'Acrobatics' }),
+        expect.objectContaining({ value: 'arc', label: 'Arcana' }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('refreshes stale granted feat choice data from live item rules', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.heritage = {
@@ -1263,6 +1322,330 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         featName: 'Dwarf',
       }),
     ]));
+  });
+
+  it('surfaces deity-granted domain choices and resolves dynamic domain options from the selected deity', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.cleric',
+      name: 'Cleric',
+      slug: 'cleric',
+    };
+    wizard.data.deity = {
+      uuid: 'Compendium.pf2e.deities.Item.nethys',
+      name: 'Nethys',
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.deities.Item.nethys') {
+        return {
+          uuid,
+          type: 'deity',
+          name: 'Nethys',
+          system: {
+            domains: {
+              primary: ['creation', 'fate', 'time'],
+              alternate: ['fate'],
+            },
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.domain-initiate',
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.domain-initiate') {
+        return {
+          uuid,
+          type: 'feat',
+          name: 'Domain Initiate',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'domainInitiate',
+                prompt: 'PF2E.SpecificRule.Prompt.DeitysDomain',
+                choices: 'system.details.deities.domains',
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slot: 'Compendium.pf2e.feats-srd.Item.domain-initiate',
+        featName: 'Domain Initiate',
+        sourceName: expect.stringContaining('Nethys'),
+      }),
+    ]));
+    expect(wizard.data.grantedFeatSections[0].choiceSets[0].options).toEqual([
+      { value: 'creation', label: 'Creation' },
+      { value: 'fate', label: 'Fate' },
+      { value: 'time', label: 'Time' },
+      { value: 'fate', label: 'Fate (apocryphal)' },
+    ]);
+  });
+
+  it('follows handler-managed deity selections from cleric class features into nested deity domain choices', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.cleric',
+      name: 'Cleric',
+      slug: 'cleric',
+    };
+    wizard.data.deity = {
+      uuid: 'Compendium.pf2e.deities.Item.nethys',
+      name: 'Nethys',
+    };
+    wizard.classHandler = {
+      getExtraSteps: () => [
+        { id: 'deity', visible: () => true },
+        { id: 'sanctification', visible: () => true },
+        { id: 'divineFont', visible: () => true },
+      ],
+      shouldShowSubclassChoices: () => true,
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.cleric') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              doctrine: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.cleric-doctrine',
+                name: 'Doctrine',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.cleric-doctrine') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Doctrine',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'deity',
+                prompt: 'Select a deity.',
+                choices: {
+                  filter: ['item:type:deity'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.deities.Item.nethys') {
+        return {
+          uuid,
+          type: 'deity',
+          name: 'Nethys',
+          system: {
+            domains: {
+              primary: ['creation', 'time'],
+              alternate: ['fate'],
+            },
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.domain-initiate',
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.domain-initiate') {
+        return {
+          uuid,
+          type: 'feat',
+          name: 'Domain Initiate',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'domainInitiate',
+                prompt: 'PF2E.SpecificRule.Prompt.DeitysDomain',
+                choices: 'system.details.deities.domains',
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        featName: 'Domain Initiate',
+      }),
+    ]));
+  });
+
+  it('adds a synthetic cleric domain section when the selected deity has domains but no discoverable Domain Initiate grant chain', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.cleric',
+      name: 'Cleric',
+      slug: 'cleric',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.cloistered-cleric',
+      name: 'Cloistered Cleric',
+      slug: 'cloistered-cleric',
+    };
+    wizard.data.deity = {
+      uuid: 'Compendium.pf2e.deities.Item.sarshallatu',
+      name: 'Sarshallatu',
+      domains: {
+        primary: ['creation', 'dragon', 'fate', 'time'],
+        alternate: ['fate'],
+      },
+    };
+    wizard.classHandler = {
+      getExtraSteps: () => [
+        { id: 'deity', visible: () => true },
+        { id: 'sanctification', visible: () => true },
+        { id: 'divineFont', visible: () => true },
+      ],
+      shouldShowSubclassChoices: () => true,
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.cleric') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              doctrine: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.cleric-doctrine',
+                name: 'Doctrine',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.cleric-doctrine') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Doctrine',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'deity',
+                prompt: 'Select a deity.',
+                choices: {
+                  filter: ['item:type:deity'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.deities.Item.sarshallatu') {
+        return {
+          uuid,
+          type: 'deity',
+          name: 'Sarshallatu',
+          system: {
+            domains: {
+              primary: ['creation', 'dragon', 'fate', 'time'],
+              alternate: ['fate'],
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slot: '__cleric-domain-initiate__',
+        featName: 'Domain Initiate',
+        sourceName: 'Cleric -> Domain Initiate',
+      }),
+    ]));
+    expect(wizard.data.grantedFeatSections.find((section) => section.slot === '__cleric-domain-initiate__')?.choiceSets?.[0]?.options).toEqual([
+      { value: 'creation', label: 'Creation' },
+      { value: 'dragon', label: 'Dragon' },
+      { value: 'fate', label: 'Fate' },
+      { value: 'time', label: 'Time' },
+      { value: 'fate', label: 'Fate (apocryphal)' },
+    ]);
+  });
+
+  it('does not add the synthetic cleric domain section for Warpriest', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.cleric',
+      name: 'Cleric',
+      slug: 'cleric',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.warpriest',
+      name: 'Warpriest',
+      slug: 'warpriest',
+    };
+    wizard.data.deity = {
+      uuid: 'Compendium.pf2e.deities.Item.sarshallatu',
+      name: 'Sarshallatu',
+      domains: {
+        primary: ['creation', 'dragon', 'fate', 'time'],
+        alternate: ['fate'],
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.cleric') {
+        return {
+          uuid,
+          type: 'class',
+          system: { rules: [], items: {} },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.deities.Item.sarshallatu') {
+        return {
+          uuid,
+          type: 'deity',
+          name: 'Sarshallatu',
+          system: {
+            domains: {
+              primary: ['creation', 'dragon', 'fate', 'time'],
+              alternate: ['fate'],
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections.some((section) => section.slot === '__cleric-domain-initiate__')).toBe(false);
   });
 
   it('does not surface class-feature subclass selectors as feat choice sections', async () => {
@@ -1979,6 +2362,27 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('preserves explicit authored skill choice arrays without expanding them to all skills', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const choiceSets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'fighterSkill',
+        prompt: 'Select a skill.',
+        choices: [
+          { label: 'PF2E.Skill.Acrobatics', value: 'acrobatics' },
+          { label: 'PF2E.Skill.Athletics', value: 'athletics' },
+        ],
+      },
+    ]);
+
+    expect(choiceSets[0].options).toEqual([
+      expect.objectContaining({ value: 'acrobatics', label: 'PF2E.Skill.Acrobatics' }),
+      expect.objectContaining({ value: 'athletics', label: 'PF2E.Skill.Athletics' }),
+    ]);
+  });
+
   it('parses shorthand config-driven skill choice sets into skill options', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
@@ -2043,6 +2447,50 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       expect(choiceSets[0].options).toEqual([
         expect.objectContaining({ value: 'acr', label: 'PF2E.SkillAcr' }),
         expect.objectContaining({ value: 'nat', label: 'PF2E.SkillNat' }),
+      ]);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('filters already trained skills out of skill choice sets', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.SkillAcr',
+          arc: 'PF2E.SkillArc',
+          med: 'PF2E.SkillMed',
+          nat: 'PF2E.SkillNat',
+        },
+      },
+    };
+
+    wizard.data.skills = ['nature'];
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana']);
+    wizard.data.background = { uuid: 'background-uuid', name: 'Background' };
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-uuid') {
+        return { system: { trainedSkills: { value: ['medicine'] } } };
+      }
+      return null;
+    });
+
+    try {
+      const choiceSets = await wizard._parseChoiceSets([
+        {
+          key: 'ChoiceSet',
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          choices: { config: 'skills' },
+        },
+      ]);
+
+      expect(choiceSets[0].options).toEqual([
+        expect.objectContaining({ value: 'acr', label: 'PF2E.SkillAcr' }),
       ]);
     } finally {
       global.CONFIG = originalConfig;
@@ -2186,6 +2634,60 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         label: 'Adaptive Anadi -> Adopted Ancestry',
         prompt: 'Select a common ancestry.',
         value: 'Android',
+      }),
+    ]);
+  });
+
+  it('includes direct granted feat spell choice prompts in the apply overlay prompt rows', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.grantedFeatSections = [
+      {
+        slot: 'Compendium.pf2e.feats-srd.Item.dragon-spit',
+        featName: 'Dragon Spit',
+        sourceName: 'Skilled Human',
+        choiceSets: [
+          {
+            flag: 'cantrip',
+            prompt: 'Make a selection.',
+            options: [
+              { value: 'electric-arc', label: 'Electric Arc', uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc', type: 'spell' },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.feats-srd.Item.dragon-spit': {
+        cantrip: 'electric-arc',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.dragon-spit') {
+        return {
+          uuid,
+          name: 'Dragon Spit',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'cantrip',
+                prompt: 'Make a selection.',
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Skilled Human -> Dragon Spit',
+        prompt: 'Make a selection.',
+        value: 'Electric Arc',
       }),
     ]);
   });
@@ -2523,6 +3025,76 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     });
 
     expect(value).toBe('Dragon Instinct');
+  });
+
+  it('maps cleric deity and sanctification prompts to wizard selections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', name: 'Cleric' };
+    wizard.data.deity = { name: 'Sarenrae' };
+    wizard.data.sanctification = 'holy';
+
+    const deityValue = await wizard._resolvePromptSelectionLabel({
+      prompt: 'Select a deity.',
+      choices: {
+        filter: ['item:type:deity'],
+      },
+    });
+
+    const sanctificationValue = await wizard._resolvePromptSelectionLabel({
+      prompt: 'Select a sanctification.',
+    });
+
+    expect(deityValue).toBe('Sarenrae');
+    expect(sanctificationValue).toBe('Holy');
+  });
+
+  it('maps localized cleric deity and sanctification prompt keys to wizard selections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', name: 'Cleric' };
+    wizard.data.deity = { name: 'Sarshallatu' };
+    wizard.data.sanctification = 'holy';
+
+    const originalHas = game.i18n.has;
+    const originalLocalize = game.i18n.localize;
+    game.i18n.has = jest.fn((key) => [
+      'PF2E.Actor.Creature.Deity.Prompt',
+      'PF2E.Actor.Character.Sanctification.Prompt',
+    ].includes(key));
+    game.i18n.localize = jest.fn((key) => {
+      if (key === 'PF2E.Actor.Creature.Deity.Prompt') return 'Select a deity.';
+      if (key === 'PF2E.Actor.Character.Sanctification.Prompt') return 'Select a sanctification.';
+      return key;
+    });
+
+    const deityValue = await wizard._resolvePromptSelectionLabel({
+      prompt: 'PF2E.Actor.Creature.Deity.Prompt',
+      choices: {
+        filter: ['item:type:deity'],
+      },
+    });
+
+    const sanctificationValue = await wizard._resolvePromptSelectionLabel({
+      prompt: 'PF2E.Actor.Character.Sanctification.Prompt',
+      flag: 'sanctification',
+    });
+
+    game.i18n.has = originalHas;
+    game.i18n.localize = originalLocalize;
+
+    expect(deityValue).toBe('Sarshallatu');
+    expect(sanctificationValue).toBe('Holy');
+  });
+
+  it('maps sanctification prompts when the raw prompt key only contains sanctification text', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', name: 'Cleric' };
+    wizard.data.sanctification = 'holy';
+
+    const sanctificationValue = await wizard._resolvePromptSelectionLabel({
+      prompt: 'PF2E.Actor.Character.Sanctification',
+    });
+
+    expect(sanctificationValue).toBe('Holy');
   });
 
   it('matches active prompt titles against source labels like Instinct', () => {

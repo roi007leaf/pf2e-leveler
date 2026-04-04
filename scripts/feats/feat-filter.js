@@ -95,7 +95,10 @@ export function filterByDedication(feats, showDedications) {
 
 export function filterByGeneralSkillFeats(feats, showSkillFeats) {
   if (showSkillFeats) return feats;
-  return feats.filter((feat) => (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('general'));
+  return feats.filter((feat) => {
+    const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    return traits.includes('general') && !traits.includes('skill');
+  });
 }
 
 export function filterByArchetypeRestrictions(feats, actor, buildState) {

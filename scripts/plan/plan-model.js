@@ -25,7 +25,7 @@ function buildEmptyLevels(classDef, options) {
   return levels;
 }
 
-function createEmptyLevelData(choices) {
+export function createEmptyLevelData(choices) {
   const data = {};
   for (const choice of choices) {
     switch (choice.type) {
@@ -64,6 +64,18 @@ function createEmptyLevelData(choices) {
     }
   }
   return data;
+}
+
+export function resetLevelData(plan, level, classDef, options = {}) {
+  const choices = getChoicesForLevel(classDef, level, options);
+  if (choices.length === 0) {
+    delete plan.levels[level];
+    return plan;
+  }
+
+  if (!plan.levels[level]) plan.levels[level] = {};
+  plan.levels[level] = createEmptyLevelData(choices);
+  return plan;
 }
 
 export function getLevelData(plan, level) {

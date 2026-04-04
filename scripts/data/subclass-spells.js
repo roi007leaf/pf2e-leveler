@@ -105,9 +105,36 @@ export const SUBCLASS_SPELLS = {
   // sorcerer — Bloodline: Genie
   'bloodline-genie': {
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.OyiKIbWllLZC6sGz", "advanced": "Compendium.pf2e.spells-srd.Item.B3tbO85GBpzQ3u8l" },
-    grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.i35dpZFI7jZcRoBo", "2": ["Compendium.pf2e.spells-srd.Item.Mt6ZzkVX8Q4xigFq", "Compendium.pf2e.spells-srd.Item.XXqE1eY3w3z6xJCB", "Compendium.pf2e.spells-srd.Item.wzctak6BxOW8xvFV", "Compendium.pf2e.spells-srd.Item.Seaah9amXg70RKw2", "Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE"], "3": "Compendium.pf2e.spells-srd.Item.IihxWhRfpsBgQ5jS", "4": "Compendium.pf2e.spells-srd.Item.TUj8eugNqAvB1vVR", "5": ["Compendium.pf2e.spells-srd.Item.bay4AfSu2iIozNNW", "Compendium.pf2e.spells-srd.Item.Ucf8eynbZMfUucjE", "Compendium.pf2e.spells-srd.Item.1K6AYGisvo9gqdhs", "Compendium.pf2e.spells-srd.Item.zfn5RqAdF63neqpP", "Compendium.pf2e.spells-srd.Item.kOa055FIrO9Smnya"], "6": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki", "7": "Compendium.pf2e.spells-srd.Item.m2xFMNyQiUKQDRaj", "8": ["Compendium.pf2e.spells-srd.Item.uEyfLoFQsRKBRIcB", "Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR", "Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7", "Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv", "Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu"], "9": "Compendium.pf2e.spells-srd.Item.KPDHmmjJiw7PhTYF", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
+    grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.i35dpZFI7jZcRoBo", "3": "Compendium.pf2e.spells-srd.Item.IihxWhRfpsBgQ5jS", "4": "Compendium.pf2e.spells-srd.Item.TUj8eugNqAvB1vVR", "6": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki", "7": "Compendium.pf2e.spells-srd.Item.m2xFMNyQiUKQDRaj", "9": "Compendium.pf2e.spells-srd.Item.KPDHmmjJiw7PhTYF", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
     choiceFlag: 'genie',
     choiceOptions: ["jaathoom", "jabali", "ifrit", "faydhaan", "janni"],
+    choices: {
+      janni: {
+        2: 'Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE',
+        5: 'Compendium.pf2e.spells-srd.Item.kOa055FIrO9Smnya',
+        8: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu',
+      },
+      jaathoom: {
+        2: 'Compendium.pf2e.spells-srd.Item.Mt6ZzkVX8Q4xigFq',
+        5: 'Compendium.pf2e.spells-srd.Item.bay4AfSu2iIozNNW',
+        8: 'Compendium.pf2e.spells-srd.Item.uEyfLoFQsRKBRIcB',
+      },
+      ifrit: {
+        2: 'Compendium.pf2e.spells-srd.Item.wzctak6BxOW8xvFV',
+        5: 'Compendium.pf2e.spells-srd.Item.1K6AYGisvo9gqdhs',
+        8: 'Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7',
+      },
+      faydhaan: {
+        2: 'Compendium.pf2e.spells-srd.Item.Seaah9amXg70RKw2',
+        5: 'Compendium.pf2e.spells-srd.Item.zfn5RqAdF63neqpP',
+        8: 'Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv',
+      },
+      jabali: {
+        2: 'Compendium.pf2e.spells-srd.Item.XXqE1eY3w3z6xJCB',
+        5: 'Compendium.pf2e.spells-srd.Item.Ucf8eynbZMfUucjE',
+        8: 'Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR',
+      },
+    },
   },
   // sorcerer — Bloodline: Hag
   'bloodline-hag': {

@@ -272,7 +272,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         clearClassFeat: () => setClassFeat(wizard.data, null),
       };
       clearMap[action]?.();
-      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearAncestryFeat', 'clearClassFeat']);
+      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearClassFeat']);
       if (refreshActions.has(action)) {
         await wizard._refreshGrantedFeatChoiceSections();
       }

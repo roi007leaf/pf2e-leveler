@@ -2,9 +2,11 @@ import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import {
   createPlan,
+  createEmptyLevelData,
   getLevelData,
   setLevelFeat,
   clearLevelFeat,
+  resetLevelData,
   setLevelBoosts,
   setLevelSkillIncrease,
   toggleLevelIntBonusSkill,
@@ -110,6 +112,25 @@ describe('setLevelSkillIncrease', () => {
     const plan = createPlan('alchemist');
     setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
     expect(plan.levels[3].skillIncreases).toEqual([{ skill: 'athletics', toRank: 2 }]);
+  });
+});
+
+describe('resetLevelData', () => {
+  test('resets a level back to its empty defaults', () => {
+    const plan = createPlan('alchemist');
+    setLevelBoosts(plan, 5, ['str', 'dex', 'con', 'wis']);
+    setLevelFeat(plan, 5, 'ancestryFeats', { uuid: 'x', name: 'X', slug: 'x' });
+    setLevelSkillIncrease(plan, 5, { skill: 'athletics', toRank: 2 });
+    toggleLevelIntBonusSkill(plan, 5, 'arcana');
+    toggleLevelIntBonusLanguage(plan, 5, 'draconic');
+
+    resetLevelData(plan, 5, ALCHEMIST);
+
+    expect(plan.levels[5]).toEqual(createEmptyLevelData([
+      { type: 'abilityBoosts' },
+      { type: 'ancestryFeat' },
+      { type: 'skillIncrease' },
+    ]));
   });
 });
 

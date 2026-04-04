@@ -104,13 +104,18 @@ export async function getApplyPromptRows(wizard) {
   };
 
   const topItems = [
-    { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name },
-    { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
-    { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
-    { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
+    { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name, optionSource: wizard.data.ancestry?.uuid ? { uuid: wizard.data.ancestry.uuid } : null },
+    { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name, optionSource: wizard.data.heritage?.uuid ? { uuid: wizard.data.heritage.uuid } : null },
+    { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name, optionSource: wizard.data.background?.uuid ? { uuid: wizard.data.background.uuid } : null },
+    { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name, optionSource: wizard.data.class?.uuid ? { uuid: wizard.data.class.uuid } : null },
     { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, optionSource: wizard.data.subclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, optionSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, optionSource: wizard.data.classFeat },
+    ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
+      uuid: section.slot,
+      label: section.sourceName ? `${section.sourceName} -> ${section.featName}` : section.featName,
+      optionSource: { uuid: section.slot, choiceSets: section.choiceSets ?? [] },
+    }))),
     ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
 
@@ -136,6 +141,12 @@ export async function getApplyPromptRows(wizard) {
 export async function resolvePromptSelectionLabel(wizard, rule, optionSource = null) {
   const flag = getRuleSelectionFlag(rule);
   const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  const rawPrompt = String(rule?.prompt ?? '');
+  const localizedPrompt = game.i18n?.has?.(rule?.prompt)
+    ? game.i18n.localize(rule.prompt)
+    : rule?.prompt;
+  const normalizedPrompt = normalizePromptText(localizedPrompt);
+  const normalizedRawPrompt = normalizePromptText(rawPrompt);
   const filterStrings = Array.isArray(rule.choices?.filter)
     ? rule.choices.filter.filter((entry) => typeof entry === 'string')
     : [];
@@ -146,6 +157,31 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
 
   if (wizard.data.subclass && subclassTag && flag && subclassTag.includes(flag)) {
     return wizard.data.subclass.name;
+  }
+
+  if (
+    flag === 'deity'
+    || flag === 'deityChoice'
+    || flag === 'clericDeity'
+    || filterStrings.includes('item:type:deity')
+    || filterStrings.includes('item:category:deity')
+    || normalizedPrompt === 'select a deity.'
+    || normalizedPrompt === 'select a deity'
+  ) {
+    return wizard.data.deity?.name ?? null;
+  }
+
+  if (
+    flag === 'sanctification'
+    || flag === 'clericSanctification'
+    || normalizedPrompt === 'select a sanctification.'
+    || normalizedPrompt === 'select a sanctification'
+    || normalizedPrompt.includes('sanctification')
+    || normalizedRawPrompt.includes('sanctification')
+  ) {
+    if (!wizard.data.sanctification) return null;
+    if (wizard.data.sanctification === 'none') return 'None';
+    return wizard.data.sanctification.charAt(0).toUpperCase() + wizard.data.sanctification.slice(1);
   }
 
   if (flag && optionSource?.choices?.[flag]) {

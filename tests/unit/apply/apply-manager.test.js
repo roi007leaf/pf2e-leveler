@@ -1,0 +1,85 @@
+jest.mock('../../../scripts/apply/apply-boosts.js', () => ({
+  applyBoosts: jest.fn(async (_actor, _plan, level) => [`boost-${level}`]),
+}));
+
+jest.mock('../../../scripts/apply/apply-languages.js', () => ({
+  applyLanguages: jest.fn(async () => []),
+}));
+
+jest.mock('../../../scripts/apply/apply-skills.js', () => ({
+  applySkillIncreases: jest.fn(async () => []),
+}));
+
+jest.mock('../../../scripts/apply/apply-feats.js', () => ({
+  applyFeats: jest.fn(async (_actor, _plan, level) => [{ name: `feat-${level}` }]),
+}));
+
+jest.mock('../../../scripts/apply/apply-spells.js', () => ({
+  applySpells: jest.fn(async () => []),
+}));
+
+jest.mock('../../../scripts/apply/apply-class-specific.js', () => ({
+  applyClassSpecific: jest.fn(async () => {}),
+}));
+
+import { applyPlan } from '../../../scripts/apply/apply-manager.js';
+import { applyBoosts } from '../../../scripts/apply/apply-boosts.js';
+import { applyFeats } from '../../../scripts/apply/apply-feats.js';
+
+describe('applyPlan', () => {
+  beforeEach(() => {
+    global.ui = {
+      notifications: {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      },
+    };
+
+    global.game = {
+      i18n: {
+        localize: jest.fn((key) => key),
+        format: jest.fn((key, data) => `${key}:${JSON.stringify(data)}`),
+        has: jest.fn(() => false),
+      },
+      users: [],
+    };
+
+    global.ChatMessage = {
+      create: jest.fn(async () => {}),
+    };
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('applies each planned level between the previous and new levels', async () => {
+    const actor = {
+      name: 'Alcor',
+      testUserPermission: jest.fn(() => true),
+    };
+    const plan = {
+      levels: {
+        5: {},
+        6: {},
+        7: {},
+        8: {},
+      },
+    };
+
+    await applyPlan(actor, plan, 8, 4);
+
+    expect(applyBoosts).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applyBoosts).toHaveBeenNthCalledWith(2, actor, plan, 6);
+    expect(applyBoosts).toHaveBeenNthCalledWith(3, actor, plan, 7);
+    expect(applyBoosts).toHaveBeenNthCalledWith(4, actor, plan, 8);
+
+    expect(applyFeats).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applyFeats).toHaveBeenNthCalledWith(2, actor, plan, 6);
+    expect(applyFeats).toHaveBeenNthCalledWith(3, actor, plan, 7);
+    expect(applyFeats).toHaveBeenNthCalledWith(4, actor, plan, 8);
+
+    expect(ChatMessage.create).toHaveBeenCalledTimes(4);
+  });
+});

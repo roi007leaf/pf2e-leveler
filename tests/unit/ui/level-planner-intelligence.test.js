@@ -126,4 +126,102 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(selectedCrafting.selected).toBe(true);
     expect(selectedCrafting.nextRankName).toBe('expert');
   });
+
+  it('shows same-level heritage skill upgrades in the skill increase picker', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.skills.athletics.rank = 1;
+    actor.items = [
+      {
+        type: 'heritage',
+        slug: 'skilled-human',
+        flags: {
+          pf2e: {
+            rulesSelections: {
+              skill: 'athletics',
+            },
+          },
+        },
+        system: {
+          rules: [
+            {
+              key: 'ActiveEffectLike',
+              path: 'system.skills.{item|flags.pf2e.rulesSelections.skill}.rank',
+              value: 2,
+              predicate: ['self:level:5'],
+            },
+          ],
+        },
+      },
+    ];
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+
+    const skills = planner._buildSkillContext(planner.plan.levels[5], 5);
+    expect(skills.find((entry) => entry.slug === 'athletics')).toBeUndefined();
+  });
+
+  it('disables attributes already used in the same gradual boost set', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 4;
+    setLevelBoosts(planner.plan, 2, ['str']);
+    setLevelBoosts(planner.plan, 3, ['dex']);
+
+    const choices = [{ type: 'abilityBoosts', count: 1 }];
+    const attributes = planner._buildAttributeContext(planner.plan.levels[4], choices);
+
+    expect(attributes.find((entry) => entry.key === 'str')).toEqual(expect.objectContaining({ disabled: true, selected: false }));
+    expect(attributes.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({ disabled: true, selected: false }));
+    expect(attributes.find((entry) => entry.key === 'con')).toEqual(expect.objectContaining({ disabled: false }));
+  });
+
+  it('refuses duplicate gradual boost selections from the same set', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner._savePlanAndRender = jest.fn();
+    planner.selectedLevel = 4;
+    setLevelBoosts(planner.plan, 2, ['str']);
+
+    planner._handleBoostToggle('str');
+    expect(planner.plan.levels[4].abilityBoosts).toEqual([]);
+
+    planner._handleBoostToggle('dex');
+    expect(planner.plan.levels[4].abilityBoosts).toEqual(['dex']);
+  });
 });

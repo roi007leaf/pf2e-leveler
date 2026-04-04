@@ -172,7 +172,6 @@ describe('dedication and skill filters', () => {
 
     expect(filterByGeneralSkillFeats(feats, false)).toEqual([
       expect.objectContaining({ name: 'Toughness' }),
-      expect.objectContaining({ name: 'Battle Medicine' }),
     ]);
 
     expect(filterByGeneralSkillFeats(feats, true)).toEqual(feats);

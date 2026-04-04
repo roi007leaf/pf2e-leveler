@@ -1,5 +1,6 @@
 import { applyFeats } from '../../../scripts/apply/apply-feats.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import * as pf2eApi from '../../../scripts/utils/pf2e-api.js';
 
 describe('applyFeats', () => {
   let mockActor;
@@ -67,6 +68,44 @@ describe('applyFeats', () => {
     expect(items).toHaveLength(2);
     expect(items[0].system.location).toBe('class-2');
     expect(items[1].system.location).toBe('skill-2');
+  });
+
+  test('routes ancestral paragon feats to the dedicated paragon location', async () => {
+    jest.spyOn(pf2eApi, 'isAncestralParagonEnabled').mockReturnValue(true);
+    jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue([]);
+
+    const plan = {
+      levels: {
+        11: {
+          ancestryFeats: [{ uuid: 'uuid-paragon', name: 'Paragon Feat', slug: 'paragon-feat' }],
+        },
+      },
+    };
+
+    await applyFeats(mockActor, plan, 11);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('xdy_ancestryparagon-11');
+    expect(createdData.system.level.taken).toBe(11);
+  });
+
+  test('uses campaign feat section ids for ancestry paragon when extra feat slots are configured', async () => {
+    jest.spyOn(pf2eApi, 'isAncestralParagonEnabled').mockReturnValue(true);
+    jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue(['ancestryParagon']);
+
+    const plan = {
+      levels: {
+        11: {
+          ancestryFeats: [{ uuid: 'uuid-paragon', name: 'Paragon Feat', slug: 'paragon-feat' }],
+        },
+      },
+    };
+
+    await applyFeats(mockActor, plan, 11);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('ancestryParagon-11');
+    expect(createdData.system.level.taken).toBe(11);
   });
 
   test('returns empty for level without feats', async () => {

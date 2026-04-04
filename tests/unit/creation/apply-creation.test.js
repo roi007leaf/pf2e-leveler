@@ -119,4 +119,41 @@ describe('getAdditionalSelectedItems', () => {
 
     expect(items).toEqual([]);
   });
+
+  it('manually adds selected spell choice results from choice sets', () => {
+    const items = getAdditionalSelectedItems({
+      grantedFeatSections: [
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.draconic-feat',
+          featName: 'Dragon Spit',
+          choiceSets: [
+            {
+              flag: 'dragonCantrip',
+              options: [
+                {
+                  value: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+                  uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+                  label: 'Electric Arc',
+                  type: 'spell',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'Compendium.pf2e.feats-srd.Item.draconic-feat': {
+          dragonCantrip: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+        },
+      },
+    });
+
+    expect(items).toEqual([
+      {
+        uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+        name: 'Electric Arc',
+        _type: 'spell',
+      },
+    ]);
+  });
 });

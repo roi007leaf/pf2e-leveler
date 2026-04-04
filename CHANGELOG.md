@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2
+
+### Fixed
+
+- Fixed multiple planner validation and apply-flow issues around Intelligence bonus picks, ancestry paragon feat slot placement, and multi-level plan application
+- Fixed spell-planner and creation issues with subclass granted spells, focus spells, spell choice sets, and Dragon Spit spell entry creation
+- Fixed character wizard choice-set handling for direct item prompts, already-trained skill filtering, Fighter-specific skill options, and cleric deity follow-up domain selections such as Cloistered Cleric Domain Initiate
+- Fixed spell picker layout overlap so the search and filter controls no longer render under the window header
+
 ## 1.3.1
 
 ### Improved

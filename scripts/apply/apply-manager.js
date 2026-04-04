@@ -10,49 +10,71 @@ import { format } from '../utils/i18n.js';
 
 const RANK_LABELS = ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'];
 
-export async function promptApplyPlan(actor, plan, level) {
-  const levelData = getLevelData(plan, level);
-  if (!levelData) {
+export async function promptApplyPlan(actor, plan, level, previousLevel = level - 1) {
+  const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
+  if (levelsToApply.length === 0) {
     notify(format('NOTIFICATIONS.NO_PLAN_FOR_LEVEL', { level }), 'warn');
     return;
   }
+
+  const isMultiLevel = levelsToApply.length > 1;
+  const startLevel = levelsToApply[0];
+  const endLevel = levelsToApply.at(-1);
 
   const confirmed = await foundry.applications.api.DialogV2.confirm({
     window: {
       title: game.i18n.localize('PF2E_LEVELER.UI.CONFIRM_APPLY_TITLE'),
     },
-    content: `<p>${format('UI.CONFIRM_APPLY', { level })}</p>`,
+    content: `<p>${isMultiLevel
+      ? `Apply all planned levels from ${startLevel} to ${endLevel}?`
+      : format('UI.CONFIRM_APPLY', { level })}</p>`,
     modal: true,
   });
 
   if (!confirmed) return;
 
-  await applyPlan(actor, plan, level);
+  await applyPlan(actor, plan, level, previousLevel);
 }
 
-export async function applyPlan(actor, plan, level) {
+export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
   try {
-    info(`Applying plan for ${actor.name} at level ${level}`);
+    const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
+    if (levelsToApply.length === 0) {
+      notify(format('NOTIFICATIONS.NO_PLAN_FOR_LEVEL', { level }), 'warn');
+      return;
+    }
 
-    const boosts = await applyBoosts(actor, plan, level);
-    const languages = await applyLanguages(actor, plan, level);
-    const skills = await applySkillIncreases(actor, plan, level);
-    const feats = await applyFeats(actor, plan, level);
-    const spells = await applySpells(actor, plan, level);
-    await applyClassSpecific(actor, plan, level);
+    info(`Applying plan for ${actor.name} at levels ${levelsToApply.join(', ')}`);
 
-    await createLevelUpMessage(actor, level, { boosts, languages, skills, feats, spells });
+    for (const plannedLevel of levelsToApply) {
+      const boosts = await applyBoosts(actor, plan, plannedLevel);
+      const languages = await applyLanguages(actor, plan, plannedLevel);
+      const skills = await applySkillIncreases(actor, plan, plannedLevel);
+      const feats = await applyFeats(actor, plan, plannedLevel);
+      const spells = await applySpells(actor, plan, plannedLevel);
+      await applyClassSpecific(actor, plan, plannedLevel);
+
+      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells });
+
+      const reminders = getRemindersForLevel(plan, plannedLevel);
+      if (reminders.length > 0) {
+        showReminders(actor, plannedLevel, reminders);
+      }
+    }
 
     notify(format('NOTIFICATIONS.APPLIED', { actorName: actor.name, level }));
-
-    const reminders = getRemindersForLevel(plan, level);
-    if (reminders.length > 0) {
-      showReminders(actor, level, reminders);
-    }
   } catch (err) {
     logError(`Failed to apply plan: ${err.message}`);
     notify(format('NOTIFICATIONS.APPLY_FAILED', { error: err.message }), 'error');
   }
+}
+
+function getPlannedLevelsInRange(plan, startLevel, endLevel) {
+  const levels = [];
+  for (let level = startLevel; level <= endLevel; level++) {
+    if (getLevelData(plan, level)) levels.push(level);
+  }
+  return levels;
 }
 
 async function createLevelUpMessage(actor, level, applied) {

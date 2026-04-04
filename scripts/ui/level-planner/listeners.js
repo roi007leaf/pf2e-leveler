@@ -107,4 +107,8 @@ export function activateLevelPlannerListeners(planner, html) {
   el.querySelector('[data-action="clearPlan"]')?.addEventListener('click', () => {
     planner._clearPlan();
   });
+
+  el.querySelector('[data-action="clearLevel"]')?.addEventListener('click', () => {
+    planner._clearSelectedLevel();
+  });
 }

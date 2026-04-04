@@ -58,6 +58,8 @@ function computeSkills(actor, plan, atLevel, classDef) {
     }
   }
 
+  applyActorSkillRankRules(skills, actor, atLevel);
+
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
@@ -72,6 +74,29 @@ function computeSkills(actor, plan, atLevel, classDef) {
       if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
         skills[inc.skill] = inc.toRank;
       }
+    }
+  }
+
+  return skills;
+}
+
+export function applyActorSkillRankRules(skills, actor, atLevel) {
+  for (const item of getOwnedItems(actor)) {
+    for (const rule of item?.system?.rules ?? []) {
+      if (rule?.key !== 'ActiveEffectLike') continue;
+      if (!matchesRuleAtLevel(rule, atLevel)) continue;
+
+      const path = resolveInjectedValue(rule.path, item);
+      const match = String(path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+      if (!match) continue;
+
+      const skill = match[1];
+      if (!SKILLS.includes(skill)) continue;
+
+      const value = Number(resolveInjectedValue(rule.value, item));
+      if (!Number.isFinite(value)) continue;
+
+      skills[skill] = Math.max(skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED, value);
     }
   }
 
@@ -240,4 +265,74 @@ function getPrimaryFeatAlias(feat) {
 function isClassArchetypeDedication(feat) {
   const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
   return traits.includes('dedication') && traits.includes('archetype') && traits.includes('class');
+}
+
+function getOwnedItems(actor) {
+  if (!actor?.items) return [];
+  if (Array.isArray(actor.items)) return actor.items;
+  if (Array.isArray(actor.items.contents)) return actor.items.contents;
+  if (typeof actor.items.filter === 'function') return actor.items.filter(() => true);
+  return Array.from(actor.items);
+}
+
+function matchesRuleAtLevel(rule, atLevel) {
+  const predicate = rule?.predicate;
+  if (!predicate) return true;
+  return evaluatePredicate(predicate, atLevel);
+}
+
+function evaluatePredicate(predicate, atLevel) {
+  if (typeof predicate === 'string') return matchesPredicateString(predicate, atLevel);
+  if (Array.isArray(predicate)) return predicate.every((entry) => evaluatePredicate(entry, atLevel));
+  if (!predicate || typeof predicate !== 'object') return true;
+  if (Array.isArray(predicate.and)) return predicate.and.every((entry) => evaluatePredicate(entry, atLevel));
+  if (Array.isArray(predicate.or)) return predicate.or.some((entry) => evaluatePredicate(entry, atLevel));
+  if ('not' in predicate) return !evaluatePredicate(predicate.not, atLevel);
+  if (Array.isArray(predicate.nor)) return predicate.nor.every((entry) => !evaluatePredicate(entry, atLevel));
+  if (Array.isArray(predicate.gte)) return comparePredicate('gte', predicate.gte, atLevel);
+  if (Array.isArray(predicate.gt)) return comparePredicate('gt', predicate.gt, atLevel);
+  if (Array.isArray(predicate.lte)) return comparePredicate('lte', predicate.lte, atLevel);
+  if (Array.isArray(predicate.lt)) return comparePredicate('lt', predicate.lt, atLevel);
+  if (Array.isArray(predicate.eq)) return comparePredicate('eq', predicate.eq, atLevel);
+  return true;
+}
+
+function matchesPredicateString(predicate, atLevel) {
+  const text = String(predicate ?? '').toLowerCase();
+  const levelMatch = text.match(/^self:level:(\d+)$/);
+  if (levelMatch) return atLevel >= Number(levelMatch[1]);
+  return true;
+}
+
+function comparePredicate(kind, args, atLevel) {
+  if (!Array.isArray(args) || args.length < 2) return true;
+  const [left, right] = args;
+  const leftValue = normalizePredicateOperand(left, atLevel);
+  const rightValue = normalizePredicateOperand(right, atLevel);
+  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) return true;
+
+  switch (kind) {
+    case 'gte': return leftValue >= rightValue;
+    case 'gt': return leftValue > rightValue;
+    case 'lte': return leftValue <= rightValue;
+    case 'lt': return leftValue < rightValue;
+    case 'eq': return leftValue === rightValue;
+    default: return true;
+  }
+}
+
+function normalizePredicateOperand(value, atLevel) {
+  if (typeof value === 'number') return value;
+  const text = String(value ?? '').toLowerCase();
+  if (text === 'self:level') return atLevel;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) ? numeric : NaN;
+}
+
+function resolveInjectedValue(value, item) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\{item\|([^}]+)\}/g, (_match, path) => {
+    const resolved = foundry.utils.getProperty(item, path);
+    return resolved == null ? '' : String(resolved);
+  });
 }

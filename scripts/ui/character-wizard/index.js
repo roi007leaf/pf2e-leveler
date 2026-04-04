@@ -236,14 +236,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'deity': {
         const font = item.system?.font ?? [];
         const sanctification = item.system?.sanctification ?? {};
-        setDeity(this.data, { uuid: item.uuid, name: item.name, img: item.img, font, sanctification });
+        const domains = item.system?.domains ?? { primary: [], alternate: [] };
+        setDeity(this.data, { uuid: item.uuid, name: item.name, img: item.img, font, sanctification, domains });
         break;
       }
       default:
         break;
     }
 
-    if (['ancestry', 'heritage', 'background', 'class'].includes(this.stepId)) {
+    if (['ancestry', 'heritage', 'background', 'class', 'deity'].includes(this.stepId)) {
       await this._refreshGrantedFeatChoiceSections();
     }
 
@@ -565,7 +566,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'thesis':
       case 'apparitions':
       case 'deity':
-      case 'sanctification': {
+      case 'sanctification':
+      case 'divineFont': {
         const handlerCtx = await this.classHandler.getStepContext(this.stepId, this.data, this);
         if (handlerCtx) return handlerCtx;
         return {};

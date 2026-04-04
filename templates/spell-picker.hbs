@@ -1,11 +1,11 @@
-<div class="pf2e-leveler feat-picker">
+<div class="pf2e-leveler feat-picker spell-picker">
   <div class="feat-picker__filters">
     <input type="text" class="feat-picker__search"
            placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
            data-action="searchSpells">
   </div>
-  <div style="display: flex; align-items: center; gap: var(--leveler-spacing-md); padding: 0 var(--leveler-spacing-md); margin-bottom: var(--leveler-spacing-xs);">
-    <div class="wizard-trait-input" style="flex: 1;">
+  <div class="spell-picker__secondary-filters">
+    <div class="wizard-trait-input spell-picker__trait-input">
       <span class="wizard-trait-chips" data-target="spells"></span>
       <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" list="spell-trait-options">
     </div>

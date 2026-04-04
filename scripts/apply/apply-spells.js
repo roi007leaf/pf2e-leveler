@@ -1,8 +1,12 @@
 import { SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize } from '../utils/pf2e-api.js';
-import { resolveSubclassSpells } from '../data/subclass-spells.js';
+import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../data/subclass-spells.js';
 import { debug, warn } from '../utils/logger.js';
+
+const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
+const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
+const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
 
 export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -20,6 +24,9 @@ export async function applySpells(actor, plan, level) {
   // Add subclass granted spells for new ranks at this level
   const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
   addedSpells.push(...grantedSpells);
+
+  const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
+  addedSpells.push(...focusSpells);
 
   // Scale divine font slots for Cleric
   await updateDivineFont(actor, plan, level);
@@ -192,6 +199,10 @@ async function addPlannedSpells(actor, entries, levelData) {
 
     const spellData = foundry.utils.deepClone(spell.toObject());
     spellData.system.location = { value: entry.id };
+    if ((spellPlan.rank ?? 0) > (spell.system?.level?.value ?? 0)) {
+      spellData.system.location.heightenedLevel = spellPlan.rank;
+      spellData.system.heightenedLevel = spellPlan.rank;
+    }
 
     const created = await actor.createEmbeddedDocuments('Item', [spellData]);
     if (created.length > 0) {
@@ -211,6 +222,7 @@ async function addGrantedSpells(actor, entries, classDef, _plan, level) {
     i.type === 'feat' && (i.system?.traits?.otherTags ?? []).includes(tag),
   );
   if (!subclassItem?.slug) return [];
+  const subclassChoices = getSubclassChoices(subclassItem);
 
   const slots = classDef.spellcasting.slots;
   const prevSlots = slots[level - 1];
@@ -227,7 +239,7 @@ async function addGrantedSpells(actor, entries, classDef, _plan, level) {
     if (isNaN(rankNum)) continue;
     if (prevSlots?.[rank]) continue;
 
-    const resolved = resolveSubclassSpells(subclassItem.slug, {}, rankNum);
+    const resolved = resolveSubclassSpells(subclassItem.slug, subclassChoices, rankNum);
     if (!resolved?.grantedSpell) continue;
 
     const spell = await resolveSpell(resolved.grantedSpell);
@@ -246,6 +258,104 @@ async function addGrantedSpells(actor, entries, classDef, _plan, level) {
   return added;
 }
 
+async function addSubclassFocusSpells(actor, classDef, plan, level) {
+  const tag = SUBCLASS_TAGS[classDef.slug];
+  if (!tag) return [];
+
+  const subclassItem = actor.items?.find((i) =>
+    i.type === 'feat' && (i.system?.traits?.otherTags ?? []).includes(tag),
+  );
+  if (!subclassItem?.slug) return [];
+
+  const focusTier = getNewSubclassFocusTier(plan, level);
+  if (!focusTier) return [];
+
+  const subclassData = SUBCLASS_SPELLS[subclassItem.slug];
+  const focusSpellUuid = subclassData?.focusSpells?.[focusTier];
+  if (!focusSpellUuid) return [];
+
+  const spell = await resolveSpell(focusSpellUuid);
+  if (!spell) return [];
+
+  const existing = actor.items?.find((i) =>
+    i.type === 'spell' && (i.sourceId ?? i.flags?.core?.sourceId) === spell.uuid,
+  );
+  if (existing) return [];
+
+  const focusEntry = await ensureFocusEntry(actor, classDef);
+  if (!focusEntry) return [];
+
+  const spellData = foundry.utils.deepClone(spell.toObject());
+  spellData.system.location = { value: focusEntry.id };
+  await actor.createEmbeddedDocuments('Item', [spellData]);
+  await increaseFocusPool(actor, 1);
+  debug(`Added subclass focus spell: ${spell.name} (${focusTier})`);
+
+  return [{ name: spell.name }];
+}
+
+function getNewSubclassFocusTier(plan, level) {
+  const feats = getPlannedFeatsForLevel(plan, level);
+  if (feats.some((feat) => ADVANCED_FOCUS_FEAT_SLUGS.includes(feat.slug))) return 'advanced';
+  if (feats.some((feat) => GREATER_FOCUS_FEAT_SLUGS.includes(feat.slug))) return 'greater';
+  return null;
+}
+
+function getPlannedFeatsForLevel(plan, level) {
+  const levelData = plan.levels?.[level];
+  if (!levelData) return [];
+  return FEAT_KEYS.flatMap((key) => levelData[key] ?? []);
+}
+
+async function ensureFocusEntry(actor, classDef) {
+  let focusEntry = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus');
+  if (focusEntry) return focusEntry;
+
+  const tradition = resolveActorTradition(actor, classDef.spellcasting?.tradition ?? 'arcane');
+  const ability = resolveActorSpellAbility(actor, classDef);
+  const created = await actor.createEmbeddedDocuments('Item', [{
+    name: `${capitalize(classDef.slug)} Focus Spells`,
+    type: 'spellcastingEntry',
+    system: {
+      tradition: { value: tradition },
+      prepared: { value: 'focus' },
+      ability: { value: ability },
+      proficiency: { value: 1 },
+    },
+  }]);
+
+  return created[0] ?? null;
+}
+
+async function increaseFocusPool(actor, addedSpells) {
+  if (addedSpells <= 0) return;
+
+  const currentMax = actor.system?.resources?.focus?.max ?? 0;
+  const currentValue = actor.system?.resources?.focus?.value ?? 0;
+  const newMax = Math.min(3, currentMax + addedSpells);
+  const newValue = Math.max(currentValue, newMax);
+
+  if (newMax > currentMax || newValue > currentValue) {
+    await actor.update({
+      'system.resources.focus.max': newMax,
+      'system.resources.focus.value': newValue,
+    });
+  }
+}
+
+function getSubclassChoices(subclassItem) {
+  const rawChoices = subclassItem?.flags?.pf2e?.rulesSelections ?? {};
+  const choices = {};
+
+  for (const [key, value] of Object.entries(rawChoices)) {
+    if (typeof value === 'string' && value !== '[object Object]') {
+      choices[key] = value;
+    }
+  }
+
+  return choices;
+}
+
 function resolveTargetEntry(entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
@@ -260,4 +370,3 @@ async function resolveSpell(uuid) {
     return null;
   }
 }
-

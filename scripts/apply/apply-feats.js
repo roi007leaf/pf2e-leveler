@@ -1,5 +1,6 @@
+import { ANCESTRAL_PARAGON_FEAT_LEVELS } from '../classes/progression.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { capitalize } from '../utils/pf2e-api.js';
+import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { debug, warn } from '../utils/logger.js';
 
 const CATEGORY_TO_GROUP = {
@@ -14,6 +15,22 @@ const CATEGORY_TO_GROUP = {
 
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);
 
+function getFeatGroup(key, level) {
+  if (
+    key === 'ancestryFeats'
+    && isAncestralParagonEnabled()
+    && ANCESTRAL_PARAGON_FEAT_LEVELS.includes(level)
+  ) {
+    if (getCampaignFeatSectionIds().includes('ancestryParagon')) {
+      return 'ancestryParagon';
+    }
+
+    return 'xdy_ancestryparagon';
+  }
+
+  return CATEGORY_TO_GROUP[key];
+}
+
 export async function applyFeats(actor, plan, level) {
   const levelData = plan.levels[level];
   if (!levelData) return [];
@@ -24,7 +41,7 @@ export async function applyFeats(actor, plan, level) {
     const feats = levelData[key];
     if (!feats?.length) continue;
 
-    const group = CATEGORY_TO_GROUP[key];
+    const group = getFeatGroup(key, level);
     for (const featEntry of feats) {
       const item = await resolveFeat(featEntry.uuid);
       if (!item) continue;
