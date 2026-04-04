@@ -205,8 +205,6 @@ export class CasterBaseHandler extends BaseClassHandler {
       spellData.system.location = { value: entry.id };
       await actor.createEmbeddedDocuments('Item', [spellData]);
     }
-
-    await this._addTraditionSpells(actor, entry, classDef, data);
   }
 
   async _applyFocusSpells(actor, data) {
@@ -253,36 +251,6 @@ export class CasterBaseHandler extends BaseClassHandler {
         'system.resources.focus.max': Math.max(1, currentMax),
         'system.resources.focus.value': Math.max(1, currentValue),
       });
-    }
-  }
-
-  async _addTraditionSpells(actor, entry, classDef, data) {
-    if (!classDef?.spellcasting) return;
-    if (classDef.spellcasting.type !== 'prepared' || SPELLBOOK_CLASSES.includes(classDef.slug)) return;
-
-    const tradition = this._resolveTradition(classDef.spellcasting.tradition, data.subclass);
-    const pack = game.packs.get('pf2e.spells-srd');
-    if (!pack) return;
-
-    const index = await pack.getDocuments();
-    const existingUuids = new Set(actor.items?.filter((i) => i.type === 'spell').map((i) => i.sourceId ?? i.flags?.core?.sourceId) ?? []);
-
-    const toAdd = [];
-    for (const spell of index) {
-      if (existingUuids.has(spell.uuid)) continue;
-      const traits = spell.system?.traits?.value ?? [];
-      const traditions = spell.system?.traits?.traditions ?? [];
-      const rank = spell.system?.level?.value ?? 0;
-      if (!traits.includes('cantrip') && rank > 1) continue;
-      if (traditions.length > 0 && !traditions.includes(tradition)) continue;
-      if (traditions.length === 0 && !traits.includes(tradition)) continue;
-      const spellData = foundry.utils.deepClone(spell.toObject());
-      spellData.system.location = { value: entry.id };
-      toAdd.push(spellData);
-    }
-
-    if (toAdd.length > 0) {
-      await actor.createEmbeddedDocuments('Item', toAdd);
     }
   }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3
+
+### Fixed
+
+- Prepared non-spellbook casters such as druids and clerics no longer import entire tradition spell lists into their spellcasting entry during character creation; only the actual granted and selected spells are added
+
 ## 1.3.2
 
 ### Fixed
