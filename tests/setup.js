@@ -15,6 +15,7 @@ global.game = {
           showPlanButton: true,
           autoApplyOnLevelUp: true,
           showPrerequisites: true,
+          enforcePrerequisites: true,
           hideUncommonFeats: false,
           featSortMethod: 'LEVEL_DESC',
           additionalFeatCompendiums: '',

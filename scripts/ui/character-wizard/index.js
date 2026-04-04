@@ -79,12 +79,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.spellSubStep = 'cantrips';
     this.classHandler = getClassHandler(this.data.class?.slug);
     this._compendiumCache = {};
+    this._documentCache = new Map();
     this.isApplying = false;
     this.applyProgress = 0;
     this.applyStatus = '';
     this._applyPromptWatcher = null;
     this._activeSystemPrompt = null;
     this._featChoiceDataDirty = true;
+    this._applyPromptRowsCache = null;
     this._preloadCompendiums();
   }
 
@@ -196,8 +198,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     activateCharacterWizardListeners(this, el);
   }
 
+  async _getCachedDocument(uuid) {
+    if (!uuid) return null;
+    if (this._documentCache.has(uuid)) return this._documentCache.get(uuid);
+    const item = await fromUuid(uuid).catch(() => null);
+    this._documentCache.set(uuid, item);
+    return item;
+  }
+
   async _selectItem(uuid) {
-    const item = await fromUuid(uuid);
+    const item = await this._getCachedDocument(uuid);
     if (!item) return;
 
     switch (this.stepId) {
@@ -343,6 +353,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       this.isApplying = true;
       this.applyProgress = 0.02;
       this.applyStatus = 'Starting character creation...';
+      this._applyPromptRowsCache = null;
       this._startApplyPromptWatcher();
       this.render(true);
 
@@ -391,6 +402,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _saveAndRender() {
     this._captureWizardScroll();
+    this._applyPromptRowsCache = null;
     await saveCreationData(this.actor, this.data);
     await this.render({ force: true, parts: ['wizard'] });
   }
@@ -423,7 +435,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _hasClassFeatAtLevel1() {
     if (!this.data.class?.uuid) return false;
-    const classItem = await fromUuid(this.data.class.uuid).catch(() => null);
+    const classItem = await this._getCachedDocument(this.data.class.uuid);
     if (!classItem) return false;
     const classFeatLevels = classItem.system?.classFeatLevels?.value ?? [];
     return classFeatLevels.includes(1);
@@ -431,7 +443,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getAdditionalSkillCount() {
     if (!this.data.class?.uuid) return 3;
-    const classItem = await fromUuid(this.data.class.uuid).catch(() => null);
+    const classItem = await this._getCachedDocument(this.data.class.uuid);
     if (!classItem) return 3;
     const additional = classItem.system?.trainedSkills?.additional ?? 3;
     const intMod = this._computeIntMod();
@@ -457,7 +469,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getClassTrainedSkills() {
     if (!this.data.class?.uuid) return [];
-    const classItem = await fromUuid(this.data.class.uuid).catch(() => null);
+    const classItem = await this._getCachedDocument(this.data.class.uuid);
     if (!classItem) return [];
     return classItem.system?.trainedSkills?.value ?? [];
   }
@@ -579,7 +591,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _getApplyPromptRows() {
-    return getApplyPromptRows(this);
+    if (this._applyPromptRowsCache) return this._applyPromptRowsCache;
+    this._applyPromptRowsCache = await getApplyPromptRows(this);
+    return this._applyPromptRowsCache;
   }
 
   async _resolvePromptSelectionLabel(rule, optionSource = null) {
@@ -842,7 +856,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     if (this.data.ancestry?.uuid) {
-      const item = await fromUuid(this.data.ancestry.uuid).catch(() => null);
+      const item = await this._getCachedDocument(this.data.ancestry.uuid);
       if (this.data.alternateAncestryBoosts) {
         buildRow('ancestry', item?.name ?? '', 'Ancestry (Alternate)', [], [], 2, [...ATTRIBUTES], this.data.boosts.ancestry ?? []);
       } else {
@@ -857,7 +871,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     if (this.data.background?.uuid) {
-      const item = await fromUuid(this.data.background.uuid).catch(() => null);
+      const item = await this._getCachedDocument(this.data.background.uuid);
       const sets = this._parseBoostSets(item?.system?.boosts);
       const fixed = sets.filter((s) => s.type === 'fixed').map((s) => s.attr);
       const choices = sets.filter((s) => s.type === 'choice');
@@ -982,7 +996,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _refreshAllFeatChoiceData() {
     for (const feat of [this.data.ancestryFeat, this.data.classFeat]) {
       if (!feat?.uuid) continue;
-      const item = await fromUuid(feat.uuid).catch(() => null);
+      const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
       feat.choiceSets = await this._parseChoiceSets(item.system?.rules ?? []);
     }
@@ -1025,7 +1039,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _getAdditionalLanguageCount() {
-    const ancestryItem = this.data.ancestry?.uuid ? await fromUuid(this.data.ancestry.uuid).catch(() => null) : null;
+    const ancestryItem = this.data.ancestry?.uuid ? await this._getCachedDocument(this.data.ancestry.uuid) : null;
     const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
     const intMod = this._computeIntMod();
     return Math.max(0, baseCount + intMod);

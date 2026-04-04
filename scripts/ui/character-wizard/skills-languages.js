@@ -1,7 +1,7 @@
 import { SKILLS } from '../../constants.js';
 
 export async function buildLanguageContext(wizard) {
-  const ancestryItem = wizard.data.ancestry?.uuid ? await fromUuid(wizard.data.ancestry.uuid).catch(() => null) : null;
+  const ancestryItem = wizard.data.ancestry?.uuid ? await wizard._getCachedDocument(wizard.data.ancestry.uuid) : null;
   const grantedSlugs = ancestryItem?.system?.languages?.value ?? [];
   const suggestedSlugs = new Set(ancestryItem?.system?.additionalLanguages?.value ?? []);
   const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
@@ -55,7 +55,7 @@ export function getLanguageMap() {
 
 export async function getBackgroundLores(wizard) {
   if (!wizard.data.background?.uuid) return [];
-  const item = await fromUuid(wizard.data.background.uuid).catch(() => null);
+  const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
   return (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source: 'Background' }));
 }
@@ -110,7 +110,7 @@ export async function buildSkillContext(wizard) {
 
 export async function getBackgroundTrainedSkills(wizard) {
   if (!wizard.data.background?.uuid) return [];
-  const item = await fromUuid(wizard.data.background.uuid).catch(() => null);
+  const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
   return item.system?.trainedSkills?.value ?? [];
 }

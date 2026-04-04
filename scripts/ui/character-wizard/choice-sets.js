@@ -1,5 +1,11 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
 
+async function resolveDocument(wizard, uuid) {
+  if (!uuid) return null;
+  if (typeof wizard?._getCachedDocument === 'function') return wizard._getCachedDocument(uuid);
+  return fromUuid(uuid).catch(() => null);
+}
+
 export async function buildSubclassChoicesContext(wizard) {
   return {
     subclassName: wizard.data.subclass?.name,
@@ -108,7 +114,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     const option = choiceSet.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
     const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
     if (!uuid) return null;
-    return fromUuid(uuid).catch(() => null);
+    return resolveDocument(wizard, uuid);
   };
 
   const scanItem = async (item, sourceName, { skipDirectSection = false, choiceSource = null } = {}) => {
@@ -139,7 +145,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     for (const rule of item.system?.rules ?? []) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
-      const granted = await fromUuid(rule.uuid).catch(() => null);
+      const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       await scanItem(granted, `${sourceName} -> ${granted.name}`);
     }
@@ -147,7 +153,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     if (item.system?.items) {
       for (const feature of Object.values(item.system.items)) {
         if (!feature?.uuid || feature.level > 1) continue;
-        const featureItem = await fromUuid(feature.uuid).catch(() => null);
+        const featureItem = await resolveDocument(wizard, feature.uuid);
         if (!featureItem) continue;
         await scanItem(featureItem, `${sourceName} -> ${feature.name}`);
       }
@@ -156,7 +162,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
   for (const entry of topItems) {
     if (!entry.uuid || !entry.label) continue;
-    const item = await fromUuid(entry.uuid).catch(() => null);
+    const item = await resolveDocument(wizard, entry.uuid);
     if (!item) continue;
     await scanItem(item, entry.label, entry);
   }
@@ -260,7 +266,7 @@ export async function getSelectedChoiceLabels(wizard, choiceContainer) {
     }
 
     if (selectedValue.startsWith('Compendium.')) {
-      const item = await fromUuid(selectedValue).catch(() => null);
+      const item = await resolveDocument(wizard, selectedValue);
       if (item?.name) {
         labels.push(item.name);
         continue;
@@ -320,7 +326,7 @@ export async function getPendingChoices(wizard) {
     }
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
-      const granted = await fromUuid(rule.uuid).catch(() => null);
+      const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       for (const grantedRule of (granted.system?.rules ?? [])) {
         if (grantedRule.key === 'ChoiceSet' && grantedRule.prompt) {
@@ -342,7 +348,7 @@ export async function getPendingChoices(wizard) {
 
   for (const { uuid, label, optionSource } of topItems) {
     if (!uuid) continue;
-    const item = await fromUuid(uuid).catch(() => null);
+    const item = await resolveDocument(wizard, uuid);
     if (!item) continue;
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
       : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
@@ -352,7 +358,7 @@ export async function getPendingChoices(wizard) {
     if (item.system?.items) {
       for (const feature of Object.values(item.system.items)) {
         if (!feature.uuid || feature.level > 1) continue;
-        const featItem = await fromUuid(feature.uuid).catch(() => null);
+        const featItem = await resolveDocument(wizard, feature.uuid);
         if (!featItem) continue;
         await scanItem(featItem, `${label} -> ${feature.name}`);
       }
@@ -529,9 +535,9 @@ async function enrichChoiceOption(wizard, choice) {
   let item = null;
 
   if (choiceUuid?.startsWith('Compendium.')) {
-    item = await fromUuid(choiceUuid).catch(() => null);
+    item = await resolveDocument(wizard, choiceUuid);
   } else if (value.startsWith('Compendium.')) {
-    item = await fromUuid(value).catch(() => null);
+    item = await resolveDocument(wizard, value);
   } else {
     item = await findChoiceItemBySlugOrName(wizard, choice, value, label);
   }
@@ -630,7 +636,7 @@ async function findChoiceItemBySlugOrName(wizard, choice, value, label) {
         || entryName === normalizedValue
         || entryName === normalizedLabel;
     });
-    if (match) return await fromUuid(match.uuid).catch(() => null);
+    if (match) return await resolveDocument(wizard, match.uuid);
   }
 
   return null;

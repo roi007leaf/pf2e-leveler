@@ -18,6 +18,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.allSpells = [];
     this.filteredSpells = [];
     this.searchText = '';
+    this._updateListTimer = null;
   }
 
   static DEFAULT_OPTIONS = {
@@ -63,9 +64,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    this.filteredSpells = this.searchText
-      ? this.allSpells.filter((s) => s.name.toLowerCase().includes(this.searchText))
-      : [...this.allSpells];
+    this.filteredSpells = this._filterSpells();
 
     this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
     const allTraits = new Set();
@@ -89,7 +88,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchText = e.target.value.toLowerCase();
-        this._updateList();
+        this._scheduleListUpdate(100);
       });
     }
 
@@ -149,9 +148,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _updateList() {
-    this.filteredSpells = this.searchText
-      ? this.allSpells.filter((s) => s.name.toLowerCase().includes(this.searchText))
-      : [...this.allSpells];
+    this.filteredSpells = this._filterSpells();
 
     this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -170,6 +167,19 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (newList) {
       listContainer.innerHTML = newList.innerHTML;
     }
+  }
+
+  _filterSpells() {
+    if (!this.searchText) return [...this.allSpells];
+    return this.allSpells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
+  }
+
+  _scheduleListUpdate(delay = 0) {
+    if (this._updateListTimer) clearTimeout(this._updateListTimer);
+    this._updateListTimer = setTimeout(() => {
+      this._updateListTimer = null;
+      this._updateList();
+    }, delay);
   }
 
   _ordinal(n) {
@@ -198,5 +208,8 @@ async function loadSpells() {
   if (!compendium) return [];
 
   cachedSpells = await compendium.getDocuments();
+  for (const spell of cachedSpells) {
+    spell._levelerSearchName = spell.name.toLowerCase();
+  }
   return cachedSpells;
 }

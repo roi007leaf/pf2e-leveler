@@ -23,6 +23,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSkill = '';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
+    this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
+    this._prereqCache = new Map();
+    this._buildStateSignature = this._createBuildStateSignature();
+    this._updateListTimer = null;
   }
 
   static DEFAULT_OPTIONS = {
@@ -77,6 +81,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       showDedicationToggle: ['class', 'archetype'].includes(this.category),
       showDedications: this.showDedications,
       showSkillFeats: this.showSkillFeats,
+      enforcePrerequisites: this.enforcePrerequisites,
     };
   }
 
@@ -112,19 +117,33 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return sortFeats(feats, this.sortMethod);
   }
 
+  _createBuildStateSignature() {
+    const feats = [...(this.buildState?.feats ?? new Set())].sort();
+    const classSlug = this.buildState?.class?.slug ?? this.actor?.class?.slug ?? '';
+    const level = this.buildState?.level ?? this.targetLevel ?? '';
+    return `${classSlug}|${level}|${feats.join(',')}`;
+  }
+
   _enrichWithPrerequisites(feats) {
     const showPrereqs = game.settings.get(MODULE_ID, 'showPrerequisites');
+    const enforcePrereqs = this.enforcePrerequisites;
     const ownedSlugs = this.buildState?.feats ?? new Set();
     const takenLevelMap = this._buildTakenLevelMap();
     for (const feat of feats) {
+      const cacheKey = `${this._buildStateSignature}:${feat.uuid ?? feat.slug ?? feat.name}`;
+      let check = this._prereqCache.get(cacheKey);
+      if (!check) {
+        check = checkPrerequisites(feat, this.buildState);
+        this._prereqCache.set(cacheKey, check);
+      }
+
       if (showPrereqs) {
-        const check = checkPrerequisites(feat, this.buildState);
         feat.prereqResults = check.results;
-        feat.prerequisitesFailed = !check.met;
       } else {
         feat.prereqResults = [];
-        feat.prerequisitesFailed = false;
       }
+      feat.prerequisitesFailed = !check.met;
+      feat.selectionBlocked = enforcePrereqs && feat.prerequisitesFailed;
       const slug = feat.slug ?? feat.name?.toLowerCase().replace(/\s+/g, '-');
       feat.alreadyTaken = ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken ? (takenLevelMap.get(slug) ?? null) : null;
@@ -150,7 +169,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchText = e.target.value;
-        this._updateFeatList();
+        this._scheduleListUpdate(120);
       });
     }
 
@@ -159,7 +178,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       prereqToggle.addEventListener('click', () => {
         this.hideFailedPrereqs = !this.hideFailedPrereqs;
         prereqToggle.classList.toggle('active', this.hideFailedPrereqs);
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -167,7 +186,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
         this.sortMethod = e.target.value;
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -175,7 +194,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (uncommonToggle) {
       uncommonToggle.addEventListener('change', (e) => {
         this.showUncommon = e.target.checked;
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -183,7 +202,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (rareToggle) {
       rareToggle.addEventListener('change', (e) => {
         this.showRare = e.target.checked;
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -191,7 +210,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (skillSelect) {
       skillSelect.addEventListener('change', (e) => {
         this.selectedSkill = e.target.value;
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -200,7 +219,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       dedicationToggle.addEventListener('click', () => {
         this.showDedications = !this.showDedications;
         dedicationToggle.classList.toggle('active', this.showDedications);
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -209,7 +228,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       skillFeatToggle.addEventListener('click', () => {
         this.showSkillFeats = !this.showSkillFeats;
         skillFeatToggle.classList.toggle('active', this.showSkillFeats);
-        this._updateFeatList();
+        this._scheduleListUpdate();
       });
     }
 
@@ -250,6 +269,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         }
       });
     }
+  }
+
+  _scheduleListUpdate(delay = 0) {
+    if (this._updateListTimer) clearTimeout(this._updateListTimer);
+    this._updateListTimer = setTimeout(() => {
+      this._updateListTimer = null;
+      this._updateFeatList();
+    }, delay);
   }
 
   async _updateFeatList() {

@@ -83,7 +83,9 @@
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
             {{#if (notEqual this.rarity "common")}}
-            <span class="tag tag--rarity-{{this.rarity}}">{{this.rarity}}</span>
+            <div class="wizard-item__traits">
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+            </div>
             {{/if}}
           </div>
           <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
@@ -146,7 +148,9 @@
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
             {{#if (notEqual this.rarity "common")}}
-            <span class="tag tag--rarity-{{this.rarity}}">{{this.rarity}}</span>
+            <div class="wizard-item__traits">
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+            </div>
             {{/if}}
           </div>
           <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>

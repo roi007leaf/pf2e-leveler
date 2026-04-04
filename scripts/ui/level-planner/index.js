@@ -155,6 +155,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
+    this._buildStateCache = new Map();
     const options = this._getVariantOptions();
     const classDef = this.plan ? ClassRegistry.get(this.plan.classSlug) : null;
     const actorClassName = this.actor.class?.name ?? null;
@@ -505,6 +506,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _savePlanAndRender() {
     this._capturePlannerScroll();
+    this._buildStateCache = new Map();
+    this._subclassSlug = undefined;
     await savePlan(this.actor, this.plan);
     this.render(true);
   }

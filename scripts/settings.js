@@ -29,6 +29,15 @@ export function registerSettings() {
     default: true,
   });
 
+  game.settings.register(MODULE_ID, 'enforcePrerequisites', {
+    name: 'Enforce Feat Prerequisites',
+    hint: 'Block selecting feats with unmet prerequisites in planner feat pickers. When disabled, prerequisite results are still shown but selection is allowed.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register(MODULE_ID, 'hideUncommonFeats', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_UNCOMMON.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_UNCOMMON.HINT'),

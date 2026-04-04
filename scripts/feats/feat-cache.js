@@ -6,19 +6,17 @@ let cachedFeats = null;
 export async function loadFeats() {
   if (cachedFeats) return cachedFeats;
 
-  let allFeats = [];
-
   const defaultCompendium = game.packs.get('pf2e.feats-srd');
-  if (defaultCompendium) {
-    const feats = await defaultCompendium.getDocuments();
-    allFeats = allFeats.concat(feats.filter((f) => f.system.category !== 'classfeature'));
-  }
-
   const additionalKeys = getAdditionalCompendiumKeys();
-  for (const key of additionalKeys) {
-    const feats = await loadCompendiumFeats(key);
-    allFeats = allFeats.concat(feats);
-  }
+  const [defaultFeats, additionalFeatGroups] = await Promise.all([
+    defaultCompendium ? defaultCompendium.getDocuments() : Promise.resolve([]),
+    Promise.all(additionalKeys.map((key) => loadCompendiumFeats(key))),
+  ]);
+
+  const allFeats = [
+    ...defaultFeats.filter((f) => f.system.category !== 'classfeature'),
+    ...additionalFeatGroups.flat(),
+  ];
 
   cachedFeats = allFeats;
   debug(`Cached ${allFeats.length} feats`);

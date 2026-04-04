@@ -3,6 +3,18 @@ import { computeBuildState } from '../../plan/build-state.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../../data/subclass-spells.js';
 
+function getCachedBuildState(planner, level) {
+  planner._buildStateCache ??= new Map();
+  if (!planner._buildStateCache.has(level)) {
+    planner._buildStateCache.set(level, computeBuildState(planner.actor, planner.plan, level));
+  }
+  return planner._buildStateCache.get(level);
+}
+
+async function resolveDocuments(uuids) {
+  return Promise.all((uuids ?? []).map((uuid) => fromUuid(uuid).catch(() => null)));
+}
+
 export async function buildSpellContext(planner, classDef, level) {
   if (!classDef.spellcasting) {
     const focusOnly = await getFocusSpellsForLevel(planner, level);
@@ -58,7 +70,7 @@ export async function getFocusSpellsForLevel(planner, level) {
   const data = SUBCLASS_SPELLS[subclassSlug];
   if (!data?.focusSpells) return { focusSpells: [], showFocusSpells: false };
 
-  const buildState = computeBuildState(planner.actor, planner.plan, level);
+  const buildState = getCachedBuildState(planner, level);
   const ownedFeats = buildState.feats ?? new Set();
 
   const advancedFeatSlugs = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
@@ -80,16 +92,16 @@ export async function getFocusSpellsForLevel(planner, level) {
     if (featLevel === level) entries.push({ uuid: data.focusSpells.greater, tier: 'Greater' });
   }
 
-  const spells = [];
-  for (const entry of entries) {
-    const spell = await fromUuid(entry.uuid).catch(() => null);
-    spells.push({
+  const resolvedSpells = await resolveDocuments(entries.map((entry) => entry.uuid));
+  const spells = entries.map((entry, index) => {
+    const spell = resolvedSpells[index];
+    return {
       uuid: entry.uuid,
       name: spell?.name ?? `${entry.tier} Focus Spell`,
       img: spell?.img ?? 'icons/svg/mystery-man.svg',
       tier: entry.tier,
-    });
-  }
+    };
+  });
 
   return {
     focusSpells: spells,
@@ -122,7 +134,7 @@ export async function getGrantedSpellsForLevel(planner, classDef, level) {
   const prevSlots = slots[level - 1];
   if (!currentSlots) return [];
 
-  const granted = [];
+  const grantedEntries = [];
 
   for (const rank of Object.keys(currentSlots)) {
     if (rank === 'cantrips') continue;
@@ -135,18 +147,20 @@ export async function getGrantedSpellsForLevel(planner, classDef, level) {
     const resolved = resolveSubclassSpells(subclassSlug, {}, rankNum);
     if (!resolved?.grantedSpell) continue;
 
-    const spell = await fromUuid(resolved.grantedSpell).catch(() => null);
-    if (!spell) continue;
+    grantedEntries.push({ uuid: resolved.grantedSpell, rank: rankNum });
+  }
 
-    granted.push({
+  const resolvedSpells = await resolveDocuments(grantedEntries.map((entry) => entry.uuid));
+  return grantedEntries.flatMap((entry, index) => {
+    const spell = resolvedSpells[index];
+    if (!spell) return [];
+    return [{
       uuid: spell.uuid,
       name: spell.name,
       img: spell.img,
-      rank: rankNum,
-    });
-  }
-
-  return granted;
+      rank: entry.rank,
+    }];
+  });
 }
 
 export function findFeatLevel(planner, slugs) {

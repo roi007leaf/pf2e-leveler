@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.5
+
+### Improved
+
+- Planner feat prerequisites can now be shown without being enforced
+  - Added a separate `Enforce Feat Prerequisites` setting so GMs can allow manual overrides while still showing prerequisite result tags in the feat picker
+- Character wizard and planner UI paths now do less repeated work
+  - Reduced repeated document lookups in wizard choice-set, apply-overlay, and skills/languages helpers
+  - Debounced feat and spell picker filtering updates
+  - Cached planner build-state and batched spell UUID resolution in level planner spell context
+
+### Fixed
+
+- Wizard ancestry and similar rarity tags now render as compact pills again instead of stretching across the whole row
+- Planner feat rows no longer appear dimmed when prerequisite enforcement is disabled
+  - Unmet prerequisite tags still show, but the feat card now looks selectable when bypass is allowed
+
 ## 1.2.4
 
 ### Improved

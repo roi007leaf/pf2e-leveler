@@ -1,8 +1,14 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
 import { getSelectedHandlerChoiceSourceItems, extractChoiceLabel, extractChoiceValue } from './choice-sets.js';
 
+async function resolveDocument(wizard, uuid) {
+  if (!uuid) return null;
+  if (typeof wizard?._getCachedDocument === 'function') return wizard._getCachedDocument(uuid);
+  return fromUuid(uuid).catch(() => null);
+}
+
 export async function buildApplyOverlayContext(wizard) {
-  const promptRows = await getApplyPromptRows(wizard);
+  const promptRows = await wizard._getApplyPromptRows();
   const dedupedPromptRows = promptRows.filter((row, index, rows) => rows.findIndex((candidate) => candidate.label === row.label && candidate.value === row.value && (candidate.prompt ?? '') === (row.prompt ?? '')) === index);
   const activeApplyPrompt = matchActivePromptRow(wizard, dedupedPromptRows);
 
@@ -72,7 +78,7 @@ export async function getApplyPromptRows(wizard) {
     const option = choiceSets.find((cs) => cs.flag === flag)?.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
     const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
     if (!uuid) return null;
-    return fromUuid(uuid).catch(() => null);
+    return resolveDocument(wizard, uuid);
   };
 
   const scanItem = async (item, sourceLabel, optionSource = null) => {
@@ -91,7 +97,7 @@ export async function getApplyPromptRows(wizard) {
     }
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
-      const granted = await fromUuid(rule.uuid).catch(() => null);
+      const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       await scanItem(granted, `${sourceLabel} -> ${granted.name}`, granted);
     }
@@ -110,14 +116,14 @@ export async function getApplyPromptRows(wizard) {
 
   for (const { uuid, label, optionSource } of topItems) {
     if (!uuid || !label) continue;
-    const item = await fromUuid(uuid).catch(() => null);
+    const item = await resolveDocument(wizard, uuid);
     if (!item) continue;
     await scanItem(item, label, optionSource);
 
     if (item.system?.items) {
       for (const feature of Object.values(item.system.items)) {
         if (!feature.uuid || feature.level > 1) continue;
-        const featItem = await fromUuid(feature.uuid).catch(() => null);
+        const featItem = await resolveDocument(wizard, feature.uuid);
         if (!featItem) continue;
         await scanItem(featItem, `${label} -> ${feature.name}`, featItem);
       }

@@ -144,8 +144,17 @@
 .pf2e-leveler .feat-option__traits {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 4px;
   margin-top: 4px;
+}
+
+.pf2e-leveler .feat-option__traits .tag {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+  white-space: nowrap;
+  align-self: flex-start;
 }
 
 .pf2e-leveler .feat-option__actions {

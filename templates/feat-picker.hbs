@@ -45,7 +45,7 @@
 
   <div class="feat-list">
     {{#each feats}}
-    <div class="feat-option {{#if this.prerequisitesFailed}}feat-option--dimmed{{/if}} {{#if this.alreadyTaken}}feat-option--taken{{/if}}"
+    <div class="feat-option {{#if this.selectionBlocked}}feat-option--dimmed{{/if}} {{#if this.alreadyTaken}}feat-option--taken{{/if}}"
          data-uuid="{{this.uuid}}">
       <img class="feat-option__img" src="{{this.img}}" alt="">
       <div class="feat-option__info">
@@ -83,7 +83,7 @@
         {{#if this.alreadyTaken}}
           <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} — {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
         {{else}}
-          <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.prerequisitesFailed}}disabled{{/if}}>
+          <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}}>
             {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
           </button>
         {{/if}}
