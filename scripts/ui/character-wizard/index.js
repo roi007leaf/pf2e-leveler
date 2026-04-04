@@ -446,7 +446,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const classItem = await this._getCachedDocument(this.data.class.uuid);
     if (!classItem) return 3;
     const additional = classItem.system?.trainedSkills?.additional ?? 3;
-    const intMod = this._computeIntMod();
+    const intMod = await this._computeIntMod();
     return Math.max(0, additional + intMod);
   }
 
@@ -457,13 +457,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return null;
   }
 
-  _computeIntMod() {
+  async _computeIntMod() {
     let mod = 0;
-    for (const val of Object.values(this.data.boosts ?? {})) {
-      if (Array.isArray(val)) {
-        mod += val.filter((v) => v === 'int').length;
+
+    if (this.data.ancestry?.uuid) {
+      const ancestry = await this._getCachedDocument(this.data.ancestry.uuid);
+      if (this.data.alternateAncestryBoosts) {
+        mod += (this.data.boosts.ancestry ?? []).filter((value) => value === 'int').length;
+      } else {
+        const sets = this._parseBoostSets(ancestry?.system?.boosts);
+        mod += sets.filter((set) => set.type === 'fixed' && set.attr === 'int').length;
+        mod += (this.data.boosts.ancestry ?? []).filter((value) => value === 'int').length;
+        mod -= this._extractFixedValues(ancestry?.system?.flaws).filter((value) => value === 'int').length;
       }
     }
+
+    if (this.data.background?.uuid) {
+      const background = await this._getCachedDocument(this.data.background.uuid);
+      const sets = this._parseBoostSets(background?.system?.boosts);
+      mod += sets.filter((set) => set.type === 'fixed' && set.attr === 'int').length;
+      mod += (this.data.boosts.background ?? []).filter((value) => value === 'int').length;
+    }
+
+    mod += (this.data.boosts.class ?? []).filter((value) => value === 'int').length;
+    mod += (this.data.boosts.free ?? []).filter((value) => value === 'int').length;
+
     return mod;
   }
 
@@ -1001,7 +1019,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _getAdditionalLanguageCount() {
     const ancestryItem = this.data.ancestry?.uuid ? await this._getCachedDocument(this.data.ancestry.uuid) : null;
     const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
-    const intMod = this._computeIntMod();
+    const intMod = await this._computeIntMod();
     return Math.max(0, baseCount + intMod);
   }
 

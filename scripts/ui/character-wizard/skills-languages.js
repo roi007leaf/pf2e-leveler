@@ -6,7 +6,7 @@ export async function buildLanguageContext(wizard) {
   const grantedSlugs = ancestryItem?.system?.languages?.value ?? [];
   const suggestedSlugs = new Set(ancestryItem?.system?.additionalLanguages?.value ?? []);
   const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
-  const intMod = wizard._computeIntMod();
+  const intMod = await wizard._computeIntMod();
   const maxAdditional = Math.max(0, baseCount + intMod);
   wizard._cachedMaxLanguages = maxAdditional;
 

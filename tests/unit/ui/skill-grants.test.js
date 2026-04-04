@@ -96,4 +96,45 @@ describe('CharacterWizard skills step grants', () => {
 
     expect(lores).toEqual(['Underworld Lore', 'Warfare Lore']);
   });
+
+  it('includes Intelligence boosts when computing bonus skills and languages', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      if (uuid === 'ancestry-uuid') {
+        return {
+          system: {
+            boosts: {
+              0: { value: ['int'] },
+            },
+            additionalLanguages: {
+              count: 0,
+              value: [],
+            },
+            languages: {
+              value: ['common'],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', name: 'Elf' };
+
+    expect(await wizard._getAdditionalSkillCount()).toBe(4);
+    expect(await wizard._getAdditionalLanguageCount()).toBe(1);
+  });
 });

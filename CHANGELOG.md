@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+### Improved
+
+- Updated the module's French locale with several new translations and corrections
+  - Added missing translations for recently added UI elements and messages
+  - Corrected some existing translations for clarity and consistency
+
 ## 1.3.0
 
 ### Improved
