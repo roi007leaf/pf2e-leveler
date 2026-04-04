@@ -412,8 +412,9 @@ async function resolveChoiceSetOptions(wizard, rule) {
   return candidates
     .filter((item) => matchesChoiceSetFilters(item, rule.choices.filter ?? []))
     .filter((item) => !promptImpliesCommonAncestry || String(item.rarity ?? 'common').toLowerCase() === 'common')
+    .filter((item) => slugsAsValues ? !!(item.slug ?? item.uuid) : !!(item.uuid ?? item.slug))
     .map((item) => ({
-      value: slugsAsValues ? (item.slug ?? item.uuid ?? item.name) : (item.uuid ?? item.slug ?? item.name),
+      value: slugsAsValues ? (item.slug ?? item.uuid) : (item.uuid ?? item.slug),
       label: item.name,
       uuid: item.uuid ?? null,
       img: item.img ?? null,
@@ -493,6 +494,7 @@ function isCommonAncestryChoiceSet(rule) {
 
   const promptKey = String(rule.prompt ?? '');
   if (promptKey.includes('AdoptedAncestry')) return true;
+  if (String(rule.flag ?? '').toLowerCase() === 'ancestry' && promptKey.startsWith('PF2E.')) return true;
 
   const localizedPrompt = game.i18n?.has?.(promptKey) ? game.i18n.localize(promptKey) : promptKey;
   return /common ancestry/i.test(localizedPrompt);
@@ -507,6 +509,8 @@ function isAncestryChoiceSet(rule) {
 }
 
 function isSkillChoiceSet(rule) {
+  if (String(rule?.flag ?? '').toLowerCase() === 'skill') return true;
+
   const promptKey = String(rule?.prompt ?? '');
   const localizedPrompt = game.i18n?.has?.(promptKey) ? game.i18n.localize(promptKey) : promptKey;
   if (/select a skill/i.test(localizedPrompt)) return true;
@@ -580,14 +584,16 @@ export function extractChoiceValue(choice) {
     return rawValue.uuid
       ?? rawValue.value
       ?? rawValue.slug
-      ?? rawValue.name
-      ?? rawValue.label
+      ?? choice.uuid
       ?? choice.slug
-      ?? choice.name
-      ?? choice.label
-      ?? '';
+      ?? (typeof rawValue.label === 'string' ? rawValue.label : '')
+      ?? (typeof rawValue.name === 'string' ? rawValue.name : '')
+      ?? ''
   }
-  return choice.slug ?? choice.uuid ?? choice.name ?? choice.label ?? String(rawValue ?? '');
+  if (typeof choice.uuid === 'string' && choice.uuid.length > 0) return choice.uuid;
+  if (typeof choice.slug === 'string' && choice.slug.length > 0) return choice.slug;
+  if (typeof choice.value === 'string') return choice.value;
+  return String(rawValue ?? '');
 }
 
 export function extractChoiceLabel(choice) {
@@ -621,20 +627,16 @@ function summarizeChoiceDescription(description) {
     .slice(0, 180);
 }
 
-async function findChoiceItemBySlugOrName(wizard, choice, value, label) {
+async function findChoiceItemBySlugOrName(wizard, choice, value, _label) {
   const exactSlug = choice.slug ?? value;
   const normalizedValue = normalizeChoiceLookupValue(value);
-  const normalizedLabel = normalizeChoiceLookupValue(label);
 
   for (const packKey of ['pf2e.feats-srd', 'pf2e.classfeatures']) {
     const entries = await wizard._loadCompendium(packKey);
     const match = entries.find((entry) => {
       const entrySlug = normalizeChoiceLookupValue(entry.slug ?? '');
-      const entryName = normalizeChoiceLookupValue(entry.name ?? '');
       return entrySlug === exactSlug
-        || entrySlug === normalizedValue
-        || entryName === normalizedValue
-        || entryName === normalizedLabel;
+        || entrySlug === normalizedValue;
     });
     if (match) return await resolveDocument(wizard, match.uuid);
   }
@@ -668,7 +670,7 @@ async function loadChoiceSetCandidates(wizard, choiceConfig) {
         traits: item.font ?? [],
         otherTags: [],
         level: 0,
-        slug: item.slug ?? item.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+        slug: item.slug ?? null,
       })));
       continue;
     }
@@ -791,7 +793,7 @@ function normalizeChoiceCandidate(item) {
     name: item.name,
     img: item.img ?? null,
     type: item.type,
-    slug: item.slug ?? item.name?.toLowerCase().replace(/\s+/g, '-') ?? '',
+    slug: item.slug ?? null,
     description: rawSystem?.description?.value?.substring?.(0, 150) ?? '',
     traits: rawSystem?.traits?.value ?? [],
     otherTags: rawSystem?.traits?.otherTags ?? [],

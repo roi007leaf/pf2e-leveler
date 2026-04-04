@@ -45,7 +45,7 @@ export class RogueHandler extends BaseClassHandler {
   async _resolveSelectedChoiceSlug(selectedValue) {
     if (selectedValue.startsWith('Compendium.')) {
       const item = await fromUuid(selectedValue).catch(() => null);
-      return item?.slug ?? item?.name?.toLowerCase().replace(/\s+/g, '-') ?? null;
+      return item?.slug ?? null;
     }
 
     return selectedValue;

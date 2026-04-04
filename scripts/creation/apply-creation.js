@@ -1,6 +1,7 @@
 import { getClassHandler } from './class-handlers/registry.js';
 import { debug, info, warn } from '../utils/logger.js';
 import { capitalize } from '../utils/pf2e-api.js';
+import { format, localize } from '../utils/i18n.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -181,43 +182,43 @@ async function createCreationMessage(actor, data) {
   const sections = [];
   const subclassChoiceLabels = await getSelectedSubclassChoiceLabels(data.subclass);
   const identityRows = [];
-  if (data.ancestry) identityRows.push({ label: 'Ancestry', value: data.ancestry.name });
-  if (data.heritage) identityRows.push({ label: 'Heritage', value: data.heritage.name });
-  if (data.background) identityRows.push({ label: 'Background', value: data.background.name });
-  if (data.class) identityRows.push({ label: 'Class', value: data.class.name });
+  if (data.ancestry) identityRows.push({ label: localize('CREATION.STEPS.ANCESTRY'), value: data.ancestry.name });
+  if (data.heritage) identityRows.push({ label: localize('CREATION.STEPS.HERITAGE'), value: data.heritage.name });
+  if (data.background) identityRows.push({ label: localize('CREATION.STEPS.BACKGROUND'), value: data.background.name });
+  if (data.class) identityRows.push({ label: localize('CREATION.STEPS.CLASS'), value: data.class.name });
   if (data.subclass) {
     const subclassLabel = subclassChoiceLabels.length > 0
       ? `${data.subclass.name} (${subclassChoiceLabels.join(', ')})`
       : data.subclass.name;
-    identityRows.push({ label: 'Subclass', value: subclassLabel });
+    identityRows.push({ label: localize('CREATION.STEPS.SUBCLASS'), value: subclassLabel });
   }
   if (identityRows.length) {
-    sections.push(buildChatRowsSection('Character', identityRows));
+    sections.push(buildChatRowsSection(localize('CREATION.CHAT.CHARACTER'), identityRows));
   }
 
   const classChoices = [];
-  if (data.implement) classChoices.push({ label: 'Implement', value: data.implement.name });
-  if (data.tactics?.length) classChoices.push({ label: 'Tactics', value: data.tactics.map((entry) => entry.name).join(', ') });
-  if (data.ikons?.length) classChoices.push({ label: 'Ikons', value: data.ikons.map((entry) => entry.name).join(', ') });
-  if (data.innovationItem) classChoices.push({ label: 'Innovation Item', value: data.innovationItem.name });
-  if (data.innovationModification) classChoices.push({ label: 'Innovation Mod', value: data.innovationModification.name });
-  if (data.kineticGateMode) classChoices.push({ label: 'Kinetic Gate', value: data.kineticGateMode === 'dual-gate' ? 'Dual Gate' : 'Single Gate' });
-  if (data.secondElement) classChoices.push({ label: 'Second Element', value: data.secondElement.name });
-  if (data.kineticImpulses?.length) classChoices.push({ label: 'Impulses', value: data.kineticImpulses.map((entry) => entry.name).join(', ') });
-  if (data.subconsciousMind) classChoices.push({ label: 'Subconscious Mind', value: data.subconsciousMind.name });
-  if (data.thesis) classChoices.push({ label: 'Arcane Thesis', value: data.thesis.name });
+  if (data.implement) classChoices.push({ label: localize('CREATION.CHAT.IMPLEMENT'), value: data.implement.name });
+  if (data.tactics?.length) classChoices.push({ label: localize('CREATION.CHAT.TACTICS'), value: data.tactics.map((entry) => entry.name).join(', ') });
+  if (data.ikons?.length) classChoices.push({ label: localize('CREATION.CHAT.IKONS'), value: data.ikons.map((entry) => entry.name).join(', ') });
+  if (data.innovationItem) classChoices.push({ label: localize('CREATION.CHAT.INNOVATION_ITEM'), value: data.innovationItem.name });
+  if (data.innovationModification) classChoices.push({ label: localize('CREATION.CHAT.INNOVATION_MOD'), value: data.innovationModification.name });
+  if (data.kineticGateMode) classChoices.push({ label: localize('CREATION.CHAT.KINETIC_GATE'), value: data.kineticGateMode === 'dual-gate' ? localize('CREATION.CHAT.DUAL_GATE') : localize('CREATION.CHAT.SINGLE_GATE') });
+  if (data.secondElement) classChoices.push({ label: localize('CREATION.CHAT.SECOND_ELEMENT'), value: data.secondElement.name });
+  if (data.kineticImpulses?.length) classChoices.push({ label: localize('CREATION.CHAT.IMPULSES'), value: data.kineticImpulses.map((entry) => entry.name).join(', ') });
+  if (data.subconsciousMind) classChoices.push({ label: localize('CREATION.CHAT.SUBCONSCIOUS_MIND'), value: data.subconsciousMind.name });
+  if (data.thesis) classChoices.push({ label: localize('CREATION.CHAT.ARCANE_THESIS'), value: data.thesis.name });
   if (data.apparitions?.length) {
     const labels = data.apparitions.map((entry) =>
       entry.uuid === data.primaryApparition ? `${entry.name} (Primary)` : entry.name,
     );
-    classChoices.push({ label: 'Apparitions', value: labels.join(', ') });
+    classChoices.push({ label: localize('CREATION.CHAT.APPARITIONS'), value: labels.join(', ') });
   }
-  if (data.deity) classChoices.push({ label: 'Deity', value: data.deity.name });
+  if (data.deity) classChoices.push({ label: localize('CREATION.STEPS.DEITY'), value: data.deity.name });
   if (data.sanctification) {
     const handler = getClassHandler(data.class?.slug);
     const sanctStep = handler.getExtraSteps().find((s) => s.id === 'sanctification');
     const sanctLabel = sanctStep?.label ?? 'Sanctification';
-    classChoices.push({ label: sanctLabel, value: data.sanctification === 'none' ? 'None' : capitalize(data.sanctification) });
+    classChoices.push({ label: sanctLabel, value: data.sanctification === 'none' ? localize('CREATION.CHAT.NONE') : capitalize(data.sanctification) });
   }
   if (data.divineFont) {
     const handler = getClassHandler(data.class?.slug);
@@ -226,28 +227,28 @@ async function createCreationMessage(actor, data) {
     classChoices.push({ label: fontLabel, value: capitalize(data.divineFont) });
   }
   if (classChoices.length) {
-    sections.push(buildChatRowsSection('Choices', classChoices));
+    sections.push(buildChatRowsSection(localize('CREATION.CHAT.CHOICES'), classChoices));
   }
 
   const training = [];
-  if (data.languages?.length) training.push({ label: 'Languages', value: data.languages.map((slug) => localizeLanguageSlug(slug)).join(', ') });
-  if (data.lores?.length) training.push({ label: 'Lore Skills', value: data.lores.join(', ') });
+  if (data.languages?.length) training.push({ label: localize('CREATION.STEPS.LANGUAGES'), value: data.languages.map((slug) => localizeLanguageSlug(slug)).join(', ') });
+  if (data.lores?.length) training.push({ label: localize('CREATION.LORE_SKILLS'), value: data.lores.join(', ') });
   if (data.devotionSpell) {
-    training.push({ label: 'Focus Spell', value: data.devotionSpell.name });
+    training.push({ label: localize('CREATION.CHAT.FOCUS_SPELL'), value: data.devotionSpell.name });
   } else {
     const handler = getClassHandler(data.class?.slug);
     const focusSpells = await handler.resolveFocusSpells(data);
     if (focusSpells.length > 0) {
-      training.push({ label: 'Focus Spells', value: focusSpells.map((s) => s.name).join(', ') });
+      training.push({ label: localize('CREATION.CHAT.FOCUS_SPELLS'), value: focusSpells.map((s) => s.name).join(', ') });
     }
   }
   if (data.ancestryFeat) {
     const labels = await getSelectedSubclassChoiceLabels(data.ancestryFeat);
-    training.push({ label: 'Ancestry Feat', value: labels.length ? `${data.ancestryFeat.name} (${labels.join(', ')})` : data.ancestryFeat.name });
+    training.push({ label: localize('SECTIONS.ANCESTRY_FEAT'), value: labels.length ? `${data.ancestryFeat.name} (${labels.join(', ')})` : data.ancestryFeat.name });
   }
   if (data.classFeat) {
     const labels = await getSelectedSubclassChoiceLabels(data.classFeat);
-    training.push({ label: 'Class Feat', value: labels.length ? `${data.classFeat.name} (${labels.join(', ')})` : data.classFeat.name });
+    training.push({ label: localize('SECTIONS.CLASS_FEAT'), value: labels.length ? `${data.classFeat.name} (${labels.join(', ')})` : data.classFeat.name });
   }
   for (const section of (data.grantedFeatSections ?? [])) {
     const labels = await getSelectedSubclassChoiceLabels({
@@ -256,16 +257,16 @@ async function createCreationMessage(actor, data) {
     });
     if (labels.length > 0) {
       const sourceSuffix = section.sourceName ? ` (${section.sourceName})` : '';
-      training.push({ label: 'Granted Feat Choice', value: `${section.featName}${sourceSuffix}: ${labels.join(', ')}` });
+      training.push({ label: localize('CREATION.CHAT.GRANTED_FEAT_CHOICE'), value: `${section.featName}${sourceSuffix}: ${labels.join(', ')}` });
     }
   }
   if (training.length) {
-    sections.push(buildChatRowsSection('Starting Benefits', training));
+    sections.push(buildChatRowsSection(localize('CREATION.CHAT.STARTING_BENEFITS'), training));
   }
 
   const content = buildChatCard({
-    eyebrow: 'Character Created',
-    title: `${actor.name} is ready`,
+    eyebrow: localize('CREATION.CHAT.CHARACTER_CREATED'),
+    title: format('CREATION.CHAT.CHARACTER_READY', { actorName: actor.name }),
     accent: '#c6a15b',
     sections,
   });

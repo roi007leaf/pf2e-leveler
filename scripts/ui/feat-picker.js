@@ -144,9 +144,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       feat.prerequisitesFailed = !check.met;
       feat.selectionBlocked = enforcePrereqs && feat.prerequisitesFailed;
-      const slug = feat.slug ?? feat.name?.toLowerCase().replace(/\s+/g, '-');
-      feat.alreadyTaken = ownedSlugs.has(slug) && feat.system.maxTakable === 1;
-      feat.takenAtLevel = feat.alreadyTaken ? (takenLevelMap.get(slug) ?? null) : null;
+      const slug = feat.slug ?? null;
+      feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
+      feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
     }
   }
 

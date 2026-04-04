@@ -156,7 +156,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._cachedMaxSkills = await this._getAdditionalSkillCount();
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
-      featChoices: 'Feat Choices',
+      featChoices: localize('CREATION.FEAT_CHOICES'),
       ...Object.fromEntries(extraSteps.filter((s) => s.label).map((s) => [s.id, s.label])),
     };
     const steps = this.visibleSteps.map((id) => ({
@@ -708,7 +708,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           uuid: d.uuid,
           name: d.name,
           img: d.img,
-          slug: d.slug ?? d.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+          slug: d.slug ?? null,
           rarity: d.system?.traits?.rarity ?? 'common',
           lores: this._parseApparitionLores(description),
           spells: this._parseApparitionSpells(description),
@@ -727,51 +727,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _parseApparitionLores(html) {
     if (!html) return [];
-    const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    const match = text.match(/Apparition Skills?\s+(.+?)(?:Apparition Spells|Vessel Spell|Avatar)/i);
-    if (!match) return [];
-    return match[1]
-      .split(',')
-      .map((part) => part.trim())
-      .filter((part) => part.endsWith('Lore'));
+    return extractLoreLabels(html, { stopBeforeSpells: true });
   }
 
   _parseApparitionSpells(html) {
-    if (!html) return {};
-    const start = html.search(/Apparition Spells/i);
-    if (start < 0) return {};
-
-    let section = html.slice(start);
-    const endMatch = section.match(/Vessel Spell/i);
-    if (endMatch) section = section.slice(0, endMatch.index);
-
-    const normalized = section
-      .replace(/<\/li>/gi, '\n')
-      .replace(/<li[^>]*>/gi, '')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/?(?:ul|ol|p|strong|em)[^>]*>/gi, '')
-      .replace(/&nbsp;/gi, ' ');
-
-    const spells = {};
-    const rankMap = { cantrip: 0, cantrips: 0, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6, '7th': 7, '8th': 8, '9th': 9 };
-
-    for (const rawLine of normalized.split(/\n+/)) {
-      const line = rawLine.trim().replace(/^[*\-\u2022]\s*/, '').trim();
-      const rankMatch = line.match(/^(cantrips?|1st|2nd|3rd|4th|5th|6th|7th|8th|9th)(?:-rank)?(?:\s*:|\s+)/i);
-      if (!rankMatch) continue;
-
-      const rank = rankMap[rankMatch[1].toLowerCase()];
-      const entries = [];
-      const uuidPattern = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]|data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/gi;
-      let match;
-      while ((match = uuidPattern.exec(line)) !== null) {
-        entries.push(match[2] ?? `Compendium.pf2e.spells-srd.Item.${match[1]}`);
-      }
-      if (entries.length > 0) spells[rank] = entries;
-    }
-
-    return spells;
+    return parseCurriculum(html) ?? {};
   }
 
   _parseVesselSpell(html) {
@@ -795,12 +755,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (skills.length === 0 && html) {
       const text = html.replace(/<[^>]+>/g, ' ');
-      const trainedMatch = text.match(/trained in (?:the )?(.+?)(?:\.|,\s*and a number)/i);
-      if (trainedMatch) {
-        const skillText = trainedMatch[1];
-        for (const skill of SKILLS) {
-          if (skillText.toLowerCase().includes(skill)) skills.push(skill);
-        }
+      const lowerText = text.toLowerCase();
+      for (const skill of SKILLS) {
+        const localized = this._localizeSkillSlug(skill).toLowerCase();
+        if (lowerText.includes(localized) || lowerText.includes(skill)) skills.push(skill);
       }
     }
     return skills;
@@ -808,6 +766,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _resolveSubclassTradition(item) {
     const rules = item.system?.rules ?? [];
+    const traitTraditions = item.system?.traits?.traditions ?? item.system?.traditions?.value ?? [];
+    const firstTraitTradition = Array.isArray(traitTraditions)
+      ? traitTraditions.find((trad) => isSpellTradition(trad))
+      : null;
+    if (firstTraitTradition) return firstTraitTradition;
+
+    const directTradition = item.system?.spellcasting?.tradition?.value;
+    if (isSpellTradition(directTradition)) return directTradition;
 
     for (const rule of rules) {
       if (rule.key === 'ActiveEffectLike' && typeof rule.path === 'string' && rule.path.includes('proficiencies.aliases')) {
@@ -823,22 +789,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const desc = item.system?.description?.value ?? '';
-    const listMatch = desc.match(/Spell List\s+(\w+)/i);
-    if (listMatch) return listMatch[1].toLowerCase();
-
-    const strongTradMatch = desc.match(/<strong>Tradition<\/strong>\s*(\w+)/i);
-    if (strongTradMatch) {
-      const trad = strongTradMatch[1].toLowerCase();
-      if (['arcane', 'divine', 'occult', 'primal'].includes(trad)) return trad;
-    }
-
-    const tradMatch = desc.match(/tradition is (\w+)/i) ?? desc.match(/(\w+) tradition/i);
-    if (tradMatch) {
-      const trad = tradMatch[1].toLowerCase();
-      if (['arcane', 'divine', 'occult', 'primal'].includes(trad)) return trad;
-    }
+    const descTradition = extractTraditionFromText(desc);
+    if (descTradition) return descTradition;
 
     return null;
+  }
+
+  _localizeSkillSlug(slug) {
+    const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+    const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
+    return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug;
   }
 
   async _loadRawHeritages() {
@@ -1065,8 +1025,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.data.ancestry) return { ancestryFeats: [], classFeats: [] };
 
     const allFeats = await this._loadCompendium('pf2e.feats-srd');
-    const ancestrySlug = this.data.ancestry.name.toLowerCase().replace(/\s+/g, '-');
-    const heritageSlug = this.data.heritage?.name?.toLowerCase().replace(/\s+/g, '-');
+    const ancestrySlug = this.data.ancestry.slug ?? null;
+    const heritageSlug = this.data.heritage?.slug ?? null;
     const ancestryTraits = [ancestrySlug];
     if (heritageSlug && heritageSlug !== ancestrySlug) ancestryTraits.push(heritageSlug);
 
@@ -1100,4 +1060,60 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _limitCurriculumSelections(list, validUuids, max) {
     return limitCurriculumSelections(list, validUuids, max);
   }
+}
+
+function extractLoreLabels(html, { stopBeforeSpells = false } = {}) {
+  let text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  if (stopBeforeSpells) {
+    const firstSpellUuid = text.search(/Compendium\.pf2e\.spells-srd\.Item\./i);
+    if (firstSpellUuid >= 0) text = text.slice(0, firstSpellUuid);
+  }
+  const matches = text.match(/\b(?:[\p{Lu}][\p{L}'-]*\s+){0,3}Lore\b/gu) ?? [];
+  return [...new Set(matches.map(cleanLoreLabel).filter(Boolean))];
+}
+
+function isSpellTradition(value) {
+  return ['arcane', 'divine', 'occult', 'primal'].includes(String(value ?? '').toLowerCase());
+}
+
+function cleanLoreLabel(label) {
+  const text = String(label ?? '').trim();
+  const loreMatch = text.match(/[\p{L}][\p{L}' -]*?\bLore\b/iu);
+  const loreText = loreMatch?.[0]?.trim() ?? text;
+  const parts = loreText.split(/\s+/).filter(Boolean);
+  if (parts.length > 2) return parts.slice(-2).join(' ');
+  return loreText;
+}
+
+function extractTraditionFromText(html) {
+  const normalized = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return null;
+
+  for (const tradition of ['arcane', 'divine', 'occult', 'primal']) {
+    const localized = localizeTradition(tradition);
+    if (normalized.includes(tradition) || (localized && normalized.includes(localized))) {
+      return tradition;
+    }
+  }
+
+  return null;
+}
+
+function localizeTradition(tradition) {
+  const candidates = [
+    `PF2E.Trait${tradition.charAt(0).toUpperCase()}${tradition.slice(1)}`,
+    `PF2E.MagicTradition${tradition.charAt(0).toUpperCase()}${tradition.slice(1)}`,
+  ];
+
+  for (const key of candidates) {
+    if (game.i18n?.has?.(key)) {
+      return game.i18n.localize(key).toLowerCase();
+    }
+  }
+
+  return null;
 }

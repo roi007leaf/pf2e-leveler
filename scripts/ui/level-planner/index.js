@@ -127,14 +127,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const actorClass = actor.class;
     if (!actorClass) return null;
 
-    const slug = actorClass.slug ?? actorClass.name?.toLowerCase().replace(/\s+/g, '-');
+    const slug = actorClass.slug ?? null;
     if (ClassRegistry.has(slug)) return slug;
-
-    const allClasses = ClassRegistry.getAll();
-    const match = allClasses.find(
-      (c) => c.slug === slug || actorClass.name?.toLowerCase() === game.i18n.localize(c.nameKey).toLowerCase(),
-    );
-    return match?.slug ?? null;
+    return null;
   }
 
   static DEFAULT_OPTIONS = {
@@ -482,7 +477,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       level,
       buildState,
       (feat) => {
-        const slug = feat.slug ?? feat.name.toLowerCase().replace(/\s+/g, '-');
+        const slug = feat.slug ?? feat.uuid ?? null;
         setLevelFeat(this.plan, level, category, {
           uuid: feat.uuid,
           name: feat.name,

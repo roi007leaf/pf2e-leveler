@@ -10,7 +10,7 @@ export async function loadCompendium(wizard, key) {
     name: d.name,
     img: d.img,
     type: d.type,
-    slug: d.slug ?? d.name.toLowerCase().replace(/\s+/g, '-'),
+    slug: d.slug ?? null,
     description: d.system?.description?.value?.substring(0, 150) ?? '',
     traits: d.system?.traits?.value ?? [],
     otherTags: d.system?.traits?.otherTags ?? [],
@@ -84,7 +84,8 @@ function isRangedWeaponData(system) {
 
 export async function loadHeritages(wizard) {
   if (!wizard.data.ancestry) return [];
-  const ancestrySlug = wizard.data.ancestry.name.toLowerCase().replace(/\s+/g, '-');
+  const ancestrySlug = wizard.data.ancestry.slug ?? null;
+  if (!ancestrySlug) return [];
   const all = await loadRawHeritages(wizard);
   return all.filter((h) => {
     if (h.ancestrySlug === ancestrySlug) return true;
@@ -129,7 +130,7 @@ export async function loadCommanderTactics(wizard) {
       uuid: d.uuid,
       name: d.name,
       img: d.img,
-      slug: d.slug ?? d.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+      slug: d.slug ?? null,
       rarity: d.system?.traits?.rarity ?? 'common',
       traits: d.system?.traits?.value ?? [],
     }))
@@ -253,7 +254,7 @@ export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSu
         uuid: d.uuid,
         name: d.name,
         img: d.img,
-        slug: d.slug ?? d.name.toLowerCase().replace(/[:\s]+/g, '-').replace(/^-|-$/g, ''),
+        slug: d.slug ?? null,
         description: d.system?.description?.value ?? '',
         traits: d.system?.traits?.value ?? [],
         rarity: d.system?.traits?.rarity ?? 'common',
@@ -276,44 +277,16 @@ export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSu
 
 export function parseVesselSpell(html) {
   if (!html) return null;
-  const match = html.match(/Vessel Spell(?:<\/strong>)?\s*@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]/i)
-    ?? html.match(/Vessel Spell(?:<\/strong>)?.*?data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/i);
-  if (!match) return null;
-  return match[1].startsWith('Compendium.') ? match[1] : `Compendium.pf2e.spells-srd.Item.${match[1]}`;
+  const uuids = [...extractSpellUuids(html)];
+  return uuids.at(-1) ?? null;
 }
 
 export function parseCurriculum(html) {
-  if (!html || /No Curriculum/i.test(html)) return null;
-  const start = html.search(/(?:Additional\s+)?Curriculum/i);
-  if (start < 0) return null;
-  let section = html.slice(start);
-  const endMatch = section.match(/(?:Additional\s+)?School Spells/i);
-  if (endMatch) section = section.slice(0, endMatch.index);
-  const normalized = section
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/?(?:ul|ol|p|strong|em)[^>]*>/gi, '')
-    .replace(/&nbsp;/gi, ' ');
+  if (!html) return null;
 
-  const curriculum = {};
-  const rankMap = { cantrip: 0, cantrips: 0, '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5, '6th': 6, '7th': 7, '8th': 8, '9th': 9 };
-  for (const rawLine of normalized.split(/\n+/)) {
-    const line = rawLine.trim().replace(/^[*\-\u2022]\s*/, '').trim();
-    if (!line) continue;
-    const rankMatch = line.match(/^(cantrips?|1st|2nd|3rd|4th|5th|6th|7th|8th|9th)(?:-rank)?(?:\s*:|\s+)/i);
-    if (!rankMatch) continue;
-    const rank = rankMap[rankMatch[1].toLowerCase()];
-    const spells = [];
-    const uuidPattern = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]|data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/gi;
-    let match;
-    while ((match = uuidPattern.exec(line)) !== null) {
-      spells.push(match[2] ?? `Compendium.pf2e.spells-srd.Item.${match[1]}`);
-    }
-    if (spells.length > 0) curriculum[rank] = spells;
-  }
-  return curriculum;
+  const normalized = normalizeSpellSectionText(html);
+  const curriculum = parseRankedSpellLines(normalized, { stopOnSectionBreak: true, ignoreSingleSpellLines: true });
+  return Object.keys(curriculum).length > 0 ? curriculum : null;
 }
 
 export async function loadRawHeritages(wizard) {
@@ -332,7 +305,7 @@ export async function loadRawHeritages(wizard) {
     uuid: d.uuid,
     name: d.name,
     img: d.img,
-    slug: d.slug ?? d.name.toLowerCase().replace(/\s+/g, '-'),
+    slug: d.slug ?? null,
     traits: d.system?.traits?.value ?? [],
     rarity: d.system?.traits?.rarity ?? 'common',
     ancestrySlug: d.system?.ancestry?.slug ?? null,
@@ -357,4 +330,59 @@ export function parseSpellUuidsFromDescription(rules, html) {
     while ((match = re2.exec(html)) !== null) uuids.add(`Compendium.pf2e.spells-srd.Item.${match[1]}`);
   }
   return [...uuids];
+}
+
+function* extractSpellUuids(text) {
+  const uuidPattern = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]|data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/gi;
+  let match;
+  while ((match = uuidPattern.exec(text)) !== null) {
+    yield match[2] ?? `Compendium.pf2e.spells-srd.Item.${match[1]}`;
+  }
+}
+
+function normalizeSpellSectionText(html) {
+  return html
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:ul|ol|p|strong|em)[^>]*>/gi, '')
+    .replace(/&nbsp;/gi, ' ');
+}
+
+function parseRankedSpellLines(text, { stopOnSectionBreak = false, ignoreSingleSpellLines = false } = {}) {
+  const ranks = {};
+  const rankMap = {
+    cantrip: 0,
+    cantrips: 0,
+    '1st': 1,
+    '2nd': 2,
+    '3rd': 3,
+    '4th': 4,
+    '5th': 5,
+    '6th': 6,
+    '7th': 7,
+    '8th': 8,
+    '9th': 9,
+  };
+
+  for (const rawLine of text.split(/\n+/)) {
+    const line = rawLine.trim().replace(/^[*\-\u2022]\s*/, '').trim();
+    if (!line) continue;
+
+    const rankMatch = line.match(/^(cantrips?|1st|2nd|3rd|4th|5th|6th|7th|8th|9th)(?:-rank)?(?:\s*:|\s+)/i);
+    if (!rankMatch) {
+      if (stopOnSectionBreak && Object.keys(ranks).length > 0) break;
+      continue;
+    }
+
+    const entries = [...extractSpellUuids(line)];
+    if (entries.length === 0) continue;
+    if (ignoreSingleSpellLines && entries.length === 1 && /\binitial\b|\badvanced\b/i.test(line)) continue;
+
+    const rank = rankMap[rankMatch[1].toLowerCase()];
+    ranks[rank] = entries;
+  }
+
+  return ranks;
 }

@@ -1,4 +1,5 @@
 import { SKILLS } from '../../constants.js';
+import { localize } from '../../utils/i18n.js';
 
 export async function buildLanguageContext(wizard) {
   const ancestryItem = wizard.data.ancestry?.uuid ? await wizard._getCachedDocument(wizard.data.ancestry.uuid) : null;
@@ -57,7 +58,7 @@ export async function getBackgroundLores(wizard) {
   if (!wizard.data.background?.uuid) return [];
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
-  return (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source: 'Background' }));
+  return (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source: localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background') }));
 }
 
 export function parseSubclassLores(rules, html) {
@@ -74,16 +75,7 @@ export function parseSubclassLores(rules, html) {
     }
   }
   if (lores.length === 0 && html) {
-    const text = html.replace(/<[^>]+>/g, ' ');
-    const loreMatch = text.match(/trained in ([^.]*?\bLore\b[^.]*)/i);
-    if (loreMatch) {
-      const loreText = loreMatch[1];
-      const parts = loreText
-        .split(/,|\band\b/gi)
-        .map((part) => part.trim())
-        .filter((part) => /\bLore$/i.test(part));
-      for (const part of parts) lores.push(part);
-    }
+    for (const lore of extractLoreLabels(html)) lores.push(lore);
   }
   return lores;
 }
@@ -97,10 +89,16 @@ export async function buildSkillContext(wizard) {
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
     const autoTrained = fromClass || fromBg || fromSubclass;
-    const source = fromClass ? 'Class' : fromBg ? 'Background' : fromSubclass ? wizard.data.subclass.name : null;
+    const source = fromClass
+      ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
+      : fromBg
+        ? localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background')
+        : fromSubclass
+          ? wizard.data.subclass.name
+          : null;
     return {
       slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
+      label: localizeSkillSlug(slug),
       selected: wizard.data.skills.includes(slug),
       autoTrained,
       source,
@@ -113,4 +111,30 @@ export async function getBackgroundTrainedSkills(wizard) {
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
   return item.system?.trainedSkills?.value ?? [];
+}
+
+function localizeSkillSlug(slug) {
+  const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+  const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
+  return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
+function extractLoreLabels(html) {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const matches = text.match(/\b(?:[\p{Lu}][\p{L}'-]*\s+){0,3}Lore\b/gu) ?? [];
+  return [...new Set(matches.map(cleanLoreLabel).filter(Boolean))];
+}
+
+function cleanLoreLabel(label) {
+  const text = String(label ?? '').trim();
+  const loreMatch = text.match(/[\p{L}][\p{L}' -]*?\bLore\b/iu);
+  const loreText = loreMatch?.[0]?.trim() ?? text;
+  const parts = loreText.split(/\s+/).filter(Boolean);
+  if (parts.length > 2) return parts.slice(-2).join(' ');
+  return loreText;
+}
+
+function localizeWithFallback(key, fallback) {
+  const value = localize(key);
+  return value === key ? fallback : value;
 }

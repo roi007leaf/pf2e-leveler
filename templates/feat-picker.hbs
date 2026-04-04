@@ -5,7 +5,7 @@
            data-action="searchFeats">
     {{#if showSkillFilter}}
     <select data-action="filterSkillFeats" class="feat-picker__select">
-      <option value="">All Skills</option>
+      <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</option>
       {{#each skillOptions}}
       <option value="{{this.slug}}" {{#if (eq ../selectedSkill this.slug)}}selected{{/if}}>{{this.label}}</option>
       {{/each}}
@@ -24,22 +24,22 @@
     {{#if showDedicationToggle}}
     <button type="button" class="feat-picker__prereq-toggle {{#if showDedications}}active{{/if}}" data-action="toggleDedications">
       <i class="fa-solid fa-diagram-project"></i>
-      Dedications
+      {{localize "PF2E_LEVELER.FEAT_PICKER.DEDICATIONS"}}
     </button>
     {{/if}}
     {{#if showGeneralSkillToggle}}
     <button type="button" class="feat-picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
       <i class="fa-solid fa-screwdriver-wrench"></i>
-      Skill Feats
+      {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
     </button>
     {{/if}}
   </div>
   <div class="feat-picker__rarity-filters" style="display: flex; gap: 0.75rem; padding: 0 0.5rem 0.25rem;">
     <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-      <input type="checkbox" data-action="toggleUncommon" {{#if showUncommon}}checked{{/if}}> Uncommon
+      <input type="checkbox" data-action="toggleUncommon" {{#if showUncommon}}checked{{/if}}> {{localize "PF2E.TraitUncommon"}}
     </label>
     <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-      <input type="checkbox" data-action="toggleRare" {{#if showRare}}checked{{/if}}> Rare
+      <input type="checkbox" data-action="toggleRare" {{#if showRare}}checked{{/if}}> {{localize "PF2E.TraitRare"}}
     </label>
   </div>
 
@@ -51,8 +51,8 @@
       <div class="feat-option__info">
         <div class="feat-option__header">
           <span class="feat-option__name" data-action="viewFeat">{{this.name}}</span>
-          {{#if this.alreadyTaken}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> Taken</span>{{/if}}
-          <span class="feat-option__level">Lvl {{this.system.level.value}}</span>
+          {{#if this.alreadyTaken}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.TAKEN"}}</span>{{/if}}
+          <span class="feat-option__level">{{format "PF2E_LEVELER.FEAT_PICKER.LEVEL" level=this.system.level.value}}</span>
         </div>
         <div class="feat-option__traits">
           {{#each this.system.traits.value}}

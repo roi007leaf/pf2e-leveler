@@ -108,11 +108,11 @@ export function filterByArchetypeRestrictions(feats, actor, buildState) {
     const isArchetype = traits.includes('archetype');
     const isMulticlassArchetype = isArchetype && traits.includes('multiclass');
     const isClassArchetype = isArchetype && traits.includes('class');
-    const featSlug = feat.slug ?? feat.name?.toLowerCase().replace(/\s+/g, '-');
+    const featSlug = feat.slug ?? null;
 
     if (isDedication && classSlug && isMulticlassArchetype && featSlug === `${classSlug}-dedication`) return false;
 
-    if (isDedication && isClassArchetype && existingClassArchetypeDedications.size > 0) {
+    if (featSlug && isDedication && isClassArchetype && existingClassArchetypeDedications.size > 0) {
       return existingClassArchetypeDedications.has(featSlug);
     }
 
@@ -178,10 +178,10 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
 function buildCategoryQuery(category, actor) {
   switch (category) {
     case 'class':
-      return actor?.class?.slug ?? actor?.class?.name?.toLowerCase() ?? '';
+      return actor?.class?.slug ?? '';
     case 'ancestry': {
-      const queries = [actor?.ancestry?.slug ?? actor?.ancestry?.name?.toLowerCase() ?? ''];
-      const heritageSlug = actor?.heritage?.slug ?? actor?.heritage?.name?.toLowerCase();
+      const queries = [actor?.ancestry?.slug ?? ''];
+      const heritageSlug = actor?.heritage?.slug ?? null;
       if (heritageSlug) queries.push(heritageSlug);
       return queries;
     }

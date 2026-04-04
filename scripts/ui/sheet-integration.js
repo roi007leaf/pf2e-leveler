@@ -11,8 +11,7 @@ export function registerSheetIntegration() {
 function isSupportedClass(actor) {
   const actorClass = actor.class;
   if (!actorClass) return false;
-  const slug = actorClass.slug ?? actorClass.name?.toLowerCase().replace(/\s+/g, '-');
-  return ClassRegistry.has(slug);
+  return ClassRegistry.has(actorClass.slug);
 }
 
 function isLevel1WithoutClass(actor) {

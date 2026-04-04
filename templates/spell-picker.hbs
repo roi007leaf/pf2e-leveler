@@ -7,10 +7,10 @@
   <div style="display: flex; align-items: center; gap: var(--leveler-spacing-md); padding: 0 var(--leveler-spacing-md); margin-bottom: var(--leveler-spacing-xs);">
     <div class="wizard-trait-input" style="flex: 1;">
       <span class="wizard-trait-chips" data-target="spells"></span>
-      <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="spells" list="spell-trait-options">
+      <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" list="spell-trait-options">
     </div>
-    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> Uncommon</label>
-    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> Rare</label>
+    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
+    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
   </div>
 
   <div class="feat-list spell-list">
@@ -20,7 +20,7 @@
       <div class="feat-option__info">
         <div class="feat-option__header">
           <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
-          <span class="feat-option__level">Rank {{this.system.level.value}}</span>
+          <span class="feat-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
         </div>
         <div class="feat-option__traits">
           {{#each this.system.traits.value}}

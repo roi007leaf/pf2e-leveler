@@ -10,7 +10,7 @@
         <div class="sidebar-level__num">{{this.level}}</div>
         <div class="sidebar-level__summary" data-tooltip="{{this.summary}}">{{this.summary}}</div>
         {{#if this.isCurrent}}
-          <span class="sidebar-level__current">CURRENT</span>
+          <span class="sidebar-level__current">{{localize "PF2E_LEVELER.UI.CURRENT"}}</span>
         {{/if}}
         {{#if (eq this.status "complete")}}
           <i class="sidebar-level__status sidebar-level__status--complete fa-solid fa-check-circle"></i>
@@ -93,9 +93,9 @@
             <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
               <i class="fa-solid fa-circle-info"></i>
               {{#if intelligenceBenefit.gainsSingle}}
-              Intelligence increases your modifier at this level. Choose 1 additional trained skill and 1 additional language below.
+              {{localize "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_HINT_SINGLE"}}
               {{else}}
-              Intelligence increases your modifier at this level. Choose {{intelligenceBenefit.count}} additional trained skills and {{intelligenceBenefit.count}} additional languages below.
+              {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_HINT_MULTI" count=intelligenceBenefit.count}}
               {{/if}}
             </div>
             {{/if}}
@@ -107,7 +107,7 @@
         <div class="level-section">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-brain"></i>
-            Intelligence Bonus Skills ({{intBonusSkillCount}}/{{intelligenceBenefit.count}})
+            {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_SKILLS" selected=intBonusSkillCount count=intelligenceBenefit.count}}
           </div>
           <div class="level-section__body">
             <div class="skill-btn-grid">
@@ -128,7 +128,7 @@
         <div class="level-section">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-language"></i>
-            Intelligence Bonus Languages ({{intBonusLanguageCount}}/{{intelligenceBenefit.count}})
+            {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_LANGUAGES" selected=intBonusLanguageCount count=intelligenceBenefit.count}}
           </div>
           <div class="level-section__body">
             <div class="skill-btn-grid">
@@ -326,7 +326,7 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-gift"></i>
-                Granted Spells
+                {{localize "PF2E_LEVELER.SPELLS.GRANTED"}}
               </div>
               {{#each grantedSpells}}
               <div class="feat-slot feat-slot--filled" style="border-color: var(--leveler-success);">
@@ -342,19 +342,19 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-book"></i>
-                Spellbook ({{plannedSpells.length}}/{{spellbookSelectionCount}} new spells)
+                {{format "PF2E_LEVELER.SPELLS.SPELLBOOK" selected=plannedSpells.length count=spellbookSelectionCount}}
               </div>
               {{#each plannedSpells}}
               <div class="feat-slot feat-slot--filled">
                 <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
                 <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
                 <span class="feat-slot__level">Rank {{this.rank}}</span>
-                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="Remove"></i>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}
               {{#unless (eq plannedSpells.length spellbookSelectionCount)}}
-              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="-1" data-tooltip="Add spell to spellbook" style="margin-top: 4px; padding: 4px 12px;">
-                <i class="fa-solid fa-plus"></i> Add to Spellbook
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="-1" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD_TO_SPELLBOOK_HINT'}}" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.SPELLS.ADD_TO_SPELLBOOK"}}
               </button>
               {{/unless}}
             </div>
@@ -372,7 +372,7 @@
                 <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
                 <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
                 <span class="feat-slot__level">Rank {{this.rank}}</span>
-                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="Remove"></i>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}
             </div>
@@ -383,8 +383,8 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-sun"></i>
-                Focus Spells
-                {{#if newFocusSpell}}<span class="tag tag--success tag--tiny">New!</span>{{/if}}
+                {{localize "PF2E_LEVELER.SPELLS.FOCUS"}}
+                {{#if newFocusSpell}}<span class="tag tag--success tag--tiny">{{localize "PF2E_LEVELER.SPELLS.NEW_FOCUS"}}</span>{{/if}}
               </div>
               {{#each focusSpells}}
               <div class="feat-slot feat-slot--filled" style="{{#if this.isNew}}border-color: var(--leveler-success);{{/if}}">

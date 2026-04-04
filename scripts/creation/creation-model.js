@@ -47,7 +47,7 @@ function clearBoostsForPrefix(data, prefix) {
 }
 
 export function setAncestry(data, item) {
-  data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img } : null;
+  data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
   data.heritage = null;
   data.languages = [];
   data.grantedFeatSections = [];
@@ -57,14 +57,14 @@ export function setAncestry(data, item) {
 }
 
 export function setHeritage(data, item) {
-  data.heritage = item ? { uuid: item.uuid, name: item.name, img: item.img } : null;
+  data.heritage = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   return data;
 }
 
 export function setBackground(data, item) {
-  data.background = item ? { uuid: item.uuid, name: item.name, img: item.img } : null;
+  data.background = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   clearBoostsForPrefix(data, 'background');

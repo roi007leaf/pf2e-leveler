@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0
+
+### Improved
+
+- Added a first full French locale pass for the module UI
+  - Registered a French module locale and translated the core planner, wizard, and chat strings
+  - Localized repeated wizard labels, summaries, and post-creation reminder banners
+- Character creation and planning now rely more consistently on stable PF2E identifiers
+  - Removed several locale-sensitive name-to-slug fallbacks in wizard, planner, feat-picker, and choice-set flows
+  - Choice-set values and lookups now prefer UUIDs and real slugs instead of localized item names
+
+### Fixed
+
+- French PF2E support is more robust across wizard parsing and prompt handling
+  - Reworked lore and tradition fallback parsing to avoid English-only description matching where possible
+  - Reduced failures caused by translated PF2E names, prompts, and labels in subclass, feat-choice, and ancestry/heritage flows
+
 ## 1.2.5
 
 ### Improved

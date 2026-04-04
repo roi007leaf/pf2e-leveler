@@ -1,3 +1,5 @@
+import { localize } from '../utils/i18n.js';
+
 export const BOOSTS_PER_LEVEL = 4;
 
 export const FREE_ARCHETYPE_FEAT_LEVELS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
@@ -75,37 +77,37 @@ export function getLevelSummary(classDef, level, options = {}) {
   for (const choice of choices) {
     switch (choice.type) {
       case 'abilityBoosts':
-        parts.push('Boosts');
+        parts.push(localize('SUMMARY.BOOSTS'));
         break;
       case 'classFeat':
-        parts.push('Class');
+        parts.push(localize('SUMMARY.CLASS'));
         break;
       case 'skillFeat':
-        parts.push('Skill');
+        parts.push(localize('SUMMARY.SKILL'));
         break;
       case 'generalFeat':
-        parts.push('General');
+        parts.push(localize('SUMMARY.GENERAL'));
         break;
       case 'ancestryFeat':
-        parts.push('Ancestry');
+        parts.push(localize('SUMMARY.ANCESTRY'));
         break;
       case 'skillIncrease':
-        parts.push('Skill+');
+        parts.push(localize('SUMMARY.SKILL_INCREASE'));
         break;
       case 'archetypeFeat':
-        parts.push('Archetype');
+        parts.push(localize('SUMMARY.ARCHETYPE'));
         break;
       case 'mythicFeat':
-        parts.push('Mythic');
+        parts.push(localize('SUMMARY.MYTHIC'));
         break;
       case 'abpPotency':
-        parts.push('Potency');
+        parts.push(localize('SUMMARY.POTENCY'));
         break;
       case 'dualClassFeat':
-        parts.push('Dual Class');
+        parts.push(localize('SUMMARY.DUAL_CLASS'));
         break;
       case 'spells':
-        parts.push('Spells');
+        parts.push(localize('SUMMARY.SPELLS'));
         break;
     }
   }

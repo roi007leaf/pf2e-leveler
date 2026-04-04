@@ -52,7 +52,7 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
     const trained = (buildState.skills[slug] ?? 0) >= 1;
     return {
       slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
+      label: localizeSkillSlug(slug),
       selected: selected.has(slug),
       disabled: trained && !selected.has(slug),
       trained,
@@ -120,7 +120,7 @@ export function buildSkillContext(planner, levelData, level) {
     const nextRank = rank + 1;
     return {
       slug,
-      label: slug.charAt(0).toUpperCase() + slug.slice(1),
+      label: localizeSkillSlug(slug),
       rank,
       rankName: PROFICIENCY_RANK_NAMES[rank],
       nextRankName: PROFICIENCY_RANK_NAMES[Math.min(nextRank, 4)],
@@ -130,4 +130,10 @@ export function buildSkillContext(planner, levelData, level) {
   });
 
   return skills.filter((s) => !s.maxed || s.selected);
+}
+
+function localizeSkillSlug(slug) {
+  const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+  const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
+  return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
 }
