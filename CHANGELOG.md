@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.3
+
+### Fixed
+
+- Character creation now relies on PF2E to grant all `ChoiceSet` results
+  - The wizard still records and displays chosen prompt answers, but it no longer manually embeds subclass, feat, granted-feat, or handler-owned `ChoiceSet` outcomes that PF2E already applies itself
+  - This removes duplicate class-feature/item grants such as Exemplar ikons being added both by PF2E and by the module
+- Character wizard apply messaging better reflects the new PF2E-owned prompt flow
+  - The apply stage now clearly waits for PF2E class option prompts instead of implying the module is directly applying those selected class options
+
 ## 1.2.2
 
 ### Improved

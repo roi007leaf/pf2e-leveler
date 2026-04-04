@@ -35,7 +35,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
 
-  reportProgress(0.72, 'Applying selected class options...');
+  reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
 
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
@@ -166,88 +166,11 @@ async function applySelectedItems(actor, data) {
 }
 
 export function getAdditionalSelectedItems(data) {
-  const selected = [];
-  const seen = new Set();
-  const add = (entry, type) => {
-    if (!entry?.uuid || seen.has(entry.uuid)) return;
-    seen.add(entry.uuid);
-    selected.push({ ...entry, _type: type });
-  };
-
-  add(data.implement, 'implement');
-  for (const entry of (data.tactics ?? [])) add(entry, 'tactic');
-  for (const entry of (data.ikons ?? [])) add(entry, 'ikon');
-  add(data.innovationItem, 'innovation item');
-  add(data.innovationModification, 'innovation modification');
-  add(data.secondElement, 'second element');
-  for (const entry of (data.kineticImpulses ?? [])) add(entry, 'kinetic impulse');
-  add(data.subconsciousMind, 'subconscious mind');
-  add(data.thesis, 'arcane thesis');
-  for (const entry of (data.apparitions ?? [])) add(entry, 'apparition');
-  for (const feat of [data.ancestryFeat, data.classFeat]) {
-    const choiceSets = feat?.choiceSets ?? [];
-    const currentChoices = feat?.choices ?? {};
-    for (const choiceSet of choiceSets) {
-      const selectedValue = currentChoices[choiceSet.flag];
-      if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
-
-      let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
-      if (!uuid) {
-        const match = choiceSet.options?.find((option) => option.value === selectedValue);
-        uuid = match?.uuid ?? null;
-      }
-      if (!uuid) continue;
-
-      add({
-        uuid,
-        name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
-        img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
-      }, `feat choice (${choiceSet.flag})`);
-    }
-  }
-
-  for (const section of (data.grantedFeatSections ?? [])) {
-    const currentChoices = data.grantedFeatChoices?.[section.slot] ?? {};
-    for (const choiceSet of (section.choiceSets ?? [])) {
-      const selectedValue = currentChoices[choiceSet.flag];
-      if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
-
-      let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
-      if (!uuid) {
-        const match = choiceSet.options?.find((option) => option.value === selectedValue);
-        uuid = match?.uuid ?? null;
-      }
-      if (!uuid) continue;
-
-      add({
-        uuid,
-        name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
-        img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
-      }, `granted feat choice (${choiceSet.flag})`);
-    }
-  }
-
-  const choiceSets = data.subclass?.choiceSets ?? [];
-  const currentChoices = data.subclass?.choices ?? {};
-  for (const choiceSet of choiceSets) {
-    const selectedValue = currentChoices[choiceSet.flag];
-    if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
-
-    let uuid = selectedValue.startsWith('Compendium.') ? selectedValue : null;
-    if (!uuid) {
-      const match = choiceSet.options?.find((option) => option.value === selectedValue);
-      uuid = match?.uuid ?? null;
-    }
-    if (!uuid) continue;
-
-    add({
-      uuid,
-      name: choiceSet.options?.find((option) => option.value === selectedValue)?.label ?? formatChoiceLabel(selectedValue),
-      img: choiceSet.options?.find((option) => option.value === selectedValue)?.img ?? null,
-    }, `subclass choice (${choiceSet.flag})`);
-  }
-
-  return selected;
+  void data;
+  // PF2E system-owned ChoiceSet selections are intentionally not embedded here.
+  // The wizard records the user's intended answers for summary/overlay help, while
+  // the system applies the resulting class features/items from its own prompts.
+  return [];
 }
 
 function waitForSystem() {

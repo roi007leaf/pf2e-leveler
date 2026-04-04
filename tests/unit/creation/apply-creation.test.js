@@ -1,11 +1,10 @@
 import { getAdditionalSelectedItems } from '../../../scripts/creation/apply-creation.js';
 
 describe('getAdditionalSelectedItems', () => {
-  it('collects dedicated class selections and subclass choice UUIDs', () => {
+  it('does not manually add handler-owned class selections', () => {
     const items = getAdditionalSelectedItems({
       implement: { uuid: 'implement-uuid', name: 'Amulet' },
       tactics: [{ uuid: 'tactic-uuid', name: 'Raise Morale' }],
-      ikons: [{ uuid: 'ikon-uuid', name: 'Gleaming Blade' }],
       innovationItem: { uuid: 'weapon-uuid', name: 'Crossbow' },
       innovationModification: { uuid: 'mod-uuid', name: 'Razor Prongs' },
       secondElement: { uuid: 'metal-uuid', name: 'Metal Gate' },
@@ -26,22 +25,21 @@ describe('getAdditionalSelectedItems', () => {
       },
     });
 
-    expect(items.map((entry) => entry.uuid)).toEqual([
-      'implement-uuid',
-      'tactic-uuid',
-      'ikon-uuid',
-      'weapon-uuid',
-      'mod-uuid',
-      'metal-uuid',
-      'impulse-uuid',
-      'sub-uuid',
-      'thesis-uuid',
-      'app-uuid',
-      'dedication-uuid',
-    ]);
+    expect(items).toEqual([]);
   });
 
-  it('deduplicates overlapping subclass choice items', () => {
+  it('does not manually add exemplar ikons because PF2E grants them from the system choice set', () => {
+    const items = getAdditionalSelectedItems({
+      ikons: [
+        { uuid: 'ikon-one', name: 'Bands of Imprisonment' },
+        { uuid: 'ikon-two', name: "Barrow's Edge" },
+      ],
+    });
+
+    expect(items).toEqual([]);
+  });
+
+  it('does not manually add subclass choice results', () => {
     const items = getAdditionalSelectedItems({
       implement: { uuid: 'shared-uuid', name: 'Amulet' },
       subclass: {
@@ -57,11 +55,10 @@ describe('getAdditionalSelectedItems', () => {
       },
     });
 
-    expect(items).toHaveLength(1);
-    expect(items[0].uuid).toBe('shared-uuid');
+    expect(items).toEqual([]);
   });
 
-  it('accepts direct compendium UUID subclass choices', () => {
+  it('does not manually add direct compendium UUID subclass choices', () => {
     const items = getAdditionalSelectedItems({
       subclass: {
         choiceSets: [
@@ -76,15 +73,10 @@ describe('getAdditionalSelectedItems', () => {
       },
     });
 
-    expect(items).toEqual([
-      expect.objectContaining({
-        uuid: 'Compendium.pf2e.feats-srd.Item.tremor',
-        _type: 'subclass choice (impulseOne)',
-      }),
-    ]);
+    expect(items).toEqual([]);
   });
 
-  it('collects selected feat choice UUIDs', () => {
+  it('does not manually add selected feat choice results', () => {
     const items = getAdditionalSelectedItems({
       ancestryFeat: {
         name: 'Natural Ambition',
@@ -100,15 +92,10 @@ describe('getAdditionalSelectedItems', () => {
       },
     });
 
-    expect(items).toEqual([
-      expect.objectContaining({
-        uuid: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
-        _type: 'feat choice (grantedClassFeat)',
-      }),
-    ]);
+    expect(items).toEqual([]);
   });
 
-  it('collects selected granted feat choice UUIDs', () => {
+  it('does not manually add selected granted feat choice results', () => {
     const items = getAdditionalSelectedItems({
       grantedFeatSections: [
         {
@@ -130,11 +117,6 @@ describe('getAdditionalSelectedItems', () => {
       },
     });
 
-    expect(items).toEqual([
-      expect.objectContaining({
-        uuid: 'Compendium.pf2e.ancestries.Item.android',
-        _type: 'granted feat choice (ancestry)',
-      }),
-    ]);
+    expect(items).toEqual([]);
   });
 });
