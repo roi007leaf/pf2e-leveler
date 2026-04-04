@@ -235,9 +235,11 @@
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each this.options}}
         <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          {{#if this.img}}
           <img src="{{this.img}}" alt="" class="wizard-item__img">
+          {{/if}}
           <div class="wizard-item__info">
-            <span class="wizard-item__name" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+            <span class="wizard-item__name {{#unless this.uuid}}wizard-item__name--static{{/unless}}" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
             {{#if this.summary}}
             <div class="wizard-item__desc">{{this.summary}}</div>
             {{/if}}
@@ -293,9 +295,11 @@
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each this.options}}
         <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          {{#if this.img}}
           <img src="{{this.img}}" alt="" class="wizard-item__img">
+          {{/if}}
           <div class="wizard-item__info">
-            <span class="wizard-item__name" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+            <span class="wizard-item__name {{#unless this.uuid}}wizard-item__name--static{{/unless}}" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
             {{#if this.summary}}
             <div class="wizard-item__desc">{{this.summary}}</div>
             {{/if}}

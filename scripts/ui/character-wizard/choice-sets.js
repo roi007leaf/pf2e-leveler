@@ -112,8 +112,10 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? []);
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
+    const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
+    const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
-    if (!skipDirectSection && parsedChoiceSets.length > 0 && !seenSections.has(item.uuid)) {
+    if (!skipDirectSection && !isSubclassSelector && !isHandlerManagedSelector && parsedChoiceSets.length > 0 && !seenSections.has(item.uuid)) {
       seenSections.add(item.uuid);
       sections.push({
         slot: item.uuid,
@@ -155,6 +157,50 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
   }
 
   return sections;
+}
+
+function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
+  if (!item || !Array.isArray(parsedChoiceSets) || parsedChoiceSets.length === 0) return false;
+  const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  if (!subclassTag) return false;
+
+  const rules = item.system?.rules ?? [];
+  return rules.some((rule) => {
+    if (rule.key !== 'ChoiceSet') return false;
+    if (typeof rule.flag === 'string' && subclassTag.includes(rule.flag)) return true;
+
+    const filters = JSON.stringify(rule.choices?.filter ?? []);
+    return filters.includes(subclassTag);
+  });
+}
+
+function isHandlerManagedSelectionItem(wizard, item) {
+  if (!item) return false;
+
+  const managedFlags = new Set([
+    'implement',
+    'firstTactic',
+    'secondTactic',
+    'thirdTactic',
+    'fourthTactic',
+    'fifthTactic',
+    'firstIkon',
+    'secondIkon',
+    'thirdIkon',
+    'weaponInnovation',
+    'armorInnovation',
+    'initialModification',
+    'elementTwo',
+    'impulseOne',
+    'impulseTwo',
+    'arcaneThesis',
+    'subconsciousMind',
+    'divineFont',
+    'sanctification',
+  ]);
+
+  const rules = item.system?.rules ?? [];
+  return rules.some((rule) => rule.key === 'ChoiceSet' && managedFlags.has(rule.flag));
 }
 
 export async function getSelectedChoiceLabels(wizard, choiceContainer) {

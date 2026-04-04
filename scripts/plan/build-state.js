@@ -13,6 +13,7 @@ export function computeBuildState(actor, plan, atLevel) {
     heritageSlug: actor?.heritage?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
     skills: computeSkills(actor, plan, atLevel, classDef),
+    proficiencies: computeProficiencies(actor, classDef, atLevel),
     feats: computeFeats(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
   };
@@ -74,6 +75,93 @@ function computeSkills(actor, plan, atLevel, classDef) {
   }
 
   return skills;
+}
+
+function computeProficiencies(actor, classDef, atLevel) {
+  const proficiencies = {
+    perception: actor?.system?.perception?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
+    fortitude: actor?.system?.saves?.fortitude?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
+    reflex: actor?.system?.saves?.reflex?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
+    will: actor?.system?.saves?.will?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
+    classdc: actor?.system?.attributes?.classDC?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
+  };
+
+  for (const feature of classDef?.classFeatures ?? []) {
+    if (feature.level > atLevel) continue;
+    applyClassFeatureProficiency(proficiencies, feature);
+  }
+
+  return proficiencies;
+}
+
+function applyClassFeatureProficiency(proficiencies, feature) {
+  const key = String(feature.key ?? '');
+  const name = String(feature.name ?? '').toLowerCase();
+
+  if (key.includes('perception-legend') || name.includes('perception legend')) {
+    proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.LEGENDARY);
+  } else if (key.includes('perception-mastery') || name.includes('perception mastery') || key.includes('perception-mastery')) {
+    proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.MASTER);
+  } else if (key.includes('perception-expertise') || key.includes('perception-expert') || name.includes('perception expertise') || name.includes('perception expert')) {
+    proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.EXPERT);
+  }
+
+  if (key.includes('fortitude-legend') || name.includes('fortitude legend')) {
+    proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.LEGENDARY);
+  } else if (key.includes('fortress-of-will') || key.includes('greater-fortitude') || key.includes('fortitude-mastery') || name.includes('fortitude mastery')) {
+    proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.MASTER);
+  } else if (key.includes('fortitude-expertise') || key.includes('fortitude-expert') || name.includes('fortitude expertise') || name.includes('fortitude expert') || key.includes('magical-fortitude')) {
+    proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.EXPERT);
+  }
+
+  if (key.includes('reflex-legend') || name.includes('reflex legend')) {
+    proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.LEGENDARY);
+  } else if (key.includes('greater-natural-reflexes') || key.includes('greater-rogue-reflexes') || key.includes('tempered-reflexes') || key.includes('reflex-mastery') || name.includes('reflex mastery')) {
+    proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.MASTER);
+  } else if (
+    key.includes('reflex-expertise')
+    || key.includes('reflex-expert')
+    || name.includes('reflex expertise')
+    || name.includes('reflex expert')
+    || key.includes('lightning-reflexes')
+    || key.includes('evasive-reflexes')
+    || key.includes('natural-reflexes')
+    || key.includes('shared-reflexes')
+    || key.includes('premonitions-reflexes')
+  ) {
+    proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.EXPERT);
+  }
+
+  if (key.includes('will-legend') || name.includes('will legend')) {
+    proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.LEGENDARY);
+  } else if (
+    key.includes('greater-dogged-will')
+    || key.includes('prodigious-will')
+    || key.includes('will-of-the-pupil')
+    || key.includes('majestic-will')
+    || key.includes('walls-of-will')
+    || key.includes('divine-will')
+    || key.includes('indomitable-will')
+    || key.includes('wild-willpower')
+    || name.includes('will mastery')
+  ) {
+    proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.MASTER);
+  } else if (
+    key.includes('will-expertise')
+    || key.includes('will-expert')
+    || key.includes('dogged-will')
+    || key.includes('commanding-will')
+    || name.includes('will expertise')
+    || name.includes('will expert')
+  ) {
+    proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.EXPERT);
+  }
+
+  if (key.includes('class-dc-mastery') || name.includes('class dc mastery')) {
+    proficiencies.classdc = Math.max(proficiencies.classdc, PROFICIENCY_RANKS.MASTER);
+  } else if (key.includes('class-dc-expertise') || name.includes('class dc expertise')) {
+    proficiencies.classdc = Math.max(proficiencies.classdc, PROFICIENCY_RANKS.EXPERT);
+  }
 }
 
 function computeFeats(actor, plan, atLevel) {

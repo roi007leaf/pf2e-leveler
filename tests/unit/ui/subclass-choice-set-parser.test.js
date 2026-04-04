@@ -1259,6 +1259,113 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]));
   });
 
+  it('does not surface class-feature subclass selectors as feat choice sections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.barbarian',
+      name: 'Barbarian',
+      slug: 'barbarian',
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.barbarian') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              instinct: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.instinct',
+                name: 'Instinct',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.instinct') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Instinct',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'instinct',
+                prompt: 'Select an instinct.',
+                choices: {
+                  filter: ['item:tag:barbarian-instinct'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    wizard._loadCompendium = jest.fn(async () => []);
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+  });
+
+  it('does not surface handler-managed class choice sections like ikons as feat choice sections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.exemplar',
+      name: 'Exemplar',
+      slug: 'exemplar',
+    };
+    wizard.classHandler = {
+      getExtraSteps: () => [{ id: 'ikons', label: 'Ikons', visible: () => true }],
+      shouldShowSubclassChoices: () => false,
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.exemplar') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              divineSpark: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.divine-spark-and-ikons',
+                name: 'Divine Spark and Ikons',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.divine-spark-and-ikons') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Divine Spark and Ikons',
+          system: {
+            rules: [
+              { key: 'ChoiceSet', flag: 'firstIkon', prompt: 'Select an ikon.' },
+              { key: 'ChoiceSet', flag: 'secondIkon', prompt: 'Select an ikon.' },
+              { key: 'ChoiceSet', flag: 'thirdIkon', prompt: 'Select an ikon.' },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    wizard._loadCompendium = jest.fn(async () => []);
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+  });
+
   it('parses config-driven skill choice sets into skill options instead of item lists', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;

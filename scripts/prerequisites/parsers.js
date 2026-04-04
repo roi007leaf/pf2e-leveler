@@ -1,4 +1,4 @@
-import { PROFICIENCY_RANKS, PROFICIENCY_RANK_NAMES, SKILLS } from '../constants.js';
+import { PROFICIENCY_RANK_NAMES, SKILLS } from '../constants.js';
 import { slugify } from '../utils/pf2e-api.js';
 
 const RANK_PATTERN = new RegExp(
@@ -22,6 +22,15 @@ const ABILITY_PATTERN = new RegExp(
 
 const LEVEL_PATTERN = /(\d+)(?:st|nd|rd|th)\s+level/i;
 
+const PROFICIENCY_SUBJECT_ALIASES = {
+  perception: 'perception',
+  'class dc': 'classdc',
+  classdc: 'classdc',
+  fortitude: 'fortitude',
+  reflex: 'reflex',
+  will: 'will',
+};
+
 export function parsePrerequisite(text) {
   if (!text || typeof text !== 'string') return { type: 'unknown', text: text ?? '' };
 
@@ -40,7 +49,8 @@ export function parsePrerequisite(text) {
 }
 
 function tryParseRankRequirement(text) {
-  const match = text.match(RANK_PATTERN);
+  const normalizedText = text.split(/[;,]/, 1)[0].trim();
+  const match = normalizedText.match(RANK_PATTERN);
   if (!match) return null;
 
   const rankName = match[1].toLowerCase();
@@ -54,7 +64,12 @@ function tryParseRankRequirement(text) {
     return { type: 'skill', skill: skillSlug, minRank, text };
   }
 
-  return { type: 'proficiency', key: slugify(subject), minRank, text };
+  const normalizedSubject = subject
+    .replace(/\s+or\s+better$/i, '')
+    .replace(/\s+dc$/i, ' dc')
+    .trim();
+  const key = PROFICIENCY_SUBJECT_ALIASES[normalizedSubject] ?? slugify(normalizedSubject);
+  return { type: 'proficiency', key, minRank, text };
 }
 
 function tryParseAbilityRequirement(text) {

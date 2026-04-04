@@ -143,4 +143,23 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, buildState);
     expect(result.met).toBe(false);
   });
+
+  test('met perception proficiency prerequisite', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'expert in Perception' }] } },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      proficiencies: { ...buildState.proficiencies, perception: 2 },
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('met class dc proficiency prerequisite', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'trained in Class DC' }] } },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+  });
 });

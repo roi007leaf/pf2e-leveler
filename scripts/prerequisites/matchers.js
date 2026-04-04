@@ -28,7 +28,9 @@ export function matchFeat(parsed, buildState) {
 }
 
 export function matchProficiency(parsed, buildState) {
-  const currentRank = buildState.proficiencies?.[parsed.key] ?? 0;
+  const proficiencies = buildState.proficiencies ?? {};
+  const normalizedKey = normalizeProficiencyKey(parsed.key);
+  const currentRank = Object.entries(proficiencies).find(([key]) => normalizeProficiencyKey(key) === normalizedKey)?.[1] ?? 0;
   return {
     met: currentRank >= parsed.minRank,
     text: parsed.text,
@@ -40,4 +42,10 @@ export function matchUnknown(parsed) {
     met: null,
     text: parsed.text,
   };
+}
+
+function normalizeProficiencyKey(key) {
+  return String(key ?? '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
 }

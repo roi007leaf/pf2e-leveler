@@ -36,6 +36,20 @@ describe('parsePrerequisite', () => {
     expect(result.minRank).toBe(2);
   });
 
+  test('parses class dc proficiency requirement', () => {
+    const result = parsePrerequisite('expert in Class DC');
+    expect(result.type).toBe('proficiency');
+    expect(result.key).toBe('classdc');
+    expect(result.minRank).toBe(2);
+  });
+
+  test('parses save proficiency requirement with trailing clause', () => {
+    const result = parsePrerequisite('master in Fortitude, expert in Reflex');
+    expect(result.type).toBe('proficiency');
+    expect(result.key).toBe('fortitude');
+    expect(result.minRank).toBe(3);
+  });
+
   test('parses ability score requirement', () => {
     const result = parsePrerequisite('Strength 14');
     expect(result.type).toBe('ability');

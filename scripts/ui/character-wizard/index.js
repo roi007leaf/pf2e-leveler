@@ -84,6 +84,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.applyStatus = '';
     this._applyPromptWatcher = null;
     this._activeSystemPrompt = null;
+    this._featChoiceDataDirty = true;
     this._preloadCompendiums();
   }
 
@@ -146,7 +147,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
 
   async _prepareContext() {
-    await this._refreshAllFeatChoiceData();
+    if (this._featChoiceDataDirty) {
+      await this._refreshAllFeatChoiceData();
+    }
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: 'Feat Choices',
@@ -971,6 +974,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _refreshGrantedFeatChoiceSections() {
     setGrantedFeatSections(this.data, await refreshGrantedFeatChoiceSections(this));
+    this._featChoiceDataDirty = false;
   }
 
   async _refreshAllFeatChoiceData() {
@@ -981,6 +985,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       feat.choiceSets = await this._parseChoiceSets(item.system?.rules ?? []);
     }
     await this._refreshGrantedFeatChoiceSections();
+    this._featChoiceDataDirty = false;
   }
 
   async _buildLanguageContext() {

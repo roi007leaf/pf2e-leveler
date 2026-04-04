@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.2.1
+
+### Improved
+
+- Character creation loading overlay now acts as a real PF2E prompt checklist
+  - Shows saved wizard selections during apply, highlights the currently open PF2E prompt when matched, and keeps unresolved prompts visible as pending instead of hiding them
+- Feat Choices step now supports granted-feat and nested follow-up choice sets
+  - Heritage/background/class-granted feats with `ChoiceSet`s now surface in the wizard, can introduce further sub-choices dynamically, and appear in Summary/apply overlay output
+- Generic `ChoiceSet` rendering now covers more PF2E rule shapes
+  - UUID-backed options render as inspectable item cards
+  - Config- and filter-driven skill choices render as skills instead of compendium feats
+  - Common ancestry prompts now stay common-only even when PF2E expresses ancestry through filters instead of `itemType`
+- Prerequisite parsing and build-state matching are more reliable
+  - Added build-state proficiency tracking for Perception, saves, and Class DC
+  - Parser/matcher now normalize PF2E wording like `Class DC` and common proficiency subject variants
+
+### Fixed
+
+- Granted feat `ChoiceSet`s now stay incomplete until selections are actually made
+  - The Feat Choices step no longer shows as complete while heritage/background/class-granted feat prompts are still unanswered
+- `Adopted Ancestry` and similar granted-feat prompts now parse correctly
+  - Granted feat prompts honor PF2E's slug-valued ancestry choices, common-only ancestry restrictions, and nested follow-up choices such as ancestry-specific weapon selections
+- Focus spell grants now start with available focus points instead of looking already spent
+  - Character creation and feat-driven focus entry creation now refill the pool when PF2E has already initialized `focus.max` but left `focus.value` at `0`
+- Feat Choices no longer surfaces system-owned subclass prompts as duplicate selections
+  - Class feature prompts like `Instinct` or `Bloodline` no longer appear again under Feat Choices or cause duplicate application
+- Feat Choices step performance improved
+  - Recursive granted-feat refresh now runs on relevant changes instead of every render, reducing lag on large choice graphs
+
 ## 1.2.0
 
 ### Added

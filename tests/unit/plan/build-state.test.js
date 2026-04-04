@@ -127,4 +127,24 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.feats.has('focus-pool')).toBe(false);
   });
+
+  test('builds proficiency state from actor and class features', () => {
+    mockActor.system.perception = { rank: 1 };
+    mockActor.system.saves = {
+      fortitude: { rank: 1 },
+      reflex: { rank: 1 },
+      will: { rank: 1 },
+    };
+    mockActor.system.attributes = {
+      classDC: { rank: 1 },
+    };
+
+    const state = computeBuildState(mockActor, plan, 11);
+
+    expect(state.proficiencies.perception).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(state.proficiencies.fortitude).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.proficiencies.reflex).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.proficiencies.will).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(state.proficiencies.classdc).toBe(PROFICIENCY_RANKS.TRAINED);
+  });
 });
