@@ -15,6 +15,7 @@ export function computeBuildState(actor, plan, atLevel) {
     skills: computeSkills(actor, plan, atLevel, classDef),
     proficiencies: computeProficiencies(actor, classDef, atLevel),
     feats: computeFeats(actor, plan, atLevel),
+    classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
   };
 }
@@ -195,6 +196,22 @@ function computeClassFeatures(classDef, atLevel) {
   return features;
 }
 
+function computeClassArchetypeDedications(actor, plan, atLevel) {
+  const dedications = new Set();
+
+  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  for (const feat of existingFeats) {
+    if (isClassArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+  }
+
+  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  for (const feat of plannedFeats) {
+    if (isClassArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+  }
+
+  return dedications;
+}
+
 function getFeatAliases(feat) {
   const aliases = new Set();
 
@@ -209,4 +226,18 @@ function getFeatAliases(feat) {
   }
 
   return aliases;
+}
+
+function getPrimaryFeatAlias(feat) {
+  if (feat?.slug) return feat.slug;
+
+  const name = feat?.name?.trim();
+  if (name) return slugify(name);
+
+  return '';
+}
+
+function isClassArchetypeDedication(feat) {
+  const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+  return traits.includes('dedication') && traits.includes('archetype') && traits.includes('class');
 }

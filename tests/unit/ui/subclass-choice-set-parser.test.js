@@ -1372,6 +1372,75 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(wizard.data.grantedFeatSections).toEqual([]);
   });
 
+  it('does not surface handler-managed deity and sanctification prompts as feat choice sections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.cleric',
+      name: 'Cleric',
+      slug: 'cleric',
+    };
+    wizard.classHandler = {
+      getExtraSteps: () => [
+        { id: 'deity', visible: () => true },
+        { id: 'sanctification', visible: () => true },
+        { id: 'divineFont', visible: () => true },
+      ],
+      shouldShowSubclassChoices: () => true,
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.cleric') {
+        return {
+          uuid,
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              doctrine: {
+                uuid: 'Compendium.pf2e.classfeatures.Item.cleric-doctrine',
+                name: 'Doctrine',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.cleric-doctrine') {
+        return {
+          uuid,
+          type: 'classfeature',
+          name: 'Doctrine',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                prompt: 'Select a deity.',
+                choices: {
+                  filter: ['item:type:deity'],
+                },
+              },
+              {
+                key: 'ChoiceSet',
+                prompt: 'Select a sanctification.',
+              },
+              {
+                key: 'ChoiceSet',
+                prompt: 'Select a divine font.',
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    wizard._loadCompendium = jest.fn(async () => []);
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+  });
+
   it('does not crash on malformed stale subclass-selector rule filters', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = {

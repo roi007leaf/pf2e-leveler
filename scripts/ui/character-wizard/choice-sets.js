@@ -182,6 +182,12 @@ function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
 function isHandlerManagedSelectionItem(wizard, item) {
   if (!item) return false;
 
+  const managedStepIds = new Set(
+    wizard.classHandler?.getExtraSteps?.()
+      ?.map((step) => step?.id)
+      .filter((id) => typeof id === 'string' && id.length > 0)
+      ?? [],
+  );
   const managedFlags = new Set([
     'implement',
     'firstTactic',
@@ -205,7 +211,37 @@ function isHandlerManagedSelectionItem(wizard, item) {
   ]);
 
   const rules = item.system?.rules ?? [];
-  return rules.some((rule) => rule.key === 'ChoiceSet' && managedFlags.has(rule.flag));
+  return rules.some((rule) =>
+    rule.key === 'ChoiceSet'
+      && (
+        managedFlags.has(rule.flag)
+        || isHandlerManagedChoiceRule(rule, managedStepIds)
+      ));
+}
+
+function isHandlerManagedChoiceRule(rule, managedStepIds) {
+  if (!rule || typeof rule !== 'object') return false;
+
+  const prompt = String(rule.prompt ?? '').toLowerCase();
+  const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
+
+  if (managedStepIds.has('deity')) {
+    if (rule.flag === 'deity') return true;
+    if (prompt.includes('deity')) return true;
+    if (filterText.includes('item:type:deity') || filterText.includes('item:category:deity')) return true;
+  }
+
+  if (managedStepIds.has('sanctification')) {
+    if (rule.flag === 'sanctification') return true;
+    if (prompt.includes('sanctification')) return true;
+  }
+
+  if (managedStepIds.has('divineFont')) {
+    if (rule.flag === 'divineFont') return true;
+    if (prompt.includes('divine font')) return true;
+  }
+
+  return false;
 }
 
 export async function getSelectedChoiceLabels(wizard, choiceContainer) {

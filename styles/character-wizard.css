@@ -431,8 +431,17 @@
 .pf2e-leveler .wizard-item__traits {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 2px;
   margin-top: 1px;
+}
+
+.pf2e-leveler .wizard-item__traits .tag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+  white-space: nowrap;
 }
 
 .pf2e-leveler .wizard-item__desc {

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.4
+
+### Improved
+
+- Planner feat picking now respects archetype subtypes more accurately
+  - Class Feat and Free Archetype pickers now distinguish multiclass archetypes, class archetypes, and normal archetypes instead of treating them as one bucket
+  - Same-class multiclass dedications are hidden, while normal archetypes and other multiclass dedications remain available
+
+### Fixed
+
+- Handler-owned class prompts no longer leak into Character Wizard Feat Choices
+  - Dedicated Champion/Cleric prompts like deity, sanctification, and divine font now stay only in their own steps instead of reappearing under Feat Choices
+- Character wizard now avoids duplicate system-owned class option application more consistently
+  - PF2E-owned `ChoiceSet` outcomes such as Exemplar ikons are no longer manually embedded by the module, preventing duplicate class features and stuck apply flows
+- Planner archetype restrictions now enforce the class-archetype rule correctly
+  - Once a build already has a class archetype dedication, the planner no longer offers a different class archetype dedication later
+  - Non-class archetypes and other valid multiclass dedications remain available
+
 ## 1.2.3
 
 ### Fixed

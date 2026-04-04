@@ -57,6 +57,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         sortMethod: this.sortMethod,
         includeDedications: this.category === 'class',
         includeSkillFeats: this.category === 'general',
+        buildState: this.buildState,
       });
     }
 

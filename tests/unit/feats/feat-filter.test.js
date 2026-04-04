@@ -1,5 +1,6 @@
 import {
   filterFeatsByCategory,
+  filterByArchetypeRestrictions,
   filterByDedication,
   filterByGeneralSkillFeats,
   filterBySearch,
@@ -175,6 +176,69 @@ describe('dedication and skill filters', () => {
     ]);
 
     expect(filterByGeneralSkillFeats(feats, true)).toEqual(feats);
+  });
+
+  test('filterByArchetypeRestrictions blocks same-class dedications', () => {
+    const actor = { class: { slug: 'wizard' } };
+    const feats = [
+      makeFeat('Wizard Dedication', 2, ['archetype', 'dedication', 'multiclass']),
+      makeFeat('Fighter Dedication', 2, ['archetype', 'dedication', 'multiclass']),
+      makeFeat('Medic Dedication', 2, ['archetype', 'dedication']),
+    ];
+    feats[0].slug = 'wizard-dedication';
+    feats[1].slug = 'fighter-dedication';
+    feats[2].slug = 'medic-dedication';
+
+    const result = filterByArchetypeRestrictions(feats, actor, { classSlug: 'wizard', classArchetypeDedications: new Set() });
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Fighter Dedication' }),
+      expect.objectContaining({ name: 'Medic Dedication' }),
+    ]);
+  });
+
+  test('filterByArchetypeRestrictions blocks new class archetype dedications when one already exists', () => {
+    const actor = { class: { slug: 'fighter' } };
+    const feats = [
+      makeFeat('Spellshot Dedication', 2, ['archetype', 'dedication', 'class']),
+      makeFeat('Runelord Dedication', 2, ['archetype', 'dedication', 'class']),
+      makeFeat('Basic Spellshot Feat', 4, ['archetype', 'class']),
+    ];
+    feats[0].slug = 'spellshot-dedication';
+    feats[1].slug = 'runelord-dedication';
+    feats[2].slug = 'basic-spellshot-feat';
+
+    const result = filterByArchetypeRestrictions(feats, actor, {
+      classSlug: 'fighter',
+      classArchetypeDedications: new Set(['spellshot-dedication']),
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Spellshot Dedication' }),
+      expect.objectContaining({ name: 'Basic Spellshot Feat' }),
+    ]);
+  });
+
+  test('filterByArchetypeRestrictions still allows multiclass and normal archetypes when a class archetype exists', () => {
+    const actor = { class: { slug: 'fighter' } };
+    const feats = [
+      makeFeat('Spellshot Dedication', 2, ['archetype', 'dedication', 'class']),
+      makeFeat('Cleric Dedication', 2, ['archetype', 'dedication', 'multiclass']),
+      makeFeat('Medic Dedication', 2, ['archetype', 'dedication']),
+    ];
+    feats[0].slug = 'spellshot-dedication';
+    feats[1].slug = 'cleric-dedication';
+    feats[2].slug = 'medic-dedication';
+
+    const result = filterByArchetypeRestrictions(feats, actor, {
+      classSlug: 'fighter',
+      classArchetypeDedications: new Set(['spellshot-dedication']),
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Spellshot Dedication' }),
+      expect.objectContaining({ name: 'Cleric Dedication' }),
+      expect.objectContaining({ name: 'Medic Dedication' }),
+    ]);
   });
 });
 

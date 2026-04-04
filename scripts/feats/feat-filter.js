@@ -98,6 +98,28 @@ export function filterByGeneralSkillFeats(feats, showSkillFeats) {
   return feats.filter((feat) => (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('general'));
 }
 
+export function filterByArchetypeRestrictions(feats, actor, buildState) {
+  const classSlug = String(buildState?.classSlug ?? actor?.class?.slug ?? '').toLowerCase();
+  const existingClassArchetypeDedications = buildState?.classArchetypeDedications ?? new Set();
+
+  return feats.filter((feat) => {
+    const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    const isDedication = traits.includes('dedication');
+    const isArchetype = traits.includes('archetype');
+    const isMulticlassArchetype = isArchetype && traits.includes('multiclass');
+    const isClassArchetype = isArchetype && traits.includes('class');
+    const featSlug = feat.slug ?? feat.name?.toLowerCase().replace(/\s+/g, '-');
+
+    if (isDedication && classSlug && isMulticlassArchetype && featSlug === `${classSlug}-dedication`) return false;
+
+    if (isDedication && isClassArchetype && existingClassArchetypeDedications.size > 0) {
+      return existingClassArchetypeDedications.has(featSlug);
+    }
+
+    return true;
+  });
+}
+
 export function sortFeats(feats, method) {
   const sorted = [...feats];
   switch (method) {
@@ -144,6 +166,10 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
 
   if (options.skills?.length) {
     result = filterBySkill(result, options.skills);
+  }
+
+  if (actor && (category === 'class' || category === 'archetype')) {
+    result = filterByArchetypeRestrictions(result, actor, options.buildState);
   }
 
   return sortFeats(result, options.sortMethod ?? 'LEVEL_DESC');
