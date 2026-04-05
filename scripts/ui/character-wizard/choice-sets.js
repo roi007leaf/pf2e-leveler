@@ -21,14 +21,14 @@ export async function buildFeatChoicesContext(wizard) {
   if (wizard.data.ancestryFeat?.choiceSets?.length) {
     sections.push({
       slot: 'ancestry',
-      featName: wizard.data.ancestryFeat.name,
+      featName: await resolveChoiceSectionName(wizard, wizard.data.ancestryFeat),
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.ancestryFeat.choiceSets, wizard.data.ancestryFeat.choices ?? {}),
     });
   }
   if (wizard.data.ancestryParagonFeat?.choiceSets?.length) {
     sections.push({
       slot: 'ancestryParagon',
-      featName: wizard.data.ancestryParagonFeat.name,
+      featName: await resolveChoiceSectionName(wizard, wizard.data.ancestryParagonFeat),
       sourceName: 'Ancestry Paragon',
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.ancestryParagonFeat.choiceSets, wizard.data.ancestryParagonFeat.choices ?? {}),
     });
@@ -36,19 +36,32 @@ export async function buildFeatChoicesContext(wizard) {
   if (wizard.data.classFeat?.choiceSets?.length) {
     sections.push({
       slot: 'class',
-      featName: wizard.data.classFeat.name,
+      featName: await resolveChoiceSectionName(wizard, wizard.data.classFeat),
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.classFeat.choiceSets, wizard.data.classFeat.choices ?? {}),
     });
   }
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
     sections.push({
       slot: section.slot,
-      featName: section.featName,
+      featName: await resolveChoiceSectionName(wizard, { uuid: section.slot, name: section.featName }),
       sourceName: section.sourceName ?? null,
       choiceSets: await hydrateChoiceSets(wizard, section.choiceSets ?? [], wizard.data.grantedFeatChoices?.[section.slot] ?? {}),
     });
   }
   return { featChoiceSections: sections };
+}
+
+async function resolveChoiceSectionName(wizard, entry) {
+  const storedName = typeof entry?.name === 'string' ? entry.name.trim() : '';
+  if (storedName && !looksLikeUuid(storedName)) return storedName;
+
+  const resolved = entry?.uuid ? await resolveDocument(wizard, entry.uuid) : null;
+  const resolvedName = typeof resolved?.name === 'string' ? resolved.name.trim() : '';
+  return resolvedName || storedName || entry?.uuid || '';
+}
+
+function looksLikeUuid(value) {
+  return typeof value === 'string' && value.startsWith('Compendium.');
 }
 
 export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
@@ -836,20 +849,28 @@ async function enrichChoiceOption(wizard, choice) {
     };
   }
 
-    return {
-      value,
-      label: label ?? item.name ?? value,
-      uuid: item.uuid,
-      img: item.img ?? null,
+  return {
+    value,
+    label: resolveChoiceOptionLabel(label, item, value, choiceUuid),
+    uuid: item.uuid,
+    img: item.img ?? null,
     traits: item.system?.traits?.value ?? [],
-      rarity: item.system?.traits?.rarity ?? 'common',
-      type: item.type ?? null,
-      category: item.system?.category ?? null,
-      range: normalizeRangeValue(item.system?.range ?? null),
-      isRanged: isRangedWeaponItem(item),
-      description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
-      summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
-    };
+    rarity: item.system?.traits?.rarity ?? 'common',
+    type: item.type ?? null,
+    category: item.system?.category ?? null,
+    range: normalizeRangeValue(item.system?.range ?? null),
+    isRanged: isRangedWeaponItem(item),
+    description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
+    summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
+  };
+}
+
+function resolveChoiceOptionLabel(label, item, value, choiceUuid) {
+  const normalizedLabel = typeof label === 'string' ? label.trim() : '';
+  if (normalizedLabel && !looksLikeUuid(normalizedLabel) && normalizedLabel !== value && normalizedLabel !== choiceUuid) {
+    return normalizedLabel;
+  }
+  return item?.name ?? normalizedLabel ?? value;
 }
 
 export function extractChoiceValue(choice) {

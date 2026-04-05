@@ -3060,6 +3060,81 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('resolves feat choice section titles from the feat document when saved data contains the uuid', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.classFeat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.voice-of-nature',
+      name: 'Compendium.pf2e.feats-srd.Item.voice-of-nature',
+      choiceSets: [
+        {
+          flag: 'grantedClassFeat',
+          prompt: 'Choose a class feat.',
+          options: [
+            {
+              value: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
+              label: 'Reactive Shield',
+            },
+          ],
+        },
+      ],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.voice-of-nature') {
+        return {
+          uuid,
+          name: 'Voice of Nature',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featChoiceSections[0]).toEqual(expect.objectContaining({
+      featName: 'Voice of Nature',
+    }));
+  });
+
+  it('uses the resolved item name for feat choice option labels when the raw label is a compendium uuid', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.cg816q76S5otM7yD') {
+        return {
+          uuid,
+          name: 'Animal Empathy',
+          img: 'icons/animal-empathy.webp',
+          type: 'feat',
+          system: {
+            traits: { value: ['druid'], rarity: 'common' },
+            description: { value: '<p>You have a connection to the creatures of the natural world.</p>' },
+          },
+        };
+      }
+      return null;
+    });
+
+    const hydrated = await wizard._hydrateChoiceSets([
+      {
+        flag: 'grantedClassFeat',
+        prompt: 'Choose a class feat.',
+        options: [
+          {
+            value: 'Compendium.pf2e.feats-srd.Item.cg816q76S5otM7yD',
+            label: 'Compendium.pf2e.feats-srd.Item.cg816q76S5otM7yD',
+          },
+        ],
+      },
+    ], {});
+
+    expect(hydrated[0].options[0]).toEqual(expect.objectContaining({
+      label: 'Animal Empathy',
+    }));
+  });
+
   it('matches the active system prompt title to the relevant apply prompt row', () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._activeSystemPrompt = { title: 'Select a dragon.' };
