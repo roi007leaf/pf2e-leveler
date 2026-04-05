@@ -5,6 +5,7 @@ import { createCreationData, setAncestry, setHeritage, setBackground, setClass, 
 import { getCreationData, saveCreationData, clearCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
+import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
@@ -70,6 +71,7 @@ import {
 } from './loaders.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+registerHandlebarsHelpers();
 
 const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'languages', 'skills', 'feats', 'featChoices', 'spells', 'summary'];
 const HANDLER_STEP_IDS = new Set(['deity', 'sanctification', 'divineFont', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions']);

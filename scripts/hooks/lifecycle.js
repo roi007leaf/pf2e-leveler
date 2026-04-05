@@ -62,37 +62,42 @@ function registerClasses() {
   info(`Registered ${ClassRegistry.getAll().length} classes`);
 }
 
-function registerHandlebarsHelpers() {
-  Handlebars.registerHelper('eq', (a, b) => a === b);
-  Handlebars.registerHelper('notEqual', (a, b) => a !== b);
-  Handlebars.registerHelper('or', (...args) => {
+export function registerHandlebarsHelpers() {
+  registerHandlebarsHelper('eq', (a, b) => a === b);
+  registerHandlebarsHelper('notEqual', (a, b) => a !== b);
+  registerHandlebarsHelper('or', (...args) => {
     args.pop();
     return args.some(Boolean);
   });
-  Handlebars.registerHelper('capitalize', (str) => {
+  registerHandlebarsHelper('capitalize', (str) => {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
   });
-  Handlebars.registerHelper('titleCase', (str) => {
+  registerHandlebarsHelper('titleCase', (str) => {
     if (!str) return '';
     return str.replace(/\b\w/g, (c) => c.toUpperCase());
   });
-  Handlebars.registerHelper('and', (...args) => {
+  registerHandlebarsHelper('and', (...args) => {
     args.pop();
     return args.every(Boolean);
   });
-  Handlebars.registerHelper('includes', (arr, val) => {
+  registerHandlebarsHelper('includes', (arr, val) => {
     return Array.isArray(arr) && arr.includes(val);
   });
-  Handlebars.registerHelper('json', (obj) => {
+  registerHandlebarsHelper('json', (obj) => {
     return JSON.stringify(obj ?? null);
   });
-  Handlebars.registerHelper('signed', (num) => {
+  registerHandlebarsHelper('signed', (num) => {
     return num >= 0 ? `+${num}` : `${num}`;
   });
-  Handlebars.registerHelper('format', (key, options) => {
+  registerHandlebarsHelper('format', (key, options) => {
     return game.i18n.format(key, options.hash);
   });
+}
+
+function registerHandlebarsHelper(name, fn) {
+  if (Handlebars.helpers?.[name]) return;
+  Handlebars.registerHelper(name, fn);
 }
 
 async function preloadTemplates() {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.9
+
+### Fixed
+
+- Character wizard bootstrap is now resilient to Handlebars helper registration timing
+  - The wizard no longer fails with `Missing helper: "notEqual"` when templates render before helper registration completes
+  - Handlebars helper registration is now idempotent and can safely run from both lifecycle init and wizard load paths
+
 ## 1.3.8
 
 ### Fixed
