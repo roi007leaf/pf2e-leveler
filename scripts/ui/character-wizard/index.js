@@ -311,7 +311,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const font = item.system?.font ?? [];
         const sanctification = item.system?.sanctification ?? {};
         const domains = item.system?.domains ?? { primary: [], alternate: [] };
-        setDeity(this.data, { uuid: item.uuid, name: item.name, img: item.img, font, sanctification, domains });
+        const skill = item.system?.skill ?? null;
+        setDeity(this.data, { uuid: item.uuid, name: item.name, img: item.img, font, sanctification, domains, skill });
         break;
       }
       default:

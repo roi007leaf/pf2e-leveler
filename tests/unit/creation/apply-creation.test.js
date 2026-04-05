@@ -243,4 +243,50 @@ describe('applyCreation ancestry paragon', () => {
       }),
     ]);
   });
+
+  it('trains the selected deity skill during creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          society: { rank: 0 },
+        },
+        details: {
+          languages: { value: [] },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async (updates) => {
+      if (Object.prototype.hasOwnProperty.call(updates, 'system.skills.society.rank')) {
+        actor.system.skills.society.rank = updates['system.skills.society.rank'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async () => null);
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      deity: { uuid: 'deity-uuid', name: 'Abadar', skill: 'society' },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({ 'system.skills.society.rank': 1 });
+  });
 });

@@ -35,6 +35,7 @@ export async function loadCompendium(wizard, key) {
     font: d.system?.font ?? [],
     sanctification: d.system?.sanctification ?? {},
     domains: d.system?.domains ?? { primary: [], alternate: [] },
+    skill: d.system?.skill ?? null,
   }));
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[key] = items;
@@ -71,6 +72,7 @@ export async function loadDeities(wizard) {
       font: d.font ?? [],
       sanctification: d.sanctification ?? {},
       domains: d.domains ?? { primary: [], alternate: [] },
+      skill: d.skill ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;

@@ -309,6 +309,7 @@ export function setDeity(data, item) {
       font: item.font ?? [],
       sanctification: item.sanctification ?? {},
       domains: item.domains ?? { primary: [], alternate: [] },
+      skill: item.skill ?? null,
     }
     : null;
   // Auto-set sanctification / divine font if deity only allows one option

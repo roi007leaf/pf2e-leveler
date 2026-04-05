@@ -21,6 +21,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   reportProgress(0.42, 'Applying boosts, languages, and skills...');
   await applyBoosts(actor, data);
   await applyLanguages(actor, data);
+  await applyDeitySkill(actor, data);
 
   if (data.skills.length > 0) {
     const updates = {};
@@ -161,6 +162,17 @@ async function applyLores(actor, data) {
     await actor.createEmbeddedDocuments('Item', toCreate);
     debug(`Created ${toCreate.length} lore skills: ${toCreate.map((l) => l.name).join(', ')}`);
   }
+}
+
+async function applyDeitySkill(actor, data) {
+  const deitySkill = data.deity?.skill;
+  if (!deitySkill) return;
+
+  const currentRank = Number(actor.system?.skills?.[deitySkill]?.rank ?? 0);
+  if (currentRank >= 1) return;
+
+  await actor.update({ [`system.skills.${deitySkill}.rank`]: 1 });
+  debug(`Trained deity skill: ${deitySkill}`);
 }
 
 async function applySelectedItems(actor, data) {

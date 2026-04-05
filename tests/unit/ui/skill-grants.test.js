@@ -137,4 +137,59 @@ describe('CharacterWizard skills step grants', () => {
     expect(await wizard._getAdditionalSkillCount()).toBe(4);
     expect(await wizard._getAdditionalLanguageCount()).toBe(1);
   });
+
+  it('marks deity-granted skills as auto-trained', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'champion', uuid: 'class-uuid', name: 'Champion' };
+    wizard.data.deity = { uuid: 'deity-uuid', name: 'Abadar', skill: 'society' };
+
+    const context = await wizard._buildSkillContext();
+    expect(context.find((entry) => entry.slug === 'society')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Abadar',
+    }));
+  });
+
+  it('adds a placeholder lore for patron deity backgrounds', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-pilgrim-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              value: ['religion'],
+              lore: [],
+            },
+            description: {
+              value: "<p>You're trained in the Religion skill and the Lore skill for your patron deity.</p>",
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.background = { uuid: 'background-pilgrim-uuid', name: 'Pilgrim' };
+    wizard.data.deity = { uuid: 'deity-uuid', name: 'Abadar', skill: 'society' };
+
+    await expect(wizard._getBackgroundLores()).resolves.toEqual([
+      { name: 'Abadar Lore', source: 'Background' },
+    ]);
+  });
 });

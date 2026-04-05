@@ -58,7 +58,13 @@ export async function getBackgroundLores(wizard) {
   if (!wizard.data.background?.uuid) return [];
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
-  return (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source: localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background') }));
+  const source = localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background');
+  const lores = (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source }));
+  const dynamicLore = getDynamicBackgroundLorePlaceholder(wizard, item);
+  if (dynamicLore && !lores.some((entry) => entry.name === dynamicLore)) {
+    lores.push({ name: dynamicLore, source });
+  }
+  return lores;
 }
 
 export function parseSubclassLores(rules, html) {
@@ -84,18 +90,22 @@ export async function buildSkillContext(wizard) {
   const classSkills = await wizard._getClassTrainedSkills();
   const bgSkills = await getBackgroundTrainedSkills(wizard);
   const subclassSkills = wizard.data.subclass?.grantedSkills ?? [];
+  const deitySkill = wizard.data.deity?.skill ?? null;
   return SKILLS.map((slug) => {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
-    const autoTrained = fromClass || fromBg || fromSubclass;
+    const fromDeity = deitySkill === slug;
+    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity;
     const source = fromClass
       ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
       : fromBg
         ? localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background')
         : fromSubclass
           ? wizard.data.subclass.name
-          : null;
+          : fromDeity
+            ? (wizard.data.deity?.name ?? 'Deity')
+            : null;
     return {
       slug,
       label: localizeSkillSlug(slug),
@@ -123,6 +133,25 @@ function extractLoreLabels(html) {
   const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const matches = text.match(/\b(?:[\p{Lu}][\p{L}'-]*\s+){0,3}Lore\b/gu) ?? [];
   return [...new Set(matches.map(cleanLoreLabel).filter(Boolean))];
+}
+
+function getDynamicBackgroundLorePlaceholder(wizard, item) {
+  const description = String(item?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!description) return null;
+
+  const deityLorePatterns = [
+    /\blore skill for your patron deity\b/,
+    /\blore skill associated with your patron deity\b/,
+    /\blore in your patron deity\b/,
+    /\bpatron deity lore\b/,
+  ];
+  if (!deityLorePatterns.some((pattern) => pattern.test(description))) return null;
+
+  return wizard.data.deity?.name ? `${wizard.data.deity.name} Lore` : 'Deity Lore';
 }
 
 function cleanLoreLabel(label) {
