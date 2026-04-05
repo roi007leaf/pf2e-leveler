@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.8
+
+### Fixed
+
+- Champion and Cleric deity selection now grants the deity's trained skill correctly
+  - Deity data now preserves PF2E's configured skill through the wizard flow and applies that training to the actor during character creation
+  - The Skills step now shows deity-granted skills as auto-trained instead of leaving them ungranted
+- Patron-deity backgrounds now add a Lore placeholder when PF2E describes the grant textually
+  - Backgrounds such as `Pilgrim` now add `[Deity Name] Lore` when a patron deity is selected
+  - If no deity has been chosen yet, the wizard falls back to `Deity Lore`
+
 ## 1.3.7
 
 ### Fixed
