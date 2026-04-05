@@ -110,7 +110,11 @@
       "DESELECT_ALL": "Tout deselectionner",
       "SELECTED_COUNT": "{count} selectionnes",
       "FOCUS": "Sorts de focalisation",
-      "NEW_FOCUS": "Nouveau !"
+      "NEW_FOCUS": "Nouveau !",
+      "SORT_RANK_DESC": "Rang (du plus eleve au plus faible)",
+      "SORT_RANK_ASC": "Rang (du plus faible au plus eleve)",
+      "SORT_ALPHA_ASC": "Alphabetique (A-Z)",
+      "SORT_ALPHA_DESC": "Alphabetique (Z-A)"
     },
     "CREATION": {
       "TITLE": "Creation de personnage",
