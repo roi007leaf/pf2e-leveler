@@ -1,47 +1,116 @@
 <div class="pf2e-leveler feat-picker spell-picker">
-  <div class="feat-picker__filters">
-    <input type="text" class="feat-picker__search"
-           placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
-           data-action="searchSpells">
-  </div>
-  <div class="spell-picker__secondary-filters">
-    <div class="wizard-trait-input spell-picker__trait-input">
-      <span class="wizard-trait-chips" data-target="spells"></span>
-      <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" list="spell-trait-options">
-    </div>
-    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-    <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
-  </div>
+  <div class="feat-picker__browser">
+    <aside class="feat-picker__sidebar">
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+        <input type="text" class="feat-picker__search"
+               placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
+               data-action="searchSpells">
+      </div>
 
-  <div class="feat-list spell-list">
-    {{#each spells}}
-    <div class="feat-option spell-option" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
-      <img class="feat-option__img" src="{{this.img}}" alt="">
-      <div class="feat-option__info">
-        <div class="feat-option__header">
-          <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
-          <span class="feat-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+        <div class="wizard-trait-input spell-picker__trait-input">
+          <span class="wizard-trait-chips" data-target="spells"></span>
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" list="spell-trait-options">
         </div>
-        <div class="feat-option__traits">
-          {{#each this.system.traits.value}}
-          <span class="tag tag--muted" data-tooltip="{{titleCase this}}">{{this}}</span>
+      </div>
+
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
+        <div class="feat-picker__rarity-filters">
+          <label class="feat-picker__check">
+            <input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked>
+            {{localize "PF2E.TraitUncommon"}}
+          </label>
+          <label class="feat-picker__check">
+            <input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked>
+            {{localize "PF2E.TraitRare"}}
+          </label>
+        </div>
+      </div>
+
+      {{#if sourceOptions.length}}
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
+        <div class="feat-picker__source-list">
+          {{#each sourceOptions}}
+          <button
+            type="button"
+            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleCompendiumSource"
+            data-package="{{this.key}}"
+            data-source-name="{{this.label}}"
+            data-tooltip="{{this.key}}">
+            {{this.label}}
+          </button>
           {{/each}}
-          {{#if (notEqual this.system.traits.rarity "common")}}
-          <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
-          {{/if}}
         </div>
       </div>
-      <div class="feat-option__actions">
-        <button type="button" class="feat-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
-          {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
-        </button>
+      {{/if}}
+    </aside>
+
+    <section class="feat-picker__results">
+      <div class="feat-picker__results-header">
+        <div class="feat-picker__results-label">{{capitalize tradition}} {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.SPELLS"}}</div>
+        <div class="spell-picker__results-meta">
+          {{#if multiSelect}}
+          <div class="spell-picker__selected-count">{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}</div>
+          <button type="button" class="feat-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
+            {{#if allVisibleSelected}}
+              {{localize "PF2E_LEVELER.SPELLS.DESELECT_ALL"}}
+            {{else}}
+              {{localize "PF2E_LEVELER.SPELLS.SELECT_ALL"}}
+            {{/if}}
+          </button>
+          <button type="button" class="feat-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
+            {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}}
+          </button>
+          {{/if}}
+          <div class="feat-picker__results-count">{{filteredCount}}</div>
+        </div>
       </div>
-    </div>
-    {{else}}
-    <div class="planner-empty" style="padding: 2rem;">
-      <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
-    </div>
-    {{/each}}
+
+      <div class="feat-list spell-list spell-picker__list">
+        {{#each spells}}
+        <div class="feat-option spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
+          <img class="feat-option__img" src="{{this.img}}" alt="">
+          <div class="feat-option__info">
+            <div class="feat-option__header">
+              <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
+              <span class="feat-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
+            </div>
+            <div class="feat-option__traits">
+              {{#each this.system.traits.value}}
+              <span class="tag tag--muted" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.system.traits.rarity "common")}}
+              <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="feat-option__actions">
+            <button type="button" class="feat-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
+              {{#if ../multiSelect}}
+                {{#if this._levelerSelected}}
+                  {{localize "PF2E_LEVELER.UI.SELECTED"}}
+                {{else}}
+                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{/if}}
+              {{else}}
+                {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+              {{/if}}
+            </button>
+          </div>
+        </div>
+        {{else}}
+        <div class="planner-empty" style="padding: 2rem;">
+          <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+        </div>
+        {{/each}}
+      </div>
+    </section>
   </div>
 
   <datalist id="spell-trait-options">

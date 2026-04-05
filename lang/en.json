@@ -50,6 +50,7 @@
       "CLASS_SPECIFIC": "Class Options"
     },
     "FEAT_PICKER": {
+      "OPTIONS": "Options",
       "TITLE": "Select Feat",
       "SEARCH": "Search feats...",
       "ALL_SKILLS": "All Skills",
@@ -96,7 +97,7 @@
       "RANK": "Rank",
       "SLOTS": "Slots",
       "NEW_RANK": "New: {rank}-rank spells!",
-      "ATTUNEMENT_SLOTS": "{count} attunement slots",
+      "ATTUNEMENT_SLOTS": "{selected}/{count} apparitions",
       "FOCUS_POOL": "Focus pool: {count}",
       "ADD": "Add spell",
       "PLANNED": "Planned Spells",
@@ -104,19 +105,26 @@
       "TRAIT_FILTER": "Type trait to filter...",
       "GRANTED": "Granted Spells",
       "SPELLBOOK": "Spellbook ({selected}/{count} new spells)",
-      "ADD_TO_SPELLBOOK": "Add to Spellbook",
+      "ADD_TO_SPELLBOOK": "Add Spells",
       "ADD_TO_SPELLBOOK_HINT": "Add spell to spellbook",
+      "ADD_SELECTED": "Add Selected",
+      "SELECT_ALL": "Select All",
+      "DESELECT_ALL": "Deselect All",
+      "SELECTED_COUNT": "{count} selected",
       "FOCUS": "Focus Spells",
       "NEW_FOCUS": "New!"
     },
     "CREATION": {
       "TITLE": "Character Creation",
+      "LOADING": "Loading character builder data...",
       "BUTTON": "Create Character",
       "SEARCH": "Search...",
       "CHANGE": "Change",
       "BACK": "Back",
       "NEXT": "Next",
       "CREATE": "Create Character",
+      "EXPORT": "Export",
+      "IMPORT": "Import",
       "CONFIRM_TITLE": "Create Character",
       "CONFIRM_BODY": "Apply all selections to this character? This will add ancestry, heritage, background, class, feats, and other choices.",
       "CREATION_COMPLETE": "Character created successfully!",
@@ -351,6 +359,8 @@
       "PLAN_CLEARED": "Level-up plan cleared",
       "PLAN_EXPORTED": "Plan exported successfully",
       "PLAN_IMPORTED": "Plan imported successfully",
+      "CREATION_EXPORTED": "Character creation plan exported successfully",
+      "CREATION_IMPORTED": "Character creation plan imported successfully",
       "IMPORT_FAILED": "Failed to import plan: {error}",
       "INVALID_BOOST_COUNT": "Please select exactly {count} ability boosts",
       "MISSING_CLASS": "Character must have a class assigned",
@@ -387,12 +397,37 @@
         "ALPHA_DESC": "Alphabetical (Z-A)"
       },
       "ANCESTRAL_PARAGON": {
-        "NAME": "Ancestral Paragon",
-        "HINT": "Enable the Ancestral Paragon variant rule. Characters gain an additional ancestry feat at levels 3, 7, 11, 15, and 19."
+        "NAME": "Ancestry Paragon Variant Rule",
+        "HINT": "Enable the Ancestry Paragon variant rule. Characters start with 2 ancestry feats and gain an additional ancestry feat at every odd level (3, 5, 7, 9, 11, 13, 15, 17, 19). This is separate from the Ancestry Paragon general feat."
       },
       "ADDITIONAL_COMPENDIUMS": {
         "NAME": "Additional Feat Compendiums",
         "HINT": "Comma-separated list of additional compendium keys to search for feats (e.g. 'my-module.my-feats')"
+      },
+      "COMPENDIUM_MANAGER": {
+        "NAME": "Custom Compendium Categories",
+        "LABEL": "Configure Categories",
+        "HINT": "Choose additional compendiums to search for each PF2E content category used by the planner and character wizard.",
+        "BUILT_IN": "Built-in default pack",
+        "NO_PACKS": "No matching compendiums found for this category.",
+        "PACKAGE": "Package",
+        "SEARCH": "Filter sources...",
+        "SUMMARY": "Content Sources",
+        "CANCEL": "Cancel",
+        "SAVE": "Save Changes",
+        "SAVED": "Custom compendium categories saved"
+      },
+      "COMPENDIUM_CATEGORIES": {
+        "ANCESTRIES": "Ancestries",
+        "HERITAGES": "Heritages",
+        "BACKGROUNDS": "Backgrounds",
+        "CLASSES": "Classes",
+        "FEATS": "Feats",
+        "CLASS_FEATURES": "Class Features",
+        "SPELLS": "Spells",
+        "EQUIPMENT": "Items and Equipment",
+        "ACTIONS": "Actions",
+        "DEITIES": "Deities"
       }
     }
   }

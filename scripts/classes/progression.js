@@ -56,6 +56,10 @@ export function getChoicesForLevel(classDef, level, options = {}) {
     choices.push({ type: 'ancestryFeat' });
   }
 
+  if (options.ancestryParagonFeatLevels?.includes(level)) {
+    choices.push({ type: 'ancestryFeat' });
+  }
+
   if (options.dualClass && [2, 4, 6, 8, 10, 12, 14, 16, 18, 20].includes(level)) {
     choices.push({ type: 'dualClassFeat' });
   }

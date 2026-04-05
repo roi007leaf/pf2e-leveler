@@ -1,4 +1,4 @@
-import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+import { CharacterWizard, buildCompendiumSourceOptions, filterStepContextByCompendiumSource } from '../../../scripts/ui/character-wizard/index.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -39,7 +39,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       name: 'Kholo',
     };
 
-    wizard._loadCompendium = jest.fn(async () => [
+    wizard._loadCompendiumCategory = jest.fn(async () => [
       {
         uuid: 'feat-1',
         name: 'Crunch',
@@ -80,7 +80,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     wizard.data.ancestryFeat = { uuid: 'feat-1', name: 'Natural Ambition' };
     wizard.data.ancestryParagonFeat = { uuid: 'feat-2', name: 'General Training' };
 
-    wizard._loadCompendium = jest.fn(async () => [
+    wizard._loadCompendiumCategory = jest.fn(async () => [
       { uuid: 'feat-1', name: 'Natural Ambition', level: 1, traits: ['human'] },
       { uuid: 'feat-2', name: 'General Training', level: 1, traits: ['human'] },
     ]);
@@ -90,6 +90,45 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.ancestryFeats).toEqual([
       expect.objectContaining({ uuid: 'feat-1', taken: true, paragonTaken: false }),
       expect.objectContaining({ uuid: 'feat-2', taken: false, paragonTaken: true }),
+    ]);
+  });
+
+  it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {
+    const options = buildCompendiumSourceOptions('summary', {
+      items: [
+        { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
+        { uuid: 'b', sourcePack: 'module.beta', sourceLabel: 'Beta Pack' },
+      ],
+    });
+
+    expect(options).toEqual([
+      { key: 'module.alpha', label: 'Alpha Pack', selected: true },
+      { key: 'module.beta', label: 'Beta Pack', selected: true },
+    ]);
+  });
+
+  it('filters step option arrays by selected compendium sources without touching unrelated data', () => {
+    const filtered = filterStepContextByCompendiumSource(
+      {
+        items: [
+          { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
+          { uuid: 'b', sourcePack: 'module.beta', sourceLabel: 'Beta Pack' },
+        ],
+        selectedCantrips: [
+          { uuid: 'x', name: 'Keep Me' },
+        ],
+      },
+      [
+        { key: 'module.alpha', label: 'Alpha Pack', selected: true },
+        { key: 'module.beta', label: 'Beta Pack', selected: false },
+      ],
+    );
+
+    expect(filtered.items).toEqual([
+      { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
+    ]);
+    expect(filtered.selectedCantrips).toEqual([
+      { uuid: 'x', name: 'Keep Me' },
     ]);
   });
 });

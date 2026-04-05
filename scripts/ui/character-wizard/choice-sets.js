@@ -1,4 +1,5 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
+import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { debug } from '../../utils/logger.js';
 import { buildSkillContext } from './skills-languages.js';
 
@@ -934,7 +935,7 @@ async function findChoiceItemBySlugOrName(wizard, choice, value, _label) {
   const exactSlug = choice.slug ?? value;
   const normalizedValue = normalizeChoiceLookupValue(value);
 
-  for (const packKey of ['pf2e.feats-srd', 'pf2e.classfeatures']) {
+  for (const packKey of [...getCompendiumKeysForCategory('feats'), ...getCompendiumKeysForCategory('classFeatures')]) {
     const entries = await wizard._loadCompendium(packKey);
     const match = entries.find((entry) => {
       const entrySlug = normalizeChoiceLookupValue(entry.slug ?? '');
@@ -998,32 +999,36 @@ function getChoiceSetPackKeys(itemType, filters) {
   const normalizedType = itemType?.replace(/[^a-z]/g, '') ?? null;
   const keys = new Set();
 
-  if (normalizedType === 'classfeature') keys.add('pf2e.classfeatures');
-  if (normalizedType === 'feat') keys.add('pf2e.feats-srd');
-  if (normalizedType === 'spell') keys.add('pf2e.spells-srd');
-  if (normalizedType === 'action') keys.add('pf2e.actionspf2e');
-  if (normalizedType === 'weapon' || normalizedType === 'armor' || normalizedType === 'equipment') keys.add('pf2e.equipment-srd');
-  if (normalizedType === 'ancestry') keys.add('pf2e.ancestries');
-  if (normalizedType === 'deity') keys.add('pf2e.deities');
+  if (normalizedType === 'classfeature') addCategoryKeys(keys, 'classFeatures');
+  if (normalizedType === 'feat') addCategoryKeys(keys, 'feats');
+  if (normalizedType === 'spell') addCategoryKeys(keys, 'spells');
+  if (normalizedType === 'action') addCategoryKeys(keys, 'actions');
+  if (normalizedType === 'weapon' || normalizedType === 'armor' || normalizedType === 'equipment') addCategoryKeys(keys, 'equipment');
+  if (normalizedType === 'ancestry') addCategoryKeys(keys, 'ancestries');
+  if (normalizedType === 'deity') addCategoryKeys(keys, 'deities');
 
   const flattenedFilters = JSON.stringify(filters ?? []);
-  if (flattenedFilters.includes('item:type:feat')) keys.add('pf2e.feats-srd');
-  if (flattenedFilters.includes('item:type:deity') || flattenedFilters.includes('item:category:deity')) keys.add('pf2e.deities');
-  if (flattenedFilters.includes('item:type:spell')) keys.add('pf2e.spells-srd');
-  if (flattenedFilters.includes('item:type:action')) keys.add('pf2e.actionspf2e');
-  if (flattenedFilters.includes('item:type:weapon') || flattenedFilters.includes('item:type:armor')) keys.add('pf2e.equipment-srd');
-  if (flattenedFilters.includes('item:type:ancestry')) keys.add('pf2e.ancestries');
+  if (flattenedFilters.includes('item:type:feat')) addCategoryKeys(keys, 'feats');
+  if (flattenedFilters.includes('item:type:deity') || flattenedFilters.includes('item:category:deity')) addCategoryKeys(keys, 'deities');
+  if (flattenedFilters.includes('item:type:spell')) addCategoryKeys(keys, 'spells');
+  if (flattenedFilters.includes('item:type:action')) addCategoryKeys(keys, 'actions');
+  if (flattenedFilters.includes('item:type:weapon') || flattenedFilters.includes('item:type:armor')) addCategoryKeys(keys, 'equipment');
+  if (flattenedFilters.includes('item:type:ancestry')) addCategoryKeys(keys, 'ancestries');
   if (flattenedFilters.includes('item:tag:') || flattenedFilters.includes('item:trait:')) {
-    keys.add('pf2e.classfeatures');
-    keys.add('pf2e.feats-srd');
+    addCategoryKeys(keys, 'classFeatures');
+    addCategoryKeys(keys, 'feats');
   }
 
   if (keys.size === 0) {
-    keys.add('pf2e.classfeatures');
-    keys.add('pf2e.feats-srd');
+    addCategoryKeys(keys, 'classFeatures');
+    addCategoryKeys(keys, 'feats');
   }
 
   return [...keys];
+}
+
+function addCategoryKeys(target, category) {
+  for (const key of getCompendiumKeysForCategory(category)) target.add(key);
 }
 
 function matchesChoiceSetFilters(item, filters) {

@@ -61,8 +61,8 @@ export const ANIMIST = {
   },
 
   apparitions: {
-    attunementProgression: { 7: 3, 15: 4 },
-    focusPoolProgression: { 7: 2, 15: 3 },
+    attunementProgression: { 1: 2, 7: 3, 15: 4 },
+    focusPoolProgression: { 1: 1, 7: 2, 15: 3 },
     list: [
       { slug: 'crafter-in-the-vault', nameKey: 'PF2E_LEVELER.ANIMIST.APPARITION.CRAFTER' },
       { slug: 'custodian-of-groves-and-gardens', nameKey: 'PF2E_LEVELER.ANIMIST.APPARITION.CUSTODIAN' },

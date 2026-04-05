@@ -211,6 +211,59 @@ describe('WizardHandler._applyCurriculumEntry', () => {
     ]);
     expect(createdItems.every((item) => item.system.location.value === 'curriculum-entry')).toBe(true);
   });
+
+  it('reuses an existing flagged curriculum entry even when its name is localized', async () => {
+    const spells = {
+      'Compendium.pf2e.spells-srd.Item.Figment': {
+        uuid: 'Compendium.pf2e.spells-srd.Item.Figment',
+        name: 'Figment',
+        img: 'icons/figment.webp',
+        toObject: () => ({ name: 'Figment', type: 'spell', system: {} }),
+      },
+    };
+
+    global.fromUuid = jest.fn((uuid) => Promise.resolve(spells[uuid] ?? null));
+    global.foundry = {
+      utils: {
+        deepClone: (value) => JSON.parse(JSON.stringify(value)),
+      },
+    };
+
+    const createdItems = [];
+    const actor = {
+      items: [{
+        id: 'entree-fr',
+        type: 'spellcastingEntry',
+        name: 'Programme de cursus',
+        flags: { 'pf2e-leveler': { curriculumEntry: true } },
+      }],
+      createEmbeddedDocuments: jest.fn(async (_type, documents) => {
+        createdItems.push(...documents);
+        return documents;
+      }),
+    };
+
+    const data = {
+      subclass: {
+        name: 'Ecole de magie',
+        curriculum: {
+          0: ['Compendium.pf2e.spells-srd.Item.Figment'],
+          1: [],
+        },
+      },
+      curriculumSpells: {
+        cantrips: [],
+        rank1: [],
+      },
+    };
+
+    const handler = new WizardHandler();
+    await handler._applyCurriculumEntry(actor, data);
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledTimes(1);
+    expect(createdItems).toHaveLength(1);
+    expect(createdItems[0].system.location.value).toBe('entree-fr');
+  });
 });
 
 describe('WizardHandler._applySpellcasting', () => {

@@ -1,6 +1,7 @@
 import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { getLevelData } from '../../plan/plan-model.js';
+import { getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
+import { loadCompendiumCategory } from '../character-wizard/loaders.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../../data/subclass-spells.js';
 
 function getCachedBuildState(planner, level) {
@@ -34,7 +35,7 @@ export async function buildSpellContext(planner, classDef, level) {
   const highestRank = getHighestRank(currentSlots);
   const newRank = hasNewRank ? ordinalRank(highestRank) : null;
 
-  const apparitionContext = buildApparitionContext(classDef, level);
+  const apparitionContext = await buildApparitionContext(planner, classDef, level);
 
   const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
   const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
@@ -299,7 +300,7 @@ export function ordinalRank(rank) {
   return `${rank}${suffixes[rank] || 'th'}`;
 }
 
-export function buildApparitionContext(classDef, level) {
+export async function buildApparitionContext(planner, classDef, level) {
   if (!classDef.apparitions) return { showApparitions: false };
 
   const progression = classDef.apparitions.attunementProgression;
@@ -309,11 +310,30 @@ export function buildApparitionContext(classDef, level) {
   const focusPoolProgression = classDef.apparitions.focusPoolProgression;
   const newFocusPool = focusPoolProgression[level];
 
+  const selected = planner?.plan ? getPlanApparitions(planner.plan) : [];
+  const atMax = selected.length >= attunementSlots;
+
+  const uuidMap = new Map();
+  if (planner) {
+    const docs = await loadCompendiumCategory(planner, 'classFeatures');
+    for (const d of docs) {
+      if (d.otherTags?.includes('animist-apparition') && d.slug) {
+        uuidMap.set(d.slug, d.uuid);
+      }
+    }
+  }
+
   return {
     showApparitions: true,
     attunementSlots,
     newFocusPool,
-    availableApparitions: classDef.apparitions.list,
+    availableApparitions: classDef.apparitions.list.map((a) => ({
+      ...a,
+      uuid: uuidMap.get(a.slug) ?? null,
+      selected: selected.includes(a.slug),
+      disabled: atMax && !selected.includes(a.slug),
+    })),
+    apparitionSelectedCount: selected.length,
   };
 }
 

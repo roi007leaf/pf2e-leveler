@@ -164,9 +164,21 @@ function computeSkills(actor, plan, atLevel, classDef) {
 
   applyActorSkillRankRules(skills, actor, atLevel);
 
+  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
+
+    for (const key of FEAT_KEYS) {
+      for (const feat of levelData[key] ?? []) {
+        for (const rule of feat.skillRules ?? []) {
+          if (!matchesRuleAtLevel(rule, atLevel)) continue;
+          if (!SKILLS.includes(rule.skill)) continue;
+          skills[rule.skill] = Math.max(skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED, rule.value);
+        }
+      }
+    }
 
     for (const skill of levelData.intBonusSkills ?? []) {
       if ((skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED) < PROFICIENCY_RANKS.TRAINED) {

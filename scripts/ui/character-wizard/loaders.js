@@ -1,14 +1,22 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
+import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 
 export async function loadCompendium(wizard, key) {
   if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
   const pack = game.packs.get(key);
   if (!pack) return [];
+  const sourceLabel = pack.metadata?.label ?? pack.title ?? key;
+  const sourcePackage = pack.metadata?.packageName ?? pack.metadata?.package ?? pack.collection ?? key;
+  const sourcePackageLabel = resolveCompendiumPackageLabel(sourcePackage);
   const docs = await pack.getDocuments();
   const items = docs.map((d) => ({
     uuid: d.uuid,
     name: d.name,
     img: d.img,
+    sourcePack: key,
+    sourceLabel,
+    sourcePackage,
+    sourcePackageLabel,
     type: d.type,
     slug: d.slug ?? null,
     description: d.system?.description?.value?.substring(0, 150) ?? '',
@@ -18,32 +26,51 @@ export async function loadCompendium(wizard, key) {
     rarity: d.system?.traits?.rarity ?? 'common',
     level: d.system?.level?.value ?? 0,
     category: d.system?.category ?? null,
+    ancestrySlug: d.system?.ancestry?.slug ?? null,
     usage: d.system?.usage?.value ?? null,
     range: normalizeRangeValue(d.system?.range ?? null),
     isRanged: isRangedWeaponData(d.system),
     damageTypes: extractDamageTypes(d),
     isMagical: (d.system?.traits?.value ?? []).includes('magical'),
+    font: d.system?.font ?? [],
+    sanctification: d.system?.sanctification ?? {},
+    domains: d.system?.domains ?? { primary: [], alternate: [] },
   }));
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[key] = items;
   return items;
 }
 
+export async function loadCompendiumCategory(wizard, category, cacheKey = `category-${category}`) {
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+
+  const keys = getCompendiumKeysForCategory(category);
+  const loader = typeof wizard._loadCompendium === 'function'
+    ? wizard._loadCompendium.bind(wizard)
+    : (key) => loadCompendium(wizard, key);
+  const lists = await Promise.all(keys.map((key) => loader(key)));
+  const items = dedupeCompendiumItems(lists.flat()).sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
 export async function loadDeities(wizard) {
   const cacheKey = 'deities';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
-  const pack = game.packs.get('pf2e.deities');
-  if (!pack) return [];
-  const docs = await pack.getDocuments();
-  const items = docs
-    .filter((d) => d.system?.category === 'deity')
+  const all = await loadCompendiumCategory(wizard, 'deities', cacheKey);
+  const items = all
+    .filter((d) => d.type === 'deity' || d.category === 'deity')
     .map((d) => ({
       uuid: d.uuid,
       name: d.name,
       img: d.img,
-      font: d.system?.font ?? [],
-      sanctification: d.system?.sanctification ?? {},
-      domains: d.system?.domains ?? { primary: [], alternate: [] },
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
+      font: d.font ?? [],
+      sanctification: d.sanctification ?? {},
+      domains: d.domains ?? { primary: [], alternate: [] },
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
@@ -117,20 +144,22 @@ export async function loadCommanderTactics(wizard) {
   const cacheKey = 'commander-tactics';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
 
-  const pack = game.packs.get('pf2e.actionspf2e');
-  if (!pack) return [];
-  const docs = await pack.getDocuments();
+  const docs = await loadCompendiumCategory(wizard, 'actions', cacheKey);
   const items = docs
     .filter((d) => d.type === 'action')
-    .filter((d) => (d.system?.traits?.value ?? []).includes('tactic'))
+    .filter((d) => (d.traits ?? []).includes('tactic'))
     .filter((d) => {
-      const tags = d.system?.traits?.otherTags ?? [];
+      const tags = d.otherTags ?? [];
       return tags.includes('commander-mobility-tactic') || tags.includes('commander-offensive-tactic');
     })
     .map((d) => ({
       uuid: d.uuid,
       name: d.name,
       img: d.img,
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
       slug: d.slug ?? null,
       rarity: d.system?.traits?.rarity ?? 'common',
       traits: d.system?.traits?.value ?? [],
@@ -147,7 +176,7 @@ export async function loadExemplarIkons(wizard) {
 }
 
 export async function loadInventorWeaponOptions(wizard) {
-  const all = await loadCompendium(wizard, 'pf2e.equipment-srd');
+  const all = await loadCompendiumCategory(wizard, 'equipment');
   return all
     .filter((item) => item.type === 'weapon')
     .filter((item) => item.level === 0)
@@ -156,7 +185,7 @@ export async function loadInventorWeaponOptions(wizard) {
 }
 
 export async function loadInventorArmorOptions(wizard) {
-  const all = await loadCompendium(wizard, 'pf2e.equipment-srd');
+  const all = await loadCompendiumCategory(wizard, 'equipment');
   const allowed = new Set(['power-suit', 'subterfuge-suit']);
   return all
     .filter((item) => item.type === 'armor' && allowed.has(item.slug))
@@ -164,7 +193,7 @@ export async function loadInventorArmorOptions(wizard) {
 }
 
 export async function loadInventorWeaponModifications(wizard, selectedItem) {
-  const all = await loadCompendium(wizard, 'pf2e.classfeatures');
+  const all = await loadCompendiumCategory(wizard, 'classFeatures');
   const slugs = ['advanced-design', 'blunt-shot', 'complex-simplicity', 'dynamic-weighting', 'entangling-form', 'hampering-spikes', 'hefty-composition', 'modular-head', 'pacification-tools', 'razor-prongs', 'segmented-frame'];
   const item = selectedItem ?? {};
   const category = item.category;
@@ -201,7 +230,7 @@ export async function loadInventorWeaponModifications(wizard, selectedItem) {
 }
 
 export async function loadInventorArmorModifications(wizard, selectedItem) {
-  const all = await loadCompendium(wizard, 'pf2e.classfeatures');
+  const all = await loadCompendiumCategory(wizard, 'classFeatures');
   const slugs = ['harmonic-oscillator', 'metallic-reactance', 'muscular-exoskeleton', 'otherworldly-protection', 'phlogistonic-regulator', 'speed-boosters', 'subtle-dampeners'];
   const armorSlug = selectedItem?.slug ?? null;
   return all
@@ -215,7 +244,7 @@ export async function loadInventorArmorModifications(wizard, selectedItem) {
 }
 
 export async function loadKineticImpulses(wizard, data) {
-  const all = await loadCompendium(wizard, 'pf2e.feats-srd');
+  const all = await loadCompendiumCategory(wizard, 'feats');
   const firstElement = data.subclass?.slug?.replace(/-gate$/, '');
   const secondElement = data.secondElement?.slug?.replace(/-gate$/, '');
   const selected = new Set((data.kineticImpulses ?? []).map((entry) => entry.uuid));
@@ -245,30 +274,33 @@ export async function loadKineticImpulses(wizard, data) {
 
 export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSubclassData = false } = {}) {
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
-  const pack = game.packs.get('pf2e.classfeatures');
-  if (!pack) return [];
-  const docs = await pack.getDocuments();
+  const docs = await loadCompendiumCategory(wizard, 'classFeatures');
   const items = await Promise.all(docs
-    .filter((d) => (d.system?.traits?.otherTags ?? []).includes(tag))
+    .filter((d) => (d.otherTags ?? []).includes(tag))
     .map(async (d) => {
       const base = {
         uuid: d.uuid,
         name: d.name,
         img: d.img,
+        sourcePack: d.sourcePack,
+        sourceLabel: d.sourceLabel,
+        sourcePackage: d.sourcePackage,
+        sourcePackageLabel: d.sourcePackageLabel,
         slug: d.slug ?? null,
-        description: d.system?.description?.value ?? '',
-        traits: d.system?.traits?.value ?? [],
-        rarity: d.system?.traits?.rarity ?? 'common',
+        description: d.description ?? '',
+        traits: d.traits ?? [],
+        rarity: d.rarity ?? 'common',
       };
       if (!includeSubclassData) return base;
+      const source = await wizard._getCachedDocument(d.uuid);
       return {
         ...base,
-        tradition: wizard._resolveSubclassTradition(d),
-        spellUuids: parseSpellUuidsFromDescription(d.system?.rules ?? [], d.system?.description?.value ?? ''),
-        choiceSets: await wizard._parseChoiceSets(d.system?.rules ?? []),
-        grantedSkills: wizard._parseGrantedSkills(d.system?.rules ?? [], d.system?.description?.value ?? ''),
-        grantedLores: wizard._parseSubclassLores(d.system?.rules ?? [], d.system?.description?.value ?? ''),
-        curriculum: parseCurriculum(d.system?.description?.value ?? ''),
+        tradition: wizard._resolveSubclassTradition(source),
+        spellUuids: parseSpellUuidsFromDescription(source?.system?.rules ?? [], source?.system?.description?.value ?? ''),
+        choiceSets: await wizard._parseChoiceSets(source?.system?.rules ?? []),
+        grantedSkills: wizard._parseGrantedSkills(source?.system?.rules ?? [], source?.system?.description?.value ?? ''),
+        grantedLores: wizard._parseSubclassLores(source?.system?.rules ?? [], source?.system?.description?.value ?? ''),
+        curriculum: parseCurriculum(source?.system?.description?.value ?? ''),
       };
     }));
   items.sort((a, b) => a.name.localeCompare(b.name));
@@ -293,24 +325,22 @@ export function parseCurriculum(html) {
 export async function loadRawHeritages(wizard) {
   const cacheKey = 'heritages';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
-  const packKeys = ['pf2e.heritages', 'pf2e.ancestryfeatures'];
-  let docs = [];
-  for (const key of packKeys) {
-    const pack = game.packs.get(key);
-    if (pack) {
-      const items = await pack.getDocuments();
-      docs = docs.concat(items.filter((d) => d.type === 'heritage'));
-    }
-  }
-  const items = docs.map((d) => ({
-    uuid: d.uuid,
-    name: d.name,
-    img: d.img,
-    slug: d.slug ?? null,
-    traits: d.system?.traits?.value ?? [],
-    rarity: d.system?.traits?.rarity ?? 'common',
-    ancestrySlug: d.system?.ancestry?.slug ?? null,
-  }));
+  const docs = await loadCompendiumCategory(wizard, 'heritages', cacheKey);
+  const items = docs
+    .filter((d) => d.type === 'heritage')
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
+      slug: d.slug ?? null,
+      traits: d.traits ?? [],
+      rarity: d.rarity ?? 'common',
+      ancestrySlug: d.ancestrySlug ?? null,
+    }));
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
@@ -386,4 +416,31 @@ function parseRankedSpellLines(text, { stopOnSectionBreak = false, ignoreSingleS
   }
 
   return ranks;
+}
+
+function dedupeCompendiumItems(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (!item?.uuid || seen.has(item.uuid)) return false;
+    seen.add(item.uuid);
+    return true;
+  });
+}
+
+function resolveCompendiumPackageLabel(packageKey) {
+  if (!packageKey) return '';
+  if (game.system?.id === packageKey) return compactSourceOwnerLabel(game.system.title ?? packageKey);
+  return compactSourceOwnerLabel(game.modules?.get?.(packageKey)?.title ?? packageKey);
+}
+
+function compactSourceOwnerLabel(label) {
+  let text = String(label ?? '').trim();
+  if (!text) return '';
+
+  if (/^pathfinder second edition$/i.test(text)) return 'PF2E';
+
+  text = text.replace(/\s+for\s+Pathfinder\s+2e\s+by\s+Roll\s+For\s+Combat$/i, '');
+  text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
+
+  return text;
 }

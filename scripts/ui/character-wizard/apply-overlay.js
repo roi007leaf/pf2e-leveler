@@ -50,8 +50,8 @@ export async function getApplyPromptRows(wizard) {
   const scannedItems = new Set();
 
   const addRow = async (source, rule, optionSource = null) => {
-    if (!rule?.prompt) return;
-    const prompt = game.i18n.has(rule.prompt) ? game.i18n.localize(rule.prompt) : rule.prompt;
+    const prompt = getRulePrompt(rule);
+    if (!prompt) return;
     const value = await resolvePromptSelectionLabel(wizard, rule, optionSource);
     const rowValue = value || 'Pending selection';
     const key = `${source}:${prompt}:${rowValue}`;
@@ -248,4 +248,26 @@ function getRuleSelectionFlag(rule) {
   if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
   if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
   return null;
+}
+
+function getRulePrompt(rule) {
+  if (typeof rule?.prompt === 'string' && rule.prompt.length > 0) {
+    return game.i18n.has(rule.prompt) ? game.i18n.localize(rule.prompt) : rule.prompt;
+  }
+
+  const flag = getRuleSelectionFlag(rule);
+  if (flag) return formatPromptFallback(flag);
+
+  return 'Make a selection.';
+}
+
+function formatPromptFallback(value) {
+  return String(value ?? '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[-_]/g)
+    .filter((part) => part.length > 0)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
 }

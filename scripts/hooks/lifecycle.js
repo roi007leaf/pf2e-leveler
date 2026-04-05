@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { registerSettings } from '../settings.js';
+import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { ALCHEMIST } from '../classes/alchemist.js';
 import { ANIMIST } from '../classes/animist.js';
@@ -40,6 +41,7 @@ async function onInit() {
   info('Initializing module');
 
   registerSettings();
+  await migrateLegacyFeatCompendiumsSetting();
   registerClasses();
   registerHandlebarsHelpers();
   await preloadTemplates();

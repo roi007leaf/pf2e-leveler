@@ -48,6 +48,7 @@
       "CLASS_SPECIFIC": "Options de classe"
     },
     "FEAT_PICKER": {
+      "OPTIONS": "Options",
       "TITLE": "Selectionner un don",
       "SEARCH": "Rechercher des dons...",
       "ALL_SKILLS": "Toutes les competences",
@@ -94,7 +95,7 @@
       "RANK": "Rang",
       "SLOTS": "Emplacements",
       "NEW_RANK": "Nouveau : sorts de rang {rank} !",
-      "ATTUNEMENT_SLOTS": "{count} emplacements d'harmonisation",
+      "ATTUNEMENT_SLOTS": "{selected}/{count} apparitions",
       "FOCUS_POOL": "Reserve de focalisation : {count}",
       "ADD": "Ajouter un sort",
       "PLANNED": "Sorts planifies",
@@ -104,6 +105,10 @@
       "SPELLBOOK": "Grimoire ({selected}/{count} nouveaux sorts)",
       "ADD_TO_SPELLBOOK": "Ajouter au grimoire",
       "ADD_TO_SPELLBOOK_HINT": "Ajouter un sort au grimoire",
+      "ADD_SELECTED": "Ajouter la selection",
+      "SELECT_ALL": "Tout selectionner",
+      "DESELECT_ALL": "Tout deselectionner",
+      "SELECTED_COUNT": "{count} selectionnes",
       "FOCUS": "Sorts de focalisation",
       "NEW_FOCUS": "Nouveau !"
     },
@@ -115,6 +120,8 @@
       "BACK": "Retour",
       "NEXT": "Suivant",
       "CREATE": "Creer le personnage",
+      "EXPORT": "Exporter",
+      "IMPORT": "Importer",
       "CONFIRM_TITLE": "Creer le personnage",
       "CONFIRM_BODY": "Appliquer toutes ces selections a ce personnage ? Cela ajoutera l'ascendance, l'heritage, l'historique, la classe, les dons et d'autres choix.",
       "CREATION_COMPLETE": "Personnage cree avec succes !",
@@ -349,6 +356,8 @@
       "PLAN_CLEARED": "Plan de niveau efface",
       "PLAN_EXPORTED": "Plan exporte avec succes",
       "PLAN_IMPORTED": "Plan importe avec succes",
+      "CREATION_EXPORTED": "Plan de creation du personnage exporte avec succes",
+      "CREATION_IMPORTED": "Plan de creation du personnage importe avec succes",
       "IMPORT_FAILED": "Echec lors de l'import du plan : {error}",
       "INVALID_BOOST_COUNT": "Veuillez selectionner exactement {count} augmentations de caracteristique",
       "MISSING_CLASS": "Le personnage doit avoir une classe assignee",
@@ -385,12 +394,37 @@
         "ALPHA_DESC": "Alphabetique (Z-A)"
       },
       "ANCESTRAL_PARAGON": {
-        "NAME": "Parangon ancestral",
-        "HINT": "Active la regle optionnelle Parangon ancestral. Les personnages gagnent un don d'ascendance supplementaire aux niveaux 3, 7, 11, 15 et 19."
+        "NAME": "Regle optionnelle : Parangon d'ascendance",
+        "HINT": "Active la regle optionnelle Parangon d'ascendance. Les personnages commencent avec 2 dons d'ascendance et en gagnent un supplementaire a chaque niveau impair (3, 5, 7, 9, 11, 13, 15, 17, 19). Distinct du don general Parangon d'ascendance."
       },
       "ADDITIONAL_COMPENDIUMS": {
         "NAME": "Compendiums de dons supplementaires",
         "HINT": "Liste separee par des virgules de cles de compendium supplementaires a rechercher pour les dons (par ex. \"my-module.my-feats\")"
+      },
+      "COMPENDIUM_MANAGER": {
+        "NAME": "Categories de compendiums personnalisees",
+        "LABEL": "Configurer les categories",
+        "HINT": "Choisissez les compendiums supplementaires a rechercher pour chaque categorie de contenu PF2E utilisee par le planificateur et l'assistant de creation.",
+        "BUILT_IN": "Compendium par defaut integre",
+        "NO_PACKS": "Aucun compendium correspondant trouve pour cette categorie.",
+        "PACKAGE": "Package",
+        "SEARCH": "Filtrer les sources...",
+        "SUMMARY": "Sources de contenu",
+        "CANCEL": "Annuler",
+        "SAVE": "Enregistrer les modifications",
+        "SAVED": "Categories de compendiums personnalisees enregistrees"
+      },
+      "COMPENDIUM_CATEGORIES": {
+        "ANCESTRIES": "Ascendances",
+        "HERITAGES": "Heritages",
+        "BACKGROUNDS": "Historiques",
+        "CLASSES": "Classes",
+        "FEATS": "Dons",
+        "CLASS_FEATURES": "Capacites de classe",
+        "SPELLS": "Sorts",
+        "EQUIPMENT": "Objets et equipements",
+        "ACTIONS": "Actions",
+        "DEITIES": "Divinites"
       }
     }
   }

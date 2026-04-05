@@ -1,4 +1,4 @@
-import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease } from '../../plan/plan-model.js';
+import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 
 export function activateLevelPlannerListeners(planner, html) {
@@ -92,6 +92,26 @@ export function activateLevelPlannerListeners(planner, html) {
       const uuid = btn.dataset.uuid;
       removeLevelSpell(planner.plan, planner.selectedLevel, uuid);
       planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="toggleApparition"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slug = btn.dataset.slug;
+      if (!slug || btn.classList.contains('apparition-item--disabled')) return;
+      const maxSlots = Number(btn.dataset.maxSlots) || Infinity;
+      togglePlanApparition(planner.plan, slug, maxSlots);
+      planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="viewApparition"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const uuid = btn.dataset.uuid;
+      if (!uuid) return;
+      const item = await fromUuid(uuid);
+      if (item?.sheet) item.sheet.render(true);
     });
   });
 

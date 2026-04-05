@@ -1,7 +1,8 @@
 import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES } from '../../constants.js';
+import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections } from '../../creation/creation-model.js';
-import { getCreationData, saveCreationData, clearCreationData } from '../../creation/creation-store.js';
+import { getCreationData, saveCreationData, clearCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
@@ -49,6 +50,7 @@ import {
 import {
   loadCommanderTactics,
   loadCompendium,
+  loadCompendiumCategory,
   loadDeities,
   loadExemplarIkons,
   loadHeritages,
@@ -56,6 +58,7 @@ import {
   loadInventorArmorOptions,
   loadInventorWeaponModifications,
   loadInventorWeaponOptions,
+  loadKineticImpulses,
   loadRawHeritages,
   loadSubclasses,
   loadTaggedClassFeatures,
@@ -77,6 +80,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.actor = actor;
     this.data = getCreationData(actor) ?? createCreationData();
     this.currentStep = 0;
+    this.featSubStep = 'ancestry';
     this.spellSubStep = 'cantrips';
     this.classHandler = getClassHandler(this.data.class?.slug);
     this._compendiumCache = {};
@@ -88,12 +92,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._activeSystemPrompt = null;
     this._featChoiceDataDirty = true;
     this._applyPromptRowsCache = null;
-    this._preloadCompendiums();
+    this._compendiumSourceFilters = {};
+    this._spellLayoutObserver = null;
+    this._isBooting = true;
+    this._bootstrapPromise = null;
   }
 
   _preloadCompendiums() {
-    ['pf2e.feats-srd', 'pf2e.spells-srd', 'pf2e.classfeatures', 'pf2e.ancestries', 'pf2e.backgrounds', 'pf2e.classes'].forEach((key) => {
-      this._loadCompendium(key);
+    ['feats', 'spells', 'classFeatures', 'ancestries', 'backgrounds', 'classes'].forEach((category) => {
+      this._loadCompendiumCategory(category);
     });
   }
 
@@ -151,11 +158,6 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
 
   async _prepareContext() {
-    if (this._featChoiceDataDirty) {
-      await this._refreshAllFeatChoiceData();
-    }
-    this._cachedMaxLanguages = await this._getAdditionalLanguageCount();
-    this._cachedMaxSkills = await this._getAdditionalSkillCount();
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: localize('CREATION.FEAT_CHOICES'),
@@ -169,9 +171,41 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       index: STEPS.indexOf(id),
     }));
 
+    if (this._isBooting) {
+      return {
+        steps,
+        stepId: this.stepId,
+        data: this.data,
+        isApplying: false,
+        isBooting: true,
+        applyProgressPercent: 0,
+        applyStatus: '',
+        isFirst: this.currentStep === 0,
+        isLast: this.currentStep === STEPS.length - 1,
+        isSummary: this.stepId === 'summary',
+        allComplete: false,
+        browserStep: null,
+        compendiumSourceOptions: [],
+        hasCompendiumSourceFilter: false,
+        showGlobalCompendiumSourceFilter: false,
+      };
+    }
+
+    if (this._featChoiceDataDirty) {
+      await this._refreshAllFeatChoiceData();
+    }
+    this._cachedMaxLanguages = await this._getAdditionalLanguageCount();
+    this._cachedMaxSkills = await this._getAdditionalSkillCount();
     const allComplete = this.visibleSteps.filter((s) => s !== 'summary').every((s) => this._isStepComplete(s));
 
-    const stepContext = await this._getStepContext();
+    const rawStepContext = await this._getStepContext();
+    const compendiumSourceOptions = buildCompendiumSourceOptions(
+      this.stepId,
+      rawStepContext,
+      this._compendiumSourceFilters[this.stepId] ?? [],
+    );
+    const stepContext = filterStepContextByCompendiumSource(rawStepContext, compendiumSourceOptions);
+    const browserStep = buildBrowserStepContext(this.stepId, this.data, stepContext);
     const applyOverlay = this.isApplying ? await this._buildApplyOverlayContext() : {};
 
     return {
@@ -185,6 +219,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       isLast: this.currentStep === STEPS.length - 1,
       isSummary: this.stepId === 'summary',
       allComplete,
+      browserStep,
+      compendiumSourceOptions,
+      hasCompendiumSourceFilter: compendiumSourceOptions.length > 0,
+      showGlobalCompendiumSourceFilter: compendiumSourceOptions.length > 0 && !browserStep,
       ...applyOverlay,
       ...stepContext,
     };
@@ -194,10 +232,44 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const el = this.element;
     this._restoreWizardScroll(el);
     this._activateListeners(el);
+    this._ensureBootstrapped();
+    this._syncSpellLayout(el);
   }
 
   _activateListeners(el) {
     activateCharacterWizardListeners(this, el);
+  }
+
+  _ensureBootstrapped() {
+    if (!this._isBooting || this._bootstrapPromise) return;
+
+    this._bootstrapPromise = Promise.resolve().then(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      this._isBooting = false;
+      await this.render({ force: true, parts: ['wizard'] });
+      setTimeout(() => this._preloadCompendiums(), 0);
+    }).catch((error) => {
+      console.error(`${MODULE_ID} | Failed to bootstrap character wizard`, error);
+      this._isBooting = false;
+    });
+  }
+
+  _syncSpellLayout(root) {
+    this._spellLayoutObserver?.disconnect?.();
+    this._spellLayoutObserver = null;
+
+    if (this.stepId !== 'spells') return;
+
+    const results = root.querySelector('.wizard-browser--spells .wizard-browser__results');
+    if (!results) return;
+
+    // Let CSS own the split layout. Previous JS width forcing could lock the
+    // spell results pane wider than the actual available space and collapse the
+    // visible list into a narrow strip.
+    results.style.removeProperty('flex');
+    results.style.removeProperty('width');
+    results.style.removeProperty('max-width');
+    results.style.removeProperty('min-width');
   }
 
   async _getCachedDocument(uuid) {
@@ -410,6 +482,61 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.render({ force: true, parts: ['wizard'] });
   }
 
+  _toggleCompendiumSourceFilter(pack, allPacks = []) {
+    if (!pack) return;
+    const current = new Set(this._compendiumSourceFilters[this.stepId]?.length
+      ? this._compendiumSourceFilters[this.stepId]
+      : allPacks);
+
+    if (current.has(pack)) {
+      if (current.size > 1) current.delete(pack);
+    } else {
+      current.add(pack);
+    }
+
+    this._compendiumSourceFilters[this.stepId] = current.size === allPacks.length
+      ? []
+      : [...current];
+    this.render(true);
+  }
+
+  _exportCreationData() {
+    const json = exportCreationData(this.data);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.actor.name}-creation-plan.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    ui.notifications.info(localize('NOTIFICATIONS.CREATION_EXPORTED'));
+  }
+
+  async _importCreationData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        this.data = importCreationData(text);
+        this.classHandler = getClassHandler(this.data.class?.slug);
+        this._featChoiceDataDirty = true;
+        this._applyPromptRowsCache = null;
+        await saveCreationData(this.actor, this.data);
+        ui.notifications.info(localize('NOTIFICATIONS.CREATION_IMPORTED'));
+        this.render(true);
+      } catch (err) {
+        ui.notifications.error(
+          game.i18n.format('PF2E_LEVELER.NOTIFICATIONS.IMPORT_FAILED', { error: err.message }),
+        );
+      }
+    });
+    input.click();
+  }
+
   _captureWizardScroll() {
     this._scrollState = captureScrollState(this.element, {
       sidebar: '.wizard-steps',
@@ -548,10 +675,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getStepContext() {
     switch (this.stepId) {
-      case 'ancestry': return { items: (await this._loadCompendium('pf2e.ancestries')).filter((i) => i.uuid !== this.data.ancestry?.uuid) };
+      case 'ancestry': return { items: (await this._loadCompendiumCategory('ancestries')).filter((i) => i.uuid !== this.data.ancestry?.uuid) };
       case 'heritage': return { items: (await this._loadHeritages()).filter((i) => i.uuid !== this.data.heritage?.uuid) };
-      case 'background': return { items: (await this._loadCompendium('pf2e.backgrounds')).filter((i) => i.uuid !== this.data.background?.uuid) };
-      case 'class': return { items: (await this._loadCompendium('pf2e.classes')).filter((i) => i.uuid !== this.data.class?.uuid) };
+      case 'background': return { items: (await this._loadCompendiumCategory('backgrounds')).filter((i) => i.uuid !== this.data.background?.uuid) };
+      case 'class': return { items: (await this._loadCompendiumCategory('classes')).filter((i) => i.uuid !== this.data.class?.uuid) };
       case 'subclass': {
         let subclasses = (await this._loadSubclasses()).filter((i) => i.uuid !== this.data.subclass?.uuid);
         subclasses = this.classHandler.filterSubclasses(subclasses, this.data);
@@ -626,6 +753,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return loadCompendium(this, key);
   }
 
+  async _loadCompendiumCategory(category) {
+    return loadCompendiumCategory(this, category);
+  }
+
   async _loadDeities() {
     return loadDeities(this);
   }
@@ -671,37 +802,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _loadKineticImpulses(data) {
-    const all = await this._loadCompendium('pf2e.feats-srd');
-    const firstElement = data.subclass?.slug?.replace(/-gate$/, '');
-    const secondElement = data.secondElement?.slug?.replace(/-gate$/, '');
-    const selected = new Set((data.kineticImpulses ?? []).map((entry) => entry.uuid));
-    const selectedElements = new Set((data.kineticImpulses ?? []).map((entry) => entry.element).filter(Boolean));
-    const lockedElement = data.kineticGateMode === 'dual-gate' && selectedElements.size === 1
-      ? [...selectedElements][0]
-      : null;
-
-    return all
-      .filter((item) => item.type === 'feat')
-      .filter((item) => item.level === 1)
-      .filter((item) => item.traits.includes('impulse'))
-      .filter((item) => !item.traits.includes('composite'))
-      .filter((item) => {
-        if (data.kineticGateMode === 'dual-gate') {
-          return item.traits.includes(firstElement) || item.traits.includes(secondElement);
-        }
-        return item.traits.includes(firstElement);
-      })
-      .filter((item) => {
-        if (!lockedElement || selected.has(item.uuid)) return true;
-        const element = item.traits.find((trait) => [firstElement, secondElement].includes(trait)) ?? null;
-        return element !== lockedElement;
-      })
-      .map((item) => ({
-        ...item,
-        element: item.traits.find((trait) => [firstElement, secondElement].includes(trait)) ?? null,
-        selected: selected.has(item.uuid),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return loadKineticImpulses(this, data);
   }
 
   async _loadPsychicSubconsciousMinds() {
@@ -718,20 +819,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const cacheKey = 'animist-apparitions';
     if (this._compendiumCache[cacheKey]) return this._compendiumCache[cacheKey];
 
-    const pack = game.packs.get('pf2e.classfeatures');
-    if (!pack) return [];
-
-    const docs = await pack.getDocuments();
+    const docs = await this._loadCompendiumCategory('classFeatures');
     const items = docs
-      .filter((d) => (d.system?.traits?.otherTags ?? []).includes('animist-apparition'))
+      .filter((d) => (d.otherTags ?? []).includes('animist-apparition'))
       .map((d) => {
-        const description = d.system?.description?.value ?? '';
+        const description = d.description ?? '';
         return {
           uuid: d.uuid,
           name: d.name,
           img: d.img,
+          sourcePack: d.sourcePack,
+          sourceLabel: d.sourceLabel,
+          sourcePackage: d.sourcePackage,
+          sourcePackageLabel: d.sourcePackageLabel,
           slug: d.slug ?? null,
-          rarity: d.system?.traits?.rarity ?? 'common',
+          rarity: d.rarity ?? 'common',
           lores: this._parseApparitionLores(description),
           spells: this._parseApparitionSpells(description),
           vesselSpell: this._parseVesselSpell(description),
@@ -1046,7 +1148,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _buildFeatContext() {
     if (!this.data.ancestry) return { ancestryFeats: [], classFeats: [] };
 
-    const allFeats = await this._loadCompendium('pf2e.feats-srd');
+    const allFeats = await this._loadCompendiumCategory('feats');
     const ancestrySlug = this.data.ancestry.slug ?? null;
     const heritageSlug = this.data.heritage?.slug ?? null;
     const ancestryTraits = collectAncestryFeatTraits(ancestrySlug, heritageSlug);
@@ -1073,7 +1175,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map((f) => ({ ...f, taken: f.uuid === selectedClassUuid }));
     }
 
-    return { ancestryFeats, classFeats, hasClassFeat, ancestralParagonEnabled };
+    const availableFeatSubSteps = ['ancestry'];
+    if (ancestralParagonEnabled) availableFeatSubSteps.push('paragon');
+    if (hasClassFeat) availableFeatSubSteps.push('class');
+    if (!availableFeatSubSteps.includes(this.featSubStep)) {
+      this.featSubStep = availableFeatSubSteps[0] ?? 'ancestry';
+    }
+
+    return {
+      ancestryFeats,
+      classFeats,
+      hasClassFeat,
+      ancestralParagonEnabled,
+      featSubStep: this.featSubStep,
+      availableFeatSubSteps,
+    };
   }
 
   async _buildSpellContext() {
@@ -1156,4 +1272,208 @@ function collectAncestryFeatTraits(ancestrySlug, heritageSlug) {
   }
 
   return [...traits];
+}
+
+const SOURCE_FILTERABLE_KEYS = new Set([
+  'items',
+  'options',
+  'ancestryFeats',
+  'classFeats',
+  'cantrips',
+  'rank1Spells',
+  'curriculumCantripOptions',
+  'curriculumRank1Options',
+  'focusSpells',
+]);
+
+export function buildCompendiumSourceOptions(stepId, stepContext, storedSelection = []) {
+  const configuredSources = getConfiguredStepCompendiumSources(stepId);
+  const sources = configuredSources.length > 0 ? configuredSources : collectCompendiumSources(stepContext);
+  if (sources.length === 0) return [];
+
+  const allKeys = new Set(sources.map((source) => source.key));
+  const selectedKeys = new Set((storedSelection?.length ? storedSelection : [...allKeys])
+    .filter((key) => allKeys.has(key)));
+
+  return sources.map((source) => ({
+    ...source,
+    selected: selectedKeys.has(source.key),
+  }));
+}
+
+function getConfiguredStepCompendiumSources(stepId) {
+  const categories = STEP_SOURCE_CATEGORIES[stepId] ?? [];
+  const sources = [];
+
+  for (const category of categories) {
+    for (const key of getCompendiumKeysForCategory(category)) {
+      const pack = game.packs.get(key);
+      const packageKey = pack?.metadata?.packageName ?? pack?.metadata?.package ?? key;
+      sources.push({
+        key: packageKey,
+        label: getSourceOwnerLabel(packageKey),
+      });
+    }
+  }
+
+  const unique = new Map();
+  for (const source of sources) {
+    if (!unique.has(source.key)) unique.set(source.key, source);
+  }
+
+  return [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function filterStepContextByCompendiumSource(stepContext, sourceOptions = []) {
+  const selectedKeys = new Set(sourceOptions.filter((option) => option.selected).map((option) => option.key));
+  if (selectedKeys.size === 0) return stepContext;
+
+  return filterCompendiumSourceValue(stepContext, selectedKeys);
+}
+
+function collectCompendiumSources(value, found = new Map()) {
+  if (Array.isArray(value)) {
+    for (const entry of value) collectCompendiumSources(entry, found);
+    return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  if (!value || typeof value !== 'object') return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+
+  const sourceKey = typeof value.sourcePackage === 'string' && value.sourcePackage.length > 0
+    ? value.sourcePackage
+    : value.sourcePack;
+  if (typeof sourceKey === 'string' && sourceKey.length > 0) {
+    found.set(sourceKey, {
+      key: sourceKey,
+      label: value.sourcePackageLabel ?? value.sourceLabel ?? getSourceOwnerLabel(sourceKey),
+    });
+  }
+
+  for (const nested of Object.values(value)) {
+    collectCompendiumSources(nested, found);
+  }
+
+  return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function filterCompendiumSourceValue(value, selectedKeys, parentKey = null) {
+  if (Array.isArray(value)) {
+    if (SOURCE_FILTERABLE_KEYS.has(parentKey) && value.every((entry) => isCompendiumSourcedRecord(entry))) {
+      return value.filter((entry) => selectedKeys.has(entry.sourcePackage ?? entry.sourcePack));
+    }
+
+    return value.map((entry) => filterCompendiumSourceValue(entry, selectedKeys, parentKey));
+  }
+
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
+    key,
+    filterCompendiumSourceValue(nested, selectedKeys, key),
+  ]));
+}
+
+function isCompendiumSourcedRecord(value) {
+  return !!value
+    && typeof value === 'object'
+    && typeof value.uuid === 'string'
+    && (
+      (typeof value.sourcePackage === 'string' && value.sourcePackage.length > 0)
+      || (typeof value.sourcePack === 'string' && value.sourcePack.length > 0)
+    );
+}
+
+const STEP_SOURCE_CATEGORIES = {
+  ancestry: ['ancestries'],
+  heritage: ['heritages'],
+  background: ['backgrounds'],
+  class: ['classes'],
+  subclass: ['classFeatures'],
+  deity: ['deities'],
+  implement: ['classFeatures'],
+  tactics: ['actions'],
+  ikons: ['classFeatures'],
+  innovationDetails: ['equipment', 'classFeatures'],
+  kineticGate: ['feats', 'classFeatures'],
+  subconsciousMind: ['classFeatures'],
+  thesis: ['classFeatures'],
+  apparitions: ['classFeatures'],
+  feats: ['feats'],
+  spells: ['spells'],
+};
+
+function buildBrowserStepContext(stepId, data, stepContext) {
+  const config = BROWSER_STEP_CONFIG[stepId];
+  if (!config) return null;
+
+  return {
+    stepId,
+    title: localize(config.titleKey),
+    resultsLabel: localize(config.resultsKey),
+    items: Array.isArray(stepContext?.items) ? stepContext.items : [],
+    selected: config.selectedKey ? data[config.selectedKey] ?? null : null,
+    clearAction: config.clearAction,
+    showSearch: config.showSearch !== false,
+    showRarityFilters: config.showRarityFilters !== false,
+    showTraits: config.showTraits === true,
+    selectAction: config.selectAction ?? 'selectItem',
+  };
+}
+
+const BROWSER_STEP_CONFIG = {
+  ancestry: {
+    titleKey: 'CREATION.STEPS.ANCESTRY',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.ANCESTRIES',
+    selectedKey: 'ancestry',
+    clearAction: 'clearAncestry',
+    showRarityFilters: true,
+  },
+  heritage: {
+    titleKey: 'CREATION.STEPS.HERITAGE',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.HERITAGES',
+    selectedKey: 'heritage',
+    clearAction: 'clearHeritage',
+    showRarityFilters: true,
+    showTraits: true,
+  },
+  background: {
+    titleKey: 'CREATION.STEPS.BACKGROUND',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.BACKGROUNDS',
+    selectedKey: 'background',
+    clearAction: 'clearBackground',
+    showRarityFilters: true,
+  },
+  class: {
+    titleKey: 'CREATION.STEPS.CLASS',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.CLASSES',
+    selectedKey: 'class',
+    clearAction: 'clearClass',
+    showRarityFilters: false,
+  },
+  subclass: {
+    titleKey: 'CREATION.STEPS.SUBCLASS',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.CLASS_FEATURES',
+    selectedKey: 'subclass',
+    clearAction: 'clearSubclass',
+    showRarityFilters: true,
+    selectAction: 'selectSubclass',
+  },
+};
+
+function getSourceOwnerLabel(packageKey) {
+  if (!packageKey) return '';
+  if (game.system?.id === packageKey) return compactSourceOwnerLabel(game.system.title ?? packageKey);
+  return compactSourceOwnerLabel(game.modules?.get?.(packageKey)?.title ?? packageKey);
+}
+
+function compactSourceOwnerLabel(label) {
+  let text = String(label ?? '').trim();
+  if (!text) return '';
+
+  if (/^pathfinder second edition$/i.test(text)) return 'PF2E';
+
+  text = text.replace(/\s+for\s+Pathfinder\s+2e\s+by\s+Roll\s+For\s+Combat$/i, '');
+  text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
+
+  return text;
 }

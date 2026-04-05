@@ -4,11 +4,41 @@
 
 ### Improved
 
+- Animist apparition attunement is now fully interactive in the level planner
+  - Apparition slots appear at levels 1, 7, and 15 matching the rules (2 → 3 → 4 total)
+  - Clicking an apparition selects or deselects it; selections are cumulative across all checkpoint levels so your level-1 picks carry forward to level 7 and 15
+  - A counter badge shows selected/total (e.g. `2/3 apparitions`) and turns green when the slot is full
+  - Each apparition has an info button that opens its compendium sheet
+  - The focus pool badge is shown alongside the attunement counter at each unlock level
+- Planned feats that grant skill proficiency are now reflected in the build state
+  - Feats such as Acrobat Dedication grant Expert/Master/Legendary in Acrobatics at the appropriate character levels, and the planner now accounts for those ranks when computing available skill increases and validating prerequisites
+- Planner and wizard selections are easier to inspect while browsing
+  - Selected feats in the character wizard can now be opened directly from their feat-slot cards
+  - Item-detail access is more consistent in the newer planner and wizard browsing flows
 - Planner prerequisite handling is now much more permissive and informative for real PF2E feat text
   - Unverifiable narrative prerequisites no longer hard-block feat selection
   - Unknown prerequisite tags are now labeled clearly as `Unverified` in the feat picker
   - Added broader semantic prerequisite support for class features, spellcasting traditions, deity domains, Lore, and equipment/weapon requirements
   - Expanded regression coverage with a growing corpus of real feat prerequisite examples
+- Custom compendium sourcing is now much more flexible and usable
+  - Replaced the old feat-only comma-separated setting with a category-based compendium manager
+  - GMs can now choose additional compendiums per category such as ancestries, heritages, classes, feats, spells, class features, equipment, actions, and deities
+  - The compendium manager now uses a styled in-module UI and lets you open a listed compendium directly to inspect its contents
+  - The character wizard now includes per-step compendium source filters so you can narrow each section to the packs you want to browse
+  - Planner feat and spell pickers now expose those configured compendium sources too, so custom content is easier to browse during level planning
+- Character creation plans can now move between worlds more easily
+  - Added export/import support for wizard creation data, separate from the level planner's plan export
+  - Imported creation snapshots are normalized so older exports remain usable as the wizard data shape evolves
+- Character creation browsing has been overhauled to feel more like a real content browser
+  - Ancestry, heritage, background, class, subclass, feat, and spell steps now use a more consistent browser-style layout with a filter rail and result pane
+  - Selected feats are shown directly in their wizard feat slots, and those selected feat names can be opened to inspect the feat
+  - Search, rarity, and content source filtering are more consistent across the main browsing steps
+- Prepared spell management now has a lighter middle ground than auto-importing whole traditions
+  - Prepared spell windows now expose a rank-aware tradition spell picker instead of requiring full manual drag-and-drop or auto-adding every tradition spell
+  - The picker supports multi-select, `Select All` / `Deselect All`, and hides spells the actor already has when used from the preparation sheet
+  - This gives prepared casters a curated pick flow instead of flooding their entry with every tradition spell up front
+- Character creation apply prompts are easier to follow
+  - Promptless PF2E choice sets now get a readable fallback label in the creation loading/apply overlay, so more system prompts appear in the guidance list
 
 ### Fixed
 
@@ -16,6 +46,14 @@
   - Non-archetype feats listed under an archetype's Additional Feats can now appear in archetype feat selection
   - Archetype-specific override levels from Additional Feats are respected instead of the feat's native printed level
   - Additional Feats parsing now supports dedication descriptions, journal-linked archetype pages, `@UUID[...]` links, and PF2E journal `data-uuid` content links
+- Wizard curriculum spellcasting entry reuse is now locale-safe
+  - Existing curriculum spellcasting entries are now identified by module flag instead of relying on the English word `Curriculum` in the entry name
+- Custom compendium selections now save and display more reliably
+  - Saving one compendium category no longer wipes selections from the others
+  - Compendium listings now show the owning module/system more clearly, making custom pack lists easier to understand
+- Prepared spell and planner pickers now handle custom-source browsing more reliably
+  - Source chips now appear where expected in the planner pickers
+  - Source filtering, search, and duplicate filtering in the prepared-spell picker now behave correctly with custom spell sources
 
 ### Notes
 

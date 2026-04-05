@@ -1,5 +1,7 @@
 import { CasterBaseHandler } from './caster-base.js';
 
+const CURRICULUM_ENTRY_FLAG = 'curriculumEntry';
+
 /**
  * Wizard: prepared arcane caster with arcane school.
  * Main spellbook: 10 cantrips (player selects) + 5 rank-1 (player selects).
@@ -104,14 +106,17 @@ export class WizardHandler extends CasterBaseHandler {
 
     const schoolName = data.subclass?.name ?? 'Arcane School';
 
-    let curriculumEntry = actor.items?.find((i) =>
-      i.type === 'spellcastingEntry' && i.name?.includes('Curriculum'),
-    );
+    let curriculumEntry = actor.items?.find((i) => this._isCurriculumEntry(i));
 
     if (!curriculumEntry) {
       const created = await actor.createEmbeddedDocuments('Item', [{
         name: `${schoolName} Curriculum`,
         type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            [CURRICULUM_ENTRY_FLAG]: true,
+          },
+        },
         system: {
           tradition: { value: 'arcane' },
           prepared: { value: 'prepared' },
@@ -213,5 +218,11 @@ export class WizardHandler extends CasterBaseHandler {
     }
 
     return limited;
+  }
+
+  _isCurriculumEntry(item) {
+    if (item?.type !== 'spellcastingEntry') return false;
+    if (item.flags?.['pf2e-leveler']?.[CURRICULUM_ENTRY_FLAG] === true) return true;
+    return item.name?.includes?.('Curriculum') === true;
   }
 }

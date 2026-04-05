@@ -408,7 +408,7 @@
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-ghost"></i>
             {{localize "PF2E_LEVELER.ANIMIST.APPARITIONS"}}
-            <span class="tag tag--info">{{format "PF2E_LEVELER.SPELLS.ATTUNEMENT_SLOTS" count=attunementSlots}}</span>
+            <span class="tag {{#if (eq apparitionSelectedCount attunementSlots)}}tag--success{{else}}tag--info{{/if}}">{{format "PF2E_LEVELER.SPELLS.ATTUNEMENT_SLOTS" selected=apparitionSelectedCount count=attunementSlots}}</span>
             {{#if newFocusPool}}
               <span class="tag tag--info">{{format "PF2E_LEVELER.SPELLS.FOCUS_POOL" count=newFocusPool}}</span>
             {{/if}}
@@ -416,9 +416,13 @@
           <div class="level-section__body">
             <div class="apparition-list">
               {{#each availableApparitions}}
-              <div class="apparition-item">
+              <div class="apparition-item {{#if this.selected}}apparition-item--selected{{else if this.disabled}}apparition-item--disabled{{/if}}"
+                data-action="toggleApparition" data-slug="{{this.slug}}" data-max-slots="{{../attunementSlots}}">
                 <i class="fa-solid fa-ghost"></i>
                 <span>{{localize this.nameKey}}</span>
+                {{#if this.uuid}}
+                <i class="fa-solid fa-circle-info apparition-info" data-action="viewApparition" data-uuid="{{this.uuid}}"></i>
+                {{/if}}
               </div>
               {{/each}}
             </div>

@@ -37,7 +37,7 @@ describe('buildSpellContext', () => {
         getSpellContext: async () => ({}),
       },
       _isCaster: () => true,
-      _loadCompendium: async () => ([
+      _loadCompendiumCategory: async () => ([
         {
           uuid: 'common-cantrip',
           name: 'Detect Magic',
@@ -78,5 +78,56 @@ describe('buildSpellContext', () => {
     expect(context.showSpellRarityFilters).toBe(false);
     expect(context.cantrips.map((spell) => spell.uuid)).toEqual(['common-cantrip']);
     expect(context.rank1Spells.map((spell) => spell.uuid)).toEqual(['common-rank1']);
+  });
+
+  it('uses category-aware spell loading so custom spell compendiums can contribute options', async () => {
+    ClassRegistry.get.mockReturnValue({
+      slug: 'sorcerer',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'spontaneous',
+        slots: {
+          1: {
+            cantrips: 5,
+            1: 2,
+          },
+        },
+      },
+    });
+
+    const wizard = {
+      data: {
+        class: { slug: 'sorcerer' },
+        subclass: { tradition: 'arcane' },
+        spells: { cantrips: [], rank1: [] },
+      },
+      classHandler: {
+        needsNonCasterSpellStep: () => false,
+        getSpellbookCounts: () => null,
+        resolveGrantedSpells: async () => ({ cantrips: [], rank1s: [] }),
+        resolveFocusSpells: async () => [],
+        isFocusSpellChoice: () => false,
+        getSpellContext: async () => ({}),
+      },
+      _isCaster: () => true,
+      _loadCompendiumCategory: jest.fn(async (category) => {
+        if (category !== 'spells') return [];
+        return [
+          {
+            uuid: 'custom-cantrip',
+            name: 'Custom Arcane Spark',
+            level: 0,
+            rarity: 'common',
+            traditions: ['arcane'],
+            traits: ['cantrip', 'concentrate'],
+          },
+        ];
+      }),
+    };
+
+    const context = await buildSpellContext(wizard);
+
+    expect(wizard._loadCompendiumCategory).toHaveBeenCalledWith('spells');
+    expect(context.cantrips.map((spell) => spell.uuid)).toContain('custom-cantrip');
   });
 });

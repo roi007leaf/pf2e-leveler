@@ -35,9 +35,27 @@ import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { bindRarityToggles } from '../shared/rarity-filters.js';
 
 export function activateCharacterWizardListeners(wizard, el) {
+  el.querySelector('[data-action="exportCreationData"]')?.addEventListener('click', () => wizard._exportCreationData());
+  el.querySelector('[data-action="importCreationData"]')?.addEventListener('click', () => wizard._importCreationData());
   el.querySelector('[data-action="prevStep"]')?.addEventListener('click', () => wizard._prevStep());
   el.querySelector('[data-action="nextStep"]')?.addEventListener('click', () => wizard._nextStep());
   el.querySelector('[data-action="applyCreation"]')?.addEventListener('click', () => wizard._apply());
+  el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const allPacks = [...el.querySelectorAll('[data-action="toggleCompendiumSource"]')].map((entry) => entry.dataset.pack);
+      wizard._toggleCompendiumSourceFilter(btn.dataset.pack, allPacks);
+    });
+  });
+  el.querySelectorAll('[data-action="searchCompendiumSources"]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const query = input.value.trim().toLowerCase();
+      const root = input.closest('.wizard-browser-filter, .wizard-source-filters');
+      root?.querySelectorAll?.('[data-action="toggleCompendiumSource"]').forEach((button) => {
+        const name = (button.dataset.sourceName ?? button.textContent ?? '').toLowerCase();
+        button.style.display = !query || name.includes(query) ? '' : 'none';
+      });
+    });
+  });
 
   el.querySelectorAll('[data-action="goToStep"]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -318,6 +336,13 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
+  el.querySelectorAll('[data-action="featSubStep"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard.featSubStep = btn.dataset.substep;
+      wizard.render(true);
+    });
+  });
+
   el.querySelectorAll('[data-action="addCantrip"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const uuid = btn.dataset.uuid;
@@ -480,12 +505,13 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  const searchInput = el.querySelector('[data-action="searchItems"]');
-  if (searchInput) {
+  el.querySelectorAll('[data-action="searchItems"]').forEach((searchInput) => {
     searchInput.addEventListener('input', (e) => {
-      wizard._filterItems(el, e.target.value.toLowerCase());
+      const query = e.target.value.toLowerCase();
+      const scope = searchInput.closest('.wizard-browser') ?? el;
+      wizard._filterItems(scope, query);
     });
-  }
+  });
 }
 
 function applyChoiceSetFilters(block) {

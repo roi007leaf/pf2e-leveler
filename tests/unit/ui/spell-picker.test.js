@@ -1,14 +1,25 @@
-import { SpellPicker } from '../../../scripts/ui/spell-picker.js';
+jest.mock('../../../scripts/compendiums/catalog.js', () => ({
+  getCompendiumKeysForCategory: jest.fn(() => ['pf2e.spells-srd']),
+}));
+
+import { clearSpellPickerCache, SpellPicker } from '../../../scripts/ui/spell-picker.js';
+
+const { getCompendiumKeysForCategory } = jest.requireMock('../../../scripts/compendiums/catalog.js');
 
 describe('SpellPicker', () => {
   beforeEach(() => {
-    game.packs.get = jest.fn(() => ({
-      getDocuments: jest.fn(async () => [
-        makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
-        makeSpell('acid-grip', 'Acid Grip', 2, ['arcane']),
-        makeSpell('heal', 'Heal', 1, ['divine']),
-      ]),
-    }));
+    clearSpellPickerCache();
+    getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd']);
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => [
+          makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
+          makeSpell('acid-grip', 'Acid Grip', 2, ['arcane']),
+          makeSpell('heal', 'Heal', 1, ['divine']),
+        ]),
+      };
+    });
   });
 
   test('allows lower-rank spells for higher-rank spontaneous selections', async () => {
@@ -46,6 +57,158 @@ describe('SpellPicker', () => {
     const sameRankPicker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
     const sameRankContext = await sameRankPicker._prepareContext();
     expect(sameRankContext.spells.map((spell) => spell.uuid)).not.toContain('magic-missile');
+  });
+
+  test('supports exact-rank spell selection for preparation-style picking', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 2, jest.fn(), {
+      exactRank: true,
+      excludedSelections: [],
+    });
+
+    const context = await picker._prepareContext();
+    const uuids = context.spells.map((spell) => spell.uuid);
+
+    expect(uuids).toContain('acid-grip');
+    expect(uuids).not.toContain('magic-missile');
+  });
+
+  test('loads spells from configured spell compendium categories', async () => {
+    clearSpellPickerCache();
+    getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd', 'custom.spells']);
+    game.packs.get = jest.fn((key) => {
+      if (key === 'pf2e.spells-srd') {
+        return {
+          getDocuments: jest.fn(async () => [
+            makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
+          ]),
+        };
+      }
+      if (key === 'custom.spells') {
+        return {
+          getDocuments: jest.fn(async () => [
+            makeSpell('custom-bolt', 'Custom Bolt', 1, ['arcane']),
+          ]),
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    const context = await picker._prepareContext();
+
+    expect(getCompendiumKeysForCategory).toHaveBeenCalledWith('spells');
+    expect(context.spells.map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'custom-bolt']));
+  });
+
+  test('supports multi-select confirmation for preparation-style picking', async () => {
+    const actor = createMockActor({ items: [] });
+    const onSelect = jest.fn();
+    const picker = new SpellPicker(actor, 'arcane', 1, onSelect, {
+      exactRank: true,
+      multiSelect: true,
+      excludedSelections: [],
+    });
+
+    await picker._prepareContext();
+    picker.close = jest.fn();
+
+    picker._toggleSelectedSpell('magic-missile');
+    picker._toggleSelectedSpell('magic-missile');
+    picker._toggleSelectedSpell('magic-missile');
+    await picker._confirmSelection();
+
+    expect(onSelect).toHaveBeenCalledWith([
+      expect.objectContaining({ uuid: 'magic-missile', name: 'Magic Missile' }),
+    ]);
+    expect(picker.close).toHaveBeenCalled();
+  });
+
+  test('toggle select all selects or deselects only visible spells', () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      exactRank: true,
+      multiSelect: true,
+      excludedSelections: [],
+    });
+
+    picker.selectedSpellUuids = new Set(['hidden-spell']);
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="spell-picker__selected-count"></div>
+      <button data-action="toggleSelectAll"></button>
+      <button data-action="confirmSelection"></button>
+      <div class="spell-option" data-uuid="magic-missile"></div>
+      <div class="spell-option" data-uuid="acid-grip"></div>
+      <div class="spell-option" data-uuid="hidden-spell" style="display:none"></div>
+    `;
+
+    picker._updateSelectionUI();
+    expect(picker.element.querySelector('[data-action="toggleSelectAll"]').textContent)
+      .toBe('PF2E_LEVELER.SPELLS.SELECT_ALL');
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedSpellUuids.has('magic-missile')).toBe(true);
+    expect(picker.selectedSpellUuids.has('acid-grip')).toBe(true);
+    expect(picker.selectedSpellUuids.has('hidden-spell')).toBe(true);
+    expect(picker.element.querySelector('[data-action="toggleSelectAll"]').textContent)
+      .toBe('PF2E_LEVELER.SPELLS.DESELECT_ALL');
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedSpellUuids.has('magic-missile')).toBe(false);
+    expect(picker.selectedSpellUuids.has('acid-grip')).toBe(false);
+    expect(picker.selectedSpellUuids.has('hidden-spell')).toBe(true);
+    expect(picker.element.querySelector('[data-action="toggleSelectAll"]').textContent)
+      .toBe('PF2E_LEVELER.SPELLS.SELECT_ALL');
+  });
+
+  test('preserves spell uuid in template view data', () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      exactRank: true,
+      multiSelect: true,
+      excludedSelections: [],
+    });
+
+    const spell = makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']);
+    const viewData = picker._toTemplateSpell(spell);
+
+    expect(viewData.uuid).toBe('magic-missile');
+    expect(viewData.name).toBe('Magic Missile');
+    expect(viewData.system.level.value).toBe(1);
+  });
+
+  test('can filter out already owned spells by identity for preparation-style picking', async () => {
+    const actor = createMockActor({
+      items: [
+        {
+          type: 'spell',
+          sourceId: 'magic-missile',
+          name: 'Magic Missile',
+          system: {
+            level: { value: 1 },
+            location: { value: 'entry-1' },
+          },
+        },
+      ],
+    });
+
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      exactRank: true,
+      multiSelect: true,
+      excludeOwnedByIdentity: true,
+      excludedSelections: [],
+    });
+
+    const context = await picker._prepareContext();
+    const uuids = context.spells.map((spell) => spell.uuid);
+
+    expect(uuids).not.toContain('magic-missile');
   });
 });
 

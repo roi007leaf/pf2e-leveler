@@ -29,7 +29,6 @@ import {
 } from './level-context.js';
 import { activateLevelPlannerListeners } from './listeners.js';
 import {
-  buildApparitionContext,
   buildSpellContext,
   buildSpellSlotDisplay,
   detectNewSpellRank,
@@ -45,6 +44,21 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+function extractFeatSkillRules(feat) {
+  const result = [];
+  for (const rule of feat.system?.rules ?? []) {
+    if (rule.key !== 'ActiveEffectLike') continue;
+    const path = rule.path;
+    if (typeof path !== 'string') continue;
+    const match = path.match(/^system\.skills\.([^.]+)\.rank$/);
+    if (!match) continue;
+    const value = Number(rule.value);
+    if (!Number.isFinite(value)) continue;
+    result.push({ skill: match[1], value, predicate: rule.predicate ?? null });
+  }
+  return result;
+}
+
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
   'master-qi-spells',
@@ -57,6 +71,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor) {
     super();
     this.actor = actor;
+    this._compendiumCache = {};
     this.plan = this._loadOrCreatePlan(actor);
     const actorLevel = actor.system?.details?.level?.value ?? 1;
     this.selectedLevel = Math.max(actorLevel, MIN_PLAN_LEVEL);
@@ -69,8 +84,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const classSlug = this._resolveClassSlug(actor);
     if (existing.classSlug !== classSlug) return this._createPlanFromActor(actor);
 
-    this._migratePlan(existing, classSlug);
-    return existing;
+    // Deep clone so this.plan is always mutable — actor flags are frozen in Foundry v12
+    const plan = foundry.utils.deepClone(existing);
+    this._migratePlan(plan, classSlug);
+    return plan;
   }
 
   _migratePlan(plan, classSlug) {
@@ -79,6 +96,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const options = this._getVariantOptions();
     let changed = false;
+
+    // Migrate per-level apparitions (old format) to plan-level cumulative list
+    if (!plan.apparitions && classDef.apparitions) {
+      const merged = [];
+      for (const levelData of Object.values(plan.levels)) {
+        for (const slug of (levelData.apparitions ?? [])) {
+          if (!merged.includes(slug)) merged.push(slug);
+        }
+      }
+      plan.apparitions = merged;
+      for (const levelData of Object.values(plan.levels)) {
+        delete levelData.apparitions;
+      }
+      changed = true;
+    }
 
     for (let level = MIN_PLAN_LEVEL; level <= MAX_LEVEL; level++) {
       const choices = getChoicesForLevel(classDef, level, options);
@@ -110,6 +142,41 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     if (changed) savePlan(this.actor, plan);
+
+    // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
+    const SKILL_RULES_FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+    outer: for (const levelData of Object.values(plan.levels)) {
+      for (const key of SKILL_RULES_FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.skillRules === undefined) {
+            this._needsSkillRulesBackfill = true;
+            break outer;
+          }
+        }
+      }
+    }
+  }
+
+  async _backfillFeatSkillRules() {
+    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+    for (const levelData of Object.values(this.plan.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.skillRules !== undefined) continue;
+          if (!feat.uuid) {
+            feat.skillRules = [];
+            continue;
+          }
+          try {
+            const doc = await fromUuid(feat.uuid);
+            feat.skillRules = doc ? extractFeatSkillRules(doc) : [];
+          } catch {
+            feat.skillRules = [];
+          }
+        }
+      }
+    }
+    await savePlan(this.actor, this.plan);
   }
 
   _createPlanFromActor(actor) {
@@ -150,6 +217,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
+    if (this._needsSkillRulesBackfill) {
+      this._needsSkillRulesBackfill = false;
+      await this._backfillFeatSkillRules();
+    }
     this._buildStateCache = new Map();
     const options = this._getVariantOptions();
     const classDef = this.plan ? ClassRegistry.get(this.plan.classSlug) : null;
@@ -174,6 +245,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getVariantOptions() {
+    const ancestryParagonFeatLevels = this._getAncestryParagonFeatLevels();
     return {
       freeArchetype: isFreeArchetypeEnabled(),
       mythic: isMythicEnabled(),
@@ -181,7 +253,24 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       gradualBoosts: isGradualBoostsEnabled(),
       dualClass: isDualClassEnabled(),
       ancestralParagon: isAncestralParagonEnabled(),
+      ancestryParagonFeatLevels,
     };
+  }
+
+  _getAncestryParagonFeatLevels() {
+    if (!this.plan) return [];
+    const FEAT_KEYS = ['generalFeats', 'classFeats', 'skillFeats', 'ancestryFeats', 'archetypeFeats'];
+    const levels = [];
+    for (const [levelStr, levelData] of Object.entries(this.plan.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.slug === 'ancestry-paragon') {
+            levels.push(Number(levelStr));
+          }
+        }
+      }
+    }
+    return levels;
   }
 
   _buildSidebarLevels(classDef, options) {
@@ -278,10 +367,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _buildABPContext(level, options) {
     return buildABPContext(level, options);
-  }
-
-  _buildApparitionContext(classDef, level) {
-    return buildApparitionContext(classDef, level);
   }
 
   _getActorSpellCounts() {
@@ -515,6 +600,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           slug,
           img: feat.img,
           level: feat.system.level.value,
+          skillRules: extractFeatSkillRules(feat),
         });
         clearLevelReminders(this.plan, level, slug);
         if (MANUAL_SPELL_FEATS.has(slug)) {

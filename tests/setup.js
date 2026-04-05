@@ -18,6 +18,7 @@ global.game = {
           enforcePrerequisites: true,
           hideUncommonFeats: false,
           featSortMethod: 'LEVEL_DESC',
+          customCompendiums: {},
           additionalFeatCompendiums: '',
         },
         pf2e: {
@@ -35,6 +36,7 @@ global.game = {
       global._testSettings[moduleId][settingId] = value;
     }),
     register: jest.fn(),
+    registerMenu: jest.fn(),
   },
   user: {
     isGM: true,
@@ -162,6 +164,12 @@ global.fromUuidSync = jest.fn((uuid) => ({
 }));
 
 global.renderTemplate = jest.fn(() => Promise.resolve('<div>Mock Template</div>'));
+
+global.FormApplication = class FormApplication {
+  static get defaultOptions() {
+    return {};
+  }
+};
 
 global.ChatMessage = {
   create: jest.fn(() => Promise.resolve()),

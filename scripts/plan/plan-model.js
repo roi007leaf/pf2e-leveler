@@ -193,6 +193,23 @@ export function removeLevelSpell(plan, level, uuid) {
   return plan;
 }
 
+export function togglePlanApparition(plan, slug, maxSlots) {
+  if (!plan.apparitions) plan.apparitions = [];
+  const list = [...plan.apparitions];
+  const index = list.indexOf(slug);
+  if (index >= 0) {
+    list.splice(index, 1);
+  } else if (list.length < maxSlots) {
+    list.push(slug);
+  }
+  plan.apparitions = list;
+  return plan;
+}
+
+export function getPlanApparitions(plan) {
+  return plan.apparitions ?? [];
+}
+
 export function getAllPlannedBoosts(plan, upToLevel = MAX_LEVEL) {
   const boosts = {};
   for (let level = 1; level <= upToLevel; level++) {

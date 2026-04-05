@@ -1,4 +1,6 @@
 import { MODULE_ID } from './constants.js';
+import { CompendiumSettingsMenu } from './ui/compendium-settings-menu.js';
+import { invalidateCache } from './feats/feat-cache.js';
 
 export function registerSettings() {
   game.settings.register(MODULE_ID, 'showPlanButton', {
@@ -81,11 +83,30 @@ export function registerSettings() {
     requiresReload: true,
   });
 
+  game.settings.registerMenu(MODULE_ID, 'customCompendiumsMenu', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NAME'),
+    label: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.LABEL'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.HINT'),
+    icon: 'fas fa-atlas',
+    type: CompendiumSettingsMenu,
+    restricted: true,
+  });
+
+  game.settings.register(MODULE_ID, 'customCompendiums', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.HINT'),
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {},
+    onChange: () => invalidateCache(),
+  });
+
   game.settings.register(MODULE_ID, 'additionalFeatCompendiums', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.HINT'),
     scope: 'world',
-    config: true,
+    config: false,
     type: String,
     default: '',
     requiresReload: true,

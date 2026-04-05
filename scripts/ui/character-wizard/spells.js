@@ -92,7 +92,7 @@ export async function buildSpellContext(wizard) {
   const maxCantrips = totalCantrips - grantedSpells.cantrips.length;
   const maxRank1 = totalRank1 - grantedSpells.rank1s.length;
 
-  const allSpells = await wizard._loadCompendium('pf2e.spells-srd');
+  const allSpells = await wizard._loadCompendiumCategory('spells');
   const grantedUuids = [...grantedSpells.cantrips.map((s) => s.uuid), ...grantedSpells.rank1s.map((s) => s.uuid)];
   const curriculum = wizard.data.subclass?.curriculum ?? {};
   const selectedCurriculum = getSanitizedCurriculumSelections(wizard);

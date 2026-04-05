@@ -2692,6 +2692,49 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('includes promptless choice sets in the apply overlay prompt rows using a humanized flag fallback', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.apparitions = [
+      {
+        uuid: 'Compendium.pf2e.classfeatures.Item.animist-seer',
+        name: 'Seer',
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.animist-seer') {
+        return {
+          uuid,
+          name: 'Seer',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'animisticPractice',
+                choices: {
+                  filter: ['item:tag:animistic-practice'],
+                  itemType: 'feat',
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Seer',
+        prompt: 'Animistic Practice',
+        value: 'Pending selection',
+        pending: true,
+      }),
+    ]);
+  });
+
   it('matches granted feat spell choices when the saved selection uses the option UUID', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.grantedFeatSections = [

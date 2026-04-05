@@ -1,6 +1,14 @@
 import { MODULE_ID } from '../constants.js';
 import { loadFeats } from '../feats/feat-cache.js';
-import { getFeatsForSelection, collectAdditionalArchetypeFeatLevels, filterByDedication, filterByGeneralSkillFeats, filterBySearch, filterBySkill, sortFeats } from '../feats/feat-filter.js';
+import {
+  getFeatsForSelection,
+  collectAdditionalArchetypeFeatLevels,
+  filterByDedication,
+  filterByGeneralSkillFeats,
+  filterBySearch,
+  filterBySkill,
+  sortFeats,
+} from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -23,6 +31,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSkill = '';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
+    this.selectedSourcePackages = new Set();
+    this._sourceFilterInitialized = false;
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
     this._prereqCache = new Map();
     this._buildStateSignature = this._createBuildStateSignature();
@@ -32,7 +42,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: 'pf2e-leveler-feat-picker',
     classes: ['pf2e-leveler'],
-    position: { width: 650, height: 550 },
+    position: { width: 900, height: 650 },
     window: { resizable: true },
   };
 
@@ -51,7 +61,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       archetype: 'Archetype Feats',
       mythic: 'Mythic Feats',
     };
-    return `${this.actor.name} — ${typeNames[this.category] ?? 'Feats'} | Level ${this.targetLevel}`;
+    return `${this.actor.name} - ${typeNames[this.category] ?? 'Feats'} | Level ${this.targetLevel}`;
   }
 
   async _prepareContext() {
@@ -69,15 +79,19 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
+    const sourceOptions = this._getSourceOptions();
     this.filteredFeats = this._applyFilters();
 
     return {
       feats: this.filteredFeats,
+      filteredCount: this.filteredFeats.length,
+      sourceOptions,
       category: this.category,
       targetLevel: this.targetLevel,
       hideFailedPrereqs: this.hideFailedPrereqs,
       showUncommon: this.showUncommon,
       showRare: this.showRare,
+      sortMethod: this.sortMethod,
       showSkillFilter: this.category === 'skill',
       showGeneralSkillToggle: this.category === 'general',
       skillOptions: this._getSkillOptions(),
@@ -90,34 +104,23 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _onRender(_context, _options) {
-    const el = this.element;
-    this._activateListeners(el);
+    this._activateListeners(this.element);
   }
 
   _applyFilters() {
     let feats = [...this.allFeats];
-    if (!this.showUncommon) {
-      feats = feats.filter((f) => f.system.traits.rarity !== 'uncommon');
+    if (this.selectedSourcePackages.size > 0) {
+      feats = feats.filter((feat) => this.selectedSourcePackages.has(feat.sourcePackage ?? feat.sourcePack));
     }
-    if (!this.showRare) {
-      feats = feats.filter((f) => f.system.traits.rarity !== 'rare');
-    }
-    if (this.searchText) {
-      feats = filterBySearch(feats, this.searchText);
-    }
-    if (this.category === 'skill' && this.selectedSkill) {
-      feats = filterBySkill(feats, [this.selectedSkill]);
-    }
-    if (this.category === 'general') {
-      feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
-    }
-    if (['class', 'archetype'].includes(this.category)) {
-      feats = filterByDedication(feats, this.showDedications);
-    }
+    if (!this.showUncommon) feats = feats.filter((f) => f.system.traits.rarity !== 'uncommon');
+    if (!this.showRare) feats = feats.filter((f) => f.system.traits.rarity !== 'rare');
+    if (this.searchText) feats = filterBySearch(feats, this.searchText);
+    if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
+    if (this.category === 'general') feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
+    if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
+
     this._enrichWithPrerequisites(feats);
-    if (this.hideFailedPrereqs) {
-      feats = feats.filter((f) => !f.prerequisitesFailed);
-    }
+    if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
     return sortFeats(feats, this.sortMethod);
   }
 
@@ -133,6 +136,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const enforcePrereqs = this.enforcePrerequisites;
     const ownedSlugs = this.buildState?.feats ?? new Set();
     const takenLevelMap = this._buildTakenLevelMap();
+
     for (const feat of feats) {
       const cacheKey = `${this._buildStateSignature}:${feat.uuid ?? feat.slug ?? feat.name}`;
       let check = this._prereqCache.get(cacheKey);
@@ -141,15 +145,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         this._prereqCache.set(cacheKey, check);
       }
 
-      if (showPrereqs) {
-        feat.prereqResults = check.results;
-      } else {
-        feat.prereqResults = [];
-      }
+      feat.prereqResults = showPrereqs ? check.results : [];
       feat.hasFailedPrerequisites = check.results.some((result) => result.met === false);
       feat.hasUnknownPrerequisites = check.results.some((result) => result.met == null);
       feat.prerequisitesFailed = feat.hasFailedPrerequisites;
       feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
+
       const slug = feat.slug ?? null;
       feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
@@ -211,6 +212,30 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         this._scheduleListUpdate();
       });
     }
+
+    el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sourceKey = btn.dataset.package;
+        if (!sourceKey) return;
+        if (this.selectedSourcePackages.has(sourceKey)) {
+          if (this.selectedSourcePackages.size > 1) this.selectedSourcePackages.delete(sourceKey);
+        } else {
+          this.selectedSourcePackages.add(sourceKey);
+        }
+        for (const chip of el.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
+          chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
+        }
+        this._scheduleListUpdate();
+      });
+    });
+
+    el.querySelector('[data-action="searchCompendiumSources"]')?.addEventListener('input', (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
+        const name = (btn.dataset.sourceName ?? btn.textContent ?? '').toLowerCase();
+        btn.style.display = !query || name.includes(query) ? '' : 'none';
+      });
+    });
 
     const skillSelect = el.querySelector('[data-action="filterSkillFeats"]');
     if (skillSelect) {
@@ -293,8 +318,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const html = await renderTemplate(`modules/${MODULE_ID}/templates/feat-picker.hbs`, {
       feats: this.filteredFeats,
+      filteredCount: this.filteredFeats.length,
       category: this.category,
       targetLevel: this.targetLevel,
+      sortMethod: this.sortMethod,
     });
 
     const temp = document.createElement('div');
@@ -303,6 +330,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (newList) {
       listContainer.innerHTML = newList.innerHTML;
     }
+
+    const resultCount = this.element?.querySelector('.feat-picker__results-count');
+    if (resultCount) resultCount.textContent = String(this.filteredFeats.length);
   }
 
   _getSkillOptions() {
@@ -319,5 +349,30 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     options.sort((a, b) => String(a.label).localeCompare(String(b.label)));
     return options;
+  }
+
+  _getSourceOptions() {
+    const unique = new Map();
+    for (const feat of this.allFeats) {
+      const key = feat.sourcePackage ?? feat.sourcePack ?? null;
+      if (!key) continue;
+      if (!unique.has(key)) {
+        unique.set(key, {
+          key,
+          label: feat.sourcePackageLabel ?? key,
+        });
+      }
+    }
+
+    const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
+    if (!this._sourceFilterInitialized) {
+      this.selectedSourcePackages = new Set(options.map((entry) => entry.key));
+      this._sourceFilterInitialized = true;
+    }
+
+    return options.map((entry) => ({
+      ...entry,
+      selected: this.selectedSourcePackages.has(entry.key),
+    }));
   }
 }

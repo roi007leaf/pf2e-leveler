@@ -1,0 +1,94 @@
+<section class="compendium-manager">
+  <header class="compendium-manager__hero">
+    <div>
+      <div class="compendium-manager__eyebrow">{{summaryLabel}}</div>
+      <h2 class="compendium-manager__title">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NAME"}}</h2>
+      <p class="compendium-manager__intro">{{intro}}</p>
+    </div>
+  </header>
+
+  <div class="compendium-manager__tabs" role="tablist">
+    {{#each categories as |category|}}
+      <button
+        type="button"
+        class="compendium-manager__tab {{#if category.active}}is-active{{/if}}"
+        data-action="select-category"
+        data-category="{{category.key}}"
+      >
+        <span class="compendium-manager__tabLabel">{{category.label}}</span>
+        <span class="compendium-manager__tabMeta">
+          <span class="tag tag--info">{{category.selectedCount}}</span>
+          {{#if category.customCount}}
+            <span class="tag tag--success">{{category.customCount}}</span>
+          {{/if}}
+        </span>
+      </button>
+    {{/each}}
+  </div>
+
+  <div class="compendium-manager__panelWrap">
+    {{#each categories as |category|}}
+      {{#if category.active}}
+        <section class="compendium-manager__panel">
+          <header class="compendium-manager__panelHeader">
+            <div>
+              <h3 class="compendium-manager__cardTitle">{{category.label}}</h3>
+              <div class="compendium-manager__meta">
+                <span class="tag tag--info">{{category.selectedCount}} selected</span>
+                <span class="tag tag--muted">{{category.defaultCount}} built-in</span>
+                {{#if category.customCount}}
+                  <span class="tag tag--success">{{category.customCount}} custom</span>
+                {{/if}}
+              </div>
+            </div>
+          </header>
+
+          {{#if category.packs.length}}
+            <div class="compendium-manager__packs">
+              {{#each category.packs as |pack|}}
+                <div class="compendium-pack {{#if pack.checked}}is-selected{{/if}} {{#if pack.locked}}is-locked{{/if}}">
+                  <input
+                    id="compendium-pack-{{category.key}}-{{@index}}"
+                    class="compendium-pack__check"
+                    type="checkbox"
+                    data-category="{{category.key}}"
+                    data-pack="{{pack.key}}"
+                    data-locked="{{#if pack.locked}}true{{else}}false{{/if}}"
+                    {{#if pack.checked}}checked{{/if}}
+                    {{#if pack.locked}}disabled{{/if}}
+                  >
+                  <label class="compendium-pack__body" for="compendium-pack-{{category.key}}-{{@index}}">
+                    <div class="compendium-pack__topline">
+                      <button type="button" class="compendium-pack__label" data-action="open-compendium" data-pack="{{pack.key}}">{{pack.label}}</button>
+                      {{#if pack.locked}}
+                        <span class="tag tag--warning">{{../../builtInLabel}}</span>
+                      {{/if}}
+                    </div>
+                    <div class="compendium-pack__key">{{pack.key}}</div>
+                    {{#if pack.packageLabel}}
+                      <div class="compendium-pack__package">{{pack.packageLabel}}</div>
+                    {{/if}}
+                    {{#if pack.packageName}}
+                      <div class="compendium-pack__package">{{../../packageLabel}}: {{pack.packageName}}</div>
+                    {{/if}}
+                  </label>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="compendium-manager__empty">{{../noPacksLabel}}</p>
+          {{/if}}
+        </section>
+      {{/if}}
+    {{/each}}
+  </div>
+
+  <footer class="compendium-manager__footer">
+    <button type="button" class="compendium-manager__button compendium-manager__button--ghost" data-action="close-compendiums">
+      {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CANCEL"}}
+    </button>
+    <button type="button" class="compendium-manager__button compendium-manager__button--primary" data-action="save-compendiums">
+      {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVE"}}
+    </button>
+  </footer>
+</section>

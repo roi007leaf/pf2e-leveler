@@ -320,6 +320,33 @@
   border: 1px solid var(--leveler-border);
   border-radius: var(--leveler-radius-md);
   font-size: var(--leveler-font-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pf2e-leveler .apparition-item:hover:not(.apparition-item--disabled) {
+  border-color: var(--leveler-accent);
+}
+
+.pf2e-leveler .apparition-item--selected {
+  background: var(--leveler-accent-muted, color-mix(in srgb, var(--leveler-accent) 15%, transparent));
+  border-color: var(--leveler-accent);
+  color: var(--leveler-accent);
+}
+
+.pf2e-leveler .apparition-item--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pf2e-leveler .apparition-info {
+  margin-left: auto;
+  opacity: 0.5;
+  font-size: var(--leveler-font-xs, 0.75rem);
+}
+
+.pf2e-leveler .apparition-info:hover {
+  opacity: 1;
 }
 
 .pf2e-leveler .planner-actions {
