@@ -58,6 +58,51 @@ describe('compendium catalog helpers', () => {
     expect(discovered.deities.map((pack) => pack.key)).toContain('my.deities');
   });
 
+  test('detects class feature packs by PF2E item category instead of pack name', async () => {
+    game.packs = new Map([
+      ['teamplus.player-options', {
+        collection: 'teamplus.player-options',
+        metadata: { id: 'teamplus.player-options', label: 'Player Options', type: 'Item', packageName: 'teamplus' },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'classfeature' } }]),
+      }],
+      ['whispering.subclasses', {
+        collection: 'whispering.subclasses',
+        metadata: { id: 'whispering.subclasses', label: 'Subclasses', type: 'Item', packageName: 'whispering' },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'classfeature' } }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory();
+
+    expect(discovered.classFeatures.map((pack) => pack.key)).toEqual(expect.arrayContaining([
+      'teamplus.player-options',
+      'whispering.subclasses',
+    ]));
+  });
+
+  test('does not classify pure class-feature packs as feats', async () => {
+    game.packs = new Map([
+      ['whispering.subclasses', {
+        collection: 'whispering.subclasses',
+        metadata: { id: 'whispering.subclasses', label: 'Subclasses', type: 'Item', packageName: 'whispering' },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'classfeature' } }]),
+      }],
+      ['mixed.player-options', {
+        collection: 'mixed.player-options',
+        metadata: { id: 'mixed.player-options', label: 'Player Options', type: 'Item', packageName: 'mixed' },
+        getIndex: jest.fn(async () => [
+          { type: 'feat', system: { category: 'classfeature' } },
+          { type: 'feat', system: { category: 'general' } },
+        ]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory();
+
+    expect(discovered.feats.map((pack) => pack.key)).not.toContain('whispering.subclasses');
+    expect(discovered.feats.map((pack) => pack.key)).toContain('mixed.player-options');
+  });
+
   test('migrates legacy additional feat compendiums into the new category setting', async () => {
     global._testSettings = {
       'pf2e-leveler': {

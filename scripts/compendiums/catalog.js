@@ -24,15 +24,12 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   feats: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS',
     defaultKeys: ['pf2e.feats-srd'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => entry.type === 'feat'),
+    matches: (pack, index) => isItemPack(pack) && index.some((entry) => isFeatIndexEntry(entry)),
   },
   classFeatures: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.CLASS_FEATURES',
     defaultKeys: ['pf2e.classfeatures'],
-    matches: (pack) => {
-      const metadata = `${pack.metadata?.id ?? ''} ${pack.metadata?.label ?? ''}`.toLowerCase();
-      return isItemPack(pack) && (metadata.includes('classfeature') || metadata.includes('class feature'));
-    },
+    matches: (pack, index) => isItemPack(pack) && index.some((entry) => isClassFeatureIndexEntry(entry)),
   },
   spells: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.SPELLS',
@@ -135,7 +132,7 @@ export async function migrateLegacyFeatCompendiumsSetting() {
 async function getPackIndex(pack) {
   if (!pack) return [];
   if (typeof pack.getIndex === 'function') {
-    const index = await pack.getIndex().catch(() => null);
+    const index = await pack.getIndex({ fields: ['type', 'system.category', 'system.traits.otherTags'] }).catch(() => null);
     if (index) return Array.from(index);
   }
   return Array.from(pack.index ?? []);
@@ -157,6 +154,33 @@ function isItemPack(pack) {
   return pack?.documentName === 'Item'
     || pack?.metadata?.type === 'Item'
     || pack?.metadata?.documentName === 'Item';
+}
+
+function isFeatIndexEntry(entry) {
+  return getNormalizedEntryType(entry) === 'feat' && !isClassFeatureIndexEntry(entry);
+}
+
+function isClassFeatureIndexEntry(entry) {
+  const type = getNormalizedEntryType(entry);
+  if (type === 'classfeature' || type === 'class-feature') return true;
+
+  const category = getNormalizedEntryCategory(entry);
+  if (category === 'classfeature' || category === 'class-feature') return true;
+
+  return false;
+}
+
+function getNormalizedEntryType(entry) {
+  return String(entry?.type ?? '').trim().toLowerCase();
+}
+
+function getNormalizedEntryCategory(entry) {
+  return String(
+    entry?.system?.category
+      ?? entry?.system?.category?.value
+      ?? entry?.category
+      ?? '',
+  ).trim().toLowerCase();
 }
 
 function resolvePackageLabel(packageName) {

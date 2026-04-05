@@ -94,4 +94,46 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(feat.prerequisitesFailed).toBe(true);
     expect(feat.selectionBlocked).toBe(true);
   });
+
+  test('signature trick prerequisites are shown as unknown and do not block selection', () => {
+    const feat = createFeat({
+      name: 'Additional Circus Trick',
+      prereqText: 'You Must Have A Signature Trick',
+      uuid: 'additional-circus-trick',
+      slug: 'additional-circus-trick',
+    });
+
+    const picker = new FeatPicker(createActor(), 'archetype', 3, createBuildState({ level: 3 }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toHaveLength(1);
+    expect(result.prereqResults[0].met).toBeNull();
+    expect(result.hasUnknownPrerequisites).toBe(true);
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('multi-ancestry feat selection prerequisites are shown as unknown and do not block selection', () => {
+    const feat = createFeat({
+      name: 'Different Worlds',
+      prereqText: 'Ability To Select Ancestry Feats From Multiple Ancestries',
+      uuid: 'different-worlds',
+      slug: 'different-worlds',
+    });
+
+    const picker = new FeatPicker(createActor(), 'archetype', 1, createBuildState({ level: 1 }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toHaveLength(1);
+    expect(result.prereqResults[0].met).toBeNull();
+    expect(result.hasUnknownPrerequisites).toBe(true);
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
 });

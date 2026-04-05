@@ -55,6 +55,8 @@ const WEAPON_NAME_PROFICIENCY_PATTERN = /^trained in\s+(?:an?\s+)?(.+)$/i;
 const COMPANION_PROHIBITION_PATTERN = /\byou\s+do(?:\s+not|n't)\s+have\b.*\bcompanion\b/i;
 const ALIGNMENT_PATTERN = /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neutral|chaotic|good|evil))?\s+alignment$/i;
 const CURSE_STATE_PATTERN = /\bcursed\b/i;
+const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\s+trick\b/i;
+const MULTIPLE_ANCESTRY_FEATS_PATTERN = /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -496,6 +498,8 @@ function looksLikeDescriptiveRequirement(text) {
   if (COMPANION_PROHIBITION_PATTERN.test(normalized)) return true;
   if (ALIGNMENT_PATTERN.test(normalized)) return true;
   if (CURSE_STATE_PATTERN.test(normalized)) return true;
+  if (SIGNATURE_TRICK_PATTERN.test(normalized)) return true;
+  if (MULTIPLE_ANCESTRY_FEATS_PATTERN.test(normalized)) return true;
   if (/\b(your|class granting|hit points per level|modifier)\b/i.test(normalized)) return true;
   if (/\d+\s*\+\s*your\s+[a-z]+\s+modifier/i.test(normalized)) return true;
 

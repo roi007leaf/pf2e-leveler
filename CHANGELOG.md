@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+
+- Custom compendium category discovery now classifies PF2E packs by their actual item data instead of relying on pack names
+  - Third-party packs containing subclasses and class features are now detected from PF2E item categories such as `classfeature`, even when the pack is named things like `Player Options` or `Subclasses`
+  - Pure class-feature packs no longer leak into the `Feats` category just because their documents use PF2E's feat-like item shape
+
 ## 1.4.0
 
 ### Improved

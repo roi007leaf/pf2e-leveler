@@ -324,6 +324,16 @@ describe('parsePrerequisite', () => {
     const result = parsePrerequisite('You are cursed or have previously been cursed.');
     expect(result.type).toBe('unknown');
   });
+
+  test('treats signature trick prerequisites as unknown legacy text', () => {
+    const result = parsePrerequisite('You Must Have A Signature Trick');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats multi-ancestry feat selection prerequisites as unknown legacy text', () => {
+    const result = parsePrerequisite('Ability To Select Ancestry Feats From Multiple Ancestries');
+    expect(result.type).toBe('unknown');
+  });
 });
 
 describe('parseAllPrerequisites', () => {
