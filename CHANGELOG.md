@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.5
+
+### Fixed
+
+- Feat Choices now shows resolved feat names instead of compendium UUIDs
+  - Feat choice section headers recover the feat's real name from the document when older saved data contains a UUID-like label
+  - Feat choice cards now prefer the resolved item name, so granted options like `Animal Empathy` display correctly instead of raw compendium ids
+
 ## 1.3.4
 
 ### Improved
