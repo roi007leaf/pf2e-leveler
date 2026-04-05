@@ -34,6 +34,27 @@ describe('SpellPicker', () => {
     expect(names).toContain('Magic Missile');
     expect(names).toContain('Acid Grip');
     expect(names).not.toContain('Heal');
+    expect(names.slice(0, 2)).toEqual(['Acid Grip', 'Magic Missile']);
+  });
+
+  test('can switch spell picker sorting back to alphabetical', async () => {
+    const actor = createMockActor({
+      items: [],
+    });
+    const picker = new SpellPicker(actor, 'arcane', 2, jest.fn(), { excludedSelections: [] });
+    await picker._prepareContext();
+
+    picker.sortMode = 'alpha-asc';
+    picker.filteredSpells = picker._filterSpells();
+    picker._sortSpells(picker.filteredSpells);
+
+    expect(picker.filteredSpells.map((spell) => spell.name).slice(0, 2)).toEqual(['Acid Grip', 'Magic Missile']);
+
+    picker.sortMode = 'alpha-desc';
+    picker.filteredSpells = picker._filterSpells();
+    picker._sortSpells(picker.filteredSpells);
+
+    expect(picker.filteredSpells.map((spell) => spell.name).slice(0, 2)).toEqual(['Magic Missile', 'Acid Grip']);
   });
 
   test('allows same spell at a different rank but blocks same spell and rank', async () => {

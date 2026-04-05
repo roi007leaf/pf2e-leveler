@@ -27,6 +27,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
+    this.sortMode = options.sortMode ?? this._getDefaultSortMode();
     this._updateListTimer = null;
     this._domListeners = null;
   }
@@ -80,7 +81,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     this.filteredSpells = this._filterSpells();
-    this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
+    this._sortSpells(this.filteredSpells);
     const sourceOptions = this._getSourceOptions();
 
     const allTraits = new Set();
@@ -99,6 +100,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       tradition: this.tradition,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedSpellUuids.size,
+      sortMode: this.sortMode,
+      sortOptions: this._getSortOptions(),
     };
   }
 
@@ -160,6 +163,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     });
 
     el.addEventListener('change', (e) => {
+      const sortSelect = e.target.closest?.('[data-action="changeSort"]');
+      if (sortSelect) {
+        this.sortMode = sortSelect.value || this._getDefaultSortMode();
+        this._scheduleListUpdate();
+        return;
+      }
+
       const toggle = e.target.closest?.('[data-action="toggleRarity"]');
       if (toggle) {
         applyTraitFilter(el);
@@ -243,7 +253,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _updateList() {
     this.filteredSpells = this._filterSpells();
-    this.filteredSpells.sort((a, b) => a.name.localeCompare(b.name));
+    this._sortSpells(this.filteredSpells);
 
     const root = this._getRootElement();
     const listContainer = root?.querySelector('.spell-picker__list');
@@ -259,6 +269,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       tradition: this.tradition,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedSpellUuids.size,
+      sortMode: this.sortMode,
+      sortOptions: this._getSortOptions(),
     });
 
     const temp = document.createElement('div');
@@ -280,6 +292,21 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (!this.searchText) return spells;
     return spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
+  }
+
+  _sortSpells(spells) {
+    spells.sort((a, b) => {
+      if (this.sortMode === 'rank-desc') {
+        return compareSpellRank(b, a) || compareSpellName(a, b);
+      }
+      if (this.sortMode === 'rank-asc') {
+        return compareSpellRank(a, b) || compareSpellName(a, b);
+      }
+      if (this.sortMode === 'alpha-desc') {
+        return compareSpellName(b, a) || compareSpellRank(a, b);
+      }
+      return compareSpellName(a, b) || compareSpellRank(a, b);
+    });
   }
 
   _updateResultCount() {
@@ -389,6 +416,24 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
+  _getDefaultSortMode() {
+    if (this.rank === -1) return 'rank-desc';
+    if (!this.isCantrip && !this.exactRank && this.rank > 1) return 'rank-desc';
+    return 'alpha-asc';
+  }
+
+  _getSortOptions() {
+    return [
+      { value: 'rank-desc', label: game.i18n.localize('PF2E_LEVELER.SPELLS.SORT_RANK_DESC') },
+      { value: 'rank-asc', label: game.i18n.localize('PF2E_LEVELER.SPELLS.SORT_RANK_ASC') },
+      { value: 'alpha-asc', label: game.i18n.localize('PF2E_LEVELER.SPELLS.SORT_ALPHA_ASC') },
+      { value: 'alpha-desc', label: game.i18n.localize('PF2E_LEVELER.SPELLS.SORT_ALPHA_DESC') },
+    ].map((option) => ({
+      ...option,
+      selected: option.value === this.sortMode,
+    }));
+  }
+
   _toTemplateSpell(spell) {
     return {
       uuid: spell.uuid ?? spell.sourceId ?? spell.flags?.core?.sourceId ?? '',
@@ -447,6 +492,14 @@ function getOwnedSpells(actor) {
     rank: getSpellRank(spell.system ?? {}),
     keys: getSpellMatchKeys(spell),
   }));
+}
+
+function compareSpellName(a, b) {
+  return String(a?.name ?? '').localeCompare(String(b?.name ?? ''));
+}
+
+function compareSpellRank(a, b) {
+  return getSpellRank(a?.system ?? {}) - getSpellRank(b?.system ?? {});
 }
 
 function getSpellMatchKeys(spell) {

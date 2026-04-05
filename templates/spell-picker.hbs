@@ -30,6 +30,15 @@
         </div>
       </div>
 
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
+        <select class="feat-picker__search" data-action="changeSort">
+          {{#each sortOptions}}
+          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </div>
+
       {{#if sourceOptions.length}}
       <div class="feat-picker__filter-group">
         <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>

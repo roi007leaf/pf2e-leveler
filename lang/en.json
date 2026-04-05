@@ -112,7 +112,11 @@
       "DESELECT_ALL": "Deselect All",
       "SELECTED_COUNT": "{count} selected",
       "FOCUS": "Focus Spells",
-      "NEW_FOCUS": "New!"
+      "NEW_FOCUS": "New!",
+      "SORT_RANK_DESC": "Rank (Highest to Lowest)",
+      "SORT_RANK_ASC": "Rank (Lowest to Highest)",
+      "SORT_ALPHA_ASC": "Alphabetical (A-Z)",
+      "SORT_ALPHA_DESC": "Alphabetical (Z-A)"
     },
     "CREATION": {
       "TITLE": "Character Creation",

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+### Improved
+
+- Spell selection windows now support sorting by spell rank as well as name
+  - Added a `Sort` control to the reusable spell picker with rank and alphabetical ordering options
+  - Mixed-rank spell pickers now default to showing the highest-rank spells first, making higher-level spell selection much easier
+
 ## 1.3.9
 
 ### Fixed
