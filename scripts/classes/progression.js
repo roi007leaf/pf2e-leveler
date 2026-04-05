@@ -9,8 +9,11 @@ export const ANCESTRAL_PARAGON_FEAT_LEVELS = [3, 7, 11, 15, 19];
 export const GRADUAL_BOOST_LEVELS = [2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20];
 
 export function getGradualBoostGroupLevels(level) {
-  const group = GRADUAL_BOOST_LEVELS.filter((entry) => entry <= level).slice(-4);
-  return group.includes(level) ? group : [];
+  const levelIndex = GRADUAL_BOOST_LEVELS.indexOf(level);
+  if (levelIndex === -1) return [];
+
+  const groupStart = Math.floor(levelIndex / 4) * 4;
+  return GRADUAL_BOOST_LEVELS.slice(groupStart, groupStart + 4);
 }
 
 export function getChoicesForLevel(classDef, level, options = {}) {

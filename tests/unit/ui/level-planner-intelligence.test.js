@@ -224,4 +224,39 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     planner._handleBoostToggle('dex');
     expect(planner.plan.levels[4].abilityBoosts).toEqual(['dex']);
   });
+
+  it('allows the next gradual boost set to reuse attributes from the previous set', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 7;
+    setLevelBoosts(planner.plan, 2, ['dex']);
+    setLevelBoosts(planner.plan, 3, ['con']);
+    setLevelBoosts(planner.plan, 4, ['int']);
+    setLevelBoosts(planner.plan, 5, ['wis']);
+
+    const choices = [{ type: 'abilityBoosts', count: 1 }];
+    const attributes = planner._buildAttributeContext(planner.plan.levels[7], choices);
+
+    expect(attributes.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({ disabled: false }));
+    expect(attributes.find((entry) => entry.key === 'con')).toEqual(expect.objectContaining({ disabled: false }));
+    expect(attributes.find((entry) => entry.key === 'int')).toEqual(expect.objectContaining({ disabled: false }));
+    expect(attributes.find((entry) => entry.key === 'wis')).toEqual(expect.objectContaining({ disabled: false }));
+  });
 });

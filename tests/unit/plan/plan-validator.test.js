@@ -73,6 +73,24 @@ describe('validateLevel', () => {
     expect(result.issues.some((i) => i.message.includes('gradual ability boost set'))).toBe(true);
   });
 
+  test('gradual boosts reset when a new four-level set begins', () => {
+    const plan = createPlan('alchemist', { gradualBoosts: true });
+    setLevelBoosts(plan, 2, ['dex']);
+    setLevelBoosts(plan, 3, ['con']);
+    setLevelBoosts(plan, 4, ['int']);
+    setLevelBoosts(plan, 5, ['wis']);
+    setLevelBoosts(plan, 7, ['int']);
+    plan.levels[7].intBonusSkills = ['arcana'];
+    plan.levels[7].intBonusLanguages = ['draconic'];
+    setLevelFeat(plan, 7, 'generalFeats', { uuid: 'g', name: 'G', slug: 'g' });
+    setLevelSkillIncrease(plan, 7, { skill: 'crafting', toRank: 2 });
+
+    const result = validateLevel(plan, ALCHEMIST, 7, { gradualBoosts: true });
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+    expect(result.issues.some((i) => i.message.includes('gradual ability boost set'))).toBe(false);
+  });
+
   test('spontaneous granted subclass spells count toward level completion', () => {
     const actor = {
       items: [

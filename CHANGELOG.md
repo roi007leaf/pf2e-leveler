@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.6
+
+### Fixed
+
+- Gradual Ability Boosts now follow the official PF2E set boundaries
+  - Boost restrictions now apply within the correct four-level sets: `2-5`, `7-10`, `12-15`, and `17-20`
+  - Starting a new set no longer incorrectly blocks attributes chosen in the previous set when planning future levels
+
 ## 1.3.5
 
 ### Fixed
