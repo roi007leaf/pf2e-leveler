@@ -3135,6 +3135,61 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }));
   });
 
+  it('does not surface granted feat choice sections when the grant preselects the only choice', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.background = {
+      uuid: 'background-abadar-avenger',
+      name: "Abadar's Avenger",
+    };
+
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-abadar-avenger') {
+        return {
+          uuid,
+          name: "Abadar's Avenger",
+          type: 'background',
+          system: {
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+                preselectChoices: {
+                  skill: 'religion',
+                },
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const pending = await wizard._getPendingChoices();
+
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+    expect(pending.some((entry) => entry.prompt === 'Select a skill')).toBe(false);
+  });
+
   it('matches the active system prompt title to the relevant apply prompt row', () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._activeSystemPrompt = { title: 'Select a dragon.' };

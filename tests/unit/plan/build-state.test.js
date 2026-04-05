@@ -47,6 +47,29 @@ describe('computeBuildState', () => {
     expect(state.attributes.str).toBe(4);
   });
 
+  test('does not reapply past planned boosts that are already reflected on the actor', () => {
+    mockActor.system.details.level.value = 14;
+    mockActor.system.abilities.dex.mod = 5;
+    mockActor.system.abilities.con.mod = 2;
+    mockActor.system.abilities.int.mod = 2;
+    mockActor.system.abilities.wis.mod = 2;
+    mockActor.system.abilities.cha.mod = 4;
+
+    setLevelBoosts(plan, 5, ['dex', 'con', 'int', 'cha']);
+    setLevelBoosts(plan, 10, ['dex', 'con', 'wis', 'cha']);
+    setLevelBoosts(plan, 15, ['dex', 'con', 'wis', 'cha']);
+
+    const state = computeBuildState(mockActor, plan, 14);
+    expect(state.attributes.con).toBe(2);
+    expect(state.attributes.wis).toBe(2);
+
+    const level15State = computeBuildState(mockActor, plan, 15);
+    expect(level15State.attributes.con).toBe(3);
+    expect(level15State.attributes.wis).toBe(3);
+    expect(level15State.attributes.dex).toBe(5);
+    expect(level15State.attributes.cha).toBe(4);
+  });
+
   test('computes skills from actor current state', () => {
     mockActor.system.skills.crafting.rank = 1;
     const state = computeBuildState(mockActor, plan, 2);

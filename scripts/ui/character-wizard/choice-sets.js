@@ -160,7 +160,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     return resolveDocument(wizard, uuid);
   };
 
-  const scanItem = async (item, sourceName, { skipDirectSection = false, choiceSource = null } = {}) => {
+  const scanItem = async (item, sourceName, { skipDirectSection = false, choiceSource = null, suppressIfSatisfied = false } = {}) => {
     if (!item?.uuid || scannedItems.has(item.uuid)) return;
     scannedItems.add(item.uuid);
 
@@ -187,7 +187,14 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
-    if (!skipDirectSection && !isSubclassSelector && !isHandlerManagedSelector && parsedChoiceSets.length > 0 && !seenSections.has(item.uuid)) {
+    const fullySatisfied = areChoiceSetsSatisfied(parsedChoiceSets, currentChoices);
+
+    if (!skipDirectSection
+      && !isSubclassSelector
+      && !isHandlerManagedSelector
+      && parsedChoiceSets.length > 0
+      && !seenSections.has(item.uuid)
+      && !(suppressIfSatisfied && fullySatisfied)) {
       seenSections.add(item.uuid);
       sections.push({
         slot: item.uuid,
@@ -216,7 +223,11 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
-      await scanItem(granted, `${sourceName} -> ${granted.name}`);
+      const preselectedChoices = extractGrantPreselectedChoices(rule);
+      await scanItem(granted, `${sourceName} -> ${granted.name}`, {
+        choiceSource: Object.keys(preselectedChoices).length > 0 ? { choices: preselectedChoices } : null,
+        suppressIfSatisfied: Object.keys(preselectedChoices).length > 0,
+      });
     }
 
     if (item.system?.items) {
@@ -448,6 +459,7 @@ export function formatChoiceLabel(value) {
 export async function getPendingChoices(wizard) {
   const choices = [];
   const seen = new Set();
+  const scannedItems = new Set();
 
   const addChoice = (source, prompt) => {
     const text = game.i18n.has(prompt) ? game.i18n.localize(prompt) : prompt.replace(/^PF2E\./, '').replace(/([A-Z])/g, ' $1').trim();
@@ -461,6 +473,9 @@ export async function getPendingChoices(wizard) {
   const hasSubclass = !!wizard.data.subclass;
 
   const scanItem = async (item, sourceLabel, optionSource = null) => {
+    if (!item?.uuid || scannedItems.has(item.uuid)) return;
+    scannedItems.add(item.uuid);
+
     const rules = item.system?.rules ?? [];
     for (const rule of rules) {
       if (rule.key !== 'ChoiceSet' || !rule.prompt) continue;
@@ -486,11 +501,10 @@ export async function getPendingChoices(wizard) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
-      for (const grantedRule of (granted.system?.rules ?? [])) {
-        if (grantedRule.key === 'ChoiceSet' && grantedRule.prompt) {
-          addChoice(`${sourceLabel} -> ${granted.name}`, grantedRule.prompt);
-        }
-      }
+      const preselectedChoices = extractGrantPreselectedChoices(rule);
+      await scanItem(granted, `${sourceLabel} -> ${granted.name}`, {
+        choices: preselectedChoices,
+      });
     }
   };
 
@@ -740,6 +754,25 @@ function getChoiceSetFlag(rule, index = 0) {
   if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
   if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
   return typeof index === 'number' ? `choiceSet${index + 1}` : null;
+}
+
+function extractGrantPreselectedChoices(rule) {
+  const rawChoices = rule?.preselectChoices ?? rule?.preselectChoice;
+  if (!rawChoices || typeof rawChoices !== 'object') return {};
+
+  return Object.fromEntries(
+    Object.entries(rawChoices)
+      .filter(([, value]) => ['string', 'number'].includes(typeof value))
+      .map(([flag, value]) => [flag, String(value)]),
+  );
+}
+
+function areChoiceSetsSatisfied(choiceSets, currentChoices) {
+  return (choiceSets ?? []).every((choiceSet, index) => {
+    const flag = choiceSet?.flag ?? getChoiceSetFlag(choiceSet, index);
+    const selectedValue = currentChoices?.[flag];
+    return typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]';
+  });
 }
 
 function buildChoiceSetRollOptions(rules, currentChoices) {

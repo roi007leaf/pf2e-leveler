@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.7
+
+### Fixed
+
+- Feat Choices now respects PF2E preselected granted-item choices
+  - Granted feats with `preselectChoices`, such as `Abadar's Avenger` granting `Assurance (Religion)`, no longer prompt the user for a choice the system has already fixed
+  - Preselected granted-item choices are also excluded from the pending-choice list when they are already satisfied
+- Regular ability boost previews now use the actor's current stats correctly
+  - The planner no longer reapplies boosts from levels the actor has already reached when previewing future attribute increases
+  - Existing higher-level actors now show the correct normal vs partial boost behavior for later ability boosts such as level 15
+
 ## 1.3.6
 
 ### Fixed

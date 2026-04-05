@@ -130,8 +130,11 @@ function computeAttributes(actor, plan, atLevel) {
     attrs[attr] = actor?.system?.abilities?.[attr]?.mod ?? 0;
   }
 
+  const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
   const boosts = getAllPlannedBoosts(plan, atLevel);
-  for (const [_level, boostList] of Object.entries(boosts)) {
+  for (const [levelKey, boostList] of Object.entries(boosts)) {
+    const level = Number(levelKey);
+    if (Number.isFinite(actorLevel) && level <= actorLevel) continue;
     for (const attr of boostList) {
       if (attrs[attr] >= 4) {
         attrs[attr] += 0.5;
