@@ -1,5 +1,5 @@
 import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease } from '../../plan/plan-model.js';
-import { computeBuildState } from '../../plan/build-state.js';
+import { applyActorSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -70,8 +70,7 @@ export function activateLevelPlannerListeners(planner, html) {
     btn.addEventListener('click', () => {
       const slug = btn.dataset.skill;
       if (!slug) return;
-      const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
-      const currentRank = buildState.skills[slug] ?? 0;
+      const currentRank = getSelectableSkillRank(planner, slug);
       setLevelSkillIncrease(planner.plan, planner.selectedLevel, {
         skill: slug,
         toRank: currentRank + 1,
@@ -111,4 +110,16 @@ export function activateLevelPlannerListeners(planner, html) {
   el.querySelector('[data-action="clearLevel"]')?.addEventListener('click', () => {
     planner._clearSelectedLevel();
   });
+}
+
+export function getSelectableSkillRank(planner, slug) {
+  const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
+  applyActorSkillRankRules(buildState.skills, planner.actor, planner.selectedLevel);
+
+  const levelData = getLevelData(planner.plan, planner.selectedLevel);
+  for (const skill of levelData?.intBonusSkills ?? []) {
+    buildState.skills[skill] = Math.max(buildState.skills[skill] ?? 0, 1);
+  }
+
+  return buildState.skills[slug] ?? 0;
 }

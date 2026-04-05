@@ -1,7 +1,7 @@
 import { getClassHandler } from './class-handlers/registry.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { debug, info, warn } from '../utils/logger.js';
-import { capitalize } from '../utils/pf2e-api.js';
+import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { format, localize } from '../utils/i18n.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
@@ -35,6 +35,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   await applyLores(actor, data);
 
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
+  if (data.ancestryParagonFeat) await applyFeat(actor, data.ancestryParagonFeat, getCreationAncestryParagonGroup(), 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
@@ -177,6 +178,7 @@ export function getAdditionalSelectedItems(data) {
   const containers = [
     { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
     { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
+    { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
     ...((data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
@@ -219,8 +221,15 @@ function getStoredChoiceSelections(data, uuid) {
   if (!uuid) return {};
   if (data.subclass?.uuid === uuid) return data.subclass.choices ?? {};
   if (data.ancestryFeat?.uuid === uuid) return data.ancestryFeat.choices ?? {};
+  if (data.ancestryParagonFeat?.uuid === uuid) return data.ancestryParagonFeat.choices ?? {};
   if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
   return data.grantedFeatChoices?.[uuid] ?? {};
+}
+
+function getCreationAncestryParagonGroup() {
+  if (!isAncestralParagonEnabled()) return 'ancestry';
+  if (getCampaignFeatSectionIds().includes('ancestryParagon')) return 'ancestryParagon';
+  return 'xdy_ancestryparagon';
 }
 
 function isSpellChoiceOption(option, uuid) {
@@ -376,6 +385,11 @@ async function createCreationMessage(actor, data) {
   if (data.ancestryFeat) {
     const labels = await getSelectedSubclassChoiceLabels(data.ancestryFeat);
     training.push({ label: localize('SECTIONS.ANCESTRY_FEAT'), value: labels.length ? `${data.ancestryFeat.name} (${labels.join(', ')})` : data.ancestryFeat.name });
+  }
+  if (data.ancestryParagonFeat) {
+    const labels = await getSelectedSubclassChoiceLabels(data.ancestryParagonFeat);
+    const value = labels.length ? `${data.ancestryParagonFeat.name} (${labels.join(', ')})` : data.ancestryParagonFeat.name;
+    training.push({ label: `${localize('SECTIONS.ANCESTRY_FEAT')} (Paragon)`, value });
   }
   if (data.classFeat) {
     const labels = await getSelectedSubclassChoiceLabels(data.classFeat);

@@ -1,4 +1,5 @@
 import {
+  collectAdditionalArchetypeFeatLevels,
   filterFeatsByCategory,
   filterByArchetypeRestrictions,
   filterByDedication,
@@ -17,6 +18,7 @@ function makeFeat(name, level, traits, rarity = 'common', maxTakable = 1) {
       level: { value: level },
       traits: { value: traits, rarity },
       prerequisites: { value: [] },
+      description: { value: '' },
       maxTakable,
       category: 'class',
     },
@@ -75,6 +77,41 @@ describe('filterFeatsByCategory', () => {
     const result = filterFeatsByCategory(feats, 'archetype', '', 5);
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('Fighter Dedication');
+  });
+
+  test('includes additional feats granted by an owned archetype dedication', async () => {
+    const dedication = {
+      ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),
+      system: {
+        ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Twin Takedown, 6th Twin Parry</p>',
+        },
+      },
+    };
+    const twinTakedown = makeFeat('Twin Takedown', 4, ['fighter']);
+    const twinParry = makeFeat('Twin Parry', 8, ['fighter']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, twinTakedown, twinParry],
+      new Set(['avenger-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, twinTakedown, twinParry],
+      'archetype',
+      '',
+      4,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Avenger Dedication' }),
+      expect.objectContaining({ name: 'Twin Takedown' }),
+    ]);
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Twin Parry' }),
+    ]));
   });
 });
 
@@ -238,6 +275,113 @@ describe('dedication and skill filters', () => {
       expect.objectContaining({ name: 'Cleric Dedication' }),
       expect.objectContaining({ name: 'Medic Dedication' }),
     ]);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels parses the lowest listed archetype feat level from dedication text', async () => {
+    const feats = [
+      {
+        ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),
+        system: {
+          ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p>Additional Feats: 4th Twin Takedown, 12th Twin Riposte, 16th Improved Twin Riposte</p>',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(feats, new Set(['avenger-dedication']));
+    expect(result.get('twin-takedown')).toBe(4);
+    expect(result.get('twin-riposte')).toBe(12);
+    expect(result.get('improved-twin-riposte')).toBe(16);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels prefers @UUID-linked additional feats when present', async () => {
+    const feats = [
+      {
+        ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),
+        system: {
+          ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p><strong>Additional Feats:</strong> 4th @UUID[Compendium.pf2e.feats-srd.Item.twin-takedown]{Twin Takedown}, 6th @UUID[Compendium.pf2e.feats-srd.Item.twin-parry]{Twin Parry}</p>',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(feats, new Set(['avenger-dedication']));
+    expect(result.get('twin-takedown')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels can parse Additional Feats from a linked journal entry', async () => {
+    const feats = [
+      {
+        ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),
+        system: {
+          ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p>See @UUID[Compendium.pf2e.journals.JournalEntry.vx5FGEG34AxI2dow]{Avenger} for details.</p>',
+          },
+        },
+      },
+    ];
+
+    const resolver = jest.fn(async (uuid) => ({
+      uuid,
+      pages: [
+        {
+          text: {
+            content: '<p><strong>Additional Feats:</strong> 4th @UUID[Compendium.pf2e.feats-srd.Item.twin-takedown]{Twin Takedown}, 6th @UUID[Compendium.pf2e.feats-srd.Item.twin-parry]{Twin Parry}</p>',
+          },
+        },
+      ],
+    }));
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['avenger-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(resolver).toHaveBeenCalledWith('Compendium.pf2e.journals.JournalEntry.vx5FGEG34AxI2dow');
+    expect(result.get('twin-takedown')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels parses journal Additional Feats from content-link data-uuid anchors', async () => {
+    const feats = [
+      {
+        ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),
+        system: {
+          ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p>See @UUID[Compendium.pf2e.journals.JournalEntry.vx5FGEG34AxI2dow]{Avenger} for details.</p>',
+          },
+        },
+      },
+    ];
+
+    const resolver = jest.fn(async (uuid) => ({
+      uuid,
+      pages: [
+        {
+          text: {
+            content: '<p><strong>Additional Feats:</strong> <strong>4th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.Gw0wGXikhAhiGoud">Twin Takedown</a>; <strong>6th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou">Twin Parry</a>; <strong>12th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.GJIAecRq1bD2r8O0">Twin Riposte</a></p>',
+          },
+        },
+      ],
+    }));
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['avenger-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(result.get('twin-takedown')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+    expect(result.get('twin-riposte')).toBe(12);
   });
 });
 

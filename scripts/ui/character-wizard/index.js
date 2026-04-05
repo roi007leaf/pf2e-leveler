@@ -1,10 +1,11 @@
-import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS } from '../../constants.js';
+import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections } from '../../creation/creation-model.js';
 import { getCreationData, saveCreationData, clearCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
+import { isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import {
   buildFeatChoicesContext,
@@ -143,6 +144,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _hasFeatChoices() {
     return (this.data.ancestryFeat?.choiceSets?.length ?? 0) > 0
+      || (this.data.ancestryParagonFeat?.choiceSets?.length ?? 0) > 0
       || (this.data.classFeat?.choiceSets?.length ?? 0) > 0
       || (this.data.grantedFeatSections?.length ?? 0) > 0;
   }
@@ -514,7 +516,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'featChoices': {
         if (!this._hasFeatChoices()) return true;
         const sections = [
-          ...[this.data.ancestryFeat, this.data.classFeat]
+          ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat]
             .filter(Boolean)
             .map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
@@ -530,7 +532,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'boosts': return this.data.boosts.free.length === 4;
       case 'languages': return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills': return this.data.skills.length >= (this._cachedMaxSkills ?? 1);
-      case 'feats': return !!this.data.ancestryFeat;
+      case 'feats': return !!this.data.ancestryFeat && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat);
       case 'spells': {
         if (!this._needsSpellSelection()) return true;
         const spellHandlerResult = this.classHandler.isStepComplete('spells', this.data);
@@ -974,7 +976,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _refreshAllFeatChoiceData() {
-    for (const feat of [this.data.ancestryFeat, this.data.classFeat]) {
+    for (const feat of [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat]) {
       if (!feat?.uuid) continue;
       const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
@@ -1047,15 +1049,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const allFeats = await this._loadCompendium('pf2e.feats-srd');
     const ancestrySlug = this.data.ancestry.slug ?? null;
     const heritageSlug = this.data.heritage?.slug ?? null;
-    const ancestryTraits = [ancestrySlug];
-    if (heritageSlug && heritageSlug !== ancestrySlug) ancestryTraits.push(heritageSlug);
+    const ancestryTraits = collectAncestryFeatTraits(ancestrySlug, heritageSlug);
 
     const selectedAncestryUuid = this.data.ancestryFeat?.uuid;
+    const selectedParagonUuid = this.data.ancestryParagonFeat?.uuid;
     const selectedClassUuid = this.data.classFeat?.uuid;
+    const ancestralParagonEnabled = isAncestralParagonEnabled();
 
     const ancestryFeats = allFeats
       .filter((f) => ancestryTraits.some((t) => f.traits.includes(t)) && !f.traits.includes('classfeature') && f.level <= 1)
-      .map((f) => ({ ...f, taken: f.uuid === selectedAncestryUuid }));
+      .map((f) => ({
+        ...f,
+        taken: f.uuid === selectedAncestryUuid,
+        paragonTaken: ancestralParagonEnabled && f.uuid === selectedParagonUuid,
+      }));
 
     let classFeats = [];
     const hasClassFeat = await this._hasClassFeatAtLevel1();
@@ -1066,7 +1073,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map((f) => ({ ...f, taken: f.uuid === selectedClassUuid }));
     }
 
-    return { ancestryFeats, classFeats, hasClassFeat };
+    return { ancestryFeats, classFeats, hasClassFeat, ancestralParagonEnabled };
   }
 
   async _buildSpellContext() {
@@ -1136,4 +1143,17 @@ function localizeTradition(tradition) {
   }
 
   return null;
+}
+
+function collectAncestryFeatTraits(ancestrySlug, heritageSlug) {
+  const traits = new Set();
+
+  for (const slug of [ancestrySlug, heritageSlug]) {
+    if (!slug) continue;
+    const normalized = String(slug).toLowerCase();
+    const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
+    for (const alias of aliases) traits.add(alias);
+  }
+
+  return [...traits];
 }

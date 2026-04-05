@@ -1,5 +1,9 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
-import { getSelectedHandlerChoiceSourceItems, extractChoiceLabel, extractChoiceValue } from './choice-sets.js';
+import {
+  getSelectedHandlerChoiceSourceItems,
+  extractChoiceLabel,
+  findMatchingChoiceOption,
+} from './choice-sets.js';
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
@@ -75,7 +79,10 @@ export async function getApplyPromptRows(wizard) {
       ? (wizard.data.grantedFeatSections ?? []).find((entry) => entry.slot === optionSource.uuid)
       : null;
     const choiceSets = optionSource?.choiceSets ?? section?.choiceSets ?? wizard.data.subclass?.choiceSets ?? [];
-    const option = choiceSets.find((cs) => cs.flag === flag)?.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
+    const option = findMatchingChoiceOption(
+      choiceSets.find((cs) => cs.flag === flag)?.options,
+      selectedValue,
+    );
     const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
     if (!uuid) return null;
     return resolveDocument(wizard, uuid);
@@ -110,6 +117,7 @@ export async function getApplyPromptRows(wizard) {
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name, optionSource: wizard.data.class?.uuid ? { uuid: wizard.data.class.uuid } : null },
     { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, optionSource: wizard.data.subclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, optionSource: wizard.data.ancestryFeat },
+    { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, optionSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, optionSource: wizard.data.classFeat },
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       uuid: section.slot,
@@ -186,20 +194,29 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
 
   if (flag && optionSource?.choices?.[flag]) {
     const selectedValue = optionSource.choices[flag];
-    const option = (optionSource.choiceSets ?? []).find((cs) => cs.flag === flag)?.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
+    const option = findMatchingChoiceOption(
+      (optionSource.choiceSets ?? []).find((cs) => cs.flag === flag)?.options,
+      selectedValue,
+    );
     return option ? (extractChoiceLabel(option) ?? selectedValue) : String(selectedValue);
   }
 
   if (flag && optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[flag]) {
     const selectedValue = wizard.data.grantedFeatChoices[optionSource.uuid][flag];
     const section = (wizard.data.grantedFeatSections ?? []).find((entry) => entry.slot === optionSource.uuid);
-    const option = section?.choiceSets?.find((cs) => cs.flag === flag)?.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
+    const option = findMatchingChoiceOption(
+      section?.choiceSets?.find((cs) => cs.flag === flag)?.options,
+      selectedValue,
+    );
     return option ? (extractChoiceLabel(option) ?? selectedValue) : String(selectedValue);
   }
 
   if (flag && wizard.data.subclass?.choices?.[flag]) {
     const selectedValue = wizard.data.subclass.choices[flag];
-    const option = (wizard.data.subclass.choiceSets ?? []).find((cs) => cs.flag === flag)?.options?.find((entry) => extractChoiceValue(entry) === selectedValue);
+    const option = findMatchingChoiceOption(
+      (wizard.data.subclass.choiceSets ?? []).find((cs) => cs.flag === flag)?.options,
+      selectedValue,
+    );
     return option ? (extractChoiceLabel(option) ?? selectedValue) : String(selectedValue);
   }
 

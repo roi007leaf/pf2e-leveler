@@ -1,4 +1,34 @@
 import { getAdditionalSelectedItems } from '../../../scripts/creation/apply-creation.js';
+import { applyCreation } from '../../../scripts/creation/apply-creation.js';
+
+jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
+  getClassHandler: jest.fn(() => ({
+    applyExtras: jest.fn(async () => {}),
+    resolveFocusSpells: jest.fn(async () => []),
+    getExtraSteps: jest.fn(() => []),
+  })),
+}));
+
+jest.mock('../../../scripts/classes/registry.js', () => ({
+  ClassRegistry: { get: jest.fn(() => null) },
+}));
+
+jest.mock('../../../scripts/utils/i18n.js', () => ({
+  format: jest.fn((key, data) => {
+    let result = key;
+    Object.entries(data ?? {}).forEach(([name, value]) => {
+      result = result.replace(`{${name}}`, value);
+    });
+    return result;
+  }),
+  localize: jest.fn((key) => key),
+}));
+
+jest.mock('../../../scripts/utils/logger.js', () => ({
+  debug: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+}));
 
 describe('getAdditionalSelectedItems', () => {
   it('does not manually add handler-owned class selections', () => {
@@ -154,6 +184,63 @@ describe('getAdditionalSelectedItems', () => {
         name: 'Electric Arc',
         _type: 'spell',
       },
+    ]);
+  });
+});
+
+describe('applyCreation ancestry paragon', () => {
+  it('applies the extra level-1 ancestry feat to the ancestry paragon location', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return true;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid.includes('paragon') ? 'Paragon Feat' : 'Ancestry Feat',
+      toObject: () => ({
+        name: uuid.includes('paragon') ? 'Paragon Feat' : 'Ancestry Feat',
+        type: 'feat',
+        system: { level: { value: 1 }, rules: [], description: { value: '' } },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: { uuid: 'feat-a', name: 'Ancestry Feat', choices: {} },
+      ancestryParagonFeat: { uuid: 'feat-paragon', name: 'Paragon Feat', choices: {} },
+      classFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Ancestry Feat',
+        system: expect.objectContaining({ location: 'ancestry-1' }),
+      }),
+    ]);
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Paragon Feat',
+        system: expect.objectContaining({ location: 'xdy_ancestryparagon-1' }),
+      }),
     ]);
   });
 });

@@ -1,9 +1,18 @@
 import {
   matchSkill,
+  matchLore,
+  matchLanguage,
   matchAbility,
   matchLevel,
   matchFeat,
+  matchClassFeature,
+  matchBackground,
   matchProficiency,
+  matchClassHp,
+  matchDeityState,
+  matchSpellcastingState,
+  matchClassIdentity,
+  matchEquipmentState,
   matchUnknown,
 } from '../../../scripts/prerequisites/matchers.js';
 
@@ -28,6 +37,42 @@ describe('matchSkill', () => {
     const result = matchSkill(
       { type: 'skill', skill: 'arcana', minRank: 1, text: 'trained in Arcana' },
       { skills: { arcana: 0 } },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchLore', () => {
+  test('met when lore rank is sufficient', () => {
+    const result = matchLore(
+      { type: 'lore', loreSlug: 'underworld-lore', minRank: 1, text: 'trained in Underworld Lore' },
+      { lores: { 'underworld-lore': 2 } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when lore is missing', () => {
+    const result = matchLore(
+      { type: 'lore', loreSlug: 'underworld-lore', minRank: 1, text: 'trained in Underworld Lore' },
+      { lores: {} },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchLanguage', () => {
+  test('met when all required languages are known', () => {
+    const result = matchLanguage(
+      { type: 'language', languages: ['osiriani', 'sphinx'], text: 'Ancient Osiriani and Sphinx languages' },
+      { languages: new Set(['common', 'osiriani', 'sphinx']) },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when one required language is missing', () => {
+    const result = matchLanguage(
+      { type: 'language', languages: ['osiriani', 'sphinx'], text: 'Ancient Osiriani and Sphinx languages' },
+      { languages: new Set(['common', 'osiriani']) },
     );
     expect(result.met).toBe(false);
   });
@@ -127,6 +172,42 @@ describe('matchFeat', () => {
   });
 });
 
+describe('matchClassFeature', () => {
+  test('met when class feature is in build state', () => {
+    const result = matchClassFeature(
+      { type: 'classFeature', slug: 'rage', text: 'Rage class feature' },
+      { classFeatures: new Set(['rage', 'mighty-rage']) },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when class feature is missing', () => {
+    const result = matchClassFeature(
+      { type: 'classFeature', slug: 'rage', text: 'Rage class feature' },
+      { classFeatures: new Set(['spellstrike']) },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchBackground', () => {
+  test('met when background matches required background', () => {
+    const result = matchBackground(
+      { type: 'background', slug: 'bright-lion', text: 'Bright Lion Background' },
+      { backgroundSlug: 'bright-lion' },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when background does not match', () => {
+    const result = matchBackground(
+      { type: 'background', slug: 'bright-lion', text: 'Bright Lion Background' },
+      { backgroundSlug: 'scholar' },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
 describe('matchProficiency', () => {
   test('met when proficiency rank is sufficient', () => {
     const result = matchProficiency(
@@ -142,6 +223,224 @@ describe('matchProficiency', () => {
       { proficiencies: { perception: 1 } },
     );
     expect(result.met).toBe(false);
+  });
+});
+
+describe('matchClassHp', () => {
+  test('meets class HP prerequisite when base class HP is within the threshold', () => {
+    const result = matchClassHp(
+      {
+        type: 'classHp',
+        comparator: 'lte',
+        maxHp: 10,
+        includesConModifier: true,
+        text: 'Class granting no more Hit Points per level than 10 + your Constitution modifier',
+      },
+      {
+        class: { slug: 'cleric', hp: 8 },
+        attributes: { con: 3 },
+      },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails class HP prerequisite when base class HP exceeds the threshold', () => {
+    const result = matchClassHp(
+      {
+        type: 'classHp',
+        comparator: 'lte',
+        maxHp: 10,
+        includesConModifier: true,
+        text: 'Class granting no more Hit Points per level than 10 + your Constitution modifier',
+      },
+      {
+        class: { slug: 'barbarian', hp: 12 },
+        attributes: { con: 2 },
+      },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchDeityState', () => {
+  test('meets exact deity prerequisite when selected deity matches', () => {
+    const result = matchDeityState(
+      { type: 'deityState', requiredDeity: 'achaekek', text: 'deity is Achaekek' },
+      { deity: { slug: 'achaekek', name: 'Achaekek', domains: new Set() } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails exact deity prerequisite when selected deity differs', () => {
+    const result = matchDeityState(
+      { type: 'deityState', requiredDeity: 'achaekek', text: 'deity is Achaekek' },
+      { deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set() } },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('meets deity follower prerequisite when deity is present', () => {
+    const result = matchDeityState(
+      { type: 'deityState', requiresFollower: true, text: 'You follow a deity' },
+      { deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set(['fire']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails deity follower prerequisite when deity is absent', () => {
+    const result = matchDeityState(
+      { type: 'deityState', requiresFollower: true, text: 'You follow a deity' },
+      { deity: null },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('meets deity domain prerequisite when deity has the required domain', () => {
+    const result = matchDeityState(
+      { type: 'deityState', requiresFollower: true, requiredDomain: 'fire', text: 'deity with the fire domain' },
+      { deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set(['fire', 'sun']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets forbidden deity prerequisite when character does not worship that deity', () => {
+    const result = matchDeityState(
+      { type: 'deityState', forbiddenDeity: 'walkena', text: 'not a worshipper of Walkena' },
+      { deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set() } },
+    );
+    expect(result.met).toBe(true);
+  });
+});
+
+describe('matchSpellcastingState', () => {
+  test('meets focus pool prerequisite when actor has a focus pool', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', focusPool: true, text: 'Focus pool' },
+      { spellcasting: { focusPool: true } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails focus pool prerequisite when actor has no focus pool', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', focusPool: true, text: 'Focus pool' },
+      { spellcasting: { focusPool: false } },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('meets focus-spell prerequisite when actor has a focus pool', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', focusPool: true, text: 'ability to cast focus spells' },
+      { spellcasting: { focusPool: true } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets tradition prerequisite when actor can cast from that tradition', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', tradition: 'divine', text: 'ability to cast divine spells' },
+      { spellcasting: { traditions: new Set(['divine']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets spell-slot prerequisite when actor has spell slots', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', spellSlots: true, text: 'ability to cast spells from spell slots' },
+      { spellcasting: { hasSpellSlots: true } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets specific spell with slot prerequisite when actor has spell slots and knows the spell', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', spellSlots: true, spellSlug: 'animate-dead', text: 'able to cast animate dead with a spell slot' },
+      { spellcasting: { hasSpellSlots: true, spellNames: new Set(['animate-dead']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets spell-trait prerequisite when actor can cast a matching spell trait', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', spellTrait: 'necromancy', text: 'able to cast at least one necromancy spell' },
+      { spellcasting: { spellTraits: new Set(['necromancy', 'death']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+});
+
+describe('matchClassIdentity', () => {
+  test('meets subclass tradition prerequisite when subclass type and tradition match', () => {
+    const result = matchClassIdentity(
+      { type: 'classIdentity', subclassType: 'bloodline', tradition: 'divine', text: 'bloodline that grants divine spells' },
+      {
+        class: { subclassType: 'bloodline' },
+        spellcasting: { traditions: new Set(['divine']) },
+      },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails subclass tradition prerequisite when subclass type mismatches', () => {
+    const result = matchClassIdentity(
+      { type: 'classIdentity', subclassType: 'bloodline', tradition: 'divine', text: 'bloodline that grants divine spells' },
+      {
+        class: { subclassType: 'mystery' },
+        spellcasting: { traditions: new Set(['divine']) },
+      },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchEquipmentState', () => {
+  test('meets shield prerequisite when shield is equipped', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', shield: true, text: 'wielding a shield' },
+      { equipment: { hasShield: true } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets armor prerequisite when one matching category is equipped', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', armorCategories: ['medium', 'heavy'], text: 'wearing medium or heavy armor' },
+      { equipment: { armorCategories: new Set(['medium']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets ranged weapon prerequisite when a ranged weapon is wielded', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', weaponUsage: 'ranged', text: 'wielding a ranged weapon' },
+      { equipment: { wieldedRanged: true, wieldedMelee: false } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails weapon category prerequisite when no matching weapon is wielded', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', weaponCategories: ['martial'], text: 'wielding a martial weapon' },
+      { equipment: { weaponCategories: new Set(['simple']) } },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('meets weapon group prerequisite when matching group is wielded', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', weaponGroups: ['sword'], text: 'wielding a weapon in the sword group' },
+      { equipment: { weaponGroups: new Set(['sword']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('meets weapon trait prerequisite when matching trait is wielded', () => {
+    const result = matchEquipmentState(
+      { type: 'equipmentState', weaponTraits: ['sweep'], text: 'wielding a weapon with the sweep trait' },
+      { equipment: { weaponTraits: new Set(['sweep']) } },
+    );
+    expect(result.met).toBe(true);
   });
 });
 

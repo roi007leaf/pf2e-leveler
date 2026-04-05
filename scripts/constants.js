@@ -69,6 +69,11 @@ export const SUBCLASS_TAGS = {
   wizard: 'wizard-arcane-school',
 };
 
+export const ANCESTRY_TRAIT_ALIASES = {
+  kholo: ['kholo', 'gnoll'],
+  gnoll: ['gnoll', 'kholo'],
+};
+
 export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus'];
 
 export const PLAN_STATUS = {

@@ -32,6 +32,7 @@ export function createCreationData() {
     lores: [],
     skills: [],
     ancestryFeat: null,
+    ancestryParagonFeat: null,
     classFeat: null,
     grantedFeatSections: [],
     grantedFeatChoices: {},
@@ -50,6 +51,8 @@ export function setAncestry(data, item) {
   data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
   data.heritage = null;
   data.languages = [];
+  data.ancestryFeat = null;
+  data.ancestryParagonFeat = null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   clearBoostsForPrefix(data, 'ancestry');
@@ -58,6 +61,8 @@ export function setAncestry(data, item) {
 
 export function setHeritage(data, item) {
   data.heritage = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
+  data.ancestryFeat = null;
+  data.ancestryParagonFeat = null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   return data;
@@ -351,6 +356,13 @@ export function setAncestryFeat(data, feat, choiceSets = []) {
   return data;
 }
 
+export function setAncestryParagonFeat(data, feat, choiceSets = []) {
+  data.ancestryParagonFeat = feat
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, choices: {} }
+    : null;
+  return data;
+}
+
 export function setClassFeat(data, feat, choiceSets = []) {
   data.classFeat = feat
     ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, choices: {} }
@@ -359,7 +371,10 @@ export function setClassFeat(data, feat, choiceSets = []) {
 }
 
 export function setFeatChoice(data, slot, flag, value) {
-  const target = slot === 'ancestry' ? data.ancestryFeat : slot === 'class' ? data.classFeat : null;
+  const target = slot === 'ancestry' ? data.ancestryFeat
+    : slot === 'ancestryParagon' ? data.ancestryParagonFeat
+      : slot === 'class' ? data.classFeat
+        : null;
   if (target) {
     if (!target.choices) target.choices = {};
     target.choices[flag] = value;

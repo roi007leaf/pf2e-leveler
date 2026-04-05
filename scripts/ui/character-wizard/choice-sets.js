@@ -24,6 +24,14 @@ export async function buildFeatChoicesContext(wizard) {
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.ancestryFeat.choiceSets, wizard.data.ancestryFeat.choices ?? {}),
     });
   }
+  if (wizard.data.ancestryParagonFeat?.choiceSets?.length) {
+    sections.push({
+      slot: 'ancestryParagon',
+      featName: wizard.data.ancestryParagonFeat.name,
+      sourceName: 'Ancestry Paragon',
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.ancestryParagonFeat.choiceSets, wizard.data.ancestryParagonFeat.choices ?? {}),
+    });
+  }
   if (wizard.data.classFeat?.choiceSets?.length) {
     sections.push({
       slot: 'class',
@@ -87,6 +95,7 @@ export async function getSelectedSubclassChoiceLabels(wizard) {
 export async function getSelectedFeatChoiceLabels(wizard, slot) {
   const grantedSection = (wizard.data.grantedFeatSections ?? []).find((section) => section.slot === slot);
   const feat = slot === 'ancestry' ? wizard.data.ancestryFeat
+    : slot === 'ancestryParagon' ? wizard.data.ancestryParagonFeat
     : slot === 'class' ? wizard.data.classFeat
       : grantedSection
         ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
@@ -106,6 +115,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
+    { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
     ...getSelectedHandlerChoiceSourceItems(wizard),
   ];
@@ -393,7 +403,7 @@ export async function getSelectedChoiceLabels(wizard, choiceContainer) {
     const selectedValue = currentChoices[cs.flag];
     if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
 
-    const match = cs.options?.find((opt) => extractChoiceValue(opt) === selectedValue);
+    const match = findMatchingChoiceOption(cs.options, selectedValue);
     if (match?.label) {
       labels.push(match.label);
       continue;
@@ -476,6 +486,7 @@ export async function getPendingChoices(wizard) {
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name },
+    { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name },
     ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
@@ -485,6 +496,7 @@ export async function getPendingChoices(wizard) {
     const item = await resolveDocument(wizard, uuid);
     if (!item) continue;
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
+      : uuid === wizard.data.ancestryParagonFeat?.uuid ? wizard.data.ancestryParagonFeat
       : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
         : null);
     await scanItem(item, label, sourceChoices);
@@ -879,6 +891,34 @@ export function extractChoiceUuid(choice) {
     return rawValue.uuid;
   }
   return null;
+}
+
+export function findMatchingChoiceOption(options, selectedValue) {
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0) return null;
+
+  const normalizedSelected = normalizeChoiceIdentity(selectedValue);
+  if (!normalizedSelected) return null;
+
+  return (options ?? []).find((option) => {
+    const candidates = new Set([
+      extractChoiceValue(option),
+      extractChoiceUuid(option),
+      option?.slug,
+      option?.value?.slug,
+      option?.value?.uuid,
+      option?.value?.value,
+      option?.value?.name,
+      option?.name,
+    ].filter((entry) => typeof entry === 'string' && entry.length > 0));
+
+    return [...candidates].some((candidate) => normalizeChoiceIdentity(candidate) === normalizedSelected);
+  }) ?? null;
+}
+
+function normalizeChoiceIdentity(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
 }
 
 function summarizeChoiceDescription(description) {

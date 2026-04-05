@@ -1,4 +1,4 @@
-import { parsePrerequisite, parseAllPrerequisites } from '../../../scripts/prerequisites/parsers.js';
+import { parsePrerequisite, parsePrerequisiteNode, parseAllPrerequisites, parseAllPrerequisiteNodes } from '../../../scripts/prerequisites/parsers.js';
 
 describe('parsePrerequisite', () => {
   test('parses skill rank requirement', () => {
@@ -87,6 +87,155 @@ describe('parsePrerequisite', () => {
     expect(result.minLevel).toBe(4);
   });
 
+  test('parses class HP prerequisite with Constitution modifier text', () => {
+    const result = parsePrerequisite('Class granting no more Hit Points per level than 10 + your Constitution modifier');
+    expect(result.type).toBe('classHp');
+    expect(result.comparator).toBe('lte');
+    expect(result.maxHp).toBe(10);
+    expect(result.includesConModifier).toBe(true);
+  });
+
+  test('parses deity follower prerequisite', () => {
+    const result = parsePrerequisite('You follow a deity');
+    expect(result.type).toBe('deityState');
+    expect(result.requiresFollower).toBe(true);
+  });
+
+  test('parses exact deity prerequisite', () => {
+    const result = parsePrerequisite('deity is Achaekek');
+    expect(result.type).toBe('deityState');
+    expect(result.requiredDeity).toBe('achaekek');
+  });
+
+  test('parses deity domain prerequisite', () => {
+    const result = parsePrerequisite('deity with the fire domain');
+    expect(result.type).toBe('deityState');
+    expect(result.requiredDomain).toBe('fire');
+  });
+
+  test('parses forbidden deity prerequisite', () => {
+    const result = parsePrerequisite('not a worshipper of Walkena');
+    expect(result.type).toBe('deityState');
+    expect(result.forbiddenDeity).toBe('walkena');
+  });
+
+  test('parses focus pool prerequisite', () => {
+    const result = parsePrerequisite('Focus pool');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.focusPool).toBe(true);
+  });
+
+  test('parses focus-spell casting prerequisite', () => {
+    const result = parsePrerequisite('ability to cast focus spells');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.focusPool).toBe(true);
+  });
+
+  test('parses direct spellcasting tradition prerequisite', () => {
+    const result = parsePrerequisite('ability to cast divine spells');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.tradition).toBe('divine');
+  });
+
+  test('parses spell-slot casting prerequisite', () => {
+    const result = parsePrerequisite('ability to cast spells from spell slots');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.spellSlots).toBe(true);
+  });
+
+  test('parses spell-slot casting prerequisite wording variant', () => {
+    const result = parsePrerequisite('able to cast spells using spell slots');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.spellSlots).toBe(true);
+  });
+
+  test('parses specific spell with spell-slot prerequisite', () => {
+    const result = parsePrerequisite('able to cast animate dead with a spell slot');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.spellSlots).toBe(true);
+    expect(result.spellSlug).toBe('animate-dead');
+  });
+
+  test('parses spell-trait casting prerequisite', () => {
+    const result = parsePrerequisite('able to cast at least one necromancy spell');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.spellTrait).toBe('necromancy');
+  });
+
+  test('parses subclass tradition prerequisite', () => {
+    const result = parsePrerequisite('bloodline that grants divine spells');
+    expect(result.type).toBe('classIdentity');
+    expect(result.subclassType).toBe('bloodline');
+    expect(result.tradition).toBe('divine');
+  });
+
+  test('parses lore rank requirement', () => {
+    const result = parsePrerequisite('trained in Underworld Lore');
+    expect(result.type).toBe('lore');
+    expect(result.loreSlug).toBe('underworld-lore');
+    expect(result.minRank).toBe(1);
+  });
+
+  test('parses language prerequisite with Ancient Osiriani normalization', () => {
+    const result = parsePrerequisite('Ancient Osiriani and Sphinx languages');
+    expect(result.type).toBe('language');
+    expect(result.languages).toEqual(['osiriani', 'sphinx']);
+  });
+
+  test('parses shield equipment prerequisite', () => {
+    const result = parsePrerequisite('wielding a shield');
+    expect(result.type).toBe('equipmentState');
+    expect(result.shield).toBe(true);
+  });
+
+  test('parses armor equipment prerequisite with alternatives', () => {
+    const result = parsePrerequisite('wearing medium or heavy armor');
+    expect(result.type).toBe('equipmentState');
+    expect(result.armorCategories).toEqual(['medium', 'heavy']);
+  });
+
+  test('parses melee weapon prerequisite', () => {
+    const result = parsePrerequisite('wielding a melee weapon');
+    expect(result.type).toBe('equipmentState');
+    expect(result.weaponUsage).toBe('melee');
+  });
+
+  test('parses weapon category prerequisite with alternatives', () => {
+    const result = parsePrerequisite('wielding a simple or martial weapon');
+    expect(result.type).toBe('equipmentState');
+    expect(result.weaponCategories).toEqual(['simple', 'martial']);
+  });
+
+  test('parses weapon group prerequisite', () => {
+    const result = parsePrerequisite('wielding a weapon in the sword group');
+    expect(result.type).toBe('equipmentState');
+    expect(result.weaponGroups).toEqual(['sword']);
+  });
+
+  test('parses weapon trait prerequisite', () => {
+    const result = parsePrerequisite('wielding a weapon with the sweep trait');
+    expect(result.type).toBe('equipmentState');
+    expect(result.weaponTraits).toEqual(['sweep']);
+  });
+
+  test('parses class feature prerequisite', () => {
+    const result = parsePrerequisite('Rage class feature');
+    expect(result.type).toBe('classFeature');
+    expect(result.slug).toBe('rage');
+  });
+
+  test('parses background prerequisite', () => {
+    const result = parsePrerequisite('Bright Lion Background');
+    expect(result.type).toBe('background');
+    expect(result.slug).toBe('bright-lion');
+  });
+
+  test('parses requirements with trailing parenthetical clarifier', () => {
+    const result = parsePrerequisite('trained in Religion (or another skill associated with your deity)');
+    expect(result.type).toBe('skill');
+    expect(result.skill).toBe('religion');
+  });
+
   test('parses various level ordinals', () => {
     expect(parsePrerequisite('1st level').minLevel).toBe(1);
     expect(parsePrerequisite('2nd level').minLevel).toBe(2);
@@ -113,6 +262,66 @@ describe('parsePrerequisite', () => {
 
   test('returns unknown for null input', () => {
     const result = parsePrerequisite(null);
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats descriptive sentence prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('Class granting no more Hit Points per level than your Constitution modifier.');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats narrative membership prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('member of the Knights of Lastwall');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats Red Mantis membership prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('member of the Red Mantis assassins');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats narrative attendance prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('attended the University of Lepidstadt');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats narrative death-history prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('you are dead and were mummified (by natural or ritualistic means)');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats narrative initiation prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('must have earned the trust of a saumen kar who initiates you into the archetype');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats action-capability skill prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite('trained in at least one skill to Decipher Writing');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats weapon-type proficiency prerequisites as unknown instead of fake proficiency keys', () => {
+    const result = parsePrerequisite('trained in at least one type of one-handed firearm');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats weapon-name proficiency prerequisites as unknown instead of fake proficiency keys', () => {
+    const result = parsePrerequisite('trained in sawtooth sabres');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats negative companion prerequisites as unknown instead of feat slugs', () => {
+    const result = parsePrerequisite("you don't have an animal companion, construct companion, or other companion that functions similarly");
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats alignment prerequisites as unknown legacy text', () => {
+    const result = parsePrerequisite('evil alignment');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('treats curse-state prerequisites as unknown legacy text', () => {
+    const result = parsePrerequisite('You are cursed or have previously been cursed.');
     expect(result.type).toBe('unknown');
   });
 });
@@ -142,5 +351,99 @@ describe('parseAllPrerequisites', () => {
 
   test('returns empty array for null feat', () => {
     expect(parseAllPrerequisites(null)).toEqual([]);
+  });
+});
+
+describe('parsePrerequisiteNode', () => {
+  test('wraps a simple prerequisite as a leaf node', () => {
+    const result = parsePrerequisiteNode('trained in Athletics');
+    expect(result).toEqual(expect.objectContaining({
+      kind: 'leaf',
+      type: 'skill',
+      skill: 'athletics',
+    }));
+  });
+
+  test('parses semicolon-separated prerequisites as an all node', () => {
+    const result = parsePrerequisiteNode('Champion Dedication; 4th level');
+    expect(result.kind).toBe('all');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'feat' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'level' }));
+  });
+
+  test('parses or-separated prerequisites as an any node', () => {
+    const result = parsePrerequisiteNode('trained in Arcana or trained in Religion');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+  });
+
+  test('parses trained-in-x-as-well-as-either-y-z wording as a composite node', () => {
+    const result = parsePrerequisiteNode('trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion');
+    expect(result.kind).toBe('all');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'diplomacy' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'any' }));
+    expect(result.children[1].children).toHaveLength(4);
+    expect(result.children[1].children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
+    expect(result.children[1].children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }));
+    expect(result.children[1].children[2]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }));
+    expect(result.children[1].children[3]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+  });
+
+  test('parses language or-language wording as an any node', () => {
+    const result = parsePrerequisiteNode('Erutaki or Jotun language');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['erutaki'] }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['jotun'] }));
+  });
+
+  test('parses mixed ability or spell-slot prerequisites as alternatives', () => {
+    const result = parsePrerequisiteNode('Charisma +2 or ability to cast spells from spell slots');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }));
+  });
+
+  test('parses mixed ability or spell-slot prerequisites with using-slots wording as alternatives', () => {
+    const result = parsePrerequisiteNode('Charisma +2 or able to cast spells using spell slots');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }));
+  });
+
+  test('does not split unsupported companion prohibition text into fake or alternatives', () => {
+    const result = parsePrerequisiteNode("you don't have an animal companion, construct companion, or other companion that functions similarly");
+    expect(result.kind).toBe('leaf');
+    expect(result.type).toBe('unknown');
+  });
+
+  test('does not split curse-state text into fake or alternatives', () => {
+    const result = parsePrerequisiteNode('You are cursed or have previously been cursed.');
+    expect(result.kind).toBe('leaf');
+    expect(result.type).toBe('unknown');
+  });
+});
+
+describe('parseAllPrerequisiteNodes', () => {
+  test('parses feat prerequisites into AST nodes', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [
+            { value: 'Champion Dedication; 4th level' },
+          ],
+        },
+      },
+    };
+
+    const results = parseAllPrerequisiteNodes(feat);
+    expect(results).toHaveLength(1);
+    expect(results[0].kind).toBe('all');
   });
 });

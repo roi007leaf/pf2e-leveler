@@ -3,11 +3,26 @@ import { checkPrerequisites } from '../../../scripts/prerequisites/prerequisite-
 describe('checkPrerequisites', () => {
   const buildState = {
     level: 5,
+    class: { slug: 'alchemist', hp: 8 },
+    backgroundSlug: 'bright-lion',
+    deity: null,
+    spellcasting: { hasAny: false, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(), focusPool: false, focusPointsMax: 0 },
     attributes: { str: 2, dex: 1, con: 1, int: 3, wis: 0, cha: 0 },
     skills: { athletics: 2, crafting: 1, stealth: 0 },
+    languages: new Set(['common', 'osiriani', 'sphinx']),
+    lores: { 'underworld-lore': 1 },
     feats: new Set(['quick-bomber', 'alchemical-crafting']),
     classFeatures: new Set(['alchemy', 'research-field']),
     proficiencies: { perception: 1, classDC: 1, fortitude: 2 },
+    equipment: {
+      hasShield: true,
+      armorCategories: new Set(['medium']),
+      weaponCategories: new Set(['simple']),
+      weaponGroups: new Set(['club']),
+      weaponTraits: new Set(['sweep']),
+      wieldedMelee: true,
+      wieldedRanged: false,
+    },
   };
 
   test('feat with no prerequisites is met', () => {
@@ -161,5 +176,571 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, buildState);
     expect(result.met).toBe(true);
+  });
+
+  test('meets class HP prerequisite for lower-HP classes', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Class granting no more Hit Points per level than 10 + your Constitution modifier' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      class: { slug: 'cleric', hp: 8 },
+      attributes: { ...buildState.attributes, con: 2 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets deity follower prerequisite when a deity is selected', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'You follow a deity' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set(['fire']) },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets exact deity prerequisite when selected deity matches', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'deity is Achaekek' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      deity: { slug: 'achaekek', name: 'Achaekek', domains: new Set() },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets deity domain prerequisite when selected deity has the domain', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'deity with the fire domain' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set(['fire', 'sun']) },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets forbidden deity prerequisite when character does not worship that deity', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'not a worshipper of Walkena' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set(['fire']) },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets focus pool prerequisite when actor has a focus pool', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Focus pool' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: true, focusPointsMax: 1 },
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('meets focus-spell prerequisite when actor has a focus pool', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'ability to cast focus spells' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: true, focusPointsMax: 1 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets direct spellcasting tradition prerequisite when tradition matches', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'ability to cast divine spells' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets spell-slot casting prerequisite when actor has spell slots', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'ability to cast spells from spell slots' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets specific spell-with-slot prerequisite when actor has spell slots and knows the spell', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'able to cast animate dead with a spell slot' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(['animate-dead']), spellTraits: new Set(['necromancy']), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets spell-slot casting prerequisite with using-slots wording when actor has spell slots', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'able to cast spells using spell slots' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets spell-trait casting prerequisite when actor can cast a matching spell trait', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'able to cast at least one necromancy spell' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(['necromancy']), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets charisma-or-spell-slot prerequisite when spell slots satisfy the alternative', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Charisma +2 or ability to cast spells from spell slots' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      attributes: { ...buildState.attributes, cha: 0 },
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(2);
+  });
+
+  test('meets subclass tradition prerequisite when class context matches', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'bloodline that grants divine spells' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      class: { slug: 'sorcerer', hp: 6, subclassType: 'bloodline' },
+      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['divine']), focusPool: true, focusPointsMax: 1 },
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('meets lore prerequisite when trained in matching lore', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in Underworld Lore' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets language prerequisite when all required languages are known', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Ancient Osiriani and Sphinx languages' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets shield prerequisite when shield is equipped', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'wielding a shield' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+  });
+
+  test('meets armor prerequisite when one allowed armor category is equipped', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'wearing medium or heavy armor' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+  });
+
+  test('fails ranged weapon prerequisite when only melee weapon is wielded', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'wielding a ranged weapon' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(false);
+    expect(result.results[0].met).toBe(false);
+  });
+
+  test('meets weapon group prerequisite when matching weapon group is wielded', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'wielding a weapon in the sword group' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      equipment: {
+        ...buildState.equipment,
+        weaponGroups: new Set(['sword']),
+      },
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('meets weapon trait prerequisite when matching weapon trait is wielded', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'wielding a weapon with the sweep trait' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+  });
+
+  test('meets class feature prerequisite when class feature is present', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Rage class feature' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      classFeatures: new Set(['rage', 'mighty-rage']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets background prerequisite when matching background is selected', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Bright Lion Background' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('requires all semicolon-separated prerequisites to be met', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Quick Bomber; 8th level' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(false);
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].met).toBe(true);
+    expect(result.results[1].met).toBe(false);
+  });
+
+  test('treats or-separated prerequisites as alternatives', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in Athletics or trained in Stealth' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(2);
+  });
+
+  test('requires Diplomacy and one of several listed skills for as-well-as-either phrasing', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: {
+        ...buildState.skills,
+        diplomacy: 1,
+        religion: 1,
+      },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(5);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('allows either listed language to satisfy a language alternative prerequisite', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Erutaki or Jotun language' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      languages: new Set(['common', 'jotun']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(2);
+  });
+
+  test('treats unsupported negative companion prerequisite text as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: "you don't have an animal companion, construct companion, or other companion that functions similarly" }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats narrative attendance prerequisites as unverified while still checking mechanical prerequisites', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [
+            { value: 'trained in Medicine' },
+            { value: 'attended the University of Lepidstadt' },
+          ],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: { ...buildState.skills, medicine: 1 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].met).toBe(true);
+    expect(result.results[1].met).toBeNull();
+  });
+
+  test('treats narrative death-history prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'you are dead and were mummified (by natural or ritualistic means)' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats saumen-kar trust/initiation prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'must have earned the trust of a saumen kar who initiates you into the archetype' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats action-capability skill prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in at least one skill to Decipher Writing' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats weapon-type proficiency prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in at least one type of one-handed firearm' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats weapon-name proficiency prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in sawtooth sabres' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats Red Mantis membership prerequisites as unverified instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'member of the Red Mantis assassins' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
+
+  test('treats alignment prerequisites as unverified legacy text instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [
+            { value: 'evil alignment' },
+            { value: 'trained in Religion' },
+          ],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: { ...buildState.skills, religion: 1 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].met).toBeNull();
+    expect(result.results[1].met).toBe(true);
+  });
+
+  test('treats curse-state prerequisites as a single unverified clause instead of mixed false and unknown results', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'You are cursed or have previously been cursed.' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
   });
 });

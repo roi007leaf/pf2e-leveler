@@ -153,6 +153,40 @@ describe('computeBuildState', () => {
     expect(state.feats.has('focus-pool')).toBe(true);
   });
 
+  test('tracks slot-based spellcasting when actor has a spellcasting entry with slots', () => {
+    mockActor.items = [
+      {
+        type: 'spellcastingEntry',
+        system: {
+          tradition: { value: 'divine' },
+          slots: {
+            slot1: { max: 2, value: 2 },
+          },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.spellcasting.hasSpellSlots).toBe(true);
+  });
+
+  test('collects spell traits from owned spell items', () => {
+    mockActor.items = [
+      {
+        type: 'spell',
+        name: 'Harm',
+        system: {
+          traits: { value: ['necromancy', 'death'] },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.spellcasting.spellNames.has('harm')).toBe(true);
+    expect(state.spellcasting.spellTraits.has('necromancy')).toBe(true);
+    expect(state.spellcasting.spellTraits.has('death')).toBe(true);
+  });
+
   test('excludes focus-pool when actor has no focus pool', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.feats.has('focus-pool')).toBe(false);
@@ -176,5 +210,103 @@ describe('computeBuildState', () => {
     expect(state.proficiencies.reflex).toBe(PROFICIENCY_RANKS.TRAINED);
     expect(state.proficiencies.will).toBe(PROFICIENCY_RANKS.EXPERT);
     expect(state.proficiencies.classdc).toBe(PROFICIENCY_RANKS.TRAINED);
+  });
+
+  test('collects lore ranks from owned lore items', () => {
+    mockActor.items = [
+      {
+        type: 'lore',
+        name: 'Underworld Lore',
+        system: {
+          proficient: { value: 2 },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.lores['underworld-lore']).toBe(2);
+  });
+
+  test('collects known languages with Ancient Osiriani normalized to Osiriani', () => {
+    mockActor.system.details.languages = {
+      value: ['common', 'osiriani', 'sphinx'],
+    };
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.languages.has('common')).toBe(true);
+    expect(state.languages.has('osiriani')).toBe(true);
+    expect(state.languages.has('sphinx')).toBe(true);
+  });
+
+  test('collects equipped armor, shield, and wielded weapon state', () => {
+    mockActor.items = [
+      {
+        type: 'armor',
+        name: 'Breastplate',
+        system: {
+          category: { value: 'medium' },
+          equipped: { inSlot: true },
+        },
+      },
+      {
+        type: 'armor',
+        name: 'Steel Shield',
+        system: {
+          category: { value: 'shield' },
+          equipped: { inSlot: true },
+        },
+      },
+      {
+        type: 'weapon',
+        name: 'Longsword',
+        system: {
+          category: { value: 'martial' },
+          group: { value: 'sword' },
+          traits: { value: ['versatile-p'] },
+          equipped: { handsHeld: 1 },
+        },
+      },
+      {
+        type: 'weapon',
+        name: 'Shortbow',
+        system: {
+          category: { value: 'martial' },
+          group: { value: 'bow' },
+          traits: { value: [] },
+          range: { increment: 60 },
+          equipped: { handsHeld: 2 },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+
+    expect(state.equipment.hasShield).toBe(true);
+    expect(state.equipment.armorCategories.has('medium')).toBe(true);
+    expect(state.equipment.weaponCategories.has('martial')).toBe(true);
+    expect(state.equipment.weaponGroups.has('sword')).toBe(true);
+    expect(state.equipment.weaponTraits.has('versatile-p')).toBe(true);
+    expect(state.equipment.wieldedMelee).toBe(true);
+    expect(state.equipment.wieldedRanged).toBe(true);
+  });
+
+  test('collects deity domains from the selected deity', () => {
+    mockActor.items = [
+      {
+        type: 'deity',
+        slug: 'sarenrae',
+        name: 'Sarenrae',
+        system: {
+          domains: {
+            primary: ['fire'],
+            alternate: ['sun'],
+          },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.deity?.domains?.has('fire')).toBe(true);
+    expect(state.deity?.domains?.has('sun')).toBe(true);
   });
 });

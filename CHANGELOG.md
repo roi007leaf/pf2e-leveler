@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.4
+
+### Improved
+
+- Planner prerequisite handling is now much more permissive and informative for real PF2E feat text
+  - Unverifiable narrative prerequisites no longer hard-block feat selection
+  - Unknown prerequisite tags are now labeled clearly as `Unverified` in the feat picker
+  - Added broader semantic prerequisite support for class features, spellcasting traditions, deity domains, Lore, and equipment/weapon requirements
+  - Expanded regression coverage with a growing corpus of real feat prerequisite examples
+
+### Fixed
+
+- Free Archetype / archetype feat pickers now support archetype `Additional Feats` properly
+  - Non-archetype feats listed under an archetype's Additional Feats can now appear in archetype feat selection
+  - Archetype-specific override levels from Additional Feats are respected instead of the feat's native printed level
+  - Additional Feats parsing now supports dedication descriptions, journal-linked archetype pages, `@UUID[...]` links, and PF2E journal `data-uuid` content links
+
+### Notes
+
+- Prerequisite coverage is broader, but still intentionally mixed between semantic checks and safe `Unverified` fallbacks
+  - Supported examples now include dedication feat prerequisites, exact deity requirements, background requirements, language lists and alternatives, common spellcasting clauses, specific spell-with-slot clauses, focus-spell casting, Lore, skills, and several equipment/weapon-state checks
+  - Narrative or non-machine-verifiable examples such as faction membership, attendance/history, curse/death-state text, alignment, and similar flavor requirements are intentionally shown as `Unverified` instead of being hard-failed
+  - Weapon-training phrasing like `trained in sawtooth sabres` and `trained in at least one type of one-handed firearm` is still handled conservatively as `Unverified` until the module grows more reliable weapon proficiency state
+
 ## 1.3.3
 
 ### Fixed

@@ -1,6 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { loadFeats } from '../feats/feat-cache.js';
-import { getFeatsForSelection, filterByDedication, filterByGeneralSkillFeats, filterBySearch, filterBySkill, sortFeats } from '../feats/feat-filter.js';
+import { getFeatsForSelection, collectAdditionalArchetypeFeatLevels, filterByDedication, filterByGeneralSkillFeats, filterBySearch, filterBySkill, sortFeats } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -57,11 +57,15 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     if (this.allFeats.length === 0) {
       const allCachedFeats = await loadFeats();
+      const additionalArchetypeFeatLevels = this.category === 'archetype'
+        ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
+        : new Map();
       this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
         sortMethod: this.sortMethod,
         includeDedications: this.category === 'class',
         includeSkillFeats: this.category === 'general',
         buildState: this.buildState,
+        additionalArchetypeFeatLevels,
       });
     }
 
@@ -142,8 +146,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       } else {
         feat.prereqResults = [];
       }
-      feat.prerequisitesFailed = !check.met;
-      feat.selectionBlocked = enforcePrereqs && feat.prerequisitesFailed;
+      feat.hasFailedPrerequisites = check.results.some((result) => result.met === false);
+      feat.hasUnknownPrerequisites = check.results.some((result) => result.met == null);
+      feat.prerequisitesFailed = feat.hasFailedPrerequisites;
+      feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
       const slug = feat.slug ?? null;
       feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;

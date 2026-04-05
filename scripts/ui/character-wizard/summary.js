@@ -1,6 +1,7 @@
 export async function buildSummaryContext(wizard) {
   const choiceLabels = await wizard._getSelectedSubclassChoiceLabels();
   const ancestryFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('ancestry');
+  const ancestryParagonFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('ancestryParagon');
   const classFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('class');
   const grantedFeatChoiceSummaries = [];
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
@@ -32,6 +33,7 @@ export async function buildSummaryContext(wizard) {
     curriculumSummarySpells: await wizard._resolveSummaryCurriculumSpells(),
     subclassChoiceLabels: choiceLabels,
     ancestryFeatChoiceLabels,
+    ancestryParagonFeatChoiceLabels,
     classFeatChoiceLabels,
     grantedFeatChoiceSummaries,
     subclassSummaryLabel,

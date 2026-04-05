@@ -7,6 +7,7 @@ import {
   removeSpell,
   setAncestry,
   setAncestryFeat,
+  setAncestryParagonFeat,
   setBackground,
   setClass,
   setClassFeat,
@@ -253,7 +254,7 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  ['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearClassFeat'].forEach((action) => {
+  ['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat'].forEach((action) => {
     el.querySelector(`[data-action="${action}"]`)?.addEventListener('click', async () => {
       const clearMap = {
         clearAncestry: () => setAncestry(wizard.data, null),
@@ -269,10 +270,11 @@ export function activateCharacterWizardListeners(wizard, el) {
         clearThesis: () => setThesis(wizard.data, null),
         clearDeity: () => setDeity(wizard.data, null),
         clearAncestryFeat: () => setAncestryFeat(wizard.data, null),
+        clearAncestryParagonFeat: () => setAncestryParagonFeat(wizard.data, null),
         clearClassFeat: () => setClassFeat(wizard.data, null),
       };
       clearMap[action]?.();
-      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearClassFeat']);
+      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat']);
       if (refreshActions.has(action)) {
         await wizard._refreshGrantedFeatChoiceSections();
       }
@@ -286,6 +288,18 @@ export function activateCharacterWizardListeners(wizard, el) {
       if (item) {
         const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? []);
         setAncestryFeat(wizard.data, item, choiceSets);
+        await wizard._refreshGrantedFeatChoiceSections();
+        await wizard._saveAndRender();
+      }
+    });
+  });
+
+  el.querySelectorAll('[data-action="selectAncestryParagonFeat"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const item = await fromUuid(btn.dataset.uuid);
+      if (item) {
+        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? []);
+        setAncestryParagonFeat(wizard.data, item, choiceSets);
         await wizard._refreshGrantedFeatChoiceSections();
         await wizard._saveAndRender();
       }

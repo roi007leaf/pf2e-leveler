@@ -992,6 +992,43 @@
         {{/each}}
       </div>
 
+      {{#if ancestralParagonEnabled}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-lg);">
+        <i class="section-header__icon fa-solid fa-dna"></i>
+        {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)
+      </div>
+      {{#if data.ancestryParagonFeat}}
+        <div class="feat-slot feat-slot--filled">
+          <img class="feat-slot__icon" src="{{data.ancestryParagonFeat.img}}" alt="" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">
+          <span class="feat-slot__name" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
+          <i class="feat-slot__clear fa-solid fa-xmark" data-action="clearAncestryParagonFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+        </div>
+      {{/if}}
+      <div class="wizard-item-grid {{#if hasClassFeat}}wizard-item-grid--compact{{/if}}">
+        {{#each ancestryFeats}}
+        <div class="wizard-item {{#if this.paragonTaken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          <div class="wizard-item__info">
+            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+            <div class="wizard-item__traits">
+              {{#each this.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.paragonTaken}}
+            <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+          {{else}}
+            <button type="button" class="wizard-item__select" data-action="selectAncestryParagonFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+
       {{#if hasClassFeat}}
       <div class="section-header" style="margin-top: var(--leveler-spacing-lg);">
         <i class="section-header__icon fa-solid fa-book"></i>
@@ -1403,6 +1440,12 @@
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</span>
           <span class="wizard-summary__value">{{data.ancestryFeat.name}}{{#if ancestryFeatChoiceLabels.length}} ({{#each ancestryFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
+        </div>
+        {{/if}}
+        {{#if data.ancestryParagonFeat}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)</span>
+          <span class="wizard-summary__value">{{data.ancestryParagonFeat.name}}{{#if ancestryParagonFeatChoiceLabels.length}} ({{#each ancestryParagonFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
         </div>
         {{/if}}
         {{#if data.classFeat}}

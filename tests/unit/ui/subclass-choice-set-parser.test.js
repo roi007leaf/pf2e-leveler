@@ -2692,6 +2692,73 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('matches granted feat spell choices when the saved selection uses the option UUID', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.grantedFeatSections = [
+      {
+        slot: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+        featName: 'Arcane Tattoos',
+        sourceName: 'Skilled Human',
+        choiceSets: [
+          {
+            flag: 'cantrip',
+            prompt: 'Make a selection.',
+            options: [
+              {
+                value: 'electric-arc',
+                label: 'Electric Arc',
+                uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+                type: 'spell',
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.feats-srd.Item.arcane-tattoos': {
+        cantrip: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.arcane-tattoos') {
+        return {
+          uuid,
+          name: 'Arcane Tattoos',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'cantrip',
+                prompt: 'Make a selection.',
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.electric-arc') {
+        return {
+          uuid,
+          name: 'Electric Arc',
+          type: 'spell',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Skilled Human -> Arcane Tattoos',
+        prompt: 'Make a selection.',
+        value: 'Electric Arc',
+      }),
+    ]);
+  });
+
   it('includes nested selected weapon choices in the apply overlay prompt rows', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ikons = [

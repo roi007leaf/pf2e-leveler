@@ -3,20 +3,124 @@ import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts } from './plan-model.js';
 import { slugify } from '../utils/pf2e-api.js';
 
+const CLASS_SUBCLASS_TYPES = {
+  alchemist: 'research field',
+  animist: 'practice',
+  barbarian: 'instinct',
+  bard: 'muse',
+  champion: 'cause',
+  cleric: 'doctrine',
+  druid: 'order',
+  gunslinger: 'way',
+  inventor: 'innovation',
+  investigator: 'methodology',
+  kineticist: 'gate',
+  magus: 'study',
+  oracle: 'mystery',
+  psychic: 'conscious mind',
+  ranger: "hunter's edge",
+  rogue: 'racket',
+  sorcerer: 'bloodline',
+  summoner: 'eidolon',
+  swashbuckler: 'style',
+  witch: 'patron',
+  wizard: 'school',
+};
+
 export function computeBuildState(actor, plan, atLevel) {
   const classDef = ClassRegistry.get(plan.classSlug);
 
   return {
     level: atLevel,
     classSlug: plan.classSlug,
+    class: computeClassState(classDef, plan.classSlug),
     ancestrySlug: actor?.ancestry?.slug ?? null,
     heritageSlug: actor?.heritage?.slug ?? null,
+    backgroundSlug: actor?.background?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
     skills: computeSkills(actor, plan, atLevel, classDef),
+    languages: computeLanguages(actor),
+    lores: computeLoreSkills(actor),
     proficiencies: computeProficiencies(actor, classDef, atLevel),
+    equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
+    deity: computeDeityState(actor),
+    spellcasting: computeSpellcastingState(actor, classDef),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
+  };
+}
+
+function computeClassState(classDef, classSlug) {
+  return {
+    slug: classSlug ?? classDef?.slug ?? null,
+    hp: classDef?.hp ?? null,
+    keyAbility: classDef?.keyAbility ?? [],
+    subclassType: CLASS_SUBCLASS_TYPES[classSlug ?? classDef?.slug ?? ''] ?? null,
+  };
+}
+
+function computeDeityState(actor) {
+  const deityItem = getOwnedItems(actor).find((item) => item?.type === 'deity') ?? null;
+  const detailsDeity = actor?.system?.details?.deity ?? null;
+  const value = deityItem ?? detailsDeity;
+
+  if (!value) return null;
+
+  return {
+    slug: value.slug ?? null,
+    name: value.name ?? value.value ?? null,
+    domains: collectDeityDomains(value),
+  };
+}
+
+function computeSpellcastingState(actor, classDef) {
+  const entries = getOwnedItems(actor).filter((item) => item?.type === 'spellcastingEntry');
+  const spells = getOwnedItems(actor).filter((item) => item?.type === 'spell');
+  const traditions = new Set(
+    entries
+      .map((item) => item?.system?.tradition?.value ?? null)
+      .filter((value) => typeof value === 'string' && value.length > 0),
+  );
+  const spellNames = new Set();
+  const spellTraits = new Set();
+
+  const classTradition = classDef?.spellcasting?.tradition ?? null;
+  if (typeof classTradition === 'string' && !['bloodline', 'patron'].includes(classTradition)) {
+    traditions.add(classTradition);
+  }
+
+  for (const spell of spells) {
+    const spellSlug = slugify(spell?.slug ?? spell?.name ?? '');
+    if (spellSlug) spellNames.add(spellSlug);
+
+    const traits = spell?.system?.traits?.value ?? [];
+    for (const trait of traits) {
+      const normalizedTrait = normalizeEquipmentValue(trait);
+      if (normalizedTrait) spellTraits.add(normalizedTrait);
+    }
+  }
+
+  const hasSpellSlots = entries.some((item) => {
+    const systemSlots = item?.system?.slots;
+    if (!systemSlots || typeof systemSlots !== 'object') return false;
+    return Object.values(systemSlots).some((slot) => {
+      if (!slot || typeof slot !== 'object') return false;
+      const max = Number(slot.max ?? slot.value ?? 0);
+      return Number.isFinite(max) && max > 0;
+    });
+  }) || !!classDef?.spellcasting?.slots;
+
+  const focusMax = actor?.system?.resources?.focus?.max ?? 0;
+
+  return {
+    hasAny: traditions.size > 0,
+    hasSpellSlots,
+    spellNames,
+    spellTraits,
+    traditions,
+    focusPool: focusMax > 0,
+    focusPointsMax: focusMax,
   };
 }
 
@@ -80,6 +184,41 @@ function computeSkills(actor, plan, atLevel, classDef) {
   return skills;
 }
 
+function computeLoreSkills(actor) {
+  const lores = {};
+
+  for (const item of getOwnedItems(actor)) {
+    if (item?.type !== 'lore') continue;
+
+    const slug = slugify(item?.slug ?? item?.name ?? '');
+    if (!slug) continue;
+
+    const rank = Number(
+      item?.system?.proficient?.value
+      ?? item?.system?.proficiency?.value
+      ?? item?.system?.rank
+      ?? 1,
+    );
+
+    if (!Number.isFinite(rank)) continue;
+    lores[slug] = Math.max(lores[slug] ?? 0, rank);
+  }
+
+  return lores;
+}
+
+function computeLanguages(actor) {
+  const languages = new Set();
+  const known = actor?.system?.details?.languages?.value ?? [];
+
+  for (const language of known) {
+    const normalized = normalizeLanguageSlug(language);
+    if (normalized) languages.add(normalized);
+  }
+
+  return languages;
+}
+
 export function applyActorSkillRankRules(skills, actor, atLevel) {
   for (const item of getOwnedItems(actor)) {
     for (const rule of item?.system?.rules ?? []) {
@@ -118,6 +257,51 @@ function computeProficiencies(actor, classDef, atLevel) {
   }
 
   return proficiencies;
+}
+
+function computeEquipmentState(actor) {
+  const equipment = {
+    hasShield: false,
+    armorCategories: new Set(),
+    weaponCategories: new Set(),
+    weaponGroups: new Set(),
+    weaponTraits: new Set(),
+    wieldedMelee: false,
+    wieldedRanged: false,
+  };
+
+  for (const item of getOwnedItems(actor)) {
+    if (!isEquippedItem(item)) continue;
+
+    if (item?.type === 'armor') {
+      const armorCategory = normalizeEquipmentValue(item?.system?.category?.value ?? item?.category);
+      if (armorCategory) equipment.armorCategories.add(armorCategory);
+      if (isShieldItem(item)) equipment.hasShield = true;
+      continue;
+    }
+
+    if (item?.type !== 'weapon') continue;
+
+    const category = normalizeEquipmentValue(item?.system?.category?.value ?? item?.category);
+    const group = normalizeEquipmentValue(item?.system?.group?.value ?? item?.group);
+    const traits = item?.system?.traits?.value ?? [];
+
+    if (category) equipment.weaponCategories.add(category);
+    if (group) equipment.weaponGroups.add(group);
+
+    for (const trait of traits) {
+      const normalizedTrait = normalizeEquipmentValue(trait);
+      if (normalizedTrait) equipment.weaponTraits.add(normalizedTrait);
+    }
+
+    if (isRangedWeapon(item)) {
+      equipment.wieldedRanged = true;
+    } else {
+      equipment.wieldedMelee = true;
+    }
+  }
+
+  return equipment;
 }
 
 function applyClassFeatureProficiency(proficiencies, feature) {
@@ -273,6 +457,74 @@ function getOwnedItems(actor) {
   if (Array.isArray(actor.items.contents)) return actor.items.contents;
   if (typeof actor.items.filter === 'function') return actor.items.filter(() => true);
   return Array.from(actor.items);
+}
+
+function isEquippedItem(item) {
+  const carryType = String(item?.system?.equipped?.carryType ?? '').toLowerCase();
+  const handsHeld = Number(item?.system?.equipped?.handsHeld ?? 0);
+  const inSlot = item?.system?.equipped?.inSlot;
+
+  if (inSlot === true) return true;
+  if (handsHeld > 0) return true;
+  if (['held', 'worn'].includes(carryType)) return true;
+
+  return false;
+}
+
+function isShieldItem(item) {
+  const category = normalizeEquipmentValue(item?.system?.category?.value ?? item?.category);
+  if (category === 'shield') return true;
+
+  const traits = item?.system?.traits?.value ?? [];
+  if (traits.some((trait) => normalizeEquipmentValue(trait) === 'shield')) return true;
+
+  const slug = slugify(item?.slug ?? item?.name ?? '');
+  return slug.includes('shield');
+}
+
+function isRangedWeapon(item) {
+  const traits = (item?.system?.traits?.value ?? []).map((trait) => normalizeEquipmentValue(trait));
+  if (traits.some((trait) => trait?.startsWith('thrown'))) return false;
+
+  const rangeIncrement = item?.system?.range?.increment ?? item?.system?.range?.value ?? null;
+  if (typeof rangeIncrement === 'number') return rangeIncrement > 0;
+
+  if (typeof rangeIncrement === 'string') {
+    const normalized = rangeIncrement.trim().toLowerCase();
+    return normalized.length > 0 && normalized !== 'null';
+  }
+
+  return false;
+}
+
+function normalizeEquipmentValue(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeLanguageSlug(value) {
+  const normalized = normalizeEquipmentValue(value);
+  if (!normalized) return null;
+  if (normalized === 'ancient-osiriani' || normalized === 'ancient osiriani') return 'osiriani';
+  return normalized;
+}
+
+function collectDeityDomains(value) {
+  const domains = new Set();
+  const source = value?.system?.domains ?? value?.domains ?? null;
+  if (!source || typeof source !== 'object') return domains;
+
+  for (const list of [source.primary, source.alternate]) {
+    if (!Array.isArray(list)) continue;
+    for (const domain of list) {
+      const normalized = normalizeEquipmentValue(domain);
+      if (normalized) domains.add(normalized);
+    }
+  }
+
+  return domains;
 }
 
 function matchesRuleAtLevel(rule, atLevel) {

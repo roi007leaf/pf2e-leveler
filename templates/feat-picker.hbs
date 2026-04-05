@@ -70,7 +70,7 @@
           {{else if (eq this.met false)}}
             <span class="tag tag--error" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-xmark"></i> {{titleCase this.text}}</span>
           {{else}}
-            <span class="tag tag--muted" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-question"></i> {{titleCase this.text}}</span>
+            <span class="tag tag--muted" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}"><i class="fa-solid fa-question"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED"}}: {{titleCase this.text}}</span>
           {{/if}}
           {{/each}}
         </div>
@@ -83,7 +83,7 @@
         {{#if this.alreadyTaken}}
           <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} — {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
         {{else}}
-          <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}}>
+          <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.selectionBlocked}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNMET_BLOCKED'}}{{else if this.hasUnknownPrerequisites}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}{{/if}}">
             {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
           </button>
         {{/if}}
