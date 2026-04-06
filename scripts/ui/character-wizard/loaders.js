@@ -67,6 +67,7 @@ export async function loadAncestries(wizard) {
       uuid: d.uuid,
       name: d.name,
       img: d.img,
+      type: 'ancestry',
       sourcePack: d.sourcePack,
       sourceLabel: d.sourceLabel,
       sourcePackage: d.sourcePackage,
@@ -75,6 +76,56 @@ export async function loadAncestries(wizard) {
       traits: d.traits ?? [],
       rarity: d.rarity ?? 'common',
       description: d.description ?? '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export async function loadBackgrounds(wizard) {
+  const cacheKey = 'backgrounds';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const all = await loadCompendiumCategory(wizard, 'backgrounds', cacheKey);
+  const items = all
+    .filter((d) => d.type === 'background')
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      type: 'background',
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
+      slug: d.slug ?? null,
+      rarity: d.rarity ?? 'common',
+      description: d.description ?? '',
+      traits: d.traits ?? [],
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
+export async function loadClasses(wizard) {
+  const cacheKey = 'classes';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const all = await loadCompendiumCategory(wizard, 'classes', cacheKey);
+  const items = all
+    .filter((d) => d.type === 'class')
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      type: 'class',
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
+      slug: d.slug ?? null,
+      rarity: d.rarity ?? 'common',
+      description: d.description ?? '',
+      traits: d.traits ?? [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
@@ -91,6 +142,7 @@ export async function loadDeities(wizard) {
       uuid: d.uuid,
       name: d.name,
       img: d.img,
+      type: 'heritage',
       sourcePack: d.sourcePack,
       sourceLabel: d.sourceLabel,
       sourcePackage: d.sourcePackage,

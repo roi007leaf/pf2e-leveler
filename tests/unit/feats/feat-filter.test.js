@@ -48,6 +48,44 @@ describe('filterFeatsByCategory', () => {
     ]);
   });
 
+  test('class feat filtering includes additional archetype feats unlocked by an owned dedication', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Trap Finder</p>',
+        },
+      },
+    };
+    const trapFinder = {
+      ...makeFeat('Trap Finder', 1, ['rogue']),
+      slug: 'trap-finder',
+    };
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, trapFinder],
+      new Set(['archaeologist-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, trapFinder],
+      'class',
+      'fighter',
+      4,
+      {
+        includeDedications: true,
+        additionalArchetypeFeatLevels: additionalLevels,
+      },
+    );
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Archaeologist Dedication' }),
+      expect.objectContaining({ name: 'Trap Finder' }),
+    ]));
+  });
+
   test('respects target level', () => {
     const result = filterFeatsByCategory(feats, 'class', 'alchemist', 1);
     expect(result).toHaveLength(1);
@@ -66,6 +104,43 @@ describe('filterFeatsByCategory', () => {
     const names = result.map((f) => f.name);
     expect(names).toContain('Toughness');
     expect(names).toContain('Battle Medicine');
+  });
+
+  test('general feat filtering can include archetype-unlocked skill feats when skill feats are enabled', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Trap Finder</p>',
+        },
+      },
+    };
+    const trapFinder = {
+      ...makeFeat('Trap Finder', 1, ['skill', 'rogue']),
+      slug: 'trap-finder',
+    };
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, trapFinder],
+      new Set(['archaeologist-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, trapFinder],
+      'general',
+      '',
+      7,
+      {
+        includeSkillFeats: true,
+        additionalArchetypeFeatLevels: additionalLevels,
+      },
+    );
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Trap Finder' }),
+    ]));
   });
 
   test('filters skill feats', () => {
@@ -405,6 +480,162 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-takedown')).toBe(4);
     expect(result.get('twin-parry')).toBe(6);
     expect(result.get('twin-riposte')).toBe(12);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels resolves listed feat names to actual feat slugs', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Trap Finder</p>',
+        },
+      },
+    };
+    const trapFinder = {
+      ...makeFeat('Trap Finder', 1, ['rogue']),
+      slug: 'rogue-trap-finder',
+    };
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      [dedication, trapFinder],
+      new Set(['archaeologist-dedication']),
+    );
+
+    expect(result.get('rogue-trap-finder')).toBe(4);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels also stores normalized name keys for live name matching fallback', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Trap Finder</p>',
+        },
+      },
+    };
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      [dedication],
+      new Set(['archaeologist-dedication']),
+    );
+
+    expect(result.get('name:trap finder')).toBe(4);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels can find archetype journals by dedication name when no journal uuid is embedded', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p>You are a student of peoples and their histories.</p>',
+        },
+      },
+    };
+    const trapFinder = {
+      ...makeFeat('Trap Finder', 1, ['rogue']),
+      slug: 'trap-finder',
+      uuid: 'Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0',
+    };
+
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.journals') return null;
+      return {
+        collection: 'pf2e.journals',
+        metadata: { type: 'JournalEntry' },
+        getIndex: jest.fn(async () => [
+          { _id: 'vx5FGEG34AxI2dow', name: 'Archaeologist' },
+        ]),
+      };
+    });
+
+    const resolver = jest.fn(async (uuid) => ({
+      uuid,
+      pages: [
+        {
+          text: {
+            content: '<p><strong>Additional Feats:</strong> <strong>4th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0">Trap Finder</a></p>',
+          },
+        },
+      ],
+    }));
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      [dedication, trapFinder],
+      new Set(['archaeologist-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(resolver).toHaveBeenCalledWith('Compendium.pf2e.journals.JournalEntry.vx5FGEG34AxI2dow');
+    expect(result.get('trap-finder')).toBe(4);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels can find archetype journals by matching page name', async () => {
+    const dedication = {
+      ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
+      slug: 'archaeologist-dedication',
+      system: {
+        ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p>You are a student of peoples and their histories.</p>',
+        },
+      },
+    };
+    const trapFinder = {
+      ...makeFeat('Trap Finder', 1, ['rogue']),
+      slug: 'trap-finder',
+      uuid: 'Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0',
+    };
+
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.journals') return null;
+      return {
+        collection: 'pf2e.journals',
+        metadata: { type: 'JournalEntry' },
+        getIndex: jest.fn(async () => [
+          { _id: 'journal-root', name: 'Archetypes' },
+        ]),
+        getDocuments: jest.fn(async () => [
+          {
+            _id: 'journal-root',
+            uuid: 'Compendium.pf2e.journals.JournalEntry.journal-root',
+            pages: [
+              {
+                name: 'Archaeologist',
+                text: {
+                  content: '<p><strong>Additional Feats:</strong> <strong>4th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0">Trap Finder</a></p>',
+                },
+              },
+            ],
+          },
+        ]),
+      };
+    });
+
+    const resolver = jest.fn(async (uuid) => ({
+      uuid,
+      pages: [
+        {
+          name: 'Archaeologist',
+          text: {
+            content: '<p><strong>Additional Feats:</strong> <strong>4th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0">Trap Finder</a></p>',
+          },
+        },
+      ],
+    }));
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      [dedication, trapFinder],
+      new Set(['archaeologist-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(result.get('trap-finder')).toBe(4);
   });
 });
 

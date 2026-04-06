@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.9
+
+### Fixed
+
+- Character wizard ancestry browsing now ignores non-ancestry records from mixed assigned packs
+  - The ancestry step now narrows assigned ancestry sources down to real ancestry documents only, so ancestry-tagged feats and other unrelated records no longer appear in ancestry selection
+- Character wizard document browsers now stay strict about mixed assigned packs
+  - The heritage step now narrows assigned heritage sources down to real heritage documents only
+  - The background step now narrows assigned background sources down to real background documents only
+  - The class step now narrows assigned class sources down to real class documents only
+- Archetype feat eligibility now picks up additional feats from PF2E archetype journals more reliably
+  - Additional archetype feats can now be discovered from dedication descriptions, embedded journal links, matching journal entry names, and matching journal page names
+  - Listed additional feats also resolve back to real feat records by UUID or exact name, which helps archetypes whose feat names and slugs do not line up cleanly
+- Playtest classes now register as supported planner classes
+  - Added built-in class definitions for `Slayer` and `Daredevil`, including feat schedules, skill increase schedules, ability boost schedules, and core class feature milestones
+  - Characters using those playtest classes can now see and use the level planner from their character sheet like other supported classes
+
 ## 1.4.8
 
 ### Improved

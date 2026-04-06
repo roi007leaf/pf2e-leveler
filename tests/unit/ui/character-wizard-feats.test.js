@@ -94,6 +94,98 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
   });
 
+  it('background step only shows actual background documents from mixed assigned packs', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 2;
+    wizard._loadBackgrounds = jest.fn(async () => [
+      {
+        uuid: 'background-1',
+        name: 'Acolyte',
+        type: 'background',
+        slug: 'acolyte',
+      },
+      {
+        uuid: 'feat-1',
+        name: 'Til Ragnarok\'s End',
+        type: 'feat',
+        slug: 'til-ragnaroks-end',
+      },
+    ]);
+
+    const context = await wizard._getStepContext();
+
+    expect(context.items).toEqual([
+      expect.objectContaining({
+        uuid: 'background-1',
+        name: 'Acolyte',
+        type: 'background',
+      }),
+    ]);
+  });
+
+  it('heritage step only shows actual heritage documents from mixed assigned packs', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 1;
+    wizard.data.ancestry = {
+      uuid: 'ancestry-1',
+      slug: 'human',
+      name: 'Human',
+    };
+    wizard._loadHeritages = jest.fn(async () => [
+      {
+        uuid: 'heritage-1',
+        name: 'Versatile Heritage',
+        type: 'heritage',
+        slug: 'versatile-heritage',
+      },
+      {
+        uuid: 'feat-1',
+        name: 'Til Ragnarok\'s End',
+        type: 'feat',
+        slug: 'til-ragnaroks-end',
+      },
+    ]);
+
+    const context = await wizard._getStepContext();
+
+    expect(context.items).toEqual([
+      expect.objectContaining({
+        uuid: 'heritage-1',
+        name: 'Versatile Heritage',
+        type: 'heritage',
+      }),
+    ]);
+  });
+
+  it('class step only shows actual class documents from mixed assigned packs', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 3;
+    wizard._loadClasses = jest.fn(async () => [
+      {
+        uuid: 'class-1',
+        name: 'Fighter',
+        type: 'class',
+        slug: 'fighter',
+      },
+      {
+        uuid: 'feat-1',
+        name: 'Til Ragnarok\'s End',
+        type: 'feat',
+        slug: 'til-ragnaroks-end',
+      },
+    ]);
+
+    const context = await wizard._getStepContext();
+
+    expect(context.items).toEqual([
+      expect.objectContaining({
+        uuid: 'class-1',
+        name: 'Fighter',
+        type: 'class',
+      }),
+    ]);
+  });
+
   it('marks paragon ancestry feat selections separately in the feat context', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return true;

@@ -53,6 +53,8 @@ import {
   loadCompendium,
   loadCompendiumCategory,
   loadAncestries,
+  loadBackgrounds,
+  loadClasses,
   loadDeities,
   loadExemplarIkons,
   loadHeritages,
@@ -715,9 +717,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           .filter((i) => i.type === 'ancestry')
           .filter((i) => i.uuid !== this.data.ancestry?.uuid),
       };
-      case 'heritage': return { items: (await this._loadHeritages()).filter((i) => i.uuid !== this.data.heritage?.uuid) };
-      case 'background': return { items: (await this._loadCompendiumCategory('backgrounds')).filter((i) => i.uuid !== this.data.background?.uuid) };
-      case 'class': return { items: (await this._loadCompendiumCategory('classes')).filter((i) => i.uuid !== this.data.class?.uuid) };
+      case 'heritage': return {
+        items: (await this._loadHeritages())
+          .filter((i) => i.type === 'heritage')
+          .filter((i) => i.uuid !== this.data.heritage?.uuid),
+      };
+      case 'background': return {
+        items: (await this._loadBackgrounds())
+          .filter((i) => i.type === 'background')
+          .filter((i) => i.uuid !== this.data.background?.uuid),
+      };
+      case 'class': return {
+        items: (await this._loadClasses())
+          .filter((i) => i.type === 'class')
+          .filter((i) => i.uuid !== this.data.class?.uuid),
+      };
       case 'subclass': {
         let subclasses = (await this._loadSubclasses()).filter((i) => i.uuid !== this.data.subclass?.uuid);
         subclasses = this.classHandler.filterSubclasses(subclasses, this.data);
@@ -806,6 +820,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _loadAncestries() {
     return loadAncestries(this);
+  }
+
+  async _loadBackgrounds() {
+    return loadBackgrounds(this);
+  }
+
+  async _loadClasses() {
+    return loadClasses(this);
   }
 
   async _loadDeities() {

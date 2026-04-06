@@ -3,6 +3,7 @@ import { loadFeats } from '../feats/feat-cache.js';
 import {
   getFeatsForSelection,
   collectAdditionalArchetypeFeatLevels,
+  getAdditionalArchetypeMatchKeys,
   filterByDedication,
   filterByGeneralSkillFeats,
   filterBySearch,
@@ -33,9 +34,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSkill = '';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
+    this.minLevel = '';
+    this.maxLevel = Number.isFinite(Number(targetLevel)) && Number(targetLevel) > 0 ? String(targetLevel) : '';
     this.selectedFeatTypes = new Set();
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
+    this.additionalArchetypeFeatLevels = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
     this._prereqCache = new Map();
     this._buildStateSignature = this._createBuildStateSignature();
@@ -72,7 +76,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     if (this.allFeats.length === 0) {
       const allCachedFeats = await loadFeats();
-      const additionalArchetypeFeatLevels = this.category === 'archetype'
+      this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill'].includes(this.category)
         ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
         : new Map();
       this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
@@ -80,7 +84,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         includeDedications: this.category === 'class',
         includeSkillFeats: this.category === 'general',
         buildState: this.buildState,
-        additionalArchetypeFeatLevels,
+        additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
       });
     }
 
@@ -93,12 +97,15 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredFeats.length,
       sourceOptions,
       featTypeOptions,
+      levelOptions: this._getLevelOptions(),
       category: this.category,
       targetLevel: this.targetLevel,
       hideFailedPrereqs: this.hideFailedPrereqs,
       showUncommon: this.showUncommon,
       showRare: this.showRare,
       sortMethod: this.sortMethod,
+      minLevel: this.minLevel,
+      maxLevel: this.maxLevel,
       showSkillFilter: this.category === 'skill',
       showGeneralSkillToggle: this.category === 'general',
       showFeatTypeFilter: this.category === 'custom',
@@ -134,6 +141,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (!this.showUncommon) feats = feats.filter((f) => f.system.traits.rarity !== 'uncommon');
     if (!this.showRare) feats = feats.filter((f) => f.system.traits.rarity !== 'rare');
+    if (this.minLevel !== '') {
+      const minLevel = Number(this.minLevel);
+      feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) >= minLevel);
+    }
+    if (this.maxLevel !== '') {
+      const maxLevel = Number(this.maxLevel);
+      feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) <= maxLevel);
+    }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
     if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
     if (this.category === 'general') feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
@@ -178,8 +193,17 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
 
       const slug = feat.slug ?? null;
+      const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+      const isArchetypeAdditionalFeat = ['archetype', 'class', 'general', 'skill'].includes(this.category)
+        && featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
       feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
+
+      if (isArchetypeAdditionalFeat) {
+        feat.hasFailedPrerequisites = false;
+        feat.prerequisitesFailed = false;
+        feat.selectionBlocked = false;
+      }
     }
   }
 
@@ -219,6 +243,32 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (sortSelect) {
       sortSelect.addEventListener('change', (e) => {
         this.sortMethod = e.target.value;
+        this._scheduleListUpdate();
+      }, { signal });
+    }
+
+    const minLevelSelect = el.querySelector('[data-action="filterMinLevel"]');
+    if (minLevelSelect) {
+      minLevelSelect.addEventListener('change', (e) => {
+        this.minLevel = e.target.value;
+        if (this.minLevel !== '' && this.maxLevel !== '' && Number(this.minLevel) > Number(this.maxLevel)) {
+          this.maxLevel = this.minLevel;
+          const maxSelect = el.querySelector('[data-action="filterMaxLevel"]');
+          if (maxSelect) maxSelect.value = this.maxLevel;
+        }
+        this._scheduleListUpdate();
+      }, { signal });
+    }
+
+    const maxLevelSelect = el.querySelector('[data-action="filterMaxLevel"]');
+    if (maxLevelSelect) {
+      maxLevelSelect.addEventListener('change', (e) => {
+        this.maxLevel = e.target.value;
+        if (this.minLevel !== '' && this.maxLevel !== '' && Number(this.maxLevel) < Number(this.minLevel)) {
+          this.minLevel = this.maxLevel;
+          const minSelect = el.querySelector('[data-action="filterMinLevel"]');
+          if (minSelect) minSelect.value = this.minLevel;
+        }
         this._scheduleListUpdate();
       }, { signal });
     }
@@ -563,6 +613,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }));
   }
 
+  _getLevelOptions() {
+    return Array.from({ length: 20 }, (_unused, index) => {
+      const level = index + 1;
+      return { value: String(level), label: String(level) };
+    });
+  }
+
   _getFeatTypes(feat) {
     const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
     const ancestryTraits = this.buildState?.ancestryTraits instanceof Set
@@ -589,6 +646,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       || feat.flags?.core?.sourceId
       || (feat.sourcePack && feat.id ? `Compendium.${feat.sourcePack}.Item.${feat.id}` : '')
       || '';
+  }
+
+  _getAdditionalArchetypeFeatKeys(feat) {
+    return getAdditionalArchetypeMatchKeys(feat);
   }
 
   _toTemplateFeat(feat) {

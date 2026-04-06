@@ -7,15 +7,16 @@ export function filterFeatsByCategory(feats, category, searchQuery, targetLevel,
 
   return feats.filter((feat) => {
     const traits = feat.system.traits.value.map((t) => t.toLowerCase());
-    const featSlug = getFeatFilterSlug(feat);
+    const featMatchKeys = getAdditionalArchetypeMatchKeys(feat);
     const matchesCategory = matchesFeatCategory(traits, category, normalizedQuery, {
       includeDedications,
       includeSkillFeats,
-      featSlug,
+      featMatchKeys,
       additionalArchetypeFeatLevels,
     });
-    const levelRequirement = category === 'archetype' && featSlug && additionalArchetypeFeatLevels.has(featSlug)
-      ? additionalArchetypeFeatLevels.get(featSlug)
+    const unlockedLevel = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys);
+    const levelRequirement = category === 'archetype' && unlockedLevel != null
+      ? unlockedLevel
       : feat.system.level.value;
     const withinLevel = levelRequirement <= targetLevel;
     const notDuplicate = checkNotDuplicate(feat, existingFeatNames);
@@ -33,13 +34,15 @@ function normalizeQuery(query) {
 function matchesFeatCategory(traits, category, queries, options = {}) {
   const includeDedications = !!options.includeDedications;
   const includeSkillFeats = !!options.includeSkillFeats;
-  const featSlug = options.featSlug ?? null;
+  const featMatchKeys = Array.isArray(options.featMatchKeys) ? options.featMatchKeys : [];
   const additionalArchetypeFeatLevels = options.additionalArchetypeFeatLevels ?? new Map();
+  const isAdditionalArchetypeFeat = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys) != null;
   switch (category) {
     case 'custom':
       return true;
     case 'class':
       return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
+        || (includeDedications && isAdditionalArchetypeFeat)
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
@@ -47,10 +50,11 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
       return traits.includes('skill');
     case 'general':
       return (traits.includes('general') && (includeSkillFeats || !traits.includes('skill')))
+        || (includeSkillFeats && isAdditionalArchetypeFeat && traits.includes('skill'))
         || (includeSkillFeats && !traits.includes('general') && traits.includes('skill'));
     case 'archetype':
       return traits.includes('archetype')
-        || (!!featSlug && additionalArchetypeFeatLevels.has(featSlug));
+        || isAdditionalArchetypeFeat;
     case 'mythic':
       return traits.includes('mythic');
     default:
@@ -205,9 +209,11 @@ export async function collectAdditionalArchetypeFeatLevels(feats, ownedFeatSlugs
 
     const parsedEntries = await collectAdditionalFeatEntriesFromDedication(feat, documentResolver);
     for (const entry of parsedEntries) {
-      const currentLevel = additionalFeatLevels.get(entry.slug);
-      if (currentLevel == null || entry.level < currentLevel) {
-        additionalFeatLevels.set(entry.slug, entry.level);
+      for (const key of getAdditionalArchetypeMatchKeys(entry, feats)) {
+        const currentLevel = additionalFeatLevels.get(key);
+        if (currentLevel == null || entry.level < currentLevel) {
+          additionalFeatLevels.set(key, entry.level);
+        }
       }
     }
   }
@@ -258,6 +264,50 @@ function getFeatFilterSlug(feat) {
     .replace(/^-|-$/g, '');
 }
 
+export function getAdditionalArchetypeMatchKeys(entry, feats = null) {
+  const keys = new Set();
+  const featSlug = getFeatFilterSlug(entry);
+  if (featSlug) keys.add(featSlug);
+  if (entry?.slug) keys.add(entry.slug);
+  if (entry?.uuid) keys.add(entry.uuid);
+  if (entry?.sourceId) keys.add(entry.sourceId);
+  if (entry?.flags?.core?.sourceId) keys.add(entry.flags.core.sourceId);
+
+  const normalizedName = normalizeAdditionalFeatName(entry?.name);
+  if (normalizedName) keys.add(`name:${normalizedName}`);
+
+  if (normalizedName && feats) {
+    for (const feat of feats ?? []) {
+      const featName = normalizeAdditionalFeatName(feat?.name);
+      if (featName !== normalizedName) continue;
+      const featSlug = getFeatFilterSlug(feat);
+      if (featSlug) keys.add(featSlug);
+      if (feat?.uuid) keys.add(feat.uuid);
+      if (feat?.sourceId) keys.add(feat.sourceId);
+      if (feat?.flags?.core?.sourceId) keys.add(feat.flags.core.sourceId);
+      keys.add(`name:${normalizedName}`);
+    }
+  }
+
+  return [...keys];
+}
+
+function getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys) {
+  for (const key of featMatchKeys ?? []) {
+    if (!key) continue;
+    const level = additionalArchetypeFeatLevels.get(key);
+    if (level != null) return level;
+  }
+  return null;
+}
+
+function normalizeAdditionalFeatName(name) {
+  return String(name ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
 function isArchetypeDedication(feat) {
   const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
   return traits.includes('archetype') && traits.includes('dedication');
@@ -298,7 +348,11 @@ async function collectAdditionalFeatEntriesFromDedication(feat, documentResolver
   const directEntries = parseAdditionalFeatEntries(descriptionHtml);
   if (directEntries.length > 0) return directEntries;
 
-  const journalUuids = collectJournalUuids(feat);
+  const journalUuids = new Set(collectJournalUuids(feat));
+  if (journalUuids.size === 0) {
+    const fallbackJournalUuid = await findArchetypeJournalUuid(feat);
+    if (fallbackJournalUuid) journalUuids.add(fallbackJournalUuid);
+  }
   for (const uuid of journalUuids) {
     const document = await documentResolver(uuid).catch(() => null);
     const journalEntries = parseAdditionalFeatEntries(extractJournalHtml(document));
@@ -353,6 +407,110 @@ async function defaultDocumentResolver(uuid) {
   return fromUuid(uuid);
 }
 
+async function findArchetypeJournalUuid(feat) {
+  const archetypeName = getArchetypeJournalLookupName(feat);
+  if (!archetypeName) return null;
+
+  const exactMatch = await findJournalUuidByName('pf2e.journals', archetypeName);
+  if (exactMatch) return exactMatch;
+  const pageMatch = await findJournalUuidByPageName('pf2e.journals', archetypeName);
+  if (pageMatch) return pageMatch;
+
+  for (const pack of iterateJournalPacks()) {
+    if (pack?.collection === 'pf2e.journals') continue;
+    const match = await findJournalUuidByName(pack.collection, archetypeName, pack);
+    if (match) return match;
+    const nestedPageMatch = await findJournalUuidByPageName(pack.collection, archetypeName, pack);
+    if (nestedPageMatch) return nestedPageMatch;
+  }
+
+  return null;
+}
+
+function getArchetypeJournalLookupName(feat) {
+  const name = String(feat?.name ?? '').trim();
+  if (!name) return null;
+  return name.replace(/\s+Dedication$/i, '').trim() || null;
+}
+
+function* iterateJournalPacks() {
+  const packs = game?.packs;
+  if (!packs) return;
+
+  if (typeof packs.values === 'function') {
+    yield* packs.values();
+    return;
+  }
+
+  if (Array.isArray(packs)) {
+    yield* packs;
+    return;
+  }
+
+  if (typeof packs === 'object') {
+    for (const value of Object.values(packs)) yield value;
+  }
+}
+
+async function findJournalUuidByName(packKey, targetName, existingPack = null) {
+  const pack = existingPack ?? game?.packs?.get?.(packKey);
+  if (!pack) return null;
+
+  const metadataType = String(pack.metadata?.type ?? pack.documentName ?? '').toLowerCase();
+  if (metadataType && metadataType !== 'journalentry') return null;
+
+  const index = typeof pack.getIndex === 'function'
+    ? await pack.getIndex()
+    : (pack.index?.contents ?? pack.index ?? []);
+  const entries = Array.isArray(index) ? index : Array.from(index ?? []);
+  const normalizedTarget = normalizeJournalName(targetName);
+
+  for (const entry of entries) {
+    const entryName = normalizeJournalName(entry?.name);
+    if (entryName !== normalizedTarget) continue;
+    const uuid = entry?.uuid
+      ?? (entry?._id ? `Compendium.${pack.collection}.JournalEntry.${entry._id}` : null);
+    if (uuid) return uuid;
+  }
+
+  return null;
+}
+
+async function findJournalUuidByPageName(packKey, targetName, existingPack = null) {
+  const pack = existingPack ?? game?.packs?.get?.(packKey);
+  if (!pack) return null;
+
+  const metadataType = String(pack.metadata?.type ?? pack.documentName ?? '').toLowerCase();
+  if (metadataType && metadataType !== 'journalentry') return null;
+
+  const documents = typeof pack.getDocuments === 'function'
+    ? await pack.getDocuments()
+    : [];
+  const normalizedTarget = normalizeJournalName(targetName);
+
+  for (const document of documents) {
+    const pages = Array.isArray(document?.pages)
+      ? document.pages
+      : Array.isArray(document?.pages?.contents)
+        ? document.pages.contents
+        : [];
+
+    if (pages.some((page) => normalizeJournalName(page?.name) === normalizedTarget)) {
+      return document?.uuid
+        ?? (document?._id ? `Compendium.${pack.collection}.JournalEntry.${document._id}` : null);
+    }
+  }
+
+  return null;
+}
+
+function normalizeJournalName(name) {
+  return String(name ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
 function parseAdditionalFeatUuidEntries(html) {
   const normalizedHtml = String(html ?? '');
   const match = normalizedHtml.match(/Additional Feats:\s*(.+?)(?=(?:<\/p>|<p><strong>|<strong>Special:|<strong>Access:|<strong>Prerequisites:|<strong>Requirements:|<strong>Frequency:|<strong>Trigger:|<strong>Effect:|$))/i);
@@ -367,12 +525,15 @@ function parseAdditionalFeatUuidEntries(html) {
   for (const pattern of patterns) {
     for (const entryMatch of match[1].matchAll(pattern)) {
       const level = Number(entryMatch[1]);
+      const uuid = String(entryMatch[2] ?? '').startsWith('Compendium.')
+        ? String(entryMatch[2])
+        : null;
       const name = String(entryMatch[3] ?? entryMatch[2] ?? '')
         .replace(/\s*\([^)]*\)\s*$/u, '')
         .trim();
       const slug = getFeatFilterSlug({ name });
       if (!Number.isFinite(level) || !slug) continue;
-      entries.push({ level, slug, name });
+      entries.push({ level, slug, name, uuid });
     }
   }
 

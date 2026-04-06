@@ -9,6 +9,7 @@ import { BARD } from '../classes/bard.js';
 import { CHAMPION } from '../classes/champion.js';
 import { CLERIC } from '../classes/cleric.js';
 import { COMMANDER } from '../classes/commander.js';
+import { DAREDEVIL } from '../classes/daredevil.js';
 import { DRUID } from '../classes/druid.js';
 import { EXEMPLAR } from '../classes/exemplar.js';
 import { FIGHTER } from '../classes/fighter.js';
@@ -23,6 +24,7 @@ import { ORACLE } from '../classes/oracle.js';
 import { PSYCHIC } from '../classes/psychic.js';
 import { RANGER } from '../classes/ranger.js';
 import { ROGUE } from '../classes/rogue.js';
+import { SLAYER } from '../classes/slayer.js';
 import { SORCERER } from '../classes/sorcerer.js';
 import { SUMMONER } from '../classes/summoner.js';
 import { SWASHBUCKLER } from '../classes/swashbuckler.js';
@@ -54,9 +56,9 @@ function onReady() {
 
 function registerClasses() {
   [
-    ALCHEMIST, ANIMIST, BARBARIAN, BARD, CHAMPION, CLERIC, COMMANDER, DRUID,
+    ALCHEMIST, ANIMIST, BARBARIAN, BARD, CHAMPION, CLERIC, COMMANDER, DAREDEVIL, DRUID,
     EXEMPLAR, FIGHTER, GUARDIAN, GUNSLINGER, INVENTOR, INVESTIGATOR, KINETICIST,
-    MAGUS, MONK, ORACLE, PSYCHIC, RANGER, ROGUE, SORCERER, SUMMONER,
+    MAGUS, MONK, ORACLE, PSYCHIC, RANGER, ROGUE, SLAYER, SORCERER, SUMMONER,
     SWASHBUCKLER, THAUMATURGE, WITCH, WIZARD,
   ].forEach((cls) => ClassRegistry.register(cls));
   info(`Registered ${ClassRegistry.getAll().length} classes`);

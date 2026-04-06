@@ -124,7 +124,7 @@ describe('FeatPicker prerequisite enforcement', () => {
       slug: 'different-worlds',
     });
 
-    const picker = new FeatPicker(createActor(), 'archetype', 1, createBuildState({ level: 1 }), jest.fn());
+    const picker = new FeatPicker(createActor(), 'archetype', 2, createBuildState({ level: 2 }), jest.fn());
     picker.allFeats = [feat];
 
     const [result] = picker._applyFilters();
@@ -134,6 +134,80 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.hasUnknownPrerequisites).toBe(true);
     expect(result.hasFailedPrerequisites).toBe(false);
     expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('archetype additional feats stay selectable even if their native prerequisites would normally fail', () => {
+    const feat = createFeat({
+      name: 'Trap Finder',
+      prereqText: 'master in Thievery',
+      uuid: 'Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0',
+      slug: 'trap-finder',
+    });
+    feat.system.traits.value = ['rogue'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState({
+      level: 4,
+      feats: new Set(['archaeologist-dedication']),
+    }), jest.fn());
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['trap-finder', 4]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('archetype-unlocked skill feats stay selectable in the general picker when skill feats are enabled', () => {
+    const feat = createFeat({
+      name: 'Trap Finder',
+      prereqText: 'master in Thievery',
+      uuid: 'Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0',
+      slug: 'trap-finder',
+    });
+    feat.system.traits.value = ['skill', 'rogue'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'general', 7, createBuildState({
+      level: 7,
+      feats: new Set(['archaeologist-dedication']),
+    }), jest.fn());
+    picker.allFeats = [feat];
+    picker.showSkillFeats = true;
+    picker.additionalArchetypeFeatLevels = new Map([['trap-finder', 4]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('archetype additional feat matching also works through normalized name fallback keys', () => {
+    const feat = createFeat({
+      name: 'Trap Finder',
+      prereqText: 'master in Thievery',
+      uuid: 'Compendium.pf2e.feats-srd.Item.oA866uVEFu1OrAX0',
+      slug: '',
+    });
+    feat.system.traits.value = ['skill', 'rogue'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'class', 6, createBuildState({
+      level: 6,
+      feats: new Set(['archaeologist-dedication']),
+    }), jest.fn());
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['name:trap finder', 4]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
     expect(result.selectionBlocked).toBe(false);
   });
 
@@ -160,6 +234,49 @@ describe('FeatPicker prerequisite enforcement', () => {
 
     picker.selectedFeatTypes = new Set(['class', 'skill']);
     expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Battle Medicine', 'Power Attack']);
+  });
+
+  test('can filter feats by a min and max level range', () => {
+    const lowFeat = createFeat({
+      name: 'Low Feat',
+      uuid: 'low-feat',
+      slug: 'low-feat',
+    });
+    lowFeat.system.level.value = 1;
+    lowFeat.system.traits.value = ['cleric'];
+
+    const midFeat = createFeat({
+      name: 'Mid Feat',
+      uuid: 'mid-feat',
+      slug: 'mid-feat',
+    });
+    midFeat.system.level.value = 4;
+    midFeat.system.traits.value = ['cleric'];
+
+    const highFeat = createFeat({
+      name: 'High Feat',
+      uuid: 'high-feat',
+      slug: 'high-feat',
+    });
+    highFeat.system.level.value = 8;
+    highFeat.system.traits.value = ['cleric'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 8, createBuildState({ level: 8 }), jest.fn());
+    picker.allFeats = [lowFeat, midFeat, highFeat];
+    picker.minLevel = '2';
+    picker.maxLevel = '6';
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Mid Feat']);
+  });
+
+  test('defaults max level filter to the picker target level', async () => {
+    const picker = new FeatPicker(createActor(), 'custom', 7, createBuildState({ level: 7 }), jest.fn());
+    picker.allFeats = [];
+
+    const context = await picker._prepareContext();
+
+    expect(picker.maxLevel).toBe('7');
+    expect(context.maxLevel).toBe('7');
   });
 
   test('supports multi-select confirmation for custom feat picking', async () => {
