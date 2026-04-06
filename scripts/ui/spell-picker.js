@@ -25,6 +25,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.allSpells = [];
     this.filteredSpells = [];
     this.selectedSpellUuids = new Set();
+    this.selectedRanks = new Set();
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
@@ -84,6 +85,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.filteredSpells = this._filterSpells();
     this._sortSpells(this.filteredSpells);
     const sourceOptions = this._getSourceOptions();
+    const rankOptions = this._getRankOptions();
 
     const allTraits = new Set();
     for (const spell of this.allSpells) {
@@ -93,6 +95,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions,
+      rankOptions,
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
@@ -240,6 +243,23 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
         }
         this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleSpellRank') {
+        e.preventDefault();
+        e.stopPropagation();
+        const rank = Number(target.dataset.rank);
+        if (!Number.isFinite(rank)) return;
+        if (this.selectedRanks.has(rank)) {
+          if (this.selectedRanks.size > 1) this.selectedRanks.delete(rank);
+        } else {
+          this.selectedRanks.add(rank);
+        }
+        for (const chip of el.querySelectorAll('[data-action="toggleSpellRank"]')) {
+          chip.classList.toggle('selected', this.selectedRanks.has(Number(chip.dataset.rank)));
+        }
+        this._scheduleListUpdate();
       }
     }, { signal });
 
@@ -248,6 +268,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _matchesTradition(spell) {
+    if (this.tradition === 'any') return true;
     const traditions = spell.system.traits?.traditions ?? spell.system.traditions?.value ?? [];
     if (traditions.includes(this.tradition)) return true;
     const traits = spell.system.traits?.value ?? [];
@@ -292,6 +313,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     let spells = [...this.allSpells];
     if (this.selectedSourcePackages.size > 0) {
       spells = spells.filter((spell) => this.selectedSourcePackages.has(spell.sourcePackage ?? spell.sourcePack));
+    }
+    if (this.selectedRanks.size > 0) {
+      spells = spells.filter((spell) => this.selectedRanks.has(getSpellRank(spell.system ?? {})));
     }
     if (!this.searchText) return spells;
     return spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
@@ -469,6 +493,21 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return options.map((entry) => ({
       ...entry,
       selected: this.selectedSourcePackages.has(entry.key),
+    }));
+  }
+
+  _getRankOptions() {
+    const ranks = [...new Set(this.allSpells.map((spell) => getSpellRank(spell.system ?? {})))].sort((a, b) => a - b);
+    if (this.selectedRanks.size === 0) {
+      this.selectedRanks = new Set(ranks);
+    }
+
+    return ranks.map((rank) => ({
+      value: rank,
+      label: rank === 0
+        ? game.i18n.localize('PF2E_LEVELER.SPELLS.CANTRIP')
+        : game.i18n.format('PF2E_LEVELER.SPELLS.RANK_NUMBER', { rank }),
+      selected: this.selectedRanks.has(rank),
     }));
   }
 

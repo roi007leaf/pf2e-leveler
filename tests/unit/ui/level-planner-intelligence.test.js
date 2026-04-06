@@ -243,6 +243,28 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     }));
   });
 
+  it('falls back to slug-based feat source names when planned feat names are missing', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.skills.athletics.rank = 0;
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.levels[2].generalFeats = [{
+      slug: 'battlefield-bravado',
+      skillRules: [
+        { skill: 'athletics', value: 1 },
+      ],
+      skillRulesResolved: true,
+    }];
+
+    const skills = planner._buildSkillContext(planner.plan.levels[2], 2);
+    expect(skills.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({
+      featGranted: true,
+      featSourceName: 'Battlefield Bravado',
+    }));
+  });
+
   it('extracts skill rules through GrantItem chains', async () => {
     const grantedEffect = {
       uuid: 'Compendium.pf2e.feat-effects.Item.acrobat-effect',

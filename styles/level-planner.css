@@ -135,6 +135,8 @@
 
 .pf2e-leveler .planner-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: var(--leveler-spacing-lg);
 }
@@ -160,6 +162,31 @@
 
 .pf2e-leveler .level-section {
   margin-bottom: var(--leveler-spacing-lg);
+}
+
+.pf2e-leveler .level-section--custom-plan {
+  order: 999;
+}
+
+.pf2e-leveler .custom-skill-chip {
+  border-color: rgba(158, 158, 158, 0.24);
+  color: var(--leveler-text);
+}
+
+.pf2e-leveler .custom-skill-chip--trained {
+  border-color: color-mix(in srgb, var(--leveler-rank-trained) 45%, rgba(158, 158, 158, 0.24));
+}
+
+.pf2e-leveler .custom-skill-chip--expert {
+  border-color: color-mix(in srgb, var(--leveler-rank-expert) 45%, rgba(158, 158, 158, 0.24));
+}
+
+.pf2e-leveler .custom-skill-chip--master {
+  border-color: color-mix(in srgb, var(--leveler-rank-master) 45%, rgba(158, 158, 158, 0.24));
+}
+
+.pf2e-leveler .custom-skill-chip--legendary {
+  border-color: color-mix(in srgb, var(--leveler-rank-legendary) 45%, rgba(158, 158, 158, 0.24));
 }
 
 .pf2e-leveler .level-section__body {

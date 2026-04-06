@@ -231,6 +231,19 @@ describe('SpellPicker', () => {
 
     expect(uuids).not.toContain('magic-missile');
   });
+
+  test('can filter spells by multiple selected ranks', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), { excludedSelections: [] });
+    await picker._prepareContext();
+
+    picker.selectedRanks = new Set([1]);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'heal']));
+    expect(picker._filterSpells().map((spell) => spell.uuid)).not.toContain('acid-grip');
+
+    picker.selectedRanks = new Set([1, 2]);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'heal', 'acid-grip']));
+  });
 });
 
 function makeSpell(uuid, name, level, traditions) {

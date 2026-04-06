@@ -6,7 +6,7 @@ import { debug, warn } from '../utils/logger.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
-const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 
 export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -186,11 +186,12 @@ function buildSlotUpdate(entry, slots, slotIndex) {
 }
 
 async function addPlannedSpells(actor, entries, levelData) {
-  if (!levelData?.spells?.length) return [];
+  const plannedSpells = [...(levelData?.spells ?? []), ...(levelData?.customSpells ?? [])];
+  if (!plannedSpells.length) return [];
 
   const added = [];
 
-  for (const spellPlan of levelData.spells) {
+  for (const spellPlan of plannedSpells) {
     const spell = await resolveSpell(spellPlan.uuid);
     if (!spell) continue;
 

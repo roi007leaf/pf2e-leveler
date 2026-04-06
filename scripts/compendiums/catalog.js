@@ -93,13 +93,14 @@ export function normalizeCompendiumSelections(value) {
   return normalized;
 }
 
-export async function discoverCompendiumsByCategory() {
+export async function discoverCompendiumsByCategory({ includeManualCandidates = false } = {}) {
   const categories = {};
   for (const category of getCompendiumCategoryKeys()) {
     categories[category] = [];
   }
 
-  for (const pack of getAllPacks()) {
+  const allPacks = getAllPacks();
+  for (const pack of allPacks) {
     const index = await getPackIndex(pack);
     for (const [category, definition] of Object.entries(COMPENDIUM_CATEGORY_DEFINITIONS)) {
       if (!definition.matches(pack, index)) continue;
@@ -109,8 +110,32 @@ export async function discoverCompendiumsByCategory() {
         label: pack.metadata?.label ?? pack.title ?? pack.collection ?? '',
         packageName,
         packageLabel: resolvePackageLabel(packageName),
+        packageAuthors: resolvePackageAuthors(packageName),
         locked: definition.defaultKeys.includes(pack.collection ?? pack.metadata?.id ?? ''),
       });
+    }
+  }
+
+  if (includeManualCandidates) {
+    // Allow GMs to manually assign any Item compendium to any content category.
+    for (const category of Object.keys(categories)) {
+      const seen = new Set(categories[category].map((pack) => pack.key));
+      for (const pack of allPacks) {
+        if (!isItemPack(pack)) continue;
+        const key = pack.collection ?? pack.metadata?.id ?? '';
+        if (!key || seen.has(key)) continue;
+        const packageName = pack.metadata?.packageName ?? pack.metadata?.package ?? '';
+        categories[category].push({
+          key,
+          label: pack.metadata?.label ?? pack.title ?? pack.collection ?? '',
+          packageName,
+          packageLabel: resolvePackageLabel(packageName),
+          packageAuthors: resolvePackageAuthors(packageName),
+          locked: false,
+          manualCandidate: true,
+        });
+        seen.add(key);
+      }
     }
   }
 
@@ -186,7 +211,8 @@ function isClassFeaturesPack(pack, index) {
   const hasClassFeatures = index.some((entry) => isClassFeatureIndexEntry(entry));
   if (!hasClassFeatures) return false;
 
-  return !index.some((entry) => isNonClassFeatureFeatEntry(entry));
+  return !index.some((entry) => isNonClassFeatureFeatEntry(entry))
+    || hasAdditionalRecognizedContentOutside(index, ['classFeatures', 'feats']);
 }
 
 function hasNonFeatPackIdentity(pack) {
@@ -333,6 +359,34 @@ function hasAdditionalRecognizedContent(index, category) {
   return categories.size > 0;
 }
 
+function hasAdditionalRecognizedContentOutside(index, excludedCategories = []) {
+  const categories = getRecognizedContentCategories(index);
+  for (const category of excludedCategories) categories.delete(category);
+  return categories.size > 0;
+}
+
+function getRecognizedContentCategories(index) {
+  const categories = new Set();
+
+  for (const entry of index ?? []) {
+    const type = getNormalizedEntryType(entry);
+    const entryCategory = getNormalizedEntryCategory(entry);
+
+    if (type === 'ancestry') categories.add('ancestries');
+    else if (type === 'heritage') categories.add('heritages');
+    else if (type === 'background') categories.add('backgrounds');
+    else if (type === 'class') categories.add('classes');
+    else if (type === 'spell') categories.add('spells');
+    else if (type === 'action') categories.add('actions');
+    else if (type === 'deity') categories.add('deities');
+    else if (EQUIPMENT_TYPES.has(type)) categories.add('equipment');
+    else if (isClassFeatureIndexEntry(entry) || entryCategory === 'classfeature' || entryCategory === 'class-feature') categories.add('classFeatures');
+    else if (isFeatIndexEntry(entry)) categories.add('feats');
+  }
+
+  return categories;
+}
+
 function getPackIdentityText(pack) {
   return [
     pack?.metadata?.label,
@@ -364,4 +418,25 @@ function resolvePackageLabel(packageName) {
   if (!packageName) return '';
   if (game.system?.id === packageName) return game.system.title ?? packageName;
   return game.modules?.get?.(packageName)?.title ?? packageName;
+}
+
+function resolvePackageAuthors(packageName) {
+  if (!packageName) return '';
+  if (game.system?.id === packageName) {
+    return normalizeAuthors(game.system?.authors);
+  }
+  return normalizeAuthors(game.modules?.get?.(packageName)?.authors);
+}
+
+function normalizeAuthors(authors) {
+  if (!authors) return '';
+  if (typeof authors === 'string') return authors;
+  if (!Array.isArray(authors)) return '';
+  return authors
+    .map((author) => {
+      if (typeof author === 'string') return author;
+      return author?.name ?? author?.title ?? author?.label ?? '';
+    })
+    .filter(Boolean)
+    .join(', ');
 }

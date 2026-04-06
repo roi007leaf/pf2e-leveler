@@ -11,6 +11,7 @@ const CATEGORY_TO_GROUP = {
   archetypeFeats: 'archetype',
   mythicFeats: 'mythic',
   dualClassFeats: 'class',
+  customFeats: 'bonus',
 };
 
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);

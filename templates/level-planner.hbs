@@ -447,6 +447,172 @@
         </div>
         {{/if}}
 
+        {{#if showCustomLevelPlan}}
+        <div class="level-section level-section--custom-plan">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-sliders"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_LEVEL_PLAN"}}
+            <button
+              type="button"
+              class="spell-add-btn"
+              data-action="toggleCustomPlan"
+              data-level="{{selectedLevel}}"
+              style="margin-left: auto;"
+            >
+              <i class="fa-solid {{#if customPlanOpen}}fa-chevron-up{{else}}fa-chevron-down{{/if}}"></i>
+              {{#if customPlanOpen}}
+              {{localize "PF2E_LEVELER.UI.HIDE"}}
+              {{else}}
+              {{localize "PF2E_LEVELER.UI.SHOW"}}
+              {{/if}}
+            </button>
+          </div>
+          {{#if customPlanOpen}}
+          <div class="level-section__body">
+            <div class="feat-slot__note">
+              <i class="fa-solid fa-circle-info"></i>
+              {{localize "PF2E_LEVELER.UI.CUSTOM_LEVEL_PLAN_HINT"}}
+            </div>
+
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-book-medical"></i>
+                {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_FEATS"}}
+              </div>
+              {{#if customFeats.length}}
+              {{#each customFeats}}
+              <span class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; margin: 0 8px 8px 0;">
+                {{#if this.feat.img}}
+                <img src="{{this.feat.img}}" alt="" style="width: 20px; height: 20px; border-radius: 4px; object-fit: cover;">
+                {{/if}}
+                <button type="button" data-action="viewFeat" data-uuid="{{this.feat.uuid}}" style="background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer;">
+                  {{this.feat.name}}
+                </button>
+                <button type="button" data-action="openCustomFeatPicker" data-level="{{../selectedLevel}}" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CHANGE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button type="button" data-action="removeCustomFeat" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </span>
+              {{#if this.feat.manualSpellNote}}
+              <div class='feat-slot__note'>
+                <i class='fa-solid fa-circle-info'></i>
+                {{localize 'PF2E_LEVELER.UI.MANUAL_SPELL_NOTE'}}
+              </div>
+              {{/if}}
+              {{#each this.choiceSets}}
+              <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
+                <i class="fa-solid fa-circle-info"></i>
+                {{this.prompt}}
+              </div>
+              {{#if (eq this.choiceType "skill")}}
+              <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
+                {{#each this.options}}
+                <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+                  <span class="skill-btn__name">{{this.label}}</span>
+                </button>
+                {{/each}}
+              </div>
+              {{else}}
+              <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
+                {{#each this.options}}
+                <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
+                  {{#if this.img}}
+                  <img src="{{this.img}}" alt="" class="wizard-item__img">
+                  {{/if}}
+                  <div class="wizard-item__info">
+                    <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  </div>
+                  {{#if this.selected}}
+                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+                  {{else}}
+                  <button type="button" class="wizard-item__select" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}">
+                    {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                  </button>
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+              {{/if}}
+              {{/each}}
+              {{/each}}
+              </div>
+              {{/if}}
+              <button type="button" class="spell-add-btn" data-action="openCustomFeatPicker" data-level="{{selectedLevel}}" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD_CUSTOM_FEAT"}}
+              </button>
+            </div>
+
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-chart-line"></i>
+                {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_SKILL_INCREASES"}}
+              </div>
+              {{#each customSkillIncreaseGroups}}
+              <div class="feat-picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--leveler-spacing-sm);">
+                {{#each this.entries}}
+                <button
+                  type="button"
+                  class="tag tag--muted custom-skill-chip custom-skill-chip--{{this.rankName}}"
+                  data-action="removeCustomSkillIncrease"
+                  data-index="{{this.index}}"
+                  data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"
+                  style="display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 10px; cursor: pointer;">
+                  <span>{{this.label}} <span class="rank-text-{{this.rankName}}">→ {{titleCase this.rankName}}</span></span>
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+                {{/each}}
+              </div>
+              {{/each}}
+              <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
+                {{#each customAvailableSkills}}
+                <button type="button" class="skill-btn" data-action="addCustomSkillIncrease" data-skill="{{this.slug}}" {{#if this.disabled}}disabled{{/if}}>
+                  <span class="skill-btn__name">{{this.label}}</span>
+                  <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>
+                </button>
+                {{/each}}
+              </div>
+            </div>
+
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-wand-sparkles"></i>
+                {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_SPELLS"}}
+              </div>
+              {{#each customSpellGroups}}
+              <div class="feat-picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--leveler-spacing-sm);">
+                {{#each this.entries}}
+                <div class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px;">
+                  {{#if this.img}}
+                  <img src="{{this.img}}" alt="" style="width: 20px; height: 20px; border-radius: 4px; object-fit: cover;">
+                  {{/if}}
+                  <button type="button" data-action="viewFeat" data-uuid="{{this.uuid}}" style="background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer;">
+                    {{this.name}}
+                  </button>
+                  <button type="button" data-action="removeCustomSpell" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                {{/each}}
+              </div>
+              {{/each}}
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                <button type="button" class="spell-add-btn" data-action="openCustomSpellPicker" data-rank="-1" style="padding: 4px 12px;">
+                  <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD_CUSTOM_SPELL"}}
+                </button>
+                <button type="button" class="spell-add-btn" data-action="openCustomSpellPicker" data-rank="0" style="padding: 4px 12px;">
+                  <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD_CUSTOM_CANTRIP"}}
+                </button>
+              </div>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+        {{/if}}
+
         {{#if showABP}}
         <div class="level-section">
           <div class="section-header">

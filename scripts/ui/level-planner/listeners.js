@@ -52,7 +52,11 @@ export function activateLevelPlannerListeners(planner, html) {
       const category = button.dataset.category;
       const flag = button.dataset.flag;
       const value = button.dataset.value;
-      const feat = category ? levelData?.[category]?.[0] : null;
+      const index = Number(button.dataset.index);
+      const featList = category ? levelData?.[category] : null;
+      const feat = Array.isArray(featList)
+        ? featList[Number.isInteger(index) && index >= 0 ? index : 0]
+        : null;
       if (!feat || !flag || !value) return;
       feat.choices = { ...(feat.choices ?? {}), [flag]: value };
       planner._savePlanAndRender();
@@ -74,6 +78,29 @@ export function activateLevelPlannerListeners(planner, html) {
       const category = e.currentTarget.dataset.category;
       const level = Number(e.currentTarget.dataset.level);
       planner._openFeatPicker(category, level);
+    });
+  });
+
+  el.querySelectorAll('[data-action="toggleCustomPlan"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      planner._toggleCustomPlan(Number(btn.dataset.level) || planner.selectedLevel);
+    });
+  });
+
+  el.querySelectorAll('[data-action="openCustomFeatPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const level = Number(btn.dataset.level) || planner.selectedLevel;
+      const index = btn.dataset.index === '' || btn.dataset.index == null ? null : Number(btn.dataset.index);
+      planner._openCustomFeatPicker(level, Number.isInteger(index) ? index : null);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeCustomFeat"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      planner._removeCustomFeat(index);
     });
   });
 
@@ -111,12 +138,44 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelectorAll('[data-action="openCustomSpellPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      planner._openCustomSpellPicker(Number(btn.dataset.rank));
+    });
+  });
+
   el.querySelectorAll('[data-action="removeSpell"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const uuid = btn.dataset.uuid;
       removeLevelSpell(planner.plan, planner.selectedLevel, uuid);
       planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeCustomSpell"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      planner._removeCustomSpell(index);
+    });
+  });
+
+  el.querySelectorAll('[data-action="addCustomSkillIncrease"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slug = btn.dataset.skill;
+      if (!slug) return;
+      planner._addCustomSkillIncrease(slug);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeCustomSkillIncrease"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      planner._removeCustomSkillIncrease(index);
     });
   });
 
@@ -165,6 +224,11 @@ export function getSelectableSkillRank(planner, slug) {
   const levelData = getLevelData(planner.plan, planner.selectedLevel);
   for (const skill of levelData?.intBonusSkills ?? []) {
     buildState.skills[skill] = Math.max(buildState.skills[skill] ?? 0, 1);
+  }
+  for (const inc of levelData?.customSkillIncreases ?? []) {
+    if (inc?.skill && Number.isFinite(inc?.toRank)) {
+      buildState.skills[inc.skill] = Math.max(buildState.skills[inc.skill] ?? 0, inc.toRank);
+    }
   }
 
   return buildState.skills[slug] ?? 0;

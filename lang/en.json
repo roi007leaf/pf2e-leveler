@@ -30,13 +30,20 @@
       "CURRENT": "Current",
       "CHANGE": "Change",
       "REMOVE": "Remove",
+      "SHOW": "Show",
+      "HIDE": "Hide",
       "SELECTED": "Selected",
       "PRIMARY": "Primary",
       "MAKE_PRIMARY": "Make Primary",
       "GRANTED_BY_FEAT": "Granted by {featName}",
       "SET_BY_FEAT": "Set by: {featName}",
+      "UNKNOWN_FEAT_SOURCE": "feat",
       "SELECT_ADOPTED_ANCESTRY": "Choose the ancestry granted by this feat.",
-      "SELECT_ANCESTRY": "Select ancestry"
+      "SELECT_ANCESTRY": "Select ancestry",
+      "CUSTOM_LEVEL_PLAN_HINT": "Use this section for extra planning outside the normal class schedule. Custom picks still affect planner awareness, prerequisites, and applied level-up choices.",
+      "ADD_CUSTOM_FEAT": "Add Custom Feat",
+      "ADD_CUSTOM_SPELL": "Add Custom Spell",
+      "ADD_CUSTOM_CANTRIP": "Add Custom Cantrip"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Class Features",
@@ -51,7 +58,11 @@
       "SPELLCASTING": "Spellcasting",
       "DUAL_CLASS_FEAT": "Dual Class Feat",
       "ABP_POTENCY": "Skill Potency (ABP)",
-      "CLASS_SPECIFIC": "Class Options"
+      "CLASS_SPECIFIC": "Class Options",
+      "CUSTOM_LEVEL_PLAN": "Custom Level Plan",
+      "CUSTOM_FEATS": "Custom Feats",
+      "CUSTOM_SKILL_INCREASES": "Custom Skill Increases",
+      "CUSTOM_SPELLS": "Custom Spells"
     },
     "FEAT_PICKER": {
       "OPTIONS": "Options",
@@ -80,7 +91,19 @@
       "DEDICATIONS": "Dedications",
       "SKILL_FEATS": "Skill Feats",
       "SHOW_ARCHETYPE": "Show Archetype Feats",
-      "HIDE_SKILL_FEATS": "Hide Skill Feats"
+      "HIDE_SKILL_FEATS": "Hide Skill Feats",
+      "FEAT_TYPES": "Feat Types",
+      "TYPE_CLASS": "Class",
+      "TYPE_ANCESTRY": "Ancestry",
+      "TYPE_GENERAL": "General",
+      "TYPE_SKILL": "Skill",
+      "TYPE_ARCHETYPE": "Archetype",
+      "TYPE_MYTHIC": "Mythic",
+      "TYPE_OTHER": "Other",
+      "SELECT_ALL": "Select All",
+      "DESELECT_ALL": "Deselect All",
+      "ADD_SELECTED": "Add Selected",
+      "SELECTED_COUNT": "{count} selected"
     },
     "BOOSTS": {
       "TITLE": "Choose {count} Ability Boosts",
@@ -125,7 +148,10 @@
       "SORT_RANK_DESC": "Rank (Highest to Lowest)",
       "SORT_RANK_ASC": "Rank (Lowest to Highest)",
       "SORT_ALPHA_ASC": "Alphabetical (A-Z)",
-      "SORT_ALPHA_DESC": "Alphabetical (Z-A)"
+      "SORT_ALPHA_DESC": "Alphabetical (Z-A)",
+      "RANK_FILTER": "Spell Ranks",
+      "RANK_NUMBER": "Rank {rank}",
+      "CANTRIP": "Cantrip"
     },
     "CREATION": {
       "TITLE": "Character Creation",
@@ -444,6 +470,15 @@
         "PACKAGE": "Package",
         "SEARCH": "Filter sources...",
         "SUMMARY": "Content Sources",
+        "CATEGORIES_VIEW": "Browse by Category",
+        "PACK_ASSIGNMENTS_VIEW": "Assign Packs",
+        "PACK_ASSIGNMENTS_TITLE": "Pack Category Assignments",
+        "PACK_ASSIGNMENTS_HINT": "Use this view to decide exactly which compendiums feed each PF2E content category. A single compendium can belong to multiple categories. Built-in defaults stay locked, and auto-detected matches are only a starting suggestion.",
+        "PACK_SEARCH_PLACEHOLDER": "Search compendiums or categories...",
+        "SOURCE_COLUMN": "Compendium",
+        "CATEGORY_COLUMN": "Categories",
+        "AUTO_DETECTED": "Auto",
+        "NO_PACK_ASSIGNMENTS": "No compendiums match that search.",
         "CANCEL": "Cancel",
         "SAVE": "Save Changes",
         "SAVED": "Custom compendium categories saved"

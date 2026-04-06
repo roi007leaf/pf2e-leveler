@@ -7,91 +7,181 @@
     </div>
   </header>
 
-  <div class="compendium-manager__tabs" role="tablist">
-    {{#each categories as |category|}}
-      <button
-        type="button"
-        class="compendium-manager__tab {{#if category.active}}is-active{{/if}}"
-        data-action="select-category"
-        data-category="{{category.key}}"
-      >
-        <span class="compendium-manager__tabLabel">{{category.label}}</span>
-        <span class="compendium-manager__tabMeta">
-          <span class="tag tag--info">{{category.selectedCount}}</span>
-          {{#if category.customCount}}
-            <span class="tag tag--success">{{category.customCount}}</span>
-          {{/if}}
-        </span>
-      </button>
-    {{/each}}
+  <div class="compendium-manager__modeTabs" role="tablist">
+    <button
+      type="button"
+      class="compendium-manager__tab {{#if isCategoryView}}is-active{{/if}}"
+      data-action="select-view-mode"
+      data-view-mode="categories"
+    >
+      <span class="compendium-manager__tabLabel">{{categoriesViewLabel}}</span>
+    </button>
+    <button
+      type="button"
+      class="compendium-manager__tab {{#if isPackView}}is-active{{/if}}"
+      data-action="select-view-mode"
+      data-view-mode="packs"
+    >
+      <span class="compendium-manager__tabLabel">{{packsViewLabel}}</span>
+    </button>
   </div>
 
-  <div class="compendium-manager__panelWrap">
-    {{#each categories as |category|}}
-      {{#if category.active}}
-        <section class="compendium-manager__panel">
-          <header class="compendium-manager__panelHeader">
-            <div class="compendium-manager__cardHeader">
-              <div>
-              <h3 class="compendium-manager__cardTitle">{{category.label}}</h3>
-              <div class="compendium-manager__meta">
-                <span class="tag tag--info">{{category.selectedCount}} selected</span>
-                <span class="tag tag--muted">{{category.defaultCount}} built-in</span>
-                {{#if category.customCount}}
-                  <span class="tag tag--success">{{category.customCount}} custom</span>
-                {{/if}}
-              </div>
-              </div>
-              <button
-                type="button"
-                class="compendium-manager__button compendium-manager__button--ghost compendium-manager__button--small"
-                data-action="toggle-all-compendiums"
-                data-category="{{category.key}}"
-                {{#unless category.hasSelectablePacks}}disabled title="{{../allDisabledLabel}}"{{/unless}}
-              >
-                {{#if category.allSelected}}{{../deselectAllLabel}}{{else}}{{../allLabel}}{{/if}}
-              </button>
-            </div>
-          </header>
+  {{#if isCategoryView}}
+    <div class="compendium-manager__tabs" role="tablist">
+      {{#each categories as |category|}}
+        <button
+          type="button"
+          class="compendium-manager__tab {{#if category.active}}is-active{{/if}}"
+          data-action="select-category"
+          data-category="{{category.key}}"
+        >
+          <span class="compendium-manager__tabLabel">{{category.label}}</span>
+          <span class="compendium-manager__tabMeta">
+            <span class="tag tag--info">{{category.selectedCount}}</span>
+            {{#if category.customCount}}
+              <span class="tag tag--success">{{category.customCount}}</span>
+            {{/if}}
+          </span>
+        </button>
+      {{/each}}
+    </div>
+  {{/if}}
 
-          {{#if category.packs.length}}
-            <div class="compendium-manager__packs">
-              {{#each category.packs as |pack|}}
-                <div class="compendium-pack {{#if pack.checked}}is-selected{{/if}} {{#if pack.enforced}}is-locked{{/if}}">
-                  <input
-                    id="compendium-pack-{{category.key}}-{{@index}}"
-                    class="compendium-pack__check"
-                    type="checkbox"
-                    data-category="{{category.key}}"
-                    data-pack="{{pack.key}}"
-                    data-locked="{{#if pack.enforced}}true{{else}}false{{/if}}"
-                    {{#if pack.checked}}checked{{/if}}
-                    {{#if pack.enforced}}disabled{{/if}}
-                  >
-                  <label class="compendium-pack__body" for="compendium-pack-{{category.key}}-{{@index}}">
-                    <div class="compendium-pack__topline">
-                      <button type="button" class="compendium-pack__label" data-action="open-compendium" data-pack="{{pack.key}}">{{pack.label}}</button>
-                      {{#if pack.enforced}}
-                        <span class="tag tag--warning">{{../../builtInLabel}}</span>
-                      {{/if}}
-                    </div>
-                    <div class="compendium-pack__key">{{pack.key}}</div>
-                    {{#if pack.packageLabel}}
-                      <div class="compendium-pack__package">{{pack.packageLabel}}</div>
-                    {{/if}}
-                    {{#if pack.packageName}}
-                      <div class="compendium-pack__package">{{../../packageLabel}}: {{pack.packageName}}</div>
-                    {{/if}}
-                  </label>
-                </div>
-              {{/each}}
+  <div class="compendium-manager__panelWrap">
+    {{#if isPackView}}
+      <section class="compendium-manager__panel">
+        <header class="compendium-manager__panelHeader">
+          <div class="compendium-manager__cardHeader">
+            <div>
+              <h3 class="compendium-manager__cardTitle">{{packAssignmentsTitle}}</h3>
+              <p class="compendium-manager__assignmentHint">{{packAssignmentsHint}}</p>
             </div>
-          {{else}}
-            <p class="compendium-manager__empty">{{../noPacksLabel}}</p>
-          {{/if}}
-        </section>
-      {{/if}}
-    {{/each}}
+          </div>
+          <div class="compendium-manager__assignmentToolbar">
+            <input
+              type="search"
+              class="compendium-manager__search"
+              value="{{packSearch}}"
+              placeholder="{{packSearchPlaceholder}}"
+              data-action="search-pack-assignments"
+            >
+          </div>
+        </header>
+
+        {{#if packRows.length}}
+          <div class="compendium-manager__assignments">
+            {{#each packRows as |pack|}}
+              <article class="compendium-assignment" data-search-text="{{pack.searchText}}">
+                <div class="compendium-assignment__source">
+                  <div class="compendium-assignment__eyebrow">{{../sourceColumnLabel}}</div>
+                  <button type="button" class="compendium-pack__label" data-action="open-compendium" data-pack="{{pack.key}}">{{pack.label}}</button>
+                  <div class="compendium-pack__key">{{pack.key}}</div>
+                  {{#if pack.packageLabel}}
+                    <div class="compendium-pack__package">{{pack.packageLabel}}</div>
+                  {{/if}}
+                  {{#if pack.packageName}}
+                    <div class="compendium-pack__package">{{../packageLabel}}: {{pack.packageName}}</div>
+                  {{/if}}
+                </div>
+                <div class="compendium-assignment__categories">
+                  <div class="compendium-assignment__eyebrow">{{../categoryColumnLabel}}</div>
+                  <div class="compendium-assignment__chips">
+                    {{#each pack.categories as |category|}}
+                      <label class="compendium-assignment__chip {{#if category.selected}}is-selected{{/if}} {{#if category.enforced}}is-locked{{/if}}">
+                        <input
+                          class="compendium-assignment__check"
+                          type="checkbox"
+                          data-pack="{{../key}}"
+                          data-category="{{category.key}}"
+                          data-locked="{{#if category.enforced}}true{{else}}false{{/if}}"
+                          {{#if category.selected}}checked{{/if}}
+                          {{#if category.enforced}}disabled{{/if}}
+                        >
+                        <span>{{category.label}}</span>
+                        {{#if category.enforced}}
+                          <span class="tag tag--warning">{{../../builtInLabel}}</span>
+                        {{else if category.autoDetected}}
+                          <span class="tag tag--muted">{{../../autoDetectedLabel}}</span>
+                        {{/if}}
+                      </label>
+                    {{/each}}
+                  </div>
+                </div>
+              </article>
+            {{/each}}
+          </div>
+          <p class="compendium-manager__empty" data-pack-empty-state hidden>{{noPackAssignmentsLabel}}</p>
+        {{else}}
+          <p class="compendium-manager__empty">{{noPackAssignmentsLabel}}</p>
+        {{/if}}
+      </section>
+    {{else}}
+      {{#each categories as |category|}}
+        {{#if category.active}}
+          <section class="compendium-manager__panel">
+            <header class="compendium-manager__panelHeader">
+              <div class="compendium-manager__cardHeader">
+                <div>
+                <h3 class="compendium-manager__cardTitle">{{category.label}}</h3>
+                <div class="compendium-manager__meta">
+                  <span class="tag tag--info">{{category.selectedCount}} selected</span>
+                  <span class="tag tag--muted">{{category.defaultCount}} built-in</span>
+                  {{#if category.customCount}}
+                    <span class="tag tag--success">{{category.customCount}} custom</span>
+                  {{/if}}
+                </div>
+                </div>
+                <button
+                  type="button"
+                  class="compendium-manager__button compendium-manager__button--ghost compendium-manager__button--small"
+                  data-action="toggle-all-compendiums"
+                  data-category="{{category.key}}"
+                  {{#unless category.hasSelectablePacks}}disabled title="{{../allDisabledLabel}}"{{/unless}}
+                >
+                  {{#if category.allSelected}}{{../deselectAllLabel}}{{else}}{{../allLabel}}{{/if}}
+                </button>
+              </div>
+            </header>
+
+            {{#if category.packs.length}}
+              <div class="compendium-manager__packs">
+                {{#each category.packs as |pack|}}
+                  <div class="compendium-pack {{#if pack.checked}}is-selected{{/if}} {{#if pack.enforced}}is-locked{{/if}}">
+                    <input
+                      id="compendium-pack-{{category.key}}-{{@index}}"
+                      class="compendium-pack__check"
+                      type="checkbox"
+                      data-category="{{category.key}}"
+                      data-pack="{{pack.key}}"
+                      data-locked="{{#if pack.enforced}}true{{else}}false{{/if}}"
+                      {{#if pack.checked}}checked{{/if}}
+                      {{#if pack.enforced}}disabled{{/if}}
+                    >
+                    <label class="compendium-pack__body" for="compendium-pack-{{category.key}}-{{@index}}">
+                      <div class="compendium-pack__topline">
+                        <button type="button" class="compendium-pack__label" data-action="open-compendium" data-pack="{{pack.key}}">{{pack.label}}</button>
+                        {{#if pack.enforced}}
+                          <span class="tag tag--warning">{{../../builtInLabel}}</span>
+                        {{/if}}
+                      </div>
+                      <div class="compendium-pack__key">{{pack.key}}</div>
+                      {{#if pack.packageLabel}}
+                        <div class="compendium-pack__package">{{pack.packageLabel}}</div>
+                      {{/if}}
+                      {{#if pack.packageName}}
+                        <div class="compendium-pack__package">{{../../packageLabel}}: {{pack.packageName}}</div>
+                      {{/if}}
+                    </label>
+                  </div>
+                {{/each}}
+              </div>
+            {{else}}
+              <p class="compendium-manager__empty">{{../noPacksLabel}}</p>
+            {{/if}}
+          </section>
+        {{/if}}
+      {{/each}}
+    {{/if}}
   </div>
 
   <footer class="compendium-manager__footer">

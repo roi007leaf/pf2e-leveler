@@ -478,6 +478,13 @@
   z-index: 1;
 }
 
+.pf2e-leveler .compendium-manager__modeTabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: flex-start;
+}
+
 .pf2e-leveler .compendium-manager__tab {
   display: inline-flex;
   align-items: center;
@@ -535,6 +542,31 @@
   margin-bottom: 10px;
 }
 
+.pf2e-leveler .compendium-manager__assignmentHint {
+  max-width: 56rem;
+  margin: 6px 0 0;
+  color: var(--leveler-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.pf2e-leveler .compendium-manager__assignmentToolbar {
+  margin-top: 12px;
+}
+
+.pf2e-leveler .compendium-manager__search {
+  width: min(420px, 100%);
+  padding: 8px 12px;
+  border: 1px solid rgba(196, 180, 158, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--leveler-text);
+}
+
+.pf2e-leveler .compendium-manager__search::placeholder {
+  color: var(--leveler-text-muted);
+}
+
 .pf2e-leveler .compendium-manager__cardHeader {
   display: flex;
   align-items: flex-start;
@@ -559,6 +591,74 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.pf2e-leveler .compendium-manager__assignments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf2e-leveler .compendium-assignment {
+  display: grid;
+  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(196, 180, 158, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pf2e-leveler .compendium-assignment__source,
+.pf2e-leveler .compendium-assignment__categories {
+  min-width: 0;
+}
+
+.pf2e-leveler .compendium-assignment__eyebrow {
+  margin-bottom: 6px;
+  color: var(--leveler-accent-light);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pf2e-leveler .compendium-assignment__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pf2e-leveler .compendium-assignment__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid rgba(196, 180, 158, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--leveler-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pf2e-leveler .compendium-assignment__chip:hover {
+  border-color: rgba(196, 180, 158, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pf2e-leveler .compendium-assignment__chip.is-selected {
+  border-color: rgba(196, 180, 158, 0.42);
+  background: linear-gradient(180deg, rgba(176, 160, 138, 0.15), rgba(176, 160, 138, 0.05));
+}
+
+.pf2e-leveler .compendium-assignment__chip.is-locked {
+  opacity: 0.92;
+}
+
+.pf2e-leveler .compendium-assignment__check {
+  accent-color: var(--leveler-accent-light);
 }
 
 .pf2e-leveler .compendium-pack {
@@ -700,6 +800,10 @@
   }
 
   .pf2e-leveler .compendium-manager__packs {
+    grid-template-columns: 1fr;
+  }
+
+  .pf2e-leveler .compendium-assignment {
     grid-template-columns: 1fr;
   }
 }

@@ -118,4 +118,66 @@ describe('Level planner skill increase listeners', () => {
     });
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
+
+  it('stores custom feat follow-up choices on the matching custom feat entry', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="1" data-flag="deity" data-value="Compendium.pf2e.deities.Item.abadar"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          2: {
+            customFeats: [
+              { uuid: 'feat-a', name: 'Feat A', slug: 'feat-a' },
+              { uuid: 'feat-b', name: 'Feat B', slug: 'feat-b' },
+            ],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+
+    expect(planner.plan.levels[2].customFeats[0].choices).toBeUndefined();
+    expect(planner.plan.levels[2].customFeats[1].choices).toEqual({
+      deity: 'Compendium.pf2e.deities.Item.abadar',
+    });
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('adds a custom skill increase using current custom-aware rank state', () => {
+    document.body.innerHTML = '<button type="button" data-action="addCustomSkillIncrease" data-skill="acrobatics"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        classSlug: 'rogue',
+        levels: {
+          2: {
+            customSkillIncreases: [{ skill: 'acrobatics', toRank: 2 }],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    planner.actor.system.skills.acrobatics.rank = 1;
+    planner._addCustomSkillIncrease = function _addCustomSkillIncrease(skill) {
+      this.plan.levels[2].customSkillIncreases.push({ skill, toRank: 3 });
+      this._savePlanAndRender();
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="addCustomSkillIncrease"]').click();
+
+    expect(planner.plan.levels[2].customSkillIncreases).toEqual([
+      { skill: 'acrobatics', toRank: 2 },
+      { skill: 'acrobatics', toRank: 3 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
 });

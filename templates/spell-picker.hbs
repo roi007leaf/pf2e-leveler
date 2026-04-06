@@ -39,6 +39,23 @@
         </select>
       </div>
 
+      {{#if rankOptions.length}}
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.RANK_FILTER"}}</div>
+        <div class="feat-picker__source-list">
+          {{#each rankOptions}}
+          <button
+            type="button"
+            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleSpellRank"
+            data-rank="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
       {{#if sourceOptions.length}}
       <div class="feat-picker__filter-group">
         <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>

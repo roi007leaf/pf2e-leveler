@@ -1,7 +1,24 @@
 import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
-import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData } from '../../plan/plan-model.js';
+import {
+  createPlan,
+  getLevelData,
+  setLevelBoosts,
+  setLevelFeat,
+  toggleLevelIntBonusSkill,
+  toggleLevelIntBonusLanguage,
+  addLevelSpell,
+  addLevelReminder,
+  clearLevelReminders,
+  resetLevelData,
+  addLevelCustomFeat,
+  removeLevelCustomFeat,
+  addLevelCustomSkillIncrease,
+  removeLevelCustomSkillIncrease,
+  addLevelCustomSpell,
+  removeLevelCustomSpell,
+} from '../../plan/plan-model.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -43,7 +60,7 @@ import {
 } from './spells.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
-const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats']);
+const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
 const FEAT_SKILL_RULES_VERSION = 3;
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
@@ -229,6 +246,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     super();
     this.actor = actor;
     this._compendiumCache = {};
+    this._customPlanOpenLevels = new Set();
     this.plan = this._loadOrCreatePlan(actor);
     const actorLevel = actor.system?.details?.level?.value ?? 1;
     this.selectedLevel = Math.max(actorLevel, MIN_PLAN_LEVEL);
@@ -272,11 +290,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     for (let level = MIN_PLAN_LEVEL; level <= MAX_LEVEL; level++) {
       const choices = getChoicesForLevel(classDef, level, options);
-      if (choices.length === 0) continue;
+      if (choices.length === 0 && !plan.levels[level]) continue;
 
       if (!plan.levels[level]) {
         plan.levels[level] = {};
         changed = true;
+      }
+
+      for (const key of ['customFeats', 'customSkillIncreases', 'customSpells']) {
+        if (!Array.isArray(plan.levels[level][key])) {
+          plan.levels[level][key] = [];
+          changed = true;
+        }
       }
 
       for (const choice of choices) {
@@ -317,7 +342,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (changed) savePlan(this.actor, plan);
 
     // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
-    const SKILL_RULES_FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+    const SKILL_RULES_FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
     outer: for (const levelData of Object.values(plan.levels)) {
       for (const key of SKILL_RULES_FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
@@ -331,7 +356,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _backfillFeatSkillRules() {
-    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
     for (const levelData of Object.values(this.plan.levels ?? {})) {
       for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
@@ -857,6 +882,44 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     });
   }
 
+  _openCustomSpellPicker(rank = -1) {
+    const pickerRank = rank;
+    const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
+    const excludedSelections = (levelData.customSpells ?? []).map((spell) => ({ uuid: spell.uuid, rank: spell.rank ?? spell.baseRank ?? 0 }));
+
+    import('../spell-picker.js').then(({ SpellPicker }) => {
+      const picker = new SpellPicker(
+        this.actor,
+        'any',
+        pickerRank,
+        async (spells) => {
+          const selectedSpells = Array.isArray(spells) ? spells : [spells];
+          const isCantrip = pickerRank === 0;
+          for (const spell of selectedSpells) {
+            addLevelCustomSpell(this.plan, this.selectedLevel, {
+              uuid: spell.uuid,
+              name: spell.name,
+              slug: spell.slug ?? null,
+              img: spell.img,
+              rank: isCantrip ? 0 : Number(spell.system?.level?.value ?? 0),
+              baseRank: Number(spell.system?.level?.value ?? 0),
+              isCantrip,
+              traits: [...(spell.system?.traits?.value ?? []), ...(spell.system?.traits?.traditions ?? [])],
+            });
+          }
+          await this._savePlanAndRender();
+        },
+        {
+          exactRank: isFinite(pickerRank) && pickerRank >= 0,
+          excludeOwnedByIdentity: false,
+          multiSelect: true,
+          excludedSelections,
+        },
+      );
+      picker.render(true);
+    });
+  }
+
   _resolveSpellTradition(classDef) {
     return resolveSpellTradition(this, classDef);
   }
@@ -952,6 +1015,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       ancestryFeats: 'ancestry',
       archetypeFeats: 'archetype',
       mythicFeats: 'mythic',
+      customFeats: 'custom',
     };
 
     const buildState = computeBuildState(this.actor, this.plan, level);
@@ -986,6 +1050,74 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       },
     );
     picker.render(true);
+  }
+
+  _openCustomFeatPicker(level, index = null) {
+    const buildState = computeBuildState(this.actor, this.plan, level);
+
+    const picker = new FeatPicker(
+      this.actor,
+      'custom',
+      level,
+      buildState,
+      async (feats) => {
+        const selectedFeats = Array.isArray(feats) ? feats : [feats];
+        const replaceMode = Number.isInteger(index);
+        for (let offset = 0; offset < selectedFeats.length; offset++) {
+          const feat = selectedFeats[offset];
+          const slug = feat.slug ?? feat.uuid ?? null;
+          const skillRules = await extractFeatSkillRules(feat);
+          addLevelCustomFeat(this.plan, level, {
+            uuid: feat.uuid,
+            name: feat.name,
+            slug,
+            img: feat.img,
+            level: feat.system.level.value,
+            skillRules,
+            skillRulesResolved: true,
+            skillRulesVersion: FEAT_SKILL_RULES_VERSION,
+          }, replaceMode && offset === 0 ? index : null);
+        }
+        await this._savePlanAndRender();
+      },
+      { multiSelect: index == null },
+    );
+    picker.render(true);
+  }
+
+  _toggleCustomPlan(level = this.selectedLevel) {
+    if (this._customPlanOpenLevels.has(level)) this._customPlanOpenLevels.delete(level);
+    else this._customPlanOpenLevels.add(level);
+    this.render(true);
+  }
+
+  _isCustomPlanOpen(level = this.selectedLevel) {
+    return this._customPlanOpenLevels.has(level);
+  }
+
+  _addCustomSkillIncrease(skill) {
+    if (!skill) return;
+    const currentRank = computeBuildState(this.actor, this.plan, this.selectedLevel).skills?.[skill] ?? 0;
+    addLevelCustomSkillIncrease(this.plan, this.selectedLevel, {
+      skill,
+      toRank: currentRank + 1,
+    });
+    this._savePlanAndRender();
+  }
+
+  _removeCustomFeat(index) {
+    removeLevelCustomFeat(this.plan, this.selectedLevel, index);
+    this._savePlanAndRender();
+  }
+
+  _removeCustomSkillIncrease(index) {
+    removeLevelCustomSkillIncrease(this.plan, this.selectedLevel, index);
+    this._savePlanAndRender();
+  }
+
+  _removeCustomSpell(index) {
+    removeLevelCustomSpell(this.plan, this.selectedLevel, index);
+    this._savePlanAndRender();
   }
 
   async _savePlanAndRender() {

@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.4.5
+
+### Improved
+
+- Level planner custom planning is now much more flexible
+  - Added a per-level `Custom Level Plan` section that can hold bonus/custom feats, skill increases, spells, and cantrips
+  - Custom feat and spell entries are planner-aware, so they count toward feat state, skill state, and spell state while planning later levels
+  - Custom feats and spells now render as compact chips instead of full-width rows, with clickable names to inspect the item and controls to remove or replace entries
+  - Custom skill increases are grouped by target rank and now use neutral rank-aware chips instead of a generic blue status style
+  - The custom plan section now stays pinned to the bottom of the level view instead of interrupting the normal progression sections
+- Custom feat and spell pickers are easier to use in bulk
+  - Custom feat picking now supports multi-select with `Select All`, `Deselect All`, and `Add Selected`
+  - Custom spell and cantrip picking now supports multi-select as well, so multiple additions can be made in one pass
+  - Added custom feat-type filtering in the feat picker, including class, ancestry, general, skill, archetype, mythic, and other
+  - Added multi-rank filtering in the spell picker, including cantrips
+- Compendium manager pack assignment is much easier to use
+  - Added an `Assign Packs` view so GMs can map a single compendium to multiple PF2E content categories from one screen
+  - Added clearer assignment guidance plus pack-assignment search by compendium name, pack key, module/package, and creator
+  - Pack-assignment search now filters in place instead of rerendering the window on every keystroke
+  - Mixed `Item` compendiums can now be assigned more naturally across feat, spell, and class-feature style categories without relying entirely on auto-detection
+- Chat summaries are much easier to navigate
+  - Character creation and planned level-up chat messages now render linked content for item-backed selections such as ancestry, heritage, background, class, subclass, feats, spells, and deity choices
+  - Long linked rows now wrap more cleanly in chat instead of being clipped
+- Feat-granted planner state is clearer in the UI
+  - Skills granted or set by feats stay visible in the skill increase grid and can show their source through a tooltip on the info icon
+  - Tooltip source labels now resolve more safely from feat data and no longer fall through to raw null values
+
+### Fixed
+
+- Planner feat-granted skills now follow PF2E feat wording more closely
+  - Dedications such as `Acrobat Dedication` now correctly apply formula-based skill rank progression across later levels
+  - Textual skill rules such as `become trained ... if already trained, become expert instead` are now recognized for dedications like `Blackjacket Dedication`
+  - Feat-owned follow-up prompts such as deity selection for `Champion Dedication` now appear in the planner
+  - Skill-overlap wording such as `...you instead become trained in a skill of your choice` now creates fallback skill prompts and applies the chosen replacement skill in planner state
+- Character wizard feat and skill-choice handling now covers more PF2E edge cases
+  - Ancestry lore feats now support the shared PF2E fallback wording for overlapping trained skills, including multiple replacement picks when multiple granted skills overlap
+  - Ancestry lore feats also now add their granted lore skill, such as `Elf Lore`
+  - Class/background duplicate auto-training now grants replacement free skill selections instead of silently losing value
+  - Required feat-step completion now correctly respects missing required class feats
+  - Selected feat cards can again be opened from within the wizard card without breaking the layout
+  - Cleric/champion style deity-domain or deity-skill related prompt flows now surface more reliably in loading and follow-up choice summaries
+- Rogue key ability selection now matches the class rules better
+  - Rogues can now choose `Dexterity` or the racket-based alternative instead of being forced into only the racket option
+- Custom feat picker selection now works reliably in real Foundry rendering
+  - Feat rows now derive stable identities from UUID, source ID, or compendium pack data instead of rendering unusable empty `data-uuid` values
+  - Multi-select feat actions now bind cleanly against the rendered picker root and survive list refreshes
+- Level planner feat-granted skill tooltips no longer show `Set by: null`
+  - Tooltip source names now fall back through planned feat name, resolved UUID document name, slug, and finally a localized generic label
+
 ## 1.4.4
 
 ### Improved

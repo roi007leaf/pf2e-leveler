@@ -168,7 +168,7 @@ function localizeSkillSlug(slug) {
 }
 
 function findSkillGrantingFeatName(plan, skillSlug, atLevel) {
-  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan?.levels?.[level];
@@ -178,11 +178,44 @@ function findSkillGrantingFeatName(plan, skillSlug, atLevel) {
       for (const feat of levelData[key] ?? []) {
         for (const rule of [...(feat.skillRules ?? []), ...(feat.dynamicSkillRules ?? [])]) {
           if (rule?.skill !== skillSlug) continue;
-          return feat.name ?? null;
+          return resolvePlannedFeatSourceName(feat);
         }
       }
     }
   }
 
   return null;
+}
+
+function resolvePlannedFeatSourceName(feat) {
+  const explicitName = String(feat?.name ?? feat?.label ?? '').trim();
+  if (explicitName) return explicitName;
+
+  const docName = resolveNameFromUuid(feat?.uuid);
+  if (docName) return docName;
+
+  const slugName = humanizeSlug(feat?.slug);
+  if (slugName) return slugName;
+
+  return game.i18n?.localize?.('PF2E_LEVELER.UI.UNKNOWN_FEAT_SOURCE') ?? 'feat';
+}
+
+function resolveNameFromUuid(uuid) {
+  if (!uuid || typeof globalThis.fromUuidSync !== 'function') return '';
+  try {
+    const doc = globalThis.fromUuidSync(uuid);
+    return String(doc?.name ?? '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function humanizeSlug(slug) {
+  const value = String(slug ?? '').trim();
+  if (!value) return '';
+  return value
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

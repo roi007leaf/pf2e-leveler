@@ -2,7 +2,7 @@ import { debug } from '../utils/logger.js';
 
 export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
-  const skillIncreases = levelData?.skillIncreases ?? [];
+  const skillIncreases = [...(levelData?.skillIncreases ?? []), ...(levelData?.customSkillIncreases ?? [])];
   const intBonusSkills = levelData?.intBonusSkills ?? [];
   if (skillIncreases.length === 0 && intBonusSkills.length === 0) return [];
 

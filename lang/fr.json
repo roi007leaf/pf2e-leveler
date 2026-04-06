@@ -28,13 +28,20 @@
       "CURRENT": "Actuel",
       "CHANGE": "Modifier",
       "REMOVE": "Retirer",
+      "SHOW": "Afficher",
+      "HIDE": "Masquer",
       "SELECTED": "Selectionne",
       "PRIMARY": "Primaire",
       "MAKE_PRIMARY": "Rendre primaire",
       "GRANTED_BY_FEAT": "Accorde par {featName}",
       "SET_BY_FEAT": "Defini par : {featName}",
+      "UNKNOWN_FEAT_SOURCE": "don",
       "SELECT_ADOPTED_ANCESTRY": "Choisissez l'ascendance accordee par ce don.",
-      "SELECT_ANCESTRY": "Selectionner une ascendance"
+      "SELECT_ANCESTRY": "Selectionner une ascendance",
+      "CUSTOM_LEVEL_PLAN_HINT": "Utilisez cette section pour planifier des choix supplementaires hors de la progression normale de classe. Les choix personnalises restent pris en compte par le planner, les prerequis et l'application du niveau.",
+      "ADD_CUSTOM_FEAT": "Ajouter un don personnalise",
+      "ADD_CUSTOM_SPELL": "Ajouter un sort personnalise",
+      "ADD_CUSTOM_CANTRIP": "Ajouter un tour de magie personnalise"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Capacites de classe",
@@ -49,7 +56,11 @@
       "SPELLCASTING": "Lancement de sorts",
       "DUAL_CLASS_FEAT": "Don de classe double",
       "ABP_POTENCY": "Puissance de competence (ABP)",
-      "CLASS_SPECIFIC": "Options de classe"
+      "CLASS_SPECIFIC": "Options de classe",
+      "CUSTOM_LEVEL_PLAN": "Plan personnalise du niveau",
+      "CUSTOM_FEATS": "Dons personnalises",
+      "CUSTOM_SKILL_INCREASES": "Augmentations de competence personnalisees",
+      "CUSTOM_SPELLS": "Sorts personnalises"
     },
     "FEAT_PICKER": {
       "OPTIONS": "Options",
@@ -78,7 +89,19 @@
       "DEDICATIONS": "Dedications",
       "SKILL_FEATS": "Dons de competence",
       "SHOW_ARCHETYPE": "Afficher les dons d'archetype",
-      "HIDE_SKILL_FEATS": "Masquer les dons de competence"
+      "HIDE_SKILL_FEATS": "Masquer les dons de competence",
+      "FEAT_TYPES": "Types de don",
+      "TYPE_CLASS": "Classe",
+      "TYPE_ANCESTRY": "Ascendance",
+      "TYPE_GENERAL": "General",
+      "TYPE_SKILL": "Competence",
+      "TYPE_ARCHETYPE": "Archetype",
+      "TYPE_MYTHIC": "Mythique",
+      "TYPE_OTHER": "Autre",
+      "SELECT_ALL": "Tout selectionner",
+      "DESELECT_ALL": "Tout deselectionner",
+      "ADD_SELECTED": "Ajouter la selection",
+      "SELECTED_COUNT": "{count} selectionnes"
     },
     "BOOSTS": {
       "TITLE": "Choisissez {count} augmentations de caracteristique",
@@ -123,7 +146,10 @@
       "SORT_RANK_DESC": "Rang (du plus eleve au plus faible)",
       "SORT_RANK_ASC": "Rang (du plus faible au plus eleve)",
       "SORT_ALPHA_ASC": "Alphabetique (A-Z)",
-      "SORT_ALPHA_DESC": "Alphabetique (Z-A)"
+      "SORT_ALPHA_DESC": "Alphabetique (Z-A)",
+      "RANK_FILTER": "Rangs de sort",
+      "RANK_NUMBER": "Rang {rank}",
+      "CANTRIP": "Tour de magie"
     },
     "CREATION": {
       "TITLE": "Creation de personnage",
@@ -441,6 +467,15 @@
         "PACKAGE": "Package",
         "SEARCH": "Filtrer les sources...",
         "SUMMARY": "Sources de contenu",
+        "CATEGORIES_VIEW": "Par categorie",
+        "PACK_ASSIGNMENTS_VIEW": "Assigner les packs",
+        "PACK_ASSIGNMENTS_TITLE": "Affectation des categories par pack",
+        "PACK_ASSIGNMENTS_HINT": "Utilisez cette vue pour definir precisement quels compendiums alimentent chaque categorie de contenu PF2E. Un meme compendium peut appartenir a plusieurs categories. Les compendiums par defaut restent verrouilles, et les correspondances detectees automatiquement ne sont qu'une suggestion de depart.",
+        "PACK_SEARCH_PLACEHOLDER": "Rechercher des compendiums ou des categories...",
+        "SOURCE_COLUMN": "Compendium",
+        "CATEGORY_COLUMN": "Categories",
+        "AUTO_DETECTED": "Auto",
+        "NO_PACK_ASSIGNMENTS": "Aucun compendium ne correspond a cette recherche.",
         "CANCEL": "Annuler",
         "SAVE": "Enregistrer les modifications",
         "SAVED": "Categories de compendiums personnalisees enregistrees"

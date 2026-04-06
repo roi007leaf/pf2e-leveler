@@ -45,4 +45,26 @@ describe('applySkillIncreases', () => {
     });
     expect(result).toEqual([{ skill: 'arcana', toRank: 1, intBonus: true }]);
   });
+
+  test('applies custom skill increases alongside normal skill increases', async () => {
+    const plan = {
+      levels: {
+        5: {
+          skillIncreases: [{ skill: 'athletics', toRank: 2 }],
+          customSkillIncreases: [{ skill: 'acrobatics', toRank: 3 }],
+        },
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 5);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.skills.athletics.rank': 2,
+      'system.skills.acrobatics.rank': 3,
+    });
+    expect(result).toEqual([
+      { skill: 'athletics', toRank: 2 },
+      { skill: 'acrobatics', toRank: 3 },
+    ]);
+  });
 });

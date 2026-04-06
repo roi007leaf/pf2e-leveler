@@ -70,6 +70,21 @@ describe('applyFeats', () => {
     expect(items[1].system.location).toBe('skill-2');
   });
 
+  test('applies custom feats to the bonus feat location', async () => {
+    const plan = {
+      levels: {
+        2: {
+          customFeats: [{ uuid: 'uuid-custom', name: 'Custom Feat', slug: 'custom-feat' }],
+        },
+      },
+    };
+
+    await applyFeats(mockActor, plan, 2);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('bonus-2');
+  });
+
   test('routes ancestral paragon feats to the dedicated paragon location', async () => {
     jest.spyOn(pf2eApi, 'isAncestralParagonEnabled').mockReturnValue(true);
     jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue([]);

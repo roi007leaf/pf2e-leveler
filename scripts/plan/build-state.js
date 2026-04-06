@@ -1,6 +1,6 @@
 import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getAllPlannedFeats, getAllPlannedBoosts } from './plan-model.js';
+import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { slugify } from '../utils/pf2e-api.js';
 
 const CLASS_SUBCLASS_TYPES = {
@@ -46,7 +46,7 @@ export function computeBuildState(actor, plan, atLevel) {
     equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
     deity: computeDeityState(actor),
-    spellcasting: computeSpellcastingState(actor, classDef),
+    spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
   };
@@ -102,7 +102,7 @@ function computeDeityState(actor) {
   };
 }
 
-function computeSpellcastingState(actor, classDef) {
+function computeSpellcastingState(actor, plan, atLevel, classDef) {
   const entries = getOwnedItems(actor).filter((item) => item?.type === 'spellcastingEntry');
   const spells = getOwnedItems(actor).filter((item) => item?.type === 'spell');
   const traditions = new Set(
@@ -124,6 +124,16 @@ function computeSpellcastingState(actor, classDef) {
 
     const traits = spell?.system?.traits?.value ?? [];
     for (const trait of traits) {
+      const normalizedTrait = normalizeEquipmentValue(trait);
+      if (normalizedTrait) spellTraits.add(normalizedTrait);
+    }
+  }
+
+  for (const spell of getAllPlannedSpells(plan, atLevel)) {
+    const spellSlug = slugify(spell?.slug ?? spell?.name ?? '');
+    if (spellSlug) spellNames.add(spellSlug);
+
+    for (const trait of spell?.traits ?? []) {
       const normalizedTrait = normalizeEquipmentValue(trait);
       if (normalizedTrait) spellTraits.add(normalizedTrait);
     }
@@ -224,7 +234,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
 
     if (level === atLevel && !includeCurrentLevelSkillIncrease) continue;
 
-    for (const inc of levelData.skillIncreases ?? []) {
+    for (const inc of [...(levelData.skillIncreases ?? []), ...(levelData.customSkillIncreases ?? [])]) {
       if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
         skills[inc.skill] = inc.toRank;
       }
@@ -301,7 +311,7 @@ export function applyActorSkillRankRules(skills, actor, atLevel) {
 }
 
 export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = level) {
-  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
   const levelData = plan?.levels?.[level];
   if (!levelData) return skills;
 

@@ -136,4 +136,84 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.prerequisitesFailed).toBe(false);
     expect(result.selectionBlocked).toBe(false);
   });
+
+  test('custom feat picker can filter by multiple feat types', () => {
+    const classFeat = createFeat({
+      name: 'Power Attack',
+      uuid: 'power-attack',
+      slug: 'power-attack',
+    });
+    classFeat.system.traits.value = ['cleric'];
+
+    const skillFeat = createFeat({
+      name: 'Battle Medicine',
+      uuid: 'battle-medicine',
+      slug: 'battle-medicine',
+    });
+    skillFeat.system.traits.value = ['skill'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn());
+    picker.allFeats = [classFeat, skillFeat];
+    picker.selectedFeatTypes = new Set(['class']);
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Power Attack']);
+
+    picker.selectedFeatTypes = new Set(['class', 'skill']);
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Battle Medicine', 'Power Attack']);
+  });
+
+  test('supports multi-select confirmation for custom feat picking', async () => {
+    const classFeat = createFeat({
+      name: 'Power Attack',
+      uuid: 'power-attack',
+      slug: 'power-attack',
+    });
+    classFeat.system.traits.value = ['cleric'];
+
+    const skillFeat = createFeat({
+      name: 'Battle Medicine',
+      uuid: 'battle-medicine',
+      slug: 'battle-medicine',
+    });
+    skillFeat.system.traits.value = ['skill'];
+
+    const onSelect = jest.fn();
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), onSelect, { multiSelect: true });
+    picker.allFeats = [classFeat, skillFeat];
+    await picker._prepareContext();
+    picker.close = jest.fn();
+
+    picker._toggleSelectedFeat('power-attack');
+    picker._toggleSelectedFeat('battle-medicine');
+    await picker._confirmSelection();
+
+    expect(onSelect).toHaveBeenCalledWith([
+      expect.objectContaining({ uuid: 'battle-medicine', name: 'Battle Medicine' }),
+      expect.objectContaining({ uuid: 'power-attack', name: 'Power Attack' }),
+    ]);
+    expect(picker.close).toHaveBeenCalled();
+  });
+
+  test('uses sourceId fallback when feat uuid is missing', async () => {
+    const feat = createFeat({
+      name: 'Fallback Feat',
+      slug: 'fallback-feat',
+    });
+    feat.uuid = '';
+    feat.sourceId = 'Compendium.test.feats.Item.fallbackFeat';
+
+    const onSelect = jest.fn();
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), onSelect, { multiSelect: true });
+    picker.allFeats = [feat];
+
+    const context = await picker._prepareContext();
+    expect(context.feats[0].uuid).toBe('Compendium.test.feats.Item.fallbackFeat');
+
+    picker._toggleSelectedFeat('Compendium.test.feats.Item.fallbackFeat');
+    await picker._confirmSelection();
+
+    expect(onSelect).toHaveBeenCalledWith([
+      expect.objectContaining({ sourceId: 'Compendium.test.feats.Item.fallbackFeat', name: 'Fallback Feat' }),
+    ]);
+  });
 });

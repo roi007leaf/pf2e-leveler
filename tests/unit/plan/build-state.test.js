@@ -176,6 +176,19 @@ describe('computeBuildState', () => {
     expect(state.feats.has('battle-medicine')).toBe(true);
   });
 
+  test('includes custom feats, custom skill increases, and custom spells in build state awareness', () => {
+    plan.levels[2].customFeats = [{ uuid: 'z', name: 'Secret Technique', slug: 'secret-technique' }];
+    plan.levels[2].customSkillIncreases = [{ skill: 'athletics', toRank: 2 }];
+    plan.levels[2].customSpells = [{ uuid: 'spell-z', name: 'Mystic Bolt', slug: 'mystic-bolt', traits: ['evocation'] }];
+
+    const state = computeBuildState(mockActor, plan, 2);
+
+    expect(state.feats.has('secret-technique')).toBe(true);
+    expect(state.skills.athletics).toBe(2);
+    expect(state.spellcasting.spellNames.has('mystic-bolt')).toBe(true);
+    expect(state.spellcasting.spellTraits.has('evocation')).toBe(true);
+  });
+
   test('collects feat aliases from parenthetical feat names', () => {
     mockActor.items = [
       {

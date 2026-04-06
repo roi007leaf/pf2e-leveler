@@ -36,6 +36,8 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
   const featSlug = options.featSlug ?? null;
   const additionalArchetypeFeatLevels = options.additionalArchetypeFeatLevels ?? new Map();
   switch (category) {
+    case 'custom':
+      return true;
     case 'class':
       return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
@@ -215,6 +217,8 @@ export async function collectAdditionalArchetypeFeatLevels(feats, ownedFeatSlugs
 
 function buildCategoryQuery(category, actor, buildState) {
   switch (category) {
+    case 'custom':
+      return '';
     case 'class':
       return actor?.class?.slug ?? '';
     case 'ancestry': {

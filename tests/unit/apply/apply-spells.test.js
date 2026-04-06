@@ -112,4 +112,41 @@ describe('applySpells', () => {
       expect.objectContaining({ name: 'Wish-Twisted Form' }),
     ]));
   });
+
+  test('adds custom planned spells alongside standard planned spells', async () => {
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'custom-spell' ? 'Custom Spell' : 'Normal Spell',
+      img: 'spell.png',
+      system: { level: { value: 1 }, traits: { value: ['arcane'] } },
+      toObject: () => ({
+        name: uuid === 'custom-spell' ? 'Custom Spell' : 'Normal Spell',
+        type: 'spell',
+        system: { level: { value: 1 }, traits: { value: ['arcane'] } },
+      }),
+    }));
+
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        2: {
+          spells: [{ uuid: 'normal-spell', name: 'Normal Spell', rank: 1 }],
+          customSpells: [{ uuid: 'custom-spell', name: 'Custom Spell', rank: 1 }],
+        },
+      },
+    };
+
+    const added = await applySpells(actor, plan, 2);
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Normal Spell' }),
+    ]);
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Custom Spell' }),
+    ]);
+    expect(added).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Normal Spell', rank: 1 }),
+      expect.objectContaining({ name: 'Custom Spell', rank: 1 }),
+    ]));
+  });
 });

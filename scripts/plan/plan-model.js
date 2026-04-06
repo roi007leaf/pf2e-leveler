@@ -63,7 +63,7 @@ export function createEmptyLevelData(choices) {
         break;
     }
   }
-  return data;
+  return ensureCustomLevelData(data);
 }
 
 export function resetLevelData(plan, level, classDef, options = {}) {
@@ -79,11 +79,13 @@ export function resetLevelData(plan, level, classDef, options = {}) {
 }
 
 export function getLevelData(plan, level) {
-  return plan.levels[level] ?? null;
+  const levelData = plan.levels[level] ?? null;
+  return levelData ? ensureCustomLevelData(levelData) : null;
 }
 
 export function setLevelFeat(plan, level, category, featEntry) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   plan.levels[level][category] = [featEntry];
   return plan;
 }
@@ -115,18 +117,21 @@ export function getRemindersForLevel(plan, level) {
 
 export function setLevelBoosts(plan, level, boosts) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   plan.levels[level].abilityBoosts = boosts;
   return plan;
 }
 
 export function setLevelSkillIncrease(plan, level, skillIncrease) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   plan.levels[level].skillIncreases = [skillIncrease];
   return plan;
 }
 
 export function toggleLevelIntBonusSkill(plan, level, skill) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   if (!plan.levels[level].intBonusSkills) plan.levels[level].intBonusSkills = [];
   const skills = [...plan.levels[level].intBonusSkills];
   const index = skills.indexOf(skill);
@@ -138,6 +143,7 @@ export function toggleLevelIntBonusSkill(plan, level, skill) {
 
 export function toggleLevelIntBonusLanguage(plan, level, language) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   if (!plan.levels[level].intBonusLanguages) plan.levels[level].intBonusLanguages = [];
   const languages = [...plan.levels[level].intBonusLanguages];
   const index = languages.indexOf(language);
@@ -157,6 +163,7 @@ export function getAllPlannedFeats(plan, upToLevel = MAX_LEVEL) {
     'archetypeFeats',
     'mythicFeats',
     'dualClassFeats',
+    'customFeats',
   ];
   for (let level = 1; level <= upToLevel; level++) {
     const levelData = plan.levels[level];
@@ -174,14 +181,16 @@ export function getAllPlannedSkillIncreases(plan, upToLevel = MAX_LEVEL) {
   const increases = [];
   for (let level = 1; level <= upToLevel; level++) {
     const levelData = plan.levels[level];
-    if (!levelData?.skillIncreases) continue;
-    increases.push(...levelData.skillIncreases);
+    if (!levelData) continue;
+    increases.push(...(levelData.skillIncreases ?? []));
+    increases.push(...(levelData.customSkillIncreases ?? []));
   }
   return increases;
 }
 
 export function addLevelSpell(plan, level, spellEntry) {
   if (!plan.levels[level]) plan.levels[level] = {};
+  ensureCustomLevelData(plan.levels[level]);
   if (!plan.levels[level].spells) plan.levels[level].spells = [];
   plan.levels[level].spells.push(spellEntry);
   return plan;
@@ -191,6 +200,65 @@ export function removeLevelSpell(plan, level, uuid) {
   if (!plan.levels[level]?.spells) return plan;
   plan.levels[level].spells = plan.levels[level].spells.filter((s) => s.uuid !== uuid);
   return plan;
+}
+
+export function addLevelCustomFeat(plan, level, featEntry, index = null) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
+
+  if (Number.isInteger(index) && index >= 0 && index < levelData.customFeats.length) {
+    levelData.customFeats[index] = featEntry;
+  } else {
+    levelData.customFeats.push(featEntry);
+  }
+
+  return plan;
+}
+
+export function removeLevelCustomFeat(plan, level, index) {
+  const customFeats = plan.levels[level]?.customFeats;
+  if (!Array.isArray(customFeats) || !Number.isInteger(index)) return plan;
+  customFeats.splice(index, 1);
+  return plan;
+}
+
+export function addLevelCustomSkillIncrease(plan, level, skillIncrease) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.customSkillIncreases)) levelData.customSkillIncreases = [];
+  levelData.customSkillIncreases.push(skillIncrease);
+  return plan;
+}
+
+export function removeLevelCustomSkillIncrease(plan, level, index) {
+  const customSkillIncreases = plan.levels[level]?.customSkillIncreases;
+  if (!Array.isArray(customSkillIncreases) || !Number.isInteger(index)) return plan;
+  customSkillIncreases.splice(index, 1);
+  return plan;
+}
+
+export function addLevelCustomSpell(plan, level, spellEntry) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
+  levelData.customSpells.push(spellEntry);
+  return plan;
+}
+
+export function removeLevelCustomSpell(plan, level, index) {
+  const customSpells = plan.levels[level]?.customSpells;
+  if (!Array.isArray(customSpells) || !Number.isInteger(index)) return plan;
+  customSpells.splice(index, 1);
+  return plan;
+}
+
+export function getAllPlannedSpells(plan, upToLevel = MAX_LEVEL) {
+  const spells = [];
+  for (let level = 1; level <= upToLevel; level++) {
+    const levelData = plan.levels[level];
+    if (!levelData) continue;
+    spells.push(...(levelData.spells ?? []));
+    spells.push(...(levelData.customSpells ?? []));
+  }
+  return spells;
 }
 
 export function togglePlanApparition(plan, slug, maxSlots) {
@@ -218,4 +286,16 @@ export function getAllPlannedBoosts(plan, upToLevel = MAX_LEVEL) {
     boosts[level] = levelData.abilityBoosts;
   }
   return boosts;
+}
+
+function ensureLevelData(plan, level) {
+  if (!plan.levels[level]) plan.levels[level] = {};
+  return ensureCustomLevelData(plan.levels[level]);
+}
+
+function ensureCustomLevelData(levelData) {
+  if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
+  if (!Array.isArray(levelData.customSkillIncreases)) levelData.customSkillIncreases = [];
+  if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
+  return levelData;
 }

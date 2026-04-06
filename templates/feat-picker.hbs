@@ -30,6 +30,23 @@
       </div>
       {{/if}}
 
+      {{#if showFeatTypeFilter}}
+      <div class="feat-picker__filter-group">
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FEAT_TYPES"}}</div>
+        <div class="feat-picker__source-list">
+          {{#each featTypeOptions}}
+          <button
+            type="button"
+            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleFeatType"
+            data-type="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
       <div class="feat-picker__filter-group">
         <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
         <div class="feat-picker__rarity-filters">
@@ -90,7 +107,22 @@
     <section class="feat-picker__results">
       <div class="feat-picker__results-header">
         <div class="feat-picker__results-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS"}}</div>
-        <div class="feat-picker__results-count">{{filteredCount}}</div>
+        <div class="spell-picker__results-meta">
+          {{#if multiSelect}}
+          <div class="spell-picker__selected-count feat-picker__selected-count">{{format "PF2E_LEVELER.FEAT_PICKER.SELECTED_COUNT" count=selectedCount}}</div>
+          <button type="button" class="feat-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
+            {{#if allVisibleSelected}}
+              {{localize "PF2E_LEVELER.FEAT_PICKER.DESELECT_ALL"}}
+            {{else}}
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT_ALL"}}
+            {{/if}}
+          </button>
+          <button type="button" class="feat-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
+            {{localize "PF2E_LEVELER.FEAT_PICKER.ADD_SELECTED"}}
+          </button>
+          {{/if}}
+          <div class="feat-picker__results-count">{{filteredCount}}</div>
+        </div>
       </div>
 
       <div class="feat-list">
@@ -134,7 +166,15 @@
               <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} â€” {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
             {{else}}
               <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.selectionBlocked}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNMET_BLOCKED'}}{{else if this.hasUnknownPrerequisites}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}{{/if}}">
-                {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{#if ../multiSelect}}
+                  {{#if this._levelerSelected}}
+                    {{localize "PF2E_LEVELER.UI.SELECTED"}}
+                  {{else}}
+                    {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                  {{/if}}
+                {{else}}
+                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{/if}}
               </button>
             {{/if}}
           </div>

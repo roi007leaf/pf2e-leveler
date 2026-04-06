@@ -33,6 +33,10 @@ describe('compendium catalog helpers', () => {
   });
 
   test('discovers available packs by content category', async () => {
+    game.modules.get = jest.fn((key) => {
+      if (key === 'my-module') return { title: 'My Module', authors: [{ name: 'Test Creator' }] };
+      return { title: key, authors: [] };
+    });
     game.packs = new Map([
       ['pf2e.ancestries', {
         collection: 'pf2e.ancestries',
@@ -51,14 +55,17 @@ describe('compendium catalog helpers', () => {
       }],
     ]);
 
-    const discovered = await discoverCompendiumsByCategory();
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
 
     expect(discovered.ancestries.map((pack) => pack.key)).toContain('pf2e.ancestries');
     expect(discovered.feats.map((pack) => pack.key)).toContain('my.feats');
     expect(discovered.deities.map((pack) => pack.key)).toContain('my.deities');
+    expect(discovered.feats.find((pack) => pack.key === 'my.feats')).toEqual(expect.objectContaining({
+      packageAuthors: 'Test Creator',
+    }));
   });
 
-  test('allows mixed compendiums to appear in multiple categories when their index contains multiple item kinds', async () => {
+  test('allows mixed compendiums to appear in every matching category when their index contains multiple item kinds', async () => {
     game.packs = new Map([
       ['my.player-options', {
         collection: 'my.player-options',
@@ -71,16 +78,47 @@ describe('compendium catalog helpers', () => {
           packageName: 'my-module',
         },
         getIndex: jest.fn(async () => [
+          { type: 'feat', system: { category: 'classfeature' } },
           { type: 'feat', system: { category: 'general' } },
           { type: 'spell' },
         ]),
       }],
     ]);
 
-    const discovered = await discoverCompendiumsByCategory();
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
 
+    expect(discovered.classFeatures.map((pack) => pack.key)).toContain('my.player-options');
     expect(discovered.feats.map((pack) => pack.key)).toContain('my.player-options');
     expect(discovered.spells.map((pack) => pack.key)).toContain('my.player-options');
+  });
+
+  test('shows all item packs as manual candidates in every category so GMs can opt them in', async () => {
+    game.packs = new Map([
+      ['my.custom-items', {
+        collection: 'my.custom-items',
+        metadata: {
+          id: 'my.custom-items',
+          label: 'Custom Items',
+          name: 'custom-items',
+          path: 'packs/custom-items',
+          type: 'Item',
+          packageName: 'my-module',
+        },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'general' } }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.feats).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'my.custom-items' }),
+    ]));
+    expect(discovered.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'my.custom-items', manualCandidate: true, locked: false }),
+    ]));
+    expect(discovered.classFeatures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'my.custom-items', manualCandidate: true, locked: false }),
+    ]));
   });
 
   test('detects class feature packs by PF2E item category instead of pack name', async () => {

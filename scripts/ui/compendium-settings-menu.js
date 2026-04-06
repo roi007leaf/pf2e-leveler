@@ -16,6 +16,8 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
   constructor(options = {}) {
     super(options);
     this.activeCategory = 'ancestries';
+    this.viewMode = 'categories';
+    this.packSearch = '';
     this._draftSelections = null;
   }
 
@@ -41,15 +43,72 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     if (!this._draftSelections) {
       this._draftSelections = foundry.utils.deepClone(configured);
     }
-    const discovered = await discoverCompendiumsByCategory();
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
     const categoryKeys = getCompendiumCategoryKeys();
     if (!categoryKeys.includes(this.activeCategory)) {
       this.activeCategory = categoryKeys[0] ?? null;
     }
 
+    const categoryLabels = Object.fromEntries(categoryKeys.map((category) => [
+      category,
+      game.i18n.localize(COMPENDIUM_CATEGORY_DEFINITIONS[category].labelKey),
+    ]));
+    const packMap = new Map();
+    for (const [category, packs] of Object.entries(discovered)) {
+      for (const pack of packs ?? []) {
+        if (!packMap.has(pack.key)) {
+          packMap.set(pack.key, {
+            key: pack.key,
+            label: pack.label,
+            packageName: pack.packageName,
+            packageLabel: pack.packageLabel,
+            packageAuthors: pack.packageAuthors,
+            categories: [],
+          });
+        }
+
+        packMap.get(pack.key).categories.push({
+          key: category,
+          label: categoryLabels[category],
+          selected: pack.locked || (configured[category] ?? []).includes(pack.key),
+          enforced: this._isPackEnforced(pack, category),
+          autoDetected: !pack.manualCandidate,
+        });
+      }
+    }
+
+    const packRows = [...packMap.values()]
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((pack) => ({
+        ...pack,
+        categoryCount: pack.categories.filter((category) => category.selected).length,
+        categories: pack.categories.sort((a, b) => a.label.localeCompare(b.label)),
+        searchText: [
+          pack.label,
+          pack.key,
+          pack.packageLabel,
+          pack.packageName,
+          pack.packageAuthors,
+          ...pack.categories.map((category) => category.label),
+        ].join(' ').toLowerCase(),
+      }));
+
     return {
       titleText: this._getMenuTitle(),
       intro: this._getIntroText(),
+      viewMode: this.viewMode,
+      isPackView: this.viewMode === 'packs',
+      isCategoryView: this.viewMode !== 'packs',
+      categoriesViewLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CATEGORIES_VIEW'),
+      packsViewLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.PACK_ASSIGNMENTS_VIEW'),
+      packAssignmentsTitle: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.PACK_ASSIGNMENTS_TITLE'),
+      packAssignmentsHint: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.PACK_ASSIGNMENTS_HINT'),
+      packSearch: this.packSearch,
+      packSearchPlaceholder: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.PACK_SEARCH_PLACEHOLDER'),
+      categoryColumnLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CATEGORY_COLUMN'),
+      sourceColumnLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SOURCE_COLUMN'),
+      autoDetectedLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.AUTO_DETECTED'),
+      noPackAssignmentsLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NO_PACK_ASSIGNMENTS'),
       allLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.ALL'),
       deselectAllLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.DESELECT_ALL'),
       allDisabledLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.ALL_DISABLED'),
@@ -57,6 +116,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       noPacksLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NO_PACKS'),
       packageLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.PACKAGE'),
       summaryLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY'),
+      packRows,
       categories: categoryKeys.map((category) => {
         const packs = (discovered[category] ?? []).map((pack) => ({
           ...pack,
@@ -82,6 +142,9 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
   _onRender(context, options) {
     super._onRender?.(context, options);
     const root = this.element;
+    root?.querySelectorAll?.('[data-action="select-view-mode"]').forEach((button) => {
+      button.addEventListener('click', () => this._setViewMode(button.dataset.viewMode));
+    });
     root?.querySelectorAll?.('[data-action="select-category"]').forEach((button) => {
       button.addEventListener('click', () => this._setActiveCategory(button.dataset.category));
     });
@@ -94,21 +157,35 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     root?.querySelectorAll?.('.compendium-pack__check').forEach((input) => {
       input.addEventListener('change', () => this._onPackSelectionChange(input.dataset.category));
     });
+    root?.querySelectorAll?.('.compendium-assignment__check').forEach((input) => {
+      input.addEventListener('change', () => this._onPackAssignmentChange());
+    });
+    root?.querySelector('[data-action="search-pack-assignments"]')?.addEventListener('input', (event) => {
+      this._onPackSearchInput(event);
+    });
+    this._applyPackSearchFilter(root);
     root?.querySelector('[data-action="save-compendiums"]')?.addEventListener('click', () => this._saveSelections());
     root?.querySelector('[data-action="close-compendiums"]')?.addEventListener('click', () => this.close());
   }
 
   async _saveSelections() {
-    this._syncActiveCategorySelections();
+    this._syncSelectionsFromDom();
     await game.settings.set(MODULE_ID, this._getSettingKey(), this._serializeSelections(this._draftSelections ?? {}));
     invalidateCache();
     ui.notifications.info(game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVED'));
     this.close();
   }
 
+  _setViewMode(viewMode) {
+    if (!viewMode || viewMode === this.viewMode) return;
+    this._syncSelectionsFromDom();
+    this.viewMode = viewMode;
+    this.render(true);
+  }
+
   _setActiveCategory(category) {
     if (!category || category === this.activeCategory) return;
-    this._syncActiveCategorySelections();
+    this._syncSelectionsFromDom();
     this.activeCategory = category;
     this.render(true);
   }
@@ -126,18 +203,28 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
   _onPackSelectionChange(category) {
     if (!category) return;
     if (category !== this.activeCategory) {
-      this._syncActiveCategorySelections();
+      this._syncSelectionsFromDom();
       this.activeCategory = category;
     } else {
-      this._syncActiveCategorySelections();
+      this._syncSelectionsFromDom();
     }
     this.render(true);
+  }
+
+  _onPackAssignmentChange() {
+    this._syncSelectionsFromDom();
+    this.render(true);
+  }
+
+  _onPackSearchInput(event) {
+    this.packSearch = String(event?.currentTarget?.value ?? '');
+    this._applyPackSearchFilter(this.element);
   }
 
   _toggleAllInCategory(category = this.activeCategory) {
     if (!category) return;
     if (category !== this.activeCategory) {
-      this._syncActiveCategorySelections();
+      this._syncSelectionsFromDom();
       this.activeCategory = category;
       this.render(true);
       return;
@@ -157,8 +244,16 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
 
     if (!changed) return;
 
-    this._syncActiveCategorySelections();
+    this._syncSelectionsFromDom();
     this.render(true);
+  }
+
+  _syncSelectionsFromDom() {
+    if (this.viewMode === 'packs') {
+      this._syncPackAssignmentSelections();
+      return;
+    }
+    this._syncActiveCategorySelections();
   }
 
   _syncActiveCategorySelections() {
@@ -173,6 +268,40 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     if (!this._draftSelections) this._draftSelections = this._getConfiguredSelections();
 
     this._draftSelections[this.activeCategory] = next;
+  }
+
+  _syncPackAssignmentSelections() {
+    const root = this.element;
+    const inputs = Array.from(root?.querySelectorAll?.('.compendium-assignment__check') ?? []);
+    if (!this._draftSelections) this._draftSelections = this._getConfiguredSelections();
+
+    for (const category of getCompendiumCategoryKeys()) {
+      this._draftSelections[category] = [];
+    }
+
+    for (const input of inputs) {
+      const category = input.dataset.category;
+      const pack = input.dataset.pack;
+      if (!category || !pack || input.dataset.locked === 'true' || !input.checked) continue;
+      this._draftSelections[category].push(pack);
+    }
+  }
+
+  _applyPackSearchFilter(root = this.element) {
+    if (!root || this.viewMode !== 'packs') return;
+    const needle = this.packSearch.trim().toLowerCase();
+    const rows = Array.from(root.querySelectorAll('.compendium-assignment'));
+    let visibleCount = 0;
+
+    for (const row of rows) {
+      const haystack = String(row.dataset.searchText ?? '').toLowerCase();
+      const matches = !needle || haystack.includes(needle);
+      row.hidden = !matches;
+      if (matches) visibleCount += 1;
+    }
+
+    const empty = root.querySelector('[data-pack-empty-state]');
+    if (empty) empty.hidden = visibleCount > 0;
   }
 
   _getSettingKey() {
