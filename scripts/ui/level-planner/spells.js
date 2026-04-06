@@ -28,7 +28,7 @@ export async function buildSpellContext(planner, classDef, level) {
   const prevSlots = slots[level - 1] ?? getActorSpellCounts(planner);
 
   const levelData = getLevelData(planner.plan, level) ?? {};
-  const plannedSpells = levelData.spells ?? [];
+  const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
   const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
   const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells);
   const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
@@ -62,6 +62,21 @@ export async function buildSpellContext(planner, classDef, level) {
     ...focusSpellData,
     ...apparitionContext,
   };
+}
+
+function normalizePlannedSpellsForDisplay(plannedSpells) {
+  return (plannedSpells ?? []).map((spell) => {
+    const rank = Number(spell?.rank);
+    const baseRank = Number(spell?.baseRank);
+    const displayRank = Number.isFinite(rank) && rank >= 0
+      ? rank
+      : (Number.isFinite(baseRank) ? baseRank : rank);
+
+    return {
+      ...spell,
+      displayRank,
+    };
+  });
 }
 
 export async function getFocusSpellsForLevel(planner, level) {

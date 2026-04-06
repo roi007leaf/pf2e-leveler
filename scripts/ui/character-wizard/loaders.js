@@ -57,6 +57,30 @@ export async function loadCompendiumCategory(wizard, category, cacheKey = `categ
   return items;
 }
 
+export async function loadAncestries(wizard) {
+  const cacheKey = 'ancestries';
+  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  const all = await loadCompendiumCategory(wizard, 'ancestries', cacheKey);
+  const items = all
+    .filter((d) => d.type === 'ancestry')
+    .map((d) => ({
+      uuid: d.uuid,
+      name: d.name,
+      img: d.img,
+      sourcePack: d.sourcePack,
+      sourceLabel: d.sourceLabel,
+      sourcePackage: d.sourcePackage,
+      sourcePackageLabel: d.sourcePackageLabel,
+      slug: d.slug ?? null,
+      traits: d.traits ?? [],
+      rarity: d.rarity ?? 'common',
+      description: d.description ?? '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  wizard._compendiumCache[cacheKey] = items;
+  return items;
+}
+
 export async function loadDeities(wizard) {
   const cacheKey = 'deities';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];

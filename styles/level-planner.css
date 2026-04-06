@@ -135,9 +135,11 @@
 
 .pf2e-leveler .planner-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--leveler-spacing-lg);
 }
 
@@ -161,6 +163,8 @@
 }
 
 .pf2e-leveler .level-section {
+  width: 100%;
+  min-width: 0;
   margin-bottom: var(--leveler-spacing-lg);
 }
 
@@ -190,6 +194,8 @@
 }
 
 .pf2e-leveler .level-section__body {
+  width: 100%;
+  min-width: 0;
   padding: var(--leveler-spacing-sm) 0;
 }
 
@@ -329,7 +335,17 @@
 }
 
 .pf2e-leveler .planned-spells {
+  width: 100%;
+  min-width: 0;
   margin-top: var(--leveler-spacing-sm);
+}
+
+.pf2e-leveler .planned-spells > * {
+  min-width: 0;
+}
+
+.pf2e-leveler .spell-slot-table {
+  table-layout: fixed;
 }
 
 .pf2e-leveler .apparition-list {

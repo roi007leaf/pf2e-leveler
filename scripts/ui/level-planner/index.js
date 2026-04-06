@@ -1088,6 +1088,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _toggleCustomPlan(level = this.selectedLevel) {
     if (this._customPlanOpenLevels.has(level)) this._customPlanOpenLevels.delete(level);
     else this._customPlanOpenLevels.add(level);
+    this._capturePlannerScroll();
     this.render(true);
   }
 

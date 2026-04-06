@@ -123,6 +123,7 @@
       "RANK": "Rang",
       "SLOTS": "Emplacements",
       "NEW_RANK": "Nouveau : sorts de rang {rank} !",
+      "TRADITION_FILTER": "Traditions",
       "ATTUNEMENT_SLOTS": "{selected}/{count} apparitions",
       "FOCUS_POOL": "Reserve de focalisation : {count}",
       "ADD": "Ajouter un sort",

@@ -1022,6 +1022,21 @@
                 {{/if}}
               </div>
               {{/if}}
+              {{#if hasSkillFeat}}
+              <div class="wizard-feat-slot">
+                <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'skill')}}active{{/if}}" data-action="featSubStep" data-substep="skill">
+                  <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</span>
+                </button>
+                {{#if data.skillFeat}}
+                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.skillFeat.uuid}}">{{data.skillFeat.name}}</span>
+                {{/if}}
+                {{#if data.skillFeat}}
+                <button type="button" class="wizard-feat-slot__clear" data-action="clearSkillFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+                {{/if}}
+              </div>
+              {{/if}}
             </div>
           </div>
 
@@ -1149,6 +1164,39 @@
                   <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
                 {{else}}
                   <button type="button" class="wizard-item__select" data-action="selectClassFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+                {{/if}}
+              </div>
+              {{/each}}
+            </div>
+          </div>
+          {{/if}}
+          {{/if}}
+          {{#if hasSkillFeat}}
+          {{#if (eq featSubStep "skill")}}
+          <div class="wizard-browser-section">
+            <div class="wizard-browser__results-header">
+              <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</div>
+              <div class="wizard-browser__count">{{skillFeats.length}}</div>
+            </div>
+            <div class="wizard-item-grid wizard-item-grid--browser wizard-item-grid--compact-section">
+              {{#each skillFeats}}
+              <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
+                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <div class="wizard-item__info">
+                  <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                  <div class="wizard-item__traits">
+                    {{#each this.traits}}
+                    <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+                    {{/each}}
+                    {{#if (notEqual this.rarity "common")}}
+                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+                    {{/if}}
+                  </div>
+                </div>
+                {{#if this.taken}}
+                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+                {{else}}
+                  <button type="button" class="wizard-item__select" data-action="selectSkillFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
                 {{/if}}
               </div>
               {{/each}}
@@ -1633,6 +1681,12 @@
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</span>
           <span class="wizard-summary__value">{{data.classFeat.name}}{{#if classFeatChoiceLabels.length}} ({{#each classFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
+        </div>
+        {{/if}}
+        {{#if data.skillFeat}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</span>
+          <span class="wizard-summary__value">{{data.skillFeat.name}}{{#if skillFeatChoiceLabels.length}} ({{#each skillFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
         </div>
         {{/if}}
         {{#each grantedFeatChoiceSummaries}}

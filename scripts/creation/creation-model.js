@@ -34,6 +34,7 @@ export function createCreationData() {
     ancestryFeat: null,
     ancestryParagonFeat: null,
     classFeat: null,
+    skillFeat: null,
     grantedFeatSections: [],
     grantedFeatChoices: {},
     spells: { cantrips: [], rank1: [] },
@@ -95,6 +96,7 @@ export function setClass(data, item) {
   data.divineFont = null;
   data.devotionSpell = null;
   data.classFeat = null;
+  data.skillFeat = null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   data.spells = { cantrips: [], rank1: [] };
@@ -371,10 +373,18 @@ export function setClassFeat(data, feat, choiceSets = [], grantedLores = []) {
   return data;
 }
 
+export function setSkillFeat(data, feat, choiceSets = [], grantedLores = []) {
+  data.skillFeat = feat
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
+    : null;
+  return data;
+}
+
 export function setFeatChoice(data, slot, flag, value) {
   const target = slot === 'ancestry' ? data.ancestryFeat
     : slot === 'ancestryParagon' ? data.ancestryParagonFeat
       : slot === 'class' ? data.classFeat
+        : slot === 'skill' ? data.skillFeat
         : null;
   if (target) {
     if (!target.choices) target.choices = {};

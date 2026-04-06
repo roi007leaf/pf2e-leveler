@@ -253,4 +253,51 @@ describe('CompendiumSettingsMenu', () => {
     expect(context.packRows).toHaveLength(1);
     expect(context.packRows[0].categories.map((category) => category.key)).toEqual(['feats']);
   });
+
+  test('category view only shows packs assigned to that category instead of every auto-detected pack', async () => {
+    jest.spyOn(catalog, 'discoverCompendiumsByCategory').mockResolvedValue({
+      ancestries: [],
+      heritages: [],
+      backgrounds: [
+        { key: 'pf2e.backgrounds', label: 'Backgrounds', locked: true, manualCandidate: false, packageName: 'pf2e', packageLabel: 'PF2E' },
+      ],
+      classes: [
+        { key: 'pf2e.backgrounds', label: 'Backgrounds', locked: false, manualCandidate: false, packageName: 'pf2e', packageLabel: 'PF2E' },
+      ],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    });
+
+    jest.spyOn(catalog, 'getCompendiumKeysForCategory').mockImplementation((category) => {
+      if (category === 'backgrounds') return ['pf2e.backgrounds'];
+      if (category === 'classes') return ['pf2e.classes'];
+      return [];
+    });
+
+    game.packs = {
+      values: () => ([
+        {
+          collection: 'pf2e.backgrounds',
+          metadata: { id: 'pf2e.backgrounds', label: 'Backgrounds', packageName: 'pf2e' },
+          title: 'Backgrounds',
+        },
+        {
+          collection: 'pf2e.classes',
+          metadata: { id: 'pf2e.classes', label: 'Classes', packageName: 'pf2e' },
+          title: 'Classes',
+        },
+      ]),
+    };
+
+    const menu = new CompendiumSettingsMenu();
+    menu.activeCategory = 'classes';
+    const context = await menu._prepareContext();
+    const classesCategory = context.categories.find((category) => category.key === 'classes');
+
+    expect(classesCategory.packs.map((pack) => pack.key)).toEqual(['pf2e.classes']);
+  });
 });

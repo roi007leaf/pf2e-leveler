@@ -125,6 +125,7 @@
       "RANK": "Rank",
       "SLOTS": "Slots",
       "NEW_RANK": "New: {rank}-rank spells!",
+      "TRADITION_FILTER": "Traditions",
       "ATTUNEMENT_SLOTS": "{selected}/{count} apparitions",
       "FOCUS_POOL": "Focus pool: {count}",
       "ADD": "Add spell",

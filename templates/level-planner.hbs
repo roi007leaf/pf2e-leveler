@@ -537,7 +537,6 @@
               {{/if}}
               {{/each}}
               {{/each}}
-              </div>
               {{/if}}
               <button type="button" class="spell-add-btn" data-action="openCustomFeatPicker" data-level="{{selectedLevel}}" style="margin-top: 4px; padding: 4px 12px;">
                 <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD_CUSTOM_FEAT"}}
@@ -710,7 +709,7 @@
               <div class="feat-slot feat-slot--filled">
                 <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
                 <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                <span class="feat-slot__level">Rank {{this.rank}}</span>
+                <span class="feat-slot__level">Rank {{this.displayRank}}</span>
                 <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}

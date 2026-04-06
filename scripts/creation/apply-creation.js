@@ -38,6 +38,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
   if (data.ancestryParagonFeat) await applyFeat(actor, data.ancestryParagonFeat, getCreationAncestryParagonGroup(), 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
+  if (data.skillFeat) await applyFeat(actor, data.skillFeat, 'skill', 1);
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
@@ -209,6 +210,7 @@ export function getAdditionalSelectedItems(data) {
     { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
     { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
     ...((data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
       choices: data.grantedFeatChoices?.[section.slot] ?? {},
@@ -242,6 +244,7 @@ export function getAdditionalSelectedSkills(data) {
     { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
     { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
     ...((data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
       choices: data.grantedFeatChoices?.[section.slot] ?? {},
@@ -277,6 +280,7 @@ function getStoredChoiceSelections(data, uuid) {
   if (data.ancestryFeat?.uuid === uuid) return data.ancestryFeat.choices ?? {};
   if (data.ancestryParagonFeat?.uuid === uuid) return data.ancestryParagonFeat.choices ?? {};
   if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
+  if (data.skillFeat?.uuid === uuid) return data.skillFeat.choices ?? {};
   return data.grantedFeatChoices?.[uuid] ?? {};
 }
 
@@ -533,6 +537,10 @@ async function createCreationMessage(actor, data) {
   if (data.classFeat) {
     const labels = await getSelectedSubclassChoiceLabels(data.classFeat);
     training.push({ label: localize('SECTIONS.CLASS_FEAT'), value: labels.length ? `${formatChatLink(data.classFeat)} (${labels.join(', ')})` : formatChatLink(data.classFeat) });
+  }
+  if (data.skillFeat) {
+    const labels = await getSelectedSubclassChoiceLabels(data.skillFeat);
+    training.push({ label: localize('SECTIONS.SKILL_FEAT'), value: labels.length ? `${formatChatLink(data.skillFeat)} (${labels.join(', ')})` : formatChatLink(data.skillFeat) });
   }
   for (const section of (data.grantedFeatSections ?? [])) {
     const labels = await getSelectedSubclassChoiceLabels({

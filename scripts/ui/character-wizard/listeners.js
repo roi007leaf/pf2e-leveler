@@ -25,6 +25,7 @@ import {
   setSubclass,
   setSubclassChoice,
   setSubconsciousMind,
+  setSkillFeat,
   setThesis,
   toggleApparition,
   toggleIkon,
@@ -272,7 +273,7 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  ['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat'].forEach((action) => {
+  ['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat'].forEach((action) => {
     el.querySelector(`[data-action="${action}"]`)?.addEventListener('click', async () => {
       const clearMap = {
         clearAncestry: () => setAncestry(wizard.data, null),
@@ -290,9 +291,10 @@ export function activateCharacterWizardListeners(wizard, el) {
         clearAncestryFeat: () => setAncestryFeat(wizard.data, null),
         clearAncestryParagonFeat: () => setAncestryParagonFeat(wizard.data, null),
         clearClassFeat: () => setClassFeat(wizard.data, null),
+        clearSkillFeat: () => setSkillFeat(wizard.data, null),
       };
       clearMap[action]?.();
-      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat']);
+      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat']);
       if (refreshActions.has(action)) {
         await wizard._refreshGrantedFeatChoiceSections();
       }
@@ -333,6 +335,19 @@ export function activateCharacterWizardListeners(wizard, el) {
         const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
         const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
         setClassFeat(wizard.data, item, choiceSets, grantedLores);
+        await wizard._refreshGrantedFeatChoiceSections();
+        await wizard._saveAndRender();
+      }
+    });
+  });
+
+  el.querySelectorAll('[data-action="selectSkillFeat"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const item = await fromUuid(btn.dataset.uuid);
+      if (item) {
+        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
+        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
+        setSkillFeat(wizard.data, item, choiceSets, grantedLores);
         await wizard._refreshGrantedFeatChoiceSections();
         await wizard._saveAndRender();
       }

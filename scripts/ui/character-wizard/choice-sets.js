@@ -40,6 +40,13 @@ export async function buildFeatChoicesContext(wizard) {
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.classFeat.choiceSets, wizard.data.classFeat.choices ?? {}),
     });
   }
+  if (wizard.data.skillFeat?.choiceSets?.length) {
+    sections.push({
+      slot: 'skill',
+      featName: await resolveChoiceSectionName(wizard, wizard.data.skillFeat),
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.skillFeat.choiceSets, wizard.data.skillFeat.choices ?? {}),
+    });
+  }
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
     sections.push({
       slot: section.slot,
@@ -99,6 +106,7 @@ export async function getSelectedFeatChoiceLabels(wizard, slot) {
   const feat = slot === 'ancestry' ? wizard.data.ancestryFeat
     : slot === 'ancestryParagon' ? wizard.data.ancestryParagonFeat
     : slot === 'class' ? wizard.data.classFeat
+      : slot === 'skill' ? wizard.data.skillFeat
       : grantedSection
         ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
         : null;
@@ -119,6 +127,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
+    { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name, skipDirectSection: true, choiceSource: wizard.data.skillFeat },
     ...getSelectedHandlerChoiceSourceItems(wizard),
   ];
 
@@ -518,6 +527,7 @@ export async function getPendingChoices(wizard) {
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name },
+    { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name },
     ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
 
@@ -533,6 +543,7 @@ export async function getPendingChoices(wizard) {
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
       : uuid === wizard.data.ancestryParagonFeat?.uuid ? wizard.data.ancestryParagonFeat
       : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
+        : uuid === wizard.data.skillFeat?.uuid ? wizard.data.skillFeat
         : null);
     await scanItem(item, label, sourceChoices);
 

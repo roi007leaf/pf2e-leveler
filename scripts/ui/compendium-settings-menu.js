@@ -91,9 +91,26 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
           pack.packageLabel,
           pack.packageName,
           pack.packageAuthors,
-          ...pack.categories.map((category) => category.label),
         ].join(' ').toLowerCase(),
       }));
+
+    const packMetadataLookup = new Map();
+    for (const pack of game.packs?.values?.() ?? []) {
+      const key = pack.collection ?? pack.metadata?.id ?? '';
+      if (!key) continue;
+      const packageName = pack.metadata?.packageName ?? pack.metadata?.package ?? '';
+      packMetadataLookup.set(key, {
+        key,
+        label: pack.metadata?.label ?? pack.title ?? pack.collection ?? key,
+        packageName,
+        packageLabel: this._resolvePackageLabel(packageName),
+        lockedCategories: new Set(
+          Object.entries(COMPENDIUM_CATEGORY_DEFINITIONS)
+            .filter(([, definition]) => (definition.defaultKeys ?? []).includes(key))
+            .map(([category]) => category),
+        ),
+      });
+    }
 
     return {
       titleText: this._getMenuTitle(),
@@ -120,11 +137,28 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       summaryLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY'),
       packRows,
       categories: categoryKeys.map((category) => {
-        const packs = (discovered[category] ?? []).map((pack) => ({
-          ...pack,
-          checked: pack.locked || (configured[category] ?? []).includes(pack.key),
-          enforced: this._isPackEnforced(pack, category),
-        }));
+        const assignedKeys = getCompendiumKeysForCategory(category, { includeDefaults: true });
+        const packs = assignedKeys.map((key) => {
+          const discoveredPack = (discovered[category] ?? []).find((pack) => pack.key === key);
+          const metadataPack = packMetadataLookup.get(key);
+          const pack = discoveredPack ?? metadataPack ?? {
+            key,
+            label: key,
+            packageName: '',
+            packageLabel: '',
+            lockedCategories: new Set(),
+          };
+
+          return {
+            ...pack,
+            checked: true,
+            locked: pack.locked ?? pack.lockedCategories?.has?.(category) ?? false,
+            enforced: this._isPackEnforced({
+              ...pack,
+              locked: pack.locked ?? pack.lockedCategories?.has?.(category) ?? false,
+            }, category),
+          };
+        });
 
         return {
           key: category,
@@ -335,6 +369,12 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
 
   _isPackEnforced(pack) {
     return !!pack.locked;
+  }
+
+  _resolvePackageLabel(packageName) {
+    if (!packageName) return '';
+    if (game.system?.id === packageName) return game.system.title ?? packageName;
+    return game.modules?.get?.(packageName)?.title ?? packageName;
   }
 }
 

@@ -246,6 +246,7 @@
   display: flex;
   align-items: center;
   gap: var(--leveler-spacing-sm);
+  min-width: 0;
   padding: var(--leveler-spacing-sm) 0;
   font-size: var(--leveler-font-md);
   font-weight: 600;
@@ -270,7 +271,7 @@
 
 .pf2e-leveler .skill-btn-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
 }
 

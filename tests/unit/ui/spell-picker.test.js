@@ -244,6 +244,47 @@ describe('SpellPicker', () => {
     picker.selectedRanks = new Set([1, 2]);
     expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'heal', 'acid-grip']));
   });
+
+  test('can filter spells by selected traditions', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), { excludedSelections: [] });
+    await picker._prepareContext();
+
+    picker.selectedTraditions = new Set(['divine']);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['heal']);
+
+    picker.selectedTraditions = new Set(['arcane']);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'acid-grip']));
+    expect(picker._filterSpells().map((spell) => spell.uuid)).not.toContain('heal');
+  });
+
+  test('does not crash when a spell is missing system.level.value but has a valid heightened level', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'city-of-sin',
+            name: 'City of Sin',
+            system: {
+              heightenedLevel: 7,
+              traits: {
+                value: [],
+                traditions: ['arcane'],
+              },
+            },
+          },
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), { excludedSelections: [] });
+    const context = await picker._prepareContext();
+
+    expect(context.spells.map((spell) => spell.uuid)).toContain('city-of-sin');
+  });
 });
 
 function makeSpell(uuid, name, level, traditions) {

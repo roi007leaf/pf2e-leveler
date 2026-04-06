@@ -175,13 +175,23 @@ function buildCustomSpellGroups(customSpells) {
   const entries = customSpells.map((spell, index) => ({
     ...spell,
     index,
-    displayRank: spell.isCantrip ? 'Cantrip' : `Rank ${spell.rank ?? spell.baseRank ?? 0}`,
+    displayRank: spell.isCantrip ? 'Cantrip' : `Rank ${resolveSpellDisplayRank(spell)}`,
   }));
 
   return groupEntriesBy(entries, (entry) => entry.displayRank, (displayRank) => ({
     label: displayRank,
     sort: /^Rank\s+(\d+)$/i.test(displayRank) ? Number(displayRank.match(/^Rank\s+(\d+)$/i)?.[1] ?? 0) : -1,
   }));
+}
+
+function resolveSpellDisplayRank(spell) {
+  const rank = Number(spell?.rank);
+  if (Number.isFinite(rank) && rank >= 0) return rank;
+
+  const baseRank = Number(spell?.baseRank);
+  if (Number.isFinite(baseRank) && baseRank >= 0) return baseRank;
+
+  return 0;
 }
 
 function groupEntriesBy(entries, getKey, getMeta) {

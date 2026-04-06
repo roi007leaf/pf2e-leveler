@@ -65,6 +65,35 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.ancestryFeats.map((feat) => feat.name)).toEqual(['Crunch', 'Pack Stalker']);
   });
 
+  it('ancestry step only shows actual ancestry documents from mixed assigned packs', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 0;
+    wizard._loadAncestries = jest.fn(async () => [
+      {
+        uuid: 'ancestry-1',
+        name: 'Elf',
+        type: 'ancestry',
+        slug: 'elf',
+      },
+      {
+        uuid: 'feat-1',
+        name: 'Til Ragnarok\'s End',
+        type: 'feat',
+        traits: ['elf'],
+      },
+    ]);
+
+    const context = await wizard._getStepContext();
+
+    expect(context.items).toEqual([
+      expect.objectContaining({
+        uuid: 'ancestry-1',
+        name: 'Elf',
+        type: 'ancestry',
+      }),
+    ]);
+  });
+
   it('marks paragon ancestry feat selections separately in the feat context', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return true;
@@ -167,6 +196,53 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     wizard.data.classFeat = { uuid: 'feat-reactive-shield', name: 'Reactive Shield', choiceSets: [], choices: {} };
     expect(wizard._isStepComplete('feats')).toBe(true);
+  });
+
+  it('keeps the feat step incomplete for rogues until a level 1 skill feat is selected', () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'ancestry-elf',
+      slug: 'elf',
+      name: 'Elf',
+    };
+    wizard.data.class = {
+      uuid: 'class-rogue',
+      slug: 'rogue',
+      name: 'Rogue',
+    };
+    wizard.data.ancestryFeat = { uuid: 'feat-elven-lore', name: 'Elven Lore', choiceSets: [], choices: {} };
+
+    expect(wizard._isStepComplete('feats')).toBe(false);
+
+    wizard.data.skillFeat = { uuid: 'feat-steady-balance', name: 'Steady Balance', choiceSets: [], choices: {} };
+    expect(wizard._isStepComplete('feats')).toBe(true);
+  });
+
+  it('shows level 1 skill feats in the rogue feat context', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'ancestry-elf',
+      slug: 'elf',
+      name: 'Elf',
+    };
+    wizard.data.class = {
+      uuid: 'class-rogue',
+      slug: 'rogue',
+      name: 'Rogue',
+    };
+
+    wizard._loadCompendiumCategory = jest.fn(async () => [
+      { uuid: 'feat-ancestry', name: 'Elven Lore', level: 1, traits: ['elf'] },
+      { uuid: 'feat-skill', name: 'Steady Balance', level: 1, traits: ['skill'] },
+      { uuid: 'feat-skill-2', name: 'Cat Fall', level: 1, traits: ['general', 'skill'] },
+      { uuid: 'feat-classfeature', name: 'Rogue Feature', level: 1, traits: ['skill', 'classfeature'] },
+    ]);
+
+    const context = await wizard._buildFeatContext();
+
+    expect(context.hasSkillFeat).toBe(true);
+    expect(context.skillFeats.map((feat) => feat.name)).toEqual(['Steady Balance', 'Cat Fall']);
   });
 
   it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {

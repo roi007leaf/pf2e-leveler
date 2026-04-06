@@ -14,6 +14,7 @@ jest.mock('../../../scripts/data/subclass-spells.js', () => ({
 }));
 
 const { resolveSubclassSpells } = jest.requireMock('../../../scripts/data/subclass-spells.js');
+const { getLevelData } = jest.requireMock('../../../scripts/plan/plan-model.js');
 
 describe('level planner spell context', () => {
   test('wizard uses spellbook selections instead of spontaneous slot picks', async () => {
@@ -167,6 +168,46 @@ describe('level planner spell context', () => {
     expect(resolveSubclassSpells).toHaveBeenCalledWith('bloodline-genie', { genie: 'ifrit' }, 5);
     expect(context.grantedSpells).toEqual([
       expect.objectContaining({ uuid: 'granted-rank-5', rank: 5 }),
+    ]);
+  });
+
+  test('spellbook planned spells use base rank when stored rank is any-rank sentinel', async () => {
+    getLevelData.mockReturnValueOnce({
+      spells: [
+        {
+          uuid: 'spell-1',
+          name: 'Acid Grip',
+          img: 'icons/svg/mystery-man.svg',
+          rank: -1,
+          baseRank: 2,
+        },
+      ],
+    });
+
+    const planner = {
+      actor: { items: [] },
+      plan: { classSlug: 'wizard' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const classDef = {
+      slug: 'wizard',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'prepared',
+        slots: {
+          2: { cantrips: 5, 1: 3, 2: 2 },
+        },
+      },
+    };
+
+    const context = await buildSpellContext(planner, classDef, 2);
+
+    expect(context.plannedSpells).toEqual([
+      expect.objectContaining({
+        rank: -1,
+        baseRank: 2,
+        displayRank: 2,
+      }),
     ]);
   });
 });

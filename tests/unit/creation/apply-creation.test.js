@@ -403,4 +403,53 @@ describe('applyCreation ancestry paragon', () => {
       global.CONFIG = originalConfig;
     }
   });
+
+  it('applies a rogue level 1 skill feat during creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'skill-feat-uuid' ? 'Steady Balance' : 'Rogue',
+      toObject: () => ({
+        name: uuid === 'skill-feat-uuid' ? 'Steady Balance' : 'Rogue',
+        type: uuid === 'skill-feat-uuid' ? 'feat' : 'class',
+        system: { level: { value: 1 }, rules: [], description: { value: '' } },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-rogue', name: 'Rogue' },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: { uuid: 'skill-feat-uuid', name: 'Steady Balance', choices: {} },
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Steady Balance',
+        system: expect.objectContaining({ location: 'skill-1' }),
+      }),
+    ]);
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('@UUID[skill-feat-uuid]{Steady Balance}'),
+    }));
+  });
 });

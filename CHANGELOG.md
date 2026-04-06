@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.8
+
+### Improved
+
+- Spell picker filtering is clearer and more complete
+  - Added a proper localized label for the new spell tradition filter in both English and French
+  - Tradition chips now read as a normal UI label instead of exposing the raw localization key
+
+### Fixed
+
+- Level planner custom plan behavior is more stable and readable
+  - Fixed malformed custom-plan template nesting that could push later planner sections out of the main content column
+  - Opening or closing `Custom Level Plan` now preserves the planner scroll position instead of jumping back to the top
+  - Spellbook entries in the planner no longer show `Rank -1` when they were stored with the internal any-rank sentinel; they now display the spell's actual learned/base rank
+- Compendium manager search is more relevant
+  - Pack assignment search no longer matches rows only because a category chip name appears in the row
+- Custom spell picking is more robust
+  - Fixed a spell picker crash when a spell did not expose `system.level.value` in the expected shape
+
 ## 1.4.7
 
 ### Fixed

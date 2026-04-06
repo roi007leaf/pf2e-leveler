@@ -52,6 +52,7 @@ import {
   loadCommanderTactics,
   loadCompendium,
   loadCompendiumCategory,
+  loadAncestries,
   loadDeities,
   loadExemplarIkons,
   loadHeritages,
@@ -157,6 +158,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return (this.data.ancestryFeat?.choiceSets?.length ?? 0) > 0
       || (this.data.ancestryParagonFeat?.choiceSets?.length ?? 0) > 0
       || (this.data.classFeat?.choiceSets?.length ?? 0) > 0
+      || (this.data.skillFeat?.choiceSets?.length ?? 0) > 0
       || (this.data.grantedFeatSections?.length ?? 0) > 0;
   }
 
@@ -670,7 +672,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'featChoices': {
         if (!this._hasFeatChoices()) return true;
         const sections = [
-          ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat]
+          ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.skillFeat]
             .filter(Boolean)
             .map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
@@ -691,7 +693,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'feats':
         return !!this.data.ancestryFeat
           && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat)
-          && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat);
+          && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat)
+          && (!this._needsLevel1SkillFeatSelection() || !!this.data.skillFeat);
       case 'spells': {
         if (!this._needsSpellSelection()) return true;
         const spellHandlerResult = this.classHandler.isStepComplete('spells', this.data);
@@ -707,7 +710,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getStepContext() {
     switch (this.stepId) {
-      case 'ancestry': return { items: (await this._loadCompendiumCategory('ancestries')).filter((i) => i.uuid !== this.data.ancestry?.uuid) };
+      case 'ancestry': return {
+        items: (await this._loadAncestries())
+          .filter((i) => i.type === 'ancestry')
+          .filter((i) => i.uuid !== this.data.ancestry?.uuid),
+      };
       case 'heritage': return { items: (await this._loadHeritages()).filter((i) => i.uuid !== this.data.heritage?.uuid) };
       case 'background': return { items: (await this._loadCompendiumCategory('backgrounds')).filter((i) => i.uuid !== this.data.background?.uuid) };
       case 'class': return { items: (await this._loadCompendiumCategory('classes')).filter((i) => i.uuid !== this.data.class?.uuid) };
@@ -745,6 +752,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           this.data.ancestryFeat ? { source: this.data.ancestryFeat.name, lores: this.data.ancestryFeat.grantedLores ?? [] } : null,
           this.data.ancestryParagonFeat ? { source: this.data.ancestryParagonFeat.name, lores: this.data.ancestryParagonFeat.grantedLores ?? [] } : null,
           this.data.classFeat ? { source: this.data.classFeat.name, lores: this.data.classFeat.grantedLores ?? [] } : null,
+          this.data.skillFeat ? { source: this.data.skillFeat.name, lores: this.data.skillFeat.grantedLores ?? [] } : null,
         ]
           .filter(Boolean)
           .flatMap((entry) => entry.lores.map((name) => ({ name, source: entry.source })));
@@ -794,6 +802,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _loadCompendiumCategory(category) {
     return loadCompendiumCategory(this, category);
+  }
+
+  async _loadAncestries() {
+    return loadAncestries(this);
   }
 
   async _loadDeities() {
@@ -1127,7 +1139,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _refreshAllFeatChoiceData() {
-    for (const feat of [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat]) {
+    for (const feat of [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.skillFeat]) {
       if (!feat?.uuid) continue;
       const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
@@ -1196,7 +1208,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _buildFeatContext() {
-    if (!this.data.ancestry) return { ancestryFeats: [], classFeats: [] };
+    if (!this.data.ancestry) return { ancestryFeats: [], classFeats: [], skillFeats: [] };
 
     const allFeats = await this._loadCompendiumCategory('feats');
     const ancestrySlug = this.data.ancestry.slug ?? null;
@@ -1210,6 +1222,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const selectedAncestryUuid = this.data.ancestryFeat?.uuid;
     const selectedParagonUuid = this.data.ancestryParagonFeat?.uuid;
     const selectedClassUuid = this.data.classFeat?.uuid;
+    const selectedSkillUuid = this.data.skillFeat?.uuid;
     const ancestralParagonEnabled = isAncestralParagonEnabled();
 
     const ancestryFeats = allFeats
@@ -1230,9 +1243,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         .map((f) => ({ ...f, taken: f.uuid === selectedClassUuid }));
     }
 
+    let skillFeats = [];
+    const hasSkillFeat = this._needsLevel1SkillFeatSelection();
+    if (hasSkillFeat) {
+      skillFeats = allFeats
+        .filter((f) => f.traits.includes('skill') && !f.traits.includes('classfeature') && f.level <= 1)
+        .map((f) => ({ ...f, taken: f.uuid === selectedSkillUuid }));
+    }
+
     const availableFeatSubSteps = ['ancestry'];
     if (ancestralParagonEnabled) availableFeatSubSteps.push('paragon');
     if (hasClassFeat) availableFeatSubSteps.push('class');
+    if (hasSkillFeat) availableFeatSubSteps.push('skill');
     if (!availableFeatSubSteps.includes(this.featSubStep)) {
       this.featSubStep = availableFeatSubSteps[0] ?? 'ancestry';
     }
@@ -1240,7 +1262,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       ancestryFeats,
       classFeats,
+      skillFeats,
       hasClassFeat,
+      hasSkillFeat,
       ancestralParagonEnabled,
       featSubStep: this.featSubStep,
       availableFeatSubSteps,
@@ -1265,6 +1289,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const classItem = this.data.class?.uuid ? this._documentCache.get(this.data.class.uuid) : null;
     const classFeatLevels = classItem?.system?.classFeatLevels?.value ?? [];
     return classFeatLevels.includes(1);
+  }
+
+  _needsLevel1SkillFeatSelection() {
+    return this.data.class?.slug === 'rogue';
   }
 }
 

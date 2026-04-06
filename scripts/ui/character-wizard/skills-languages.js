@@ -217,6 +217,12 @@ function buildFutureSkillChoiceMap(wizard) {
         choiceSets: wizard.data.classFeat.choiceSets ?? [],
       }
       : null,
+    wizard.data.skillFeat
+      ? {
+        sourceLabel: wizard.data.skillFeat.name ?? 'Skill Feat',
+        choiceSets: wizard.data.skillFeat.choiceSets ?? [],
+      }
+      : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
       choiceSets: section.choiceSets ?? [],

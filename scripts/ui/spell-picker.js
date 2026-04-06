@@ -26,6 +26,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.filteredSpells = [];
     this.selectedSpellUuids = new Set();
     this.selectedRanks = new Set();
+    this.selectedTraditions = new Set();
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
@@ -69,16 +70,17 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!this._matchesTradition(s)) return false;
         if (this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(s, ownedIdentityKeys)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');
+        const spellRank = getSpellRank(s.system ?? {});
         if (this.isCantrip) return isCantrip;
         if (isCantrip) return false;
         if (this.rank === -1) {
-          if (ownedSelections.has(`${s.uuid}:${s.system.level.value}`) || this.excludedUuids.has(s.uuid)) return false;
-          if (this.maxRank != null) return s.system.level.value >= 1 && s.system.level.value <= this.maxRank;
-          return s.system.level.value >= 1;
+          if (ownedSelections.has(`${s.uuid}:${spellRank}`) || this.excludedUuids.has(s.uuid)) return false;
+          if (this.maxRank != null) return spellRank >= 1 && spellRank <= this.maxRank;
+          return spellRank >= 1;
         }
         if (ownedSelections.has(`${s.uuid}:${this.rank}`) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
-        if (this.exactRank) return s.system.level.value === this.rank;
-        return s.system.level.value <= this.rank;
+        if (this.exactRank) return spellRank === this.rank;
+        return spellRank <= this.rank;
       });
     }
 
@@ -86,6 +88,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._sortSpells(this.filteredSpells);
     const sourceOptions = this._getSourceOptions();
     const rankOptions = this._getRankOptions();
+    const traditionOptions = this._getTraditionOptions();
 
     const allTraits = new Set();
     for (const spell of this.allSpells) {
@@ -96,6 +99,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions,
       rankOptions,
+      traditionOptions,
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
@@ -260,6 +264,24 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           chip.classList.toggle('selected', this.selectedRanks.has(Number(chip.dataset.rank)));
         }
         this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleSpellTradition') {
+        e.preventDefault();
+        e.stopPropagation();
+        const tradition = String(target.dataset.tradition ?? '').trim().toLowerCase();
+        if (!tradition) return;
+        if (this.selectedTraditions.has(tradition)) {
+          if (this.selectedTraditions.size > 1) this.selectedTraditions.delete(tradition);
+        } else {
+          this.selectedTraditions.add(tradition);
+        }
+        for (const chip of el.querySelectorAll('[data-action="toggleSpellTradition"]')) {
+          const chipTradition = String(chip.dataset.tradition ?? '').trim().toLowerCase();
+          chip.classList.toggle('selected', this.selectedTraditions.has(chipTradition));
+        }
+        this._scheduleListUpdate();
       }
     }, { signal });
 
@@ -286,6 +308,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const html = await renderTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions: this._getSourceOptions(),
+      traditionOptions: this._getTraditionOptions(),
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
@@ -313,6 +336,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     let spells = [...this.allSpells];
     if (this.selectedSourcePackages.size > 0) {
       spells = spells.filter((spell) => this.selectedSourcePackages.has(spell.sourcePackage ?? spell.sourcePack));
+    }
+    if (this.selectedTraditions.size > 0) {
+      spells = spells.filter((spell) => {
+        const traditions = getSpellTraditions(spell.system ?? {});
+        return traditions.some((tradition) => this.selectedTraditions.has(tradition));
+      });
     }
     if (this.selectedRanks.size > 0) {
       spells = spells.filter((spell) => this.selectedRanks.has(getSpellRank(spell.system ?? {})));
@@ -511,6 +540,27 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }));
   }
 
+  _getTraditionOptions() {
+    const traditions = [...new Set(
+      this.allSpells.flatMap((spell) => getSpellTraditions(spell.system ?? {})),
+    )].sort((a, b) => a.localeCompare(b));
+
+    if (this.selectedTraditions.size === 0) {
+      this.selectedTraditions = new Set(traditions);
+    } else {
+      this.selectedTraditions = new Set(
+        [...this.selectedTraditions].filter((tradition) => traditions.includes(tradition)),
+      );
+      if (this.selectedTraditions.size === 0) this.selectedTraditions = new Set(traditions);
+    }
+
+    return traditions.map((tradition) => ({
+      value: tradition,
+      label: getTraditionLabel(tradition),
+      selected: this.selectedTraditions.has(tradition),
+    }));
+  }
+
   _getRootElement() {
     const root = this.element;
     if (!root) return null;
@@ -564,6 +614,20 @@ function getSpellRank(system) {
       ?? system?.level?.value
       ?? 0,
   );
+}
+
+function getSpellTraditions(system) {
+  const traditions = system?.traits?.traditions ?? system?.traditions?.value ?? [];
+  return [...new Set(
+    traditions
+      .map((tradition) => String(tradition ?? '').trim().toLowerCase())
+      .filter(Boolean),
+  )];
+}
+
+function getTraditionLabel(tradition) {
+  const key = `PF2E.Trait${tradition.charAt(0).toUpperCase()}${tradition.slice(1)}`;
+  return game.i18n?.has?.(key) ? game.i18n.localize(key) : tradition.charAt(0).toUpperCase() + tradition.slice(1);
 }
 
 function applyTraitFilter(el) {
