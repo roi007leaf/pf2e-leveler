@@ -3521,6 +3521,120 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('supports dedication wording that grants one fallback skill choice per already-trained granted skill', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          occultism: 'Occultism',
+          performance: 'Performance',
+          diplomacy: 'Diplomacy',
+          deception: 'Deception',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['occultism', 'performance'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.bard-dedication',
+      name: 'Bard Dedication',
+      system: {
+        description: {
+          value: `
+            <p>You become trained in Occultism and Performance; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.occultism.rank', value: 1 },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.performance.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+      const fallbackSets = sets.filter((entry) => entry.syntheticType === 'skill-training-fallback');
+
+      expect(fallbackSets).toHaveLength(2);
+      expect(fallbackSets.map((entry) => entry.flag)).toEqual(['levelerSkillFallback1', 'levelerSkillFallback2']);
+      expect(fallbackSets.every((entry) => entry.grantsSkillTraining === true)).toBe(true);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('supports deity-associated dedication skill fallback wording after a feat-owned deity is selected', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          religion: 'Religion',
+          society: 'Society',
+          diplomacy: 'Diplomacy',
+          deception: 'Deception',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['religion', 'society'];
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.deities.Item.abadar') {
+        return {
+          uuid,
+          type: 'deity',
+          name: 'Abadar',
+          system: {
+            skill: 'society',
+          },
+        };
+      }
+      return null;
+    });
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.champion-dedication',
+      name: 'Champion Dedication',
+      system: {
+        description: {
+          value: `
+            <p>You become trained in Religion and your deity's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [
+          {
+            key: 'ChoiceSet',
+            flag: 'deity',
+            prompt: 'Select a deity.',
+            choices: {
+              filter: ['item:type:deity'],
+            },
+          },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.religion.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, { deity: 'Compendium.pf2e.deities.Item.abadar' }, feat);
+      const fallbackSets = sets.filter((entry) => entry.syntheticType === 'skill-training-fallback');
+
+      expect(fallbackSets).toHaveLength(2);
+      expect(fallbackSets.map((entry) => entry.flag)).toEqual(['levelerSkillFallback1', 'levelerSkillFallback2']);
+      expect(fallbackSets.every((entry) => entry.grantsSkillTraining === true)).toBe(true);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('keeps remaining lore fallback skill prompts filtered after one fallback choice is selected', async () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {

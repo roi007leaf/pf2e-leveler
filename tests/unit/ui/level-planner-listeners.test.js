@@ -87,4 +87,35 @@ describe('Level planner skill increase listeners', () => {
     ]);
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
+
+  it('stores planner feat follow-up choices on the selected feat', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="deity" data-value="Compendium.pf2e.deities.Item.abadar"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          2: {
+            archetypeFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.champion-dedication',
+                name: 'Champion Dedication',
+                slug: 'champion-dedication',
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+
+    expect(planner.plan.levels[2].archetypeFeats[0].choices).toEqual({
+      deity: 'Compendium.pf2e.deities.Item.abadar',
+    });
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
 });

@@ -1,6 +1,8 @@
+import { SKILLS } from '../../constants.js';
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
-import { loadCompendiumCategory } from '../character-wizard/loaders.js';
+import { computeBuildState } from '../../plan/build-state.js';
+import { loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -24,6 +26,11 @@ export async function buildLevelContext(planner, classDef, options) {
   const adoptedAncestryOptions = generalFeatIsAdoptedAncestry
     ? await buildAdoptedAncestryOptions(planner, generalFeat)
     : [];
+  const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, extractFeat(levelData.classFeats));
+  const generalFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, generalFeat);
+  const ancestryFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, ancestryFeat);
+  const archetypeFeat = extractFeat(levelData.archetypeFeats);
+  const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
 
   return {
     classFeatures: getClassFeaturesForLevel(planner, level),
@@ -37,21 +44,25 @@ export async function buildLevelContext(planner, classDef, options) {
     intBonusLanguageCount: levelData.intBonusLanguages?.length ?? 0,
     showClassFeat: choiceTypes.has('classFeat'),
     classFeat: annotateFeat(extractFeat(levelData.classFeats)),
+    classFeatChoiceSets,
     showSkillFeat: choiceTypes.has('skillFeat'),
     skillFeat: annotateFeat(extractFeat(levelData.skillFeats)),
     showGeneralFeat: choiceTypes.has('generalFeat'),
     generalFeat,
+    generalFeatChoiceSets,
     showGeneralFeatAdoptedAncestry: generalFeatIsAdoptedAncestry,
     generalFeatAdoptedAncestryOptions: adoptedAncestryOptions,
     selectedGeneralFeatAdoptedAncestry: generalFeat?.choices?.adoptedAncestry ?? generalFeat?.adoptedAncestry ?? '',
     showAncestryFeat: choiceTypes.has('ancestryFeat') && !generalFeatGrantsAncestryFeat,
     ancestryFeat,
+    ancestryFeatChoiceSets,
     showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat,
     generalFeatGrantedAncestryFeat: ancestryFeat,
     showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
     showArchetypeFeat: choiceTypes.has('archetypeFeat'),
-    archetypeFeat: extractFeat(levelData.archetypeFeats),
+    archetypeFeat,
+    archetypeFeatChoiceSets,
     showMythicFeat: choiceTypes.has('mythicFeat'),
     mythicFeat: extractFeat(levelData.mythicFeats),
     showDualClassFeat: choiceTypes.has('dualClassFeat'),
@@ -133,4 +144,168 @@ async function buildAdoptedAncestryOptions(planner, feat) {
       rarity: String(item.rarity ?? 'common').toLowerCase(),
       selected: String(item.slug).toLowerCase() === String(current).toLowerCase(),
     }));
+}
+
+async function buildPlannerFeatChoiceSets(planner, feat) {
+  if (!feat?.uuid) return [];
+
+  const source = await fromUuid(feat.uuid).catch(() => null);
+  const rules = source?.system?.rules ?? [];
+  if (!Array.isArray(rules) || rules.length === 0) return [];
+
+  const choiceSets = [];
+  for (const rule of rules) {
+    if (rule?.key !== 'ChoiceSet' || !isDeityChoiceRule(rule)) continue;
+    const flag = getChoiceSetFlag(rule);
+    if (!flag) continue;
+    choiceSets.push({
+      flag,
+      prompt: localizeRulePrompt(rule),
+      choiceType: 'item',
+      options: await buildDeityChoiceOptions(planner, feat, flag),
+    });
+  }
+
+  if (hasSkillFallbackText(source?.system?.description?.value ?? '')) {
+    const fallbackSets = await buildPlannerSkillFallbackChoiceSets(planner, feat, source);
+    choiceSets.push(...fallbackSets);
+  }
+
+  return choiceSets.filter((entry) => entry.options.length > 0);
+}
+
+async function buildDeityChoiceOptions(planner, feat, flag) {
+  const selected = String(feat?.choices?.[flag] ?? '');
+  const deities = await loadDeities(planner);
+  return deities.map((item) => ({
+    value: item.uuid,
+    label: item.name,
+    img: item.img ?? null,
+    selected: item.uuid === selected,
+  }));
+}
+
+async function buildPlannerSkillFallbackChoiceSets(planner, feat, source) {
+  const grantedSkills = await getGrantedPlannerSkillSlugs(planner, feat, source);
+  if (grantedSkills.length === 0) return [];
+
+  const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
+  const overlaps = grantedSkills.filter((skill) => (buildState.skills?.[skill] ?? 0) >= 1);
+  if (overlaps.length === 0) return [];
+
+  return overlaps.map((skill, index) => {
+    const flag = `levelerSkillFallback${index + 1}`;
+    return {
+      flag,
+      prompt: 'Select a skill.',
+      choiceType: 'skill',
+      options: buildPlannerSkillFallbackOptions(planner, feat, flag, grantedSkills.filter((entry) => entry !== skill)),
+    };
+  });
+}
+
+function buildPlannerSkillFallbackOptions(planner, feat, flag, blockedSkills) {
+  const selected = String(feat?.choices?.[flag] ?? '');
+  const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
+  const selectedElsewhere = new Set(
+    Object.entries(feat?.choices ?? {})
+      .filter(([entryFlag, value]) => /^levelerSkillFallback\d+$/i.test(entryFlag) && entryFlag !== flag && typeof value === 'string')
+      .map(([, value]) => value),
+  );
+  const blocked = new Set(blockedSkills);
+
+  return SKILLS.map((slug) => {
+    const selectedHere = slug === selected;
+    const trained = (buildState.skills?.[slug] ?? 0) >= 1;
+    const disabled = !selectedHere && (trained || blocked.has(slug) || selectedElsewhere.has(slug));
+    return {
+      value: slug,
+      label: localizeSkillSlug(slug),
+      selected: selectedHere,
+      disabled,
+    };
+  }).filter((entry) => !entry.disabled || entry.selected);
+}
+
+function isDeityChoiceRule(rule) {
+  const prompt = localizeRulePrompt(rule).trim().toLowerCase();
+  const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
+  return String(rule?.flag ?? '').toLowerCase() === 'deity'
+    || filterText.includes('item:type:deity')
+    || filterText.includes('item:category:deity')
+    || prompt === 'select a deity.'
+    || prompt === 'select a deity';
+}
+
+function localizeRulePrompt(rule) {
+  const prompt = String(rule?.prompt ?? '');
+  return game.i18n?.has?.(prompt) ? game.i18n.localize(prompt) : prompt;
+}
+
+function getChoiceSetFlag(rule) {
+  if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
+  if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
+  return null;
+}
+
+async function getGrantedPlannerSkillSlugs(planner, feat, source) {
+  const skills = new Set(
+    [...(feat?.skillRules ?? []), ...(feat?.dynamicSkillRules ?? [])]
+      .map((rule) => rule?.skill)
+      .filter((skill) => SKILLS.includes(skill)),
+  );
+
+  if (sourceHasDeityAssociatedSkill(source)) {
+    const deityUuid = feat?.choices?.deity ?? null;
+    const deitySkill = await resolvePlannerDeitySkill(planner, deityUuid);
+    syncFeatDynamicSkillRules(feat, true, deitySkill);
+    if (SKILLS.includes(deitySkill)) skills.add(deitySkill);
+  }
+
+  return [...skills];
+}
+
+async function resolvePlannerDeitySkill(planner, deityUuid) {
+  if (typeof deityUuid !== 'string' || deityUuid.length === 0) return null;
+  const deities = await loadDeities(planner);
+  return deities.find((entry) => entry.uuid === deityUuid)?.skill ?? null;
+}
+
+function sourceHasDeityAssociatedSkill(entry) {
+  const description = String(entry?.system?.description?.value ?? entry?.description ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  return /\byour deity'?s associated skill\b/.test(description);
+}
+
+function hasSkillFallbackText(html) {
+  const description = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!description) return false;
+
+  return [
+    /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
+    /for each of these skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+  ].some((pattern) => pattern.test(description));
+}
+
+function syncFeatDynamicSkillRules(feat, shouldAdd, deitySkill) {
+  if (!feat) return;
+  const otherRules = (feat.dynamicSkillRules ?? []).filter((rule) => rule?.source !== 'deity-associated-skill');
+  if (shouldAdd && SKILLS.includes(deitySkill)) {
+    otherRules.push({ skill: deitySkill, value: 1, source: 'deity-associated-skill' });
+  }
+  feat.dynamicSkillRules = otherRules;
+}
+
+function localizeSkillSlug(slug) {
+  const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+  const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
+  return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
 }

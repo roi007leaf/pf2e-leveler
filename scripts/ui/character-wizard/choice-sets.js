@@ -556,7 +556,7 @@ export async function getPendingChoices(wizard) {
 export async function parseChoiceSets(wizard, rules, currentChoices = {}, sourceItem = null) {
   const allRules = [
     ...(rules ?? []),
-    ...await buildSyntheticChoiceSetRules(wizard, rules ?? [], sourceItem),
+    ...await buildSyntheticChoiceSetRules(wizard, rules ?? [], currentChoices, sourceItem),
   ];
   const sets = [];
   for (const [index, rule] of allRules.entries()) {
@@ -585,12 +585,12 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
   return sets;
 }
 
-async function buildSyntheticChoiceSetRules(wizard, rules, sourceItem) {
+async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourceItem) {
   if (!sourceItem) return [];
 
-  if (!hasAncestryLoreSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return [];
+  if (!hasSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return [];
 
-  const grantedSkills = extractGrantedTrainedSkills(rules);
+  const grantedSkills = await extractGrantedTrainedSkills(wizard, rules, currentChoices, sourceItem);
   if (grantedSkills.length === 0) return [];
 
   const skillContext = await buildSkillContext(wizard);
@@ -617,7 +617,7 @@ async function buildSyntheticChoiceSetRules(wizard, rules, sourceItem) {
   }));
 }
 
-function hasAncestryLoreSkillFallbackText(html) {
+function hasSkillFallbackText(html) {
   const description = String(html ?? '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -626,11 +626,14 @@ function hasAncestryLoreSkillFallbackText(html) {
 
   if (!description) return false;
 
-  return /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/.test(description);
+  return [
+    /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
+    /for each of these skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+  ].some((pattern) => pattern.test(description));
 }
 
-function extractGrantedTrainedSkills(rules) {
-  const skills = [];
+async function extractGrantedTrainedSkills(wizard, rules, currentChoices = {}, sourceItem = null) {
+  const skills = new Set();
 
   for (const rule of (rules ?? [])) {
     if (rule?.key !== 'ActiveEffectLike') continue;
@@ -638,10 +641,51 @@ function extractGrantedTrainedSkills(rules) {
     if (!match) continue;
     if (Number(rule?.value) < 1) continue;
     if (!SKILLS.includes(match[1])) continue;
-    skills.push(match[1]);
+    skills.add(match[1]);
   }
 
-  return [...new Set(skills)];
+  const description = String(sourceItem?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (/\byour deity'?s associated skill\b/.test(description)) {
+    const deitySkill = await resolveAssociatedDeitySkill(wizard, rules, currentChoices);
+    if (SKILLS.includes(deitySkill)) skills.add(deitySkill);
+  }
+
+  return [...skills];
+}
+
+async function resolveAssociatedDeitySkill(wizard, rules, currentChoices = {}) {
+  const deityChoiceRule = (rules ?? []).find((rule) => rule?.key === 'ChoiceSet' && isDeityChoiceRule(rule));
+  const deityChoiceFlag = deityChoiceRule ? getChoiceSetFlag(deityChoiceRule) : null;
+  const selectedDeityUuid = deityChoiceFlag ? currentChoices?.[deityChoiceFlag] : null;
+
+  if (typeof selectedDeityUuid === 'string' && selectedDeityUuid !== '[object Object]') {
+    const deityItem = await resolveDocument(wizard, selectedDeityUuid);
+    const deitySkill = deityItem?.system?.skill ?? null;
+    if (SKILLS.includes(deitySkill)) return deitySkill;
+  }
+
+  return wizard?.data?.deity?.skill ?? null;
+}
+
+function isDeityChoiceRule(rule) {
+  if (!rule || typeof rule !== 'object') return false;
+
+  const prompt = String(rule.prompt ?? '').toLowerCase();
+  const localizedPrompt = game.i18n?.has?.(rule.prompt)
+    ? game.i18n.localize(rule.prompt).trim().toLowerCase()
+    : prompt.trim();
+  const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
+
+  return rule.flag === 'deity'
+    || filterText.includes('item:type:deity')
+    || filterText.includes('item:category:deity')
+    || localizedPrompt === 'select a deity.'
+    || localizedPrompt === 'select a deity';
 }
 
 async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {

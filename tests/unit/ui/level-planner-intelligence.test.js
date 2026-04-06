@@ -299,6 +299,42 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     ]);
   });
 
+  it('extracts textual trained-or-expert dedication skill rules', async () => {
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          intimidation: 'Intimidation',
+        },
+      },
+    };
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.blackjacket-dedication',
+      system: {
+        description: {
+          value: `
+            <p>You become trained in Intimidation; if you were already trained, you become an expert instead.</p>
+          `,
+        },
+        rules: [
+          {
+            key: 'ActiveEffectLike',
+            path: 'system.skills.intimidation.rank',
+            value: 1,
+          },
+        ],
+      },
+    };
+
+    const result = await extractFeatSkillRules(feat, async () => null);
+
+    expect(result).toEqual([
+      { skill: 'intimidation', value: 1, valueIfAlreadyTrained: 2, predicate: null },
+    ]);
+  });
+
   it('flags older saved feat skill rules for backfill when their version is stale', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';
@@ -313,7 +349,7 @@ describe('LevelPlanner intelligence boost planner choices', () => {
         { skill: 'acrobatics', value: 2 },
       ],
       skillRulesResolved: true,
-      skillRulesVersion: 1,
+      skillRulesVersion: 2,
     }];
 
     planner._migratePlan(planner.plan, 'alchemist');

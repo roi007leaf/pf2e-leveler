@@ -44,7 +44,7 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats']);
-const FEAT_SKILL_RULES_VERSION = 2;
+const FEAT_SKILL_RULES_VERSION = 3;
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -72,6 +72,101 @@ function extractDirectFeatSkillRules(feat) {
   return result;
 }
 
+function extractTextualFeatSkillRules(feat) {
+  const description = String(feat?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!description) return [];
+
+  const rules = [];
+  const conditionalUpgradePattern = /become trained in ([^.;]+?); if you were already trained, you become an expert instead\.?/gi;
+
+  for (const match of description.matchAll(conditionalUpgradePattern)) {
+    const skills = resolveSkillSlugsFromText(match[1]);
+    for (const skill of skills) {
+      rules.push({
+        skill,
+        value: 1,
+        valueIfAlreadyTrained: 2,
+        predicate: null,
+      });
+    }
+  }
+
+  return rules;
+}
+
+function resolveSkillSlugsFromText(text) {
+  const lookup = getSkillTextLookup();
+  const normalized = String(text ?? '')
+    .replace(/\b(?:the|a|an)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return [];
+
+  const segments = normalized
+    .split(/\s*(?:,| and )\s*/i)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  const skills = [];
+  for (const segment of segments) {
+    const skill = lookup.get(normalizeSkillText(segment));
+    if (skill) skills.push(skill);
+  }
+
+  return [...new Set(skills)];
+}
+
+function getSkillTextLookup() {
+  const skills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  const lookup = new Map();
+  const aliases = {
+    acr: 'acrobatics',
+    arc: 'arcana',
+    ath: 'athletics',
+    cra: 'crafting',
+    dec: 'deception',
+    dip: 'diplomacy',
+    itm: 'intimidation',
+    med: 'medicine',
+    nat: 'nature',
+    occ: 'occultism',
+    prf: 'performance',
+    rel: 'religion',
+    soc: 'society',
+    ste: 'stealth',
+    sur: 'survival',
+    thi: 'thievery',
+  };
+
+  for (const [key, rawEntry] of Object.entries(skills)) {
+    const canonical = aliases[key] ?? key;
+    const rawLabel = typeof rawEntry === 'string' ? rawEntry : (rawEntry?.label ?? key);
+    const localized = game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+    for (const candidate of [key, canonical, rawLabel, localized]) {
+      const normalized = normalizeSkillText(candidate);
+      if (normalized) lookup.set(normalized, canonical);
+    }
+  }
+
+  for (const [alias, canonical] of Object.entries(aliases)) {
+    lookup.set(normalizeSkillText(alias), canonical);
+    lookup.set(normalizeSkillText(canonical), canonical);
+  }
+
+  return lookup;
+}
+
+function normalizeSkillText(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^pf2e\.skill/i, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
 export async function extractFeatSkillRules(feat, documentResolver = fromUuid, visited = new Set()) {
   if (!feat) return [];
 
@@ -79,7 +174,10 @@ export async function extractFeatSkillRules(feat, documentResolver = fromUuid, v
   if (featId && visited.has(featId)) return [];
   if (featId) visited.add(featId);
 
-  const results = [...extractDirectFeatSkillRules(feat)];
+  const results = mergeFeatSkillRules(
+    extractDirectFeatSkillRules(feat),
+    extractTextualFeatSkillRules(feat),
+  );
 
   for (const rule of feat.system?.rules ?? []) {
     if (rule?.key !== 'GrantItem' || typeof rule.uuid !== 'string' || !documentResolver) continue;
@@ -94,6 +192,24 @@ export async function extractFeatSkillRules(feat, documentResolver = fromUuid, v
       }
     } catch {
       continue;
+    }
+  }
+
+  return results;
+}
+
+function mergeFeatSkillRules(baseRules, textRules) {
+  const results = [...(baseRules ?? [])];
+
+  for (const textRule of (textRules ?? [])) {
+    const index = results.findIndex((entry) =>
+      entry.skill === textRule.skill
+      && JSON.stringify(entry.predicate ?? null) === JSON.stringify(textRule.predicate ?? null));
+
+    if (index >= 0) {
+      results[index] = { ...results[index], ...textRule };
+    } else {
+      results.push(textRule);
     }
   }
 

@@ -80,7 +80,7 @@ function getPlannedLevelsInRange(plan, startLevel, endLevel) {
 async function createLevelUpMessage(actor, level, applied) {
   const sections = [];
 
-  const feats = applied.feats.map((f) => f.name ?? 'Unknown').filter(Boolean);
+  const feats = applied.feats.map((f) => formatChatLink(f)).filter(Boolean);
   if (feats.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.FEATS_SELECTED'), feats));
   }
@@ -102,7 +102,7 @@ async function createLevelUpMessage(actor, level, applied) {
     sections.push(buildChatSection('Ability Boosts', boosts));
   }
 
-  const spells = applied.spells?.map((s) => `${s.name}${s.rank ? ` (${s.rank})` : ''}`).filter(Boolean) ?? [];
+  const spells = applied.spells?.map((s) => `${formatChatLink(s)}${s.rank ? ` (${s.rank})` : ''}`).filter(Boolean) ?? [];
   if (spells.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.SPELLS_ADDED'), spells));
   }
@@ -160,8 +160,8 @@ function buildChatSection(label, entries) {
   return `
     <div style="padding:10px 12px; background:rgba(255,255,255,0.72); border:1px solid rgba(0,0,0,0.08); border-radius:10px;">
       <div style="font-size:11px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:#666; margin-bottom:6px;">${label}</div>
-      <div style="display:flex; flex-wrap:wrap; gap:6px;">
-        ${entries.map((entry) => `<span style="display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; background:#f1efe7; border:1px solid rgba(0,0,0,0.08); font-size:12px; font-weight:600; color:#222;">${entry}</span>`).join('')}
+      <div style="display:flex; flex-wrap:wrap; gap:6px; min-width:0;">
+        ${entries.map((entry) => `<span style="display:inline-flex; align-items:center; min-width:0; max-width:100%; padding:4px 8px; border-radius:999px; background:#f1efe7; border:1px solid rgba(0,0,0,0.08); font-size:12px; font-weight:600; color:#222; overflow-wrap:anywhere; word-break:break-word;">${entry}</span>`).join('')}
       </div>
     </div>
   `;
@@ -179,4 +179,12 @@ function localizeLanguageSlug(slug) {
   const raw = CONFIG.PF2E?.languages?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   return game.i18n?.has?.(label) ? game.i18n.localize(label) : label;
+}
+
+function formatChatLink(entry) {
+  if (!entry) return '';
+  const uuid = typeof entry.uuid === 'string' ? entry.uuid : (typeof entry.sourceId === 'string' ? entry.sourceId : null);
+  const name = typeof entry.name === 'string' ? entry.name : uuid ?? '';
+  if (!uuid || !name) return name;
+  return `@UUID[${uuid}]{${name}}`;
 }

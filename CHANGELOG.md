@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.4
+
+### Improved
+
+- Chat summaries are easier to use and read
+  - Character creation and planned level-up chat messages now render item-backed selections such as ancestry, heritage, background, class, subclass, feats, spells, and deity choices as clickable Foundry content links
+  - Long linked values and granted-feat choice rows now wrap more cleanly in the chat sidebar instead of being cut off
+- Level planner follow-up choices now cover more feat-specific cases
+  - Planned feats such as `Champion Dedication` can now show deity follow-up choices directly under the feat card
+  - Planner feat overlap wording such as `...you instead become trained in a skill of your choice` now surfaces replacement skill choices and applies the selected fallback training in build state
+
+### Fixed
+
+- Mixed `Item` compendiums can now be enabled in more than one content category
+  - A single compendium pack that genuinely contains multiple supported item kinds, such as feats and spells together, now appears in each matching category in the compendium settings
+  - Existing safety checks for obviously misclassified packs are still preserved for pure non-feat or non-action packs
+
 ## 1.4.3
 
 ### Fixed

@@ -444,4 +444,148 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     ]);
     expect(context.generalFeatAdoptedAncestryOptions).toHaveLength(2);
   });
+
+  it('shows a deity selector under planner feats that require a deity choice', async () => {
+    const originalFromUuid = global.fromUuid;
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.champion-dedication',
+      slug: 'champion-dedication',
+      name: 'Champion Dedication',
+      level: 2,
+      choices: { deity: 'Compendium.pf2e.deities.Item.abadar' },
+    }];
+    planner._compendiumCache.deities = [
+      { uuid: 'Compendium.pf2e.deities.Item.abadar', name: 'Abadar', img: 'abadar.webp', type: 'deity', category: 'deity' },
+      { uuid: 'Compendium.pf2e.deities.Item.sarenrae', name: 'Sarenrae', img: 'sarenrae.webp', type: 'deity', category: 'deity' },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.champion-dedication') {
+        return {
+          uuid,
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'deity',
+                prompt: 'Select a deity.',
+                choices: {
+                  filter: ['item:type:deity'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.archetypeFeatChoiceSets).toEqual([
+        expect.objectContaining({
+          flag: 'deity',
+          prompt: 'Select a deity.',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.abadar', selected: true, img: 'abadar.webp' }),
+            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.sarenrae', selected: false, img: 'sarenrae.webp' }),
+          ]),
+        }),
+      ]);
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          religion: 'Religion',
+          society: 'Society',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          religion: { rank: 1 },
+          society: { rank: 0 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.champion-dedication',
+      slug: 'champion-dedication',
+      name: 'Champion Dedication',
+      level: 2,
+      choices: { deity: 'Compendium.pf2e.deities.Item.abadar' },
+      skillRules: [{ skill: 'religion', value: 1 }],
+    }];
+    planner._compendiumCache.deities = [
+      { uuid: 'Compendium.pf2e.deities.Item.abadar', name: 'Abadar', img: 'abadar.webp', type: 'deity', category: 'deity', skill: 'society' },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.champion-dedication') {
+        return {
+          uuid,
+          system: {
+            description: {
+              value: "<p>You become trained in Religion and your deity's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'deity',
+                prompt: 'Select a deity.',
+                choices: { filter: ['item:type:deity'] },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({ flag: 'deity', choiceType: 'item' }),
+        expect.objectContaining({
+          flag: 'levelerSkillFallback1',
+          prompt: 'Select a skill.',
+          choiceType: 'skill',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'deception', disabled: false }),
+          ]),
+        }),
+      ]));
+      expect(context.archetypeFeatChoiceSets.find((entry) => entry.flag === 'levelerSkillFallback1').options.some((entry) => entry.value === 'religion')).toBe(false);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
 });

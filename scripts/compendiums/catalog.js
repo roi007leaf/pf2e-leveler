@@ -31,7 +31,7 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS',
     defaultKeys: ['pf2e.feats-srd'],
     matches: (pack, index) => isItemPack(pack)
-      && !hasNonFeatPackIdentity(pack)
+      && (!hasNonFeatPackIdentity(pack) || hasAdditionalRecognizedContent(index, 'feats'))
       && index.some((entry) => isFeatIndexEntry(entry)),
   },
   classFeatures: {
@@ -53,7 +53,7 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.ACTIONS',
     defaultKeys: ['pf2e.actionspf2e'],
     matches: (pack, index) => isItemPack(pack)
-      && !hasNonActionPackIdentity(pack)
+      && (!hasNonActionPackIdentity(pack) || hasAdditionalRecognizedContent(index, 'actions'))
       && index.some((entry) => entry.type === 'action'),
   },
   deities: {
@@ -308,6 +308,29 @@ function hasDeityLikePackIdentity(pack) {
   if (!haystack) return false;
   if (/\bfeat(?:s)?\b/.test(haystack)) return false;
   return /\bdeit(?:y|ies)\b|\bdomain(?:s)?\b|\bdivine intercession(?:s)?\b/.test(haystack);
+}
+
+function hasAdditionalRecognizedContent(index, category) {
+  const categories = new Set();
+
+  for (const entry of index ?? []) {
+    const type = getNormalizedEntryType(entry);
+    const entryCategory = getNormalizedEntryCategory(entry);
+
+    if (type === 'ancestry') categories.add('ancestries');
+    else if (type === 'heritage') categories.add('heritages');
+    else if (type === 'background') categories.add('backgrounds');
+    else if (type === 'class') categories.add('classes');
+    else if (type === 'spell') categories.add('spells');
+    else if (type === 'action') categories.add('actions');
+    else if (type === 'deity') categories.add('deities');
+    else if (EQUIPMENT_TYPES.has(type)) categories.add('equipment');
+    else if (isClassFeatureIndexEntry(entry) || entryCategory === 'classfeature' || entryCategory === 'class-feature') categories.add('classFeatures');
+    else if (isFeatIndexEntry(entry)) categories.add('feats');
+  }
+
+  categories.delete(category);
+  return categories.size > 0;
 }
 
 function getPackIdentityText(pack) {

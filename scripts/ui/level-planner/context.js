@@ -176,7 +176,7 @@ function findSkillGrantingFeatName(plan, skillSlug, atLevel) {
 
     for (const key of FEAT_KEYS) {
       for (const feat of levelData[key] ?? []) {
-        for (const rule of feat.skillRules ?? []) {
+        for (const rule of [...(feat.skillRules ?? []), ...(feat.dynamicSkillRules ?? [])]) {
           if (rule?.skill !== skillSlug) continue;
           return feat.name ?? null;
         }

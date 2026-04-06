@@ -307,17 +307,33 @@ export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = l
 
   for (const key of FEAT_KEYS) {
     for (const feat of levelData[key] ?? []) {
-      for (const rule of feat.skillRules ?? []) {
+      for (const rule of getPlannedFeatSkillRules(feat)) {
         if (!matchesRuleAtLevel(rule, atLevel)) continue;
         if (!SKILLS.includes(rule.skill)) continue;
-        const value = evaluateRuleNumericValue(rule.value, atLevel, feat);
+        const currentRank = skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED;
+        const valueSource = currentRank >= PROFICIENCY_RANKS.TRAINED && rule.valueIfAlreadyTrained != null
+          ? rule.valueIfAlreadyTrained
+          : rule.value;
+        const value = evaluateRuleNumericValue(valueSource, atLevel, feat);
         if (!Number.isFinite(value)) continue;
-        skills[rule.skill] = Math.max(skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED, value);
+        skills[rule.skill] = Math.max(currentRank, value);
+      }
+
+      for (const [flag, selected] of Object.entries(feat?.choices ?? {})) {
+        if (!/^levelerSkillFallback\d+$/i.test(flag)) continue;
+        if (!SKILLS.includes(selected)) continue;
+        skills[selected] = Math.max(skills[selected] ?? PROFICIENCY_RANKS.UNTRAINED, PROFICIENCY_RANKS.TRAINED);
       }
     }
   }
 
   return skills;
+}
+
+function getPlannedFeatSkillRules(feat) {
+  const base = Array.isArray(feat?.skillRules) ? feat.skillRules : [];
+  const dynamic = Array.isArray(feat?.dynamicSkillRules) ? feat.dynamicSkillRules : [];
+  return [...base, ...dynamic];
 }
 
 function computeProficiencies(actor, classDef, atLevel) {

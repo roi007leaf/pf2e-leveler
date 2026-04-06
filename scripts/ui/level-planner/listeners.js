@@ -46,6 +46,19 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelectorAll('[data-action="selectPlannedFeatChoice"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const levelData = getLevelData(planner.plan, planner.selectedLevel);
+      const category = button.dataset.category;
+      const flag = button.dataset.flag;
+      const value = button.dataset.value;
+      const feat = category ? levelData?.[category]?.[0] : null;
+      if (!feat || !flag || !value) return;
+      feat.choices = { ...(feat.choices ?? {}), [flag]: value };
+      planner._savePlanAndRender();
+    });
+  });
+
   el.querySelectorAll('[data-action="viewFeat"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();

@@ -58,6 +58,31 @@ describe('compendium catalog helpers', () => {
     expect(discovered.deities.map((pack) => pack.key)).toContain('my.deities');
   });
 
+  test('allows mixed compendiums to appear in multiple categories when their index contains multiple item kinds', async () => {
+    game.packs = new Map([
+      ['my.player-options', {
+        collection: 'my.player-options',
+        metadata: {
+          id: 'my.player-options',
+          label: 'Player Options',
+          name: 'player-options',
+          path: 'packs/player-options',
+          type: 'Item',
+          packageName: 'my-module',
+        },
+        getIndex: jest.fn(async () => [
+          { type: 'feat', system: { category: 'general' } },
+          { type: 'spell' },
+        ]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory();
+
+    expect(discovered.feats.map((pack) => pack.key)).toContain('my.player-options');
+    expect(discovered.spells.map((pack) => pack.key)).toContain('my.player-options');
+  });
+
   test('detects class feature packs by PF2E item category instead of pack name', async () => {
     game.packs = new Map([
       ['teamplus.player-options', {

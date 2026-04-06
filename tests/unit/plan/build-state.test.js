@@ -132,6 +132,28 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 15).skills.acrobatics).toBe(4);
   });
 
+  test('applies textual trained-or-expert feat skill rules based on current rank', () => {
+    setLevelFeat(plan, 2, 'archetypeFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.blackjacket-dedication',
+      name: 'Blackjacket Dedication',
+      slug: 'blackjacket-dedication',
+      skillRules: [
+        {
+          skill: 'intimidation',
+          value: 1,
+          valueIfAlreadyTrained: 2,
+        },
+      ],
+      skillRulesResolved: true,
+    });
+
+    mockActor.system.skills.intimidation.rank = 0;
+    expect(computeBuildState(mockActor, plan, 2).skills.intimidation).toBe(1);
+
+    mockActor.system.skills.intimidation.rank = 1;
+    expect(computeBuildState(mockActor, plan, 2).skills.intimidation).toBe(2);
+  });
+
   test('applies Intelligence bonus skill training before same-level skill increases', () => {
     toggleLevelIntBonusSkill(plan, 5, 'athletics');
     setLevelSkillIncrease(plan, 5, { skill: 'athletics', toRank: 2 });
@@ -365,5 +387,36 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.deity?.domains?.has('fire')).toBe(true);
     expect(state.deity?.domains?.has('sun')).toBe(true);
+  });
+
+  test('applies planned feat fallback skill choices as trained skills', () => {
+    const actor = createMockActor({
+      system: {
+        details: { level: { value: 1 } },
+        skills: {
+          deception: { rank: 0 },
+        },
+      },
+    });
+
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.champion-dedication',
+              name: 'Champion Dedication',
+              slug: 'champion-dedication',
+              choices: {
+                levelerSkillFallback1: 'deception',
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(actor, plan, 2);
+    expect(state.skills.deception).toBe(1);
   });
 });

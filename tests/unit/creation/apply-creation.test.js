@@ -298,13 +298,13 @@ describe('applyCreation ancestry paragon', () => {
       ancestry: null,
       heritage: null,
       background: null,
-      class: null,
+      class: { uuid: 'class-uuid', name: 'Champion' },
       deity: { uuid: 'deity-uuid', name: 'Abadar', skill: 'society' },
       boosts: { free: [] },
       languages: [],
       skills: [],
       lores: [],
-      ancestryFeat: null,
+      ancestryFeat: { uuid: 'feat-uuid', name: 'Natural Ambition', choices: {} },
       ancestryParagonFeat: null,
       classFeat: null,
       subclass: null,
@@ -313,6 +313,15 @@ describe('applyCreation ancestry paragon', () => {
     });
 
     expect(actor.update).toHaveBeenCalledWith({ 'system.skills.society.rank': 1 });
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('@UUID[class-uuid]{Champion}'),
+    }));
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('@UUID[deity-uuid]{Abadar}'),
+    }));
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('@UUID[feat-uuid]{Natural Ambition}'),
+    }));
   });
 
   it('trains a selected synthetic feat fallback skill during creation', async () => {
