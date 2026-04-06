@@ -572,4 +572,71 @@ describe('_getPendingChoices', () => {
     expect(choices.find((c) => c.prompt.includes('KineticGate.Prompt.Element'))).toBeUndefined();
     expect(choices.find((c) => c.prompt.includes('KineticGate.Prompt.Impulse'))).toBeUndefined();
   });
+
+  it('includes stored synthetic feat choice prompts in pending choices', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arcana: 'Arcana',
+          athletics: 'Athletics',
+        },
+      },
+    };
+
+    const wizard = createWizard({
+      ancestryFeat: {
+        uuid: 'Compendium.pf2e.feats-srd.Item.elven-lore',
+        name: 'Elven Lore',
+        choiceSets: [
+          {
+            flag: 'levelerSkillFallback1',
+            prompt: 'Select a skill.',
+            grantsSkillTraining: true,
+            options: [
+              { value: 'arcana', label: 'Arcana' },
+              { value: 'athletics', label: 'Athletics' },
+            ],
+          },
+        ],
+        choices: {},
+      },
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.elven-lore') {
+        return {
+          uuid,
+          name: 'Elven Lore',
+          system: {
+            rules: [
+              { key: 'ActiveEffectLike', path: 'system.skills.arcana.rank', value: 1 },
+              { key: 'ActiveEffectLike', path: 'system.skills.nature.rank', value: 1 },
+            ],
+            items: {},
+          },
+        };
+      }
+
+      return {
+        uuid,
+        name: 'Mock',
+        system: { rules: [], items: {} },
+      };
+    });
+
+    try {
+      const choices = await wizard._getPendingChoices();
+      expect(choices).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          source: 'Elven Lore',
+          prompt: 'Select a skill.',
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
 });

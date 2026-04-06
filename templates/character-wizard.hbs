@@ -982,10 +982,10 @@
               <div class="wizard-feat-slot">
                 <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'ancestry')}}active{{/if}}" data-action="featSubStep" data-substep="ancestry">
                   <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</span>
-                  {{#if data.ancestryFeat}}
-                  <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryFeat.uuid}}">{{data.ancestryFeat.name}}</span>
-                  {{/if}}
                 </button>
+                {{#if data.ancestryFeat}}
+                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryFeat.uuid}}">{{data.ancestryFeat.name}}</span>
+                {{/if}}
                 {{#if data.ancestryFeat}}
                 <button type="button" class="wizard-feat-slot__clear" data-action="clearAncestryFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
                   <i class="fa-solid fa-xmark"></i>
@@ -996,10 +996,10 @@
               <div class="wizard-feat-slot">
                 <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'paragon')}}active{{/if}}" data-action="featSubStep" data-substep="paragon">
                   <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)</span>
-                  {{#if data.ancestryParagonFeat}}
-                  <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
-                  {{/if}}
                 </button>
+                {{#if data.ancestryParagonFeat}}
+                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
+                {{/if}}
                 {{#if data.ancestryParagonFeat}}
                 <button type="button" class="wizard-feat-slot__clear" data-action="clearAncestryParagonFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
                   <i class="fa-solid fa-xmark"></i>
@@ -1011,10 +1011,10 @@
               <div class="wizard-feat-slot">
                 <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'class')}}active{{/if}}" data-action="featSubStep" data-substep="class">
                   <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</span>
-                  {{#if data.classFeat}}
-                  <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.classFeat.uuid}}">{{data.classFeat.name}}</span>
-                  {{/if}}
                 </button>
+                {{#if data.classFeat}}
+                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.classFeat.uuid}}">{{data.classFeat.name}}</span>
+                {{/if}}
                 {{#if data.classFeat}}
                 <button type="button" class="wizard-feat-slot__clear" data-action="clearClassFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
                   <i class="fa-solid fa-xmark"></i>

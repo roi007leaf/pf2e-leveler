@@ -147,6 +147,28 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.ancestryFeats.map((feat) => feat.name)).toEqual(['Natural Ambition', 'Rock Runner']);
   });
 
+  it('keeps the feat step incomplete when a level 1 class feat is required but not selected yet', () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'ancestry-elf',
+      slug: 'elf',
+      name: 'Elf',
+    };
+    wizard.data.class = {
+      uuid: 'class-fighter',
+      slug: 'fighter',
+      name: 'Fighter',
+    };
+    wizard.data.ancestryFeat = { uuid: 'feat-elven-lore', name: 'Elven Lore', choiceSets: [], choices: {} };
+    wizard._cachedHasClassFeatAtLevel1 = true;
+
+    expect(wizard._isStepComplete('feats')).toBe(false);
+
+    wizard.data.classFeat = { uuid: 'feat-reactive-shield', name: 'Reactive Shield', choiceSets: [], choices: {} };
+    expect(wizard._isStepComplete('feats')).toBe(true);
+  });
+
   it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {
     const options = buildCompendiumSourceOptions('summary', {
       items: [

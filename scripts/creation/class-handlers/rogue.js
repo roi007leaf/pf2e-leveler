@@ -9,19 +9,20 @@ const ROGUE_RACKET_KEY_ABILITIES = {
 
 export class RogueHandler extends BaseClassHandler {
   async getKeyAbilityOptions(data, classDef) {
+    const baseOptions = classDef?.keyAbility ?? ['dex'];
     const subclassSlug = data.subclass?.slug ?? '';
 
     if (ROGUE_RACKET_KEY_ABILITIES[subclassSlug]) {
-      return ROGUE_RACKET_KEY_ABILITIES[subclassSlug];
+      return [...new Set([...baseOptions, ...ROGUE_RACKET_KEY_ABILITIES[subclassSlug]])];
     }
 
     if (subclassSlug === 'eldritch-trickster') {
       const dedicationOptions = await this._getEldritchTricksterDedicationKeyAbilities(data);
-      if (dedicationOptions.length > 0) return dedicationOptions;
-      return [];
+      if (dedicationOptions.length > 0) return [...new Set([...baseOptions, ...dedicationOptions])];
+      return baseOptions;
     }
 
-    return classDef?.keyAbility ?? ['dex'];
+    return baseOptions;
   }
 
   async _getEldritchTricksterDedicationKeyAbilities(data) {

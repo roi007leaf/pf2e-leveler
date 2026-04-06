@@ -1,4 +1,4 @@
-import { getAdditionalSelectedItems } from '../../../scripts/creation/apply-creation.js';
+import { getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
 import { applyCreation } from '../../../scripts/creation/apply-creation.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
@@ -188,6 +188,31 @@ describe('getAdditionalSelectedItems', () => {
   });
 });
 
+describe('getAdditionalSelectedSkills', () => {
+  it('collects selected synthetic feat skill-training choices', () => {
+    const skills = getAdditionalSelectedSkills({
+      ancestryFeat: {
+        choiceSets: [
+          {
+            flag: 'levelerSkillFallback1',
+            grantsSkillTraining: true,
+            options: [
+              { value: 'athletics', label: 'Athletics' },
+            ],
+          },
+        ],
+        choices: {
+          levelerSkillFallback1: 'athletics',
+        },
+      },
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(skills).toEqual(['athletics']);
+  });
+});
+
 describe('applyCreation ancestry paragon', () => {
   it('applies the extra level-1 ancestry feat to the ancestry paragon location', async () => {
     game.settings.get = jest.fn((scope, key) => {
@@ -288,5 +313,85 @@ describe('applyCreation ancestry paragon', () => {
     });
 
     expect(actor.update).toHaveBeenCalledWith({ 'system.skills.society.rank': 1 });
+  });
+
+  it('trains a selected synthetic feat fallback skill during creation', async () => {
+    game.settings.get = jest.fn(() => false);
+    const originalConfig = global.CONFIG;
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          athletics: { rank: 0 },
+        },
+        details: {
+          languages: { value: [] },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async (updates) => {
+      if (Object.prototype.hasOwnProperty.call(updates, 'system.skills.athletics.rank')) {
+        actor.system.skills.athletics.rank = updates['system.skills.athletics.rank'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          athletics: 'Athletics',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Elven Lore',
+      toObject: () => ({
+        name: 'Elven Lore',
+        type: 'feat',
+        system: { level: { value: 1 }, rules: [], description: { value: '' } },
+      }),
+    }));
+
+    try {
+      await applyCreation(actor, {
+        ancestry: null,
+        heritage: null,
+        background: null,
+        class: null,
+        boosts: { free: [] },
+        languages: [],
+        skills: [],
+        lores: [],
+        ancestryFeat: {
+          uuid: 'feat-elven-lore',
+          name: 'Elven Lore',
+          choiceSets: [
+            {
+              flag: 'levelerSkillFallback1',
+              grantsSkillTraining: true,
+              options: [{ value: 'athletics', label: 'Athletics' }],
+            },
+          ],
+          choices: {
+            levelerSkillFallback1: 'athletics',
+          },
+        },
+        ancestryParagonFeat: null,
+        classFeat: null,
+        subclass: null,
+        grantedFeatSections: [],
+        grantedFeatChoices: {},
+      });
+
+      expect(actor.update).toHaveBeenCalledWith({ 'system.skills.athletics.rank': 1 });
+    } finally {
+      global.CONFIG = originalConfig;
+    }
   });
 });

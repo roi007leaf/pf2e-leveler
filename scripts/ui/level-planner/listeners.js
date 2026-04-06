@@ -1,5 +1,5 @@
 import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
-import { applyActorSkillRankRules, computeBuildState } from '../../plan/build-state.js';
+import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -32,6 +32,17 @@ export function activateLevelPlannerListeners(planner, html) {
       const language = btn.dataset.language;
       if (!language) return;
       planner._handleIntBonusLanguageToggle(language);
+    });
+  });
+
+  el.querySelectorAll('[data-action="selectAdoptedAncestry"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const levelData = getLevelData(planner.plan, planner.selectedLevel);
+      const feat = levelData?.generalFeats?.[0];
+      if (!feat) return;
+      feat.choices = { ...(feat.choices ?? {}), adoptedAncestry: button.dataset.value };
+      feat.adoptedAncestry = button.dataset.value;
+      planner._savePlanAndRender();
     });
   });
 
@@ -68,6 +79,7 @@ export function activateLevelPlannerListeners(planner, html) {
 
   el.querySelectorAll('[data-action="selectSkillIncrease"]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (btn.dataset.locked === 'true') return;
       const slug = btn.dataset.skill;
       if (!slug) return;
       const currentRank = getSelectableSkillRank(planner, slug);
@@ -135,6 +147,7 @@ export function activateLevelPlannerListeners(planner, html) {
 export function getSelectableSkillRank(planner, slug) {
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   applyActorSkillRankRules(buildState.skills, planner.actor, planner.selectedLevel);
+  applyPlannedLevelSkillRankRules(buildState.skills, planner.plan, planner.selectedLevel);
 
   const levelData = getLevelData(planner.plan, planner.selectedLevel);
   for (const skill of levelData?.intBonusSkills ?? []) {

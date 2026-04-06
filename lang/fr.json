@@ -30,7 +30,11 @@
       "REMOVE": "Retirer",
       "SELECTED": "Selectionne",
       "PRIMARY": "Primaire",
-      "MAKE_PRIMARY": "Rendre primaire"
+      "MAKE_PRIMARY": "Rendre primaire",
+      "GRANTED_BY_FEAT": "Accorde par {featName}",
+      "SET_BY_FEAT": "Defini par : {featName}",
+      "SELECT_ADOPTED_ANCESTRY": "Choisissez l'ascendance accordee par ce don.",
+      "SELECT_ANCESTRY": "Selectionner une ascendance"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Capacites de classe",
@@ -89,7 +93,8 @@
       "EXPERT": "Expert",
       "MASTER": "Maitre",
       "LEGENDARY": "Legendaire",
-      "MAX_RANK": "Rang maximal pour ce niveau"
+      "MAX_RANK": "Rang maximal pour ce niveau",
+      "BOOSTED_BY_FEAT": "Amelioree par un don"
     },
     "SPELLS": {
       "RANK": "Rang",

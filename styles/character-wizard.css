@@ -744,8 +744,11 @@
 }
 
 .pf2e-leveler .wizard-feat-slot__value {
+  position: absolute;
+  left: 16px;
+  right: 52px;
+  bottom: 10px;
   display: block;
-  max-width: 100%;
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--leveler-accent-light);
@@ -753,6 +756,7 @@
   overflow-wrap: anywhere;
   line-height: 1.25;
   opacity: 0.92;
+  z-index: 1;
 }
 
 .pf2e-leveler .wizard-feat-slot__value--link {
@@ -790,7 +794,9 @@
 
 .pf2e-leveler .wizard-feat-slot .wizard-spell-tab--slot {
   padding-right: 48px;
-  min-height: 56px;
+  padding-bottom: 26px;
+  min-height: 72px;
+  align-items: flex-start;
 }
 
 .pf2e-leveler .wizard-spell-tab:hover {

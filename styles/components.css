@@ -307,6 +307,16 @@
   cursor: not-allowed;
 }
 
+.pf2e-leveler .skill-btn.skill-btn--feat-granted:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.pf2e-leveler .skill-btn.skill-btn--feat-granted {
+  opacity: 0.72;
+  cursor: default;
+}
+
 .pf2e-leveler .skill-btn.selected {
   background: var(--leveler-accent-dim);
   border-color: var(--leveler-accent);
@@ -314,22 +324,27 @@
 }
 
 .pf2e-leveler .skill-btn__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--leveler-font-sm);
   font-weight: 600;
   text-align: left;
-  padding-right: 7.5rem;
+  padding-right: 5.25rem;
   width: 100%;
 }
 
-.pf2e-leveler .skill-btn__hint {
-  width: 100%;
-  padding-right: 7.5rem;
-  font-size: 0.72rem;
+.pf2e-leveler .skill-btn__info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--leveler-text-muted);
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .pf2e-leveler .skill-btn__rank {
@@ -338,7 +353,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: var(--leveler-font-sm);
-  padding: 1px 6px;
+  padding: 1px 4px;
   border-radius: 8px;
   white-space: nowrap;
   opacity: 0.85;

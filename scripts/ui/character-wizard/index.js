@@ -98,6 +98,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._spellLayoutObserver = null;
     this._isBooting = true;
     this._bootstrapPromise = null;
+    this._cachedHasClassFeatAtLevel1 = null;
+    this._cachedRequiredClassBoostSelections = 0;
   }
 
   _preloadCompendiums() {
@@ -160,6 +162,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
 
   async _prepareContext() {
+    this._cachedHasClassFeatAtLevel1 = this.data.class?.uuid ? await this._hasClassFeatAtLevel1() : false;
+    this._cachedRequiredClassBoostSelections = await this._getRequiredClassBoostSelections();
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: localize('CREATION.FEAT_CHOICES'),
@@ -545,6 +549,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._scrollState = captureScrollState(this.element, {
       sidebar: '.wizard-steps',
       content: '.wizard-content',
+      browserFilters: '.wizard-browser__filters',
+      browserResults: '.wizard-browser__results',
     });
   }
 
@@ -552,6 +558,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     restoreScrollState(root, this._scrollState, {
       sidebar: '.wizard-steps',
       content: '.wizard-content',
+      browserFilters: '.wizard-browser__filters',
+      browserResults: '.wizard-browser__results',
     });
   }
 
@@ -581,7 +589,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!classItem) return 3;
     const additional = classItem.system?.trainedSkills?.additional ?? 3;
     const intMod = await this._computeIntMod();
-    return Math.max(0, additional + intMod);
+    const duplicateAutoTrainedSkills = await this._getDuplicateAutoTrainedSkillCount(classItem);
+    return Math.max(0, additional + intMod + duplicateAutoTrainedSkills);
+  }
+
+  async _getDuplicateAutoTrainedSkillCount(classItem = null) {
+    const resolvedClassItem = classItem ?? (this.data.class?.uuid ? await this._getCachedDocument(this.data.class.uuid) : null);
+    if (!resolvedClassItem) return 0;
+
+    const classSkills = new Set(
+      (resolvedClassItem.system?.trainedSkills?.value ?? [])
+        .filter((skill) => typeof skill === 'string' && skill.length > 0),
+    );
+    if (classSkills.size === 0) return 0;
+
+    const backgroundSkills = await this._getBackgroundTrainedSkills();
+    return backgroundSkills.filter((skill) => classSkills.has(skill)).length;
   }
 
   _getSkillsNote() {
@@ -660,10 +683,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           return typeof val === 'string' && val !== '[object Object]';
         }));
       }
-      case 'boosts': return this.data.boosts.free.length === 4;
+      case 'boosts':
+        return this.data.boosts.free.length === 4
+          && (this.data.boosts.class?.length ?? 0) >= (this._cachedRequiredClassBoostSelections ?? 0);
       case 'languages': return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills': return this.data.skills.length >= (this._cachedMaxSkills ?? 1);
-      case 'feats': return !!this.data.ancestryFeat && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat);
+      case 'feats':
+        return !!this.data.ancestryFeat
+          && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat)
+          && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat);
       case 'spells': {
         if (!this._needsSpellSelection()) return true;
         const spellHandlerResult = this.classHandler.isStepComplete('spells', this.data);
@@ -713,10 +741,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const selectedCount = this.data.skills.length;
         const bgLores = await this._getBackgroundLores();
         const subclassLores = (this.data.subclass?.grantedLores ?? []).map((name) => ({ name, source: this.data.subclass.name }));
+        const featLores = [
+          this.data.ancestryFeat ? { source: this.data.ancestryFeat.name, lores: this.data.ancestryFeat.grantedLores ?? [] } : null,
+          this.data.ancestryParagonFeat ? { source: this.data.ancestryParagonFeat.name, lores: this.data.ancestryParagonFeat.grantedLores ?? [] } : null,
+          this.data.classFeat ? { source: this.data.classFeat.name, lores: this.data.classFeat.grantedLores ?? [] } : null,
+        ]
+          .filter(Boolean)
+          .flatMap((entry) => entry.lores.map((name) => ({ name, source: entry.source })));
         const apparitionLores = (this.data.apparitions ?? []).flatMap((entry) =>
           (entry.lores ?? []).map((name) => ({ name, source: entry.name })),
         );
-        const allLores = [...bgLores, ...subclassLores, ...apparitionLores];
+        const allLores = dedupeLores([...bgLores, ...subclassLores, ...featLores, ...apparitionLores]);
         setLores(this.data, allLores.map((l) => l.name));
         return { skills: await this._buildSkillContext(), maxSkills, selectedCount, skillsNote: this._getSkillsNote(), lores: allLores };
       }
@@ -969,24 +1004,25 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       boostRows[boostRows.length - 1].restricted = restricted;
     }
 
-    if (this.data.class?.slug) {
-      const classDef = ClassRegistry.get(this.data.class.slug);
-      const keyAbility = await this.classHandler.getKeyAbilityOptions(this.data, classDef);
-      if (this.data.class.slug === 'psychic' && this.data.subconsciousMind?.keyAbility) {
-        this.data.boosts.class = [this.data.subconsciousMind.keyAbility];
+      if (this.data.class?.slug) {
+        const classDef = ClassRegistry.get(this.data.class.slug);
+        const keyAbility = await this.classHandler.getKeyAbilityOptions(this.data, classDef);
+        if (this.data.class.slug === 'psychic' && this.data.subconsciousMind?.keyAbility) {
+          this.data.boosts.class = [this.data.subconsciousMind.keyAbility];
         buildRow('class', this.data.class.name, 'Class', [this.data.subconsciousMind.keyAbility], [], 0, [], []);
         boostRows[boostRows.length - 1].keyAbility = this.data.subconsciousMind.keyAbility;
       } else if (keyAbility.length === 1) {
         this.data.boosts.class = [keyAbility[0]];
         buildRow('class', this.data.class.name, 'Class', [keyAbility[0]], [], 0, [], []);
         boostRows[boostRows.length - 1].keyAbility = keyAbility[0];
-      } else if (keyAbility.length > 1) {
-        buildRow('class', this.data.class.name, 'Class', [], [], 1, keyAbility, this.data.boosts.class ?? []);
-        boostRows[boostRows.length - 1].isKeyChoice = true;
-      } else {
-        buildRow('class', this.data.class.name, 'Class', [], [], 0, [], []);
+        } else if (keyAbility.length > 1) {
+          this.data.boosts.class ??= [];
+          buildRow('class', this.data.class.name, 'Class', [], [], 1, keyAbility, this.data.boosts.class);
+          boostRows[boostRows.length - 1].isKeyChoice = true;
+        } else {
+          buildRow('class', this.data.class.name, 'Class', [], [], 0, [], []);
+        }
       }
-    }
 
     buildRow('free', 'Level 1', 'Free', [], [], 4, [...ATTRIBUTES], this.data.boosts.free ?? []);
 
@@ -1017,6 +1053,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const summary = ATTRIBUTES.map((key) => ({ key, label: key.toUpperCase(), mod: totals[key] }));
     return { boostRows, summary, alternateAncestryBoosts: this.data.alternateAncestryBoosts, hasAncestry: !!this.data.ancestry };
+  }
+
+  async _getRequiredClassBoostSelections() {
+    if (!this.data.class?.slug) return 0;
+    const classDef = ClassRegistry.get(this.data.class.slug);
+    const keyAbility = await this.classHandler.getKeyAbilityOptions(this.data, classDef);
+
+    if (this.data.class.slug === 'psychic' && this.data.subconsciousMind?.keyAbility) return 0;
+    return keyAbility.length > 1 ? 1 : 0;
   }
 
   _parseBoostSets(boostObj) {
@@ -1086,7 +1131,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!feat?.uuid) continue;
       const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
-      feat.choiceSets = await this._parseChoiceSets(item.system?.rules ?? []);
+      feat.choiceSets = await this._parseChoiceSets(item.system?.rules ?? [], feat.choices ?? {}, item);
+      feat.grantedLores = this._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
     }
     await this._refreshGrantedFeatChoiceSections();
     this._featChoiceDataDirty = false;
@@ -1106,8 +1152,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return match ? match[1].toLowerCase() : null;
   }
 
-  async _parseChoiceSets(rules) {
-    return parseChoiceSets(this, rules);
+  async _parseChoiceSets(rules, currentChoices = {}, sourceItem = null) {
+    return parseChoiceSets(this, rules, currentChoices, sourceItem);
   }
 
   _parseSpellUuidsFromDescription(rules, html) {
@@ -1176,6 +1222,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     let classFeats = [];
     const hasClassFeat = await this._hasClassFeatAtLevel1();
+    this._cachedHasClassFeatAtLevel1 = hasClassFeat;
     if (hasClassFeat && this.data.class) {
       const classSlug = this.data.class.slug;
       classFeats = allFeats
@@ -1210,6 +1257,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _limitCurriculumSelections(list, validUuids, max) {
     return limitCurriculumSelections(list, validUuids, max);
+  }
+
+  _needsLevel1ClassFeatSelection() {
+    if (typeof this._cachedHasClassFeatAtLevel1 === 'boolean') return this._cachedHasClassFeatAtLevel1;
+
+    const classItem = this.data.class?.uuid ? this._documentCache.get(this.data.class.uuid) : null;
+    const classFeatLevels = classItem?.system?.classFeatLevels?.value ?? [];
+    return classFeatLevels.includes(1);
   }
 }
 
@@ -1319,6 +1374,22 @@ async function resolveAncestrySlugFromChoice(wizard, value) {
 
 function normalizeAncestryChoiceIdentity(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : null;
+}
+
+function dedupeLores(lores) {
+  const seen = new Set();
+  const result = [];
+
+  for (const entry of lores ?? []) {
+    const name = String(entry?.name ?? '').trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({ name, source: entry?.source ?? null });
+  }
+
+  return result;
 }
 
 const SOURCE_FILTERABLE_KEYS = new Set([

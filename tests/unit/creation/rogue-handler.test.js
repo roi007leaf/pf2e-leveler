@@ -18,21 +18,21 @@ describe('RogueHandler', () => {
     const handler = new RogueHandler();
     await expect(handler.getKeyAbilityOptions({
       subclass: { slug: 'mastermind' },
-    }, { keyAbility: ['dex'] })).resolves.toEqual(['int']);
+    }, { keyAbility: ['dex'] })).resolves.toEqual(['dex', 'int']);
   });
 
   it('uses STR for Ruffian', async () => {
     const handler = new RogueHandler();
     await expect(handler.getKeyAbilityOptions({
       subclass: { slug: 'ruffian' },
-    }, { keyAbility: ['dex'] })).resolves.toEqual(['str']);
+    }, { keyAbility: ['dex'] })).resolves.toEqual(['dex', 'str']);
   });
 
   it('uses CHA for Scoundrel', async () => {
     const handler = new RogueHandler();
     await expect(handler.getKeyAbilityOptions({
       subclass: { slug: 'scoundrel' },
-    }, { keyAbility: ['dex'] })).resolves.toEqual(['cha']);
+    }, { keyAbility: ['dex'] })).resolves.toEqual(['dex', 'cha']);
   });
 
   it('uses the selected eldritch trickster dedication class key ability', async () => {
@@ -49,7 +49,7 @@ describe('RogueHandler', () => {
           multiclassDedication: 'Compendium.pf2e.feats-srd.Item.wizard-dedication',
         },
       },
-    }, { keyAbility: ['dex'] })).resolves.toEqual(['int']);
+    }, { keyAbility: ['dex'] })).resolves.toEqual(['dex', 'int']);
   });
 
   it('supports multi-option key abilities from the selected dedication', async () => {
@@ -66,6 +66,6 @@ describe('RogueHandler', () => {
           multiclassDedication: 'Compendium.pf2e.feats-srd.Item.psychic-dedication',
         },
       },
-    }, { keyAbility: ['dex'] })).resolves.toEqual(['int', 'cha']);
+    }, { keyAbility: ['dex'] })).resolves.toEqual(['dex', 'int', 'cha']);
   });
 });

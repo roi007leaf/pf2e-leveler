@@ -3367,6 +3367,303 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(sanctificationValue).toBe('Holy');
   });
 
+  it('synthesizes a replacement skill choice for Elven Lore when a granted skill is already trained', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arcana: 'Arcana',
+          nature: 'Nature',
+          athletics: 'Athletics',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['arcana'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.elven-lore',
+      name: 'Elven Lore',
+      system: {
+        description: {
+          value: `
+            <p>You gain the trained proficiency rank in Arcana and Nature.
+            If you would automatically become trained in one of those skills,
+            you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.arcana.rank', value: 1 },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.nature.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+      const fallbackSet = sets.find((entry) => entry.flag === 'levelerSkillFallback1');
+
+      expect(sets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerSkillFallback1',
+          prompt: 'Select a skill.',
+          grantsSkillTraining: true,
+        }),
+      ]));
+      expect(fallbackSet.options.find((entry) => entry.value === 'nature')).toEqual(expect.objectContaining({
+        autoTrained: true,
+        autoTrainedSource: 'Elven Lore',
+        disabled: true,
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('uses the same fallback wording regex for other ancestry lore feats with different granted skills', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          crafting: 'Crafting',
+          survival: 'Survival',
+          athletics: 'Athletics',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['crafting'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.dwarven-lore',
+      name: 'Dwarven Lore',
+      system: {
+        description: {
+          value: `
+            <p>You gain the trained proficiency rank in Crafting and Survival.
+            If you would automatically become trained in one of those skills (from your background or class, for example),
+            you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.crafting.rank', value: 1 },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.survival.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+
+      expect(sets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerSkillFallback1',
+          prompt: 'Select a skill.',
+          grantsSkillTraining: true,
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('creates one fallback skill choice per overlapping granted lore skill', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arcana: 'Arcana',
+          nature: 'Nature',
+          athletics: 'Athletics',
+          society: 'Society',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['arcana', 'nature'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.elven-lore',
+      name: 'Elven Lore',
+      system: {
+        description: {
+          value: `
+            <p>You gain the trained proficiency rank in Arcana and Nature.
+            If you would automatically become trained in one of those skills (from your background or class, for example),
+            you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.arcana.rank', value: 1 },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.nature.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+      const fallbackSets = sets.filter((entry) => entry.syntheticType === 'skill-training-fallback');
+
+      expect(fallbackSets).toHaveLength(2);
+      expect(fallbackSets.map((entry) => entry.flag)).toEqual(['levelerSkillFallback1', 'levelerSkillFallback2']);
+      expect(fallbackSets.every((entry) => entry.grantsSkillTraining === true)).toBe(true);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('keeps remaining lore fallback skill prompts filtered after one fallback choice is selected', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arcana: 'Arcana',
+          nature: 'Nature',
+          athletics: 'Athletics',
+          diplomacy: 'Diplomacy',
+          occultism: 'Occultism',
+          stealth: 'Stealth',
+          survival: 'Survival',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['arcana', 'nature', 'occultism', 'stealth'];
+    wizard._getClassTrainedSkills = jest.fn(async () => ['athletics']);
+
+    try {
+      const hydrated = await wizard._hydrateChoiceSets([
+        {
+          flag: 'levelerSkillFallback1',
+          prompt: 'Select a skill.',
+          syntheticType: 'skill-training-fallback',
+          grantsSkillTraining: true,
+          blockedSkills: ['nature'],
+          sourceName: 'Elven Lore',
+          options: [
+            { value: 'arcana', label: 'Arcana' },
+            { value: 'nature', label: 'Nature' },
+            { value: 'athletics', label: 'Athletics' },
+            { value: 'diplomacy', label: 'Diplomacy' },
+            { value: 'occultism', label: 'Occultism' },
+            { value: 'stealth', label: 'Stealth' },
+            { value: 'survival', label: 'Survival' },
+          ],
+        },
+        {
+          flag: 'levelerSkillFallback2',
+          prompt: 'Select a skill.',
+          syntheticType: 'skill-training-fallback',
+          grantsSkillTraining: true,
+          blockedSkills: ['arcana'],
+          sourceName: 'Elven Lore',
+          options: [
+            { value: 'arcana', label: 'Arcana' },
+            { value: 'nature', label: 'Nature' },
+            { value: 'athletics', label: 'Athletics' },
+            { value: 'diplomacy', label: 'Diplomacy' },
+            { value: 'occultism', label: 'Occultism' },
+            { value: 'stealth', label: 'Stealth' },
+            { value: 'survival', label: 'Survival' },
+          ],
+        },
+      ], {
+        levelerSkillFallback1: 'diplomacy',
+      });
+
+      const secondPrompt = hydrated.find((entry) => entry.flag === 'levelerSkillFallback2');
+
+      expect(secondPrompt.options.find((entry) => entry.value === 'diplomacy')).toBeUndefined();
+      expect(secondPrompt.options.find((entry) => entry.value === 'arcana')).toEqual(expect.objectContaining({
+        selectedInSkills: true,
+        disabled: true,
+      }));
+      expect(secondPrompt.options.find((entry) => entry.value === 'nature')).toEqual(expect.objectContaining({
+        selectedInSkills: true,
+        disabled: true,
+      }));
+      expect(secondPrompt.options.find((entry) => entry.value === 'athletics')).toEqual(expect.objectContaining({
+        autoTrained: true,
+        autoTrainedSource: 'Class',
+        disabled: true,
+      }));
+      expect(secondPrompt.options.find((entry) => entry.value === 'occultism')).toEqual(expect.objectContaining({
+        selectedInSkills: true,
+        disabled: true,
+      }));
+      expect(secondPrompt.options.find((entry) => entry.value === 'survival')).toEqual(expect.objectContaining({
+        disabled: false,
+      }));
+
+      const firstPrompt = hydrated.find((entry) => entry.flag === 'levelerSkillFallback1');
+      expect(firstPrompt.options.find((entry) => entry.value === 'arcana')).toEqual(expect.objectContaining({
+        disabled: true,
+      }));
+      expect(firstPrompt.options.find((entry) => entry.value === 'athletics')).toEqual(expect.objectContaining({
+        disabled: true,
+      }));
+      expect(firstPrompt.options.find((entry) => entry.value === 'occultism')).toEqual(expect.objectContaining({
+        disabled: true,
+      }));
+      expect(firstPrompt.options.find((entry) => entry.value === 'diplomacy')).toEqual(expect.objectContaining({
+        selected: true,
+        disabled: false,
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('includes synthetic granted feat choice sections in the apply overlay prompt list', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', name: 'Cleric' };
+    wizard.data.grantedFeatSections = [
+      {
+        slot: '__cleric-domain-initiate__',
+        featName: 'Domain Initiate',
+        sourceName: 'Cleric -> Domain Initiate',
+        choiceSets: [
+          {
+            key: 'ChoiceSet',
+            flag: 'domainInitiate',
+            prompt: "Select a deity's domain.",
+            options: [
+              { value: 'cities', label: 'Cities' },
+              { value: 'earth', label: 'Earth' },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      '__cleric-domain-initiate__': {
+        domainInitiate: 'earth',
+      },
+    };
+
+    const rows = await wizard._getApplyPromptRows();
+
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: 'Cleric -> Domain Initiate -> Domain Initiate',
+        prompt: "Select a deity's domain.",
+        value: 'Earth',
+      }),
+    ]));
+  });
+
   it('maps sanctification prompts when the raw prompt key only contains sanctification text', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { slug: 'cleric', name: 'Cleric' };

@@ -304,8 +304,9 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const item = await fromUuid(btn.dataset.uuid);
       if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? []);
-        setAncestryFeat(wizard.data, item, choiceSets);
+        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
+        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
+        setAncestryFeat(wizard.data, item, choiceSets, grantedLores);
         await wizard._refreshGrantedFeatChoiceSections();
         await wizard._saveAndRender();
       }
@@ -316,8 +317,9 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const item = await fromUuid(btn.dataset.uuid);
       if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? []);
-        setAncestryParagonFeat(wizard.data, item, choiceSets);
+        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
+        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
+        setAncestryParagonFeat(wizard.data, item, choiceSets, grantedLores);
         await wizard._refreshGrantedFeatChoiceSections();
         await wizard._saveAndRender();
       }
@@ -328,8 +330,9 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const item = await fromUuid(btn.dataset.uuid);
       if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? []);
-        setClassFeat(wizard.data, item, choiceSets);
+        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
+        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
+        setClassFeat(wizard.data, item, choiceSets, grantedLores);
         await wizard._refreshGrantedFeatChoiceSections();
         await wizard._saveAndRender();
       }

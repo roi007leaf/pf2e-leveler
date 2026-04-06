@@ -1,4 +1,4 @@
-import { LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
+import { extractFeatSkillRules, LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { createPlan, setLevelBoosts, setLevelSkillIncrease } from '../../../scripts/plan/plan-model.js';
@@ -183,6 +183,142 @@ describe('LevelPlanner intelligence boost planner choices', () => {
 
     const skills = planner._buildSkillContext(planner.plan.levels[5], 5);
     expect(skills.find((entry) => entry.slug === 'athletics')).toBeUndefined();
+  });
+
+  it('shows same-level planned feat skill upgrades in the skill increase picker', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.skills.acrobatics.rank = 1;
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.levels[2].classFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      name: 'Acrobat Dedication',
+      slug: 'acrobat-dedication',
+      skillRules: [
+        { skill: 'acrobatics', value: 'ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))' },
+      ],
+      skillRulesResolved: true,
+    }];
+
+    const skills = planner._buildSkillContext(planner.plan.levels[2], 2);
+    expect(skills.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
+      rank: 2,
+      rankName: 'expert',
+      featGranted: true,
+      featSourceName: 'Acrobat Dedication',
+      lockedByFeat: true,
+      disabled: false,
+      maxed: true,
+    }));
+  });
+
+  it('keeps earlier feat-granted skill ranks marked as feat-granted at later levels', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.skills.acrobatics.rank = 1;
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.levels[2].classFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      name: 'Acrobat Dedication',
+      slug: 'acrobat-dedication',
+      skillRules: [
+        { skill: 'acrobatics', value: 'ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))' },
+      ],
+      skillRulesResolved: true,
+    }];
+
+    const skills = planner._buildSkillContext(planner.plan.levels[7], 7);
+    expect(skills.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
+      rank: 3,
+      rankName: 'master',
+      featGranted: true,
+      featSourceName: 'Acrobat Dedication',
+      lockedByFeat: true,
+      disabled: false,
+      maxed: true,
+    }));
+  });
+
+  it('extracts skill rules through GrantItem chains', async () => {
+    const grantedEffect = {
+      uuid: 'Compendium.pf2e.feat-effects.Item.acrobat-effect',
+      system: {
+        rules: [
+          {
+            key: 'ActiveEffectLike',
+            path: 'system.skills.acrobatics.rank',
+            value: 2,
+          },
+        ],
+      },
+    };
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      system: {
+        rules: [
+          {
+            key: 'GrantItem',
+            uuid: grantedEffect.uuid,
+          },
+        ],
+      },
+    };
+
+    const result = await extractFeatSkillRules(feat, async (uuid) => {
+      if (uuid === grantedEffect.uuid) return grantedEffect;
+      return null;
+    });
+
+    expect(result).toEqual([
+      { skill: 'acrobatics', value: 2, predicate: null },
+    ]);
+  });
+
+  it('preserves formula-valued direct feat skill rules', async () => {
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      system: {
+        rules: [
+          {
+            key: 'ActiveEffectLike',
+            path: 'system.skills.acrobatics.rank',
+            value: 'ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))',
+          },
+        ],
+      },
+    };
+
+    const result = await extractFeatSkillRules(feat, async () => null);
+
+    expect(result).toEqual([
+      { skill: 'acrobatics', value: 'ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))', predicate: null },
+    ]);
+  });
+
+  it('flags older saved feat skill rules for backfill when their version is stale', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      name: 'Acrobat Dedication',
+      slug: 'acrobat-dedication',
+      skillRules: [
+        { skill: 'acrobatics', value: 2 },
+      ],
+      skillRulesResolved: true,
+      skillRulesVersion: 1,
+    }];
+
+    planner._migratePlan(planner.plan, 'alchemist');
+
+    expect(planner._needsSkillRulesBackfill).toBe(true);
   });
 
   it('disables attributes already used in the same gradual boost set', () => {

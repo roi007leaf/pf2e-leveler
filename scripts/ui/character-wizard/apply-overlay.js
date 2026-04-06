@@ -48,6 +48,7 @@ export async function getApplyPromptRows(wizard) {
   const promptRows = [];
   const seen = new Set();
   const scannedItems = new Set();
+  const scannedChoiceSources = new Set();
 
   const addRow = async (source, rule, optionSource = null) => {
     const prompt = getRulePrompt(rule);
@@ -110,6 +111,21 @@ export async function getApplyPromptRows(wizard) {
     }
   };
 
+  const scanChoiceSource = async (sourceLabel, optionSource = null) => {
+    const sourceKey = `${sourceLabel}:${optionSource?.uuid ?? 'inline'}`;
+    if (scannedChoiceSources.has(sourceKey)) return;
+    scannedChoiceSources.add(sourceKey);
+
+    for (const rule of (optionSource?.choiceSets ?? [])) {
+      await addRow(sourceLabel, rule, optionSource);
+
+      const selectedItem = await resolveSelectedChoiceItem(rule, optionSource);
+      if (selectedItem) {
+        await scanItem(selectedItem, `${sourceLabel} -> ${selectedItem.name}`, selectedItem);
+      }
+    }
+  };
+
   const topItems = [
     { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name, optionSource: wizard.data.ancestry?.uuid ? { uuid: wizard.data.ancestry.uuid } : null },
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name, optionSource: wizard.data.heritage?.uuid ? { uuid: wizard.data.heritage.uuid } : null },
@@ -130,7 +146,12 @@ export async function getApplyPromptRows(wizard) {
   for (const { uuid, label, optionSource } of topItems) {
     if (!uuid || !label) continue;
     const item = await resolveDocument(wizard, uuid);
-    if (!item) continue;
+    if (!item) {
+      if ((optionSource?.choiceSets?.length ?? 0) > 0) {
+        await scanChoiceSource(label, optionSource);
+      }
+      continue;
+    }
     await scanItem(item, label, optionSource);
 
     if (item.system?.items) {
@@ -140,6 +161,10 @@ export async function getApplyPromptRows(wizard) {
         if (!featItem) continue;
         await scanItem(featItem, `${label} -> ${feature.name}`, featItem);
       }
+    }
+
+    if ((optionSource?.choiceSets?.length ?? 0) > 0) {
+      await scanChoiceSource(label, optionSource);
     }
   }
 

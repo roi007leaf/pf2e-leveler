@@ -350,23 +350,23 @@ export function setLores(data, lores) {
   return data;
 }
 
-export function setAncestryFeat(data, feat, choiceSets = []) {
+export function setAncestryFeat(data, feat, choiceSets = [], grantedLores = []) {
   data.ancestryFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
     : null;
   return data;
 }
 
-export function setAncestryParagonFeat(data, feat, choiceSets = []) {
+export function setAncestryParagonFeat(data, feat, choiceSets = [], grantedLores = []) {
   data.ancestryParagonFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
     : null;
   return data;
 }
 
-export function setClassFeat(data, feat, choiceSets = []) {
+export function setClassFeat(data, feat, choiceSets = [], grantedLores = []) {
   data.classFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
     : null;
   return data;
 }

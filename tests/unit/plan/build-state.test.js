@@ -112,6 +112,26 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 5).skills.athletics).toBe(2);
   });
 
+  test('evaluates formula-based skill rank rules such as Acrobat Dedication', () => {
+    setLevelFeat(plan, 2, 'archetypeFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+      name: 'Acrobat Dedication',
+      slug: 'acrobat-dedication',
+      skillRules: [
+        {
+          skill: 'acrobatics',
+          value: 'ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))',
+        },
+      ],
+      skillRulesResolved: true,
+    });
+    mockActor.system.skills.acrobatics.rank = 1;
+
+    expect(computeBuildState(mockActor, plan, 2).skills.acrobatics).toBe(2);
+    expect(computeBuildState(mockActor, plan, 7).skills.acrobatics).toBe(3);
+    expect(computeBuildState(mockActor, plan, 15).skills.acrobatics).toBe(4);
+  });
+
   test('applies Intelligence bonus skill training before same-level skill increases', () => {
     toggleLevelIntBonusSkill(plan, 5, 'athletics');
     setLevelSkillIncrease(plan, 5, { skill: 'athletics', toRank: 2 });
@@ -259,6 +279,20 @@ describe('computeBuildState', () => {
     expect(state.languages.has('common')).toBe(true);
     expect(state.languages.has('osiriani')).toBe(true);
     expect(state.languages.has('sphinx')).toBe(true);
+  });
+
+  test('includes adopted ancestry traits from planned feats in build state', () => {
+    setLevelFeat(plan, 1, 'generalFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+      name: 'Adopted Ancestry',
+      slug: 'adopted-ancestry',
+      choices: { adoptedAncestry: 'kholo' },
+    });
+
+    const state = computeBuildState(mockActor, plan, 5);
+    expect(state.ancestryTraits.has('human')).toBe(true);
+    expect(state.ancestryTraits.has('kholo')).toBe(true);
+    expect(state.ancestryTraits.has('gnoll')).toBe(true);
   });
 
   test('collects equipped armor, shield, and wielded weapon state', () => {

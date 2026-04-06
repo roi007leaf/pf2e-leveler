@@ -4,6 +4,7 @@ import {
   filterByArchetypeRestrictions,
   filterByDedication,
   filterByGeneralSkillFeats,
+  getFeatsForSelection,
   filterBySearch,
   filterBySkill,
   filterByRarity,
@@ -111,6 +112,28 @@ describe('filterFeatsByCategory', () => {
     ]);
     expect(result).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Twin Parry' }),
+    ]));
+  });
+
+  test('ancestry feat filtering includes adopted ancestry traits from build state', () => {
+    const feats = [
+      makeFeat('Dwarven Lore', 1, ['dwarf']),
+      makeFeat('Natural Ambition', 1, ['human']),
+      makeFeat('Elven Lore', 1, ['elf']),
+    ];
+
+    const result = getFeatsForSelection(feats, 'ancestry', { ancestry: { slug: 'human' }, heritage: null }, 1, {
+      buildState: {
+        ancestryTraits: new Set(['human', 'dwarf']),
+      },
+    });
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Dwarven Lore' }),
+      expect.objectContaining({ name: 'Natural Ambition' }),
+    ]));
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Elven Lore' }),
     ]));
   });
 });

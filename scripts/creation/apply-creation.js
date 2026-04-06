@@ -41,6 +41,7 @@ export async function applyCreation(actor, data, onProgress = null) {
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
+  await applySelectedSkillChoices(actor, data);
 
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
   const handler = getClassHandler(data.class?.slug);
@@ -186,6 +187,22 @@ async function applySelectedItems(actor, data) {
   }
 }
 
+async function applySelectedSkillChoices(actor, data) {
+  const selectedSkills = getAdditionalSelectedSkills(data);
+  if (selectedSkills.length === 0) return;
+
+  const updates = {};
+  for (const skill of selectedSkills) {
+    const currentRank = Number(actor.system?.skills?.[skill]?.rank ?? 0);
+    if (currentRank >= 1) continue;
+    updates[`system.skills.${skill}.rank`] = 1;
+  }
+
+  if (Object.keys(updates).length === 0) return;
+  await actor.update(updates);
+  debug(`Applied selected skill choices: ${Object.keys(updates).join(', ')}`);
+}
+
 export function getAdditionalSelectedItems(data) {
   const containers = [
     { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
@@ -220,6 +237,31 @@ export function getAdditionalSelectedItems(data) {
   return entries;
 }
 
+export function getAdditionalSelectedSkills(data) {
+  const containers = [
+    { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
+    { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
+    { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    ...((data.grantedFeatSections ?? []).map((section) => ({
+      choiceSets: section.choiceSets ?? [],
+      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+    }))),
+  ];
+
+  const skills = new Set();
+
+  for (const container of containers) {
+    for (const choiceSet of (container.choiceSets ?? [])) {
+      if (!choiceSet?.grantsSkillTraining) continue;
+      const selectedValue = container.choices?.[choiceSet.flag];
+      const skill = resolveSelectedSkillChoice(choiceSet, selectedValue);
+      if (skill) skills.add(skill);
+    }
+  }
+
+  return [...skills];
+}
+
 function applyStoredChoices(itemData, choices = {}) {
   const entries = Object.entries(choices).filter(([, value]) => typeof value === 'string' && value !== '[object Object]');
   if (entries.length === 0) return;
@@ -242,6 +284,91 @@ function getCreationAncestryParagonGroup() {
   if (!isAncestralParagonEnabled()) return 'ancestry';
   if (getCampaignFeatSectionIds().includes('ancestryParagon')) return 'ancestryParagon';
   return 'xdy_ancestryparagon';
+}
+
+function resolveSelectedSkillChoice(choiceSet, selectedValue) {
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') {
+    return null;
+  }
+
+  const option = choiceSet.options?.find((candidate) => candidate.value === selectedValue);
+  const candidates = [
+    selectedValue,
+    option?.value,
+    option?.label,
+    option?.slug,
+    option?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const slug = normalizeSkillChoice(candidate);
+    if (slug) return slug;
+  }
+
+  return null;
+}
+
+function normalizeSkillChoice(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^pf2e\.skill/i, '')
+    .replace(/[^a-z0-9]+/g, '');
+  if (!normalized) return null;
+
+  const aliases = {
+    acr: 'acrobatics',
+    arc: 'arcana',
+    ath: 'athletics',
+    cra: 'crafting',
+    dec: 'deception',
+    dip: 'diplomacy',
+    itm: 'intimidation',
+    med: 'medicine',
+    nat: 'nature',
+    occ: 'occultism',
+    prf: 'performance',
+    rel: 'religion',
+    soc: 'society',
+    ste: 'stealth',
+    sur: 'survival',
+    thi: 'thievery',
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  if ([
+    'acrobatics',
+    'arcana',
+    'athletics',
+    'crafting',
+    'deception',
+    'diplomacy',
+    'intimidation',
+    'medicine',
+    'nature',
+    'occultism',
+    'performance',
+    'religion',
+    'society',
+    'stealth',
+    'survival',
+    'thievery',
+  ].includes(normalized)) return normalized;
+
+  const skills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  for (const [slug, rawEntry] of Object.entries(skills)) {
+    const rawLabel = typeof rawEntry === 'string' ? rawEntry : (rawEntry?.label ?? slug);
+    const localizedLabel = game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+    for (const candidate of [slug, rawLabel, localizedLabel]) {
+      const candidateId = String(candidate ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/^pf2e\.skill/i, '')
+        .replace(/[^a-z0-9]+/g, '');
+      if (candidateId === normalized) return aliases[slug] ?? slug;
+    }
+  }
+
+  return null;
 }
 
 function isSpellChoiceOption(option, uuid) {

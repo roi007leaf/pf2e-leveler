@@ -86,6 +86,28 @@ describe('CharacterWizard skills step grants', () => {
     expect(context.maxSkills).toBe(7);
   });
 
+  it('includes lore granted by selected ancestry lore feats', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Barrister' };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-elven-lore',
+      name: 'Elven Lore',
+      grantedLores: ['Elf Lore'],
+      choiceSets: [],
+      choices: {},
+    };
+
+    const context = await wizard._getStepContext();
+
+    expect(context.lores).toEqual([
+      { name: 'Legal Lore', source: 'Background' },
+      { name: 'Elf Lore', source: 'Elven Lore' },
+    ]);
+    expect(wizard.data.lores).toEqual(['Legal Lore', 'Elf Lore']);
+  });
+
   it('parses martial-style subclass lore training text from descriptions', () => {
     const wizard = new CharacterWizard(createMockActor());
 
@@ -95,6 +117,17 @@ describe('CharacterWizard skills step grants', () => {
     `);
 
     expect(lores).toEqual(['Underworld Lore', 'Warfare Lore']);
+  });
+
+  it('parses the Additional Lore ancestry lore clause into a lore skill', () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const lores = wizard._parseSubclassLores([], `
+      <p>You gain the trained proficiency rank in Arcana and Nature.</p>
+      <p>You also gain the Additional Lore general feat for Elf Lore.</p>
+    `);
+
+    expect(lores).toEqual(['Elf Lore']);
   });
 
   it('includes Intelligence boosts when computing bonus skills and languages', async () => {
@@ -136,6 +169,47 @@ describe('CharacterWizard skills step grants', () => {
 
     expect(await wizard._getAdditionalSkillCount()).toBe(4);
     expect(await wizard._getAdditionalLanguageCount()).toBe(1);
+  });
+
+  it('adds an extra selectable skill when background and class auto-train the same skill', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: ['athletics'],
+            },
+          },
+        };
+      }
+
+      if (uuid === 'background-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              value: ['athletics'],
+              lore: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Warrior' };
+
+    expect(await wizard._getAdditionalSkillCount()).toBe(4);
+
+    const context = await wizard._getStepContext();
+    expect(context.maxSkills).toBe(4);
+    expect(context.skills.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({
+      autoTrained: true,
+    }));
   });
 
   it('marks deity-granted skills as auto-trained', async () => {

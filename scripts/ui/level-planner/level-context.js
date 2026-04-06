@@ -1,5 +1,6 @@
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
+import { loadCompendiumCategory } from '../character-wizard/loaders.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -16,6 +17,13 @@ export async function buildLevelContext(planner, classDef, options) {
   const levelData = getLevelData(planner.plan, level) ?? {};
   const choices = getChoicesForLevel(classDef, level, options);
   const choiceTypes = new Set(choices.map((choice) => choice.type));
+  const generalFeat = annotateFeat(extractFeat(levelData.generalFeats));
+  const ancestryFeat = annotateFeat(extractFeat(levelData.ancestryFeats));
+  const generalFeatGrantsAncestryFeat = isAncestralParagonFeat(generalFeat);
+  const generalFeatIsAdoptedAncestry = isAdoptedAncestryFeat(generalFeat);
+  const adoptedAncestryOptions = generalFeatIsAdoptedAncestry
+    ? await buildAdoptedAncestryOptions(planner, generalFeat)
+    : [];
 
   return {
     classFeatures: getClassFeaturesForLevel(planner, level),
@@ -32,9 +40,14 @@ export async function buildLevelContext(planner, classDef, options) {
     showSkillFeat: choiceTypes.has('skillFeat'),
     skillFeat: annotateFeat(extractFeat(levelData.skillFeats)),
     showGeneralFeat: choiceTypes.has('generalFeat'),
-    generalFeat: annotateFeat(extractFeat(levelData.generalFeats)),
-    showAncestryFeat: choiceTypes.has('ancestryFeat'),
-    ancestryFeat: annotateFeat(extractFeat(levelData.ancestryFeats)),
+    generalFeat,
+    showGeneralFeatAdoptedAncestry: generalFeatIsAdoptedAncestry,
+    generalFeatAdoptedAncestryOptions: adoptedAncestryOptions,
+    selectedGeneralFeatAdoptedAncestry: generalFeat?.choices?.adoptedAncestry ?? generalFeat?.adoptedAncestry ?? '',
+    showAncestryFeat: choiceTypes.has('ancestryFeat') && !generalFeatGrantsAncestryFeat,
+    ancestryFeat,
+    showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat,
+    generalFeatGrantedAncestryFeat: ancestryFeat,
     showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
     showArchetypeFeat: choiceTypes.has('archetypeFeat'),
@@ -89,4 +102,35 @@ export function annotateFeat(feat) {
 export function extractFeat(feats) {
   if (!feats || feats.length === 0) return null;
   return feats[0];
+}
+
+function isAncestralParagonFeat(feat) {
+  if (!feat) return false;
+  const slug = String(feat.slug ?? '').toLowerCase();
+  const name = String(feat.name ?? '').toLowerCase();
+  return slug === 'ancestral-paragon' || name === 'ancestral paragon';
+}
+
+function isAdoptedAncestryFeat(feat) {
+  if (!feat) return false;
+  const slug = String(feat.slug ?? '').toLowerCase();
+  const name = String(feat.name ?? '').toLowerCase();
+  return slug === 'adopted-ancestry' || name === 'adopted ancestry';
+}
+
+async function buildAdoptedAncestryOptions(planner, feat) {
+  const items = await loadCompendiumCategory(planner, 'ancestries');
+  const current = feat?.choices?.adoptedAncestry ?? feat?.adoptedAncestry ?? '';
+  const actorAncestry = String(planner.actor?.ancestry?.slug ?? '').toLowerCase();
+
+  return items
+    .filter((item) => item?.slug && String(item.slug).toLowerCase() !== actorAncestry)
+    .filter((item) => String(item?.rarity ?? 'common').toLowerCase() === 'common')
+    .map((item) => ({
+      value: String(item.slug).toLowerCase(),
+      label: item.name,
+      img: item.img ?? null,
+      rarity: String(item.rarity ?? 'common').toLowerCase(),
+      selected: String(item.slug).toLowerCase() === String(current).toLowerCase(),
+    }));
 }

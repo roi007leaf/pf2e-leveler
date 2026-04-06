@@ -1,4 +1,4 @@
-import { SUBCLASS_TAGS } from '../../constants.js';
+import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { debug } from '../../utils/logger.js';
 import { buildSkillContext } from './skills-languages.js';
@@ -85,26 +85,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
     ...cs,
     isItemChoice: cs.options.some((opt) => !!extractChoiceUuid(opt) || !!opt?.img || !!opt?.description),
     isWeaponChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
-    options: cs.options.map((opt) => {
-      const value = extractChoiceValue(opt);
-      const label = extractChoiceLabel(opt) || value;
-      const uuid = extractChoiceUuid(opt);
-      const matchedSkillState = findOptionSkillState(skillState, opt, value, label);
-      return {
-        ...opt,
-        value,
-        label,
-        uuid,
-        category: opt?.category ?? null,
-        range: opt?.range ?? null,
-        isRanged: !!opt?.isRanged,
-        selected: currentChoices[cs.flag] === value,
-        selectedInSkills: !!matchedSkillState?.selected,
-        autoTrained: !!matchedSkillState?.autoTrained,
-        autoTrainedSource: matchedSkillState?.source ?? null,
-        disabled: !currentChoices[cs.flag] && (!!matchedSkillState?.selected || !!matchedSkillState?.autoTrained),
-      };
-    }),
+    options: hydrateChoiceSetOptions(cs, skillState, currentChoices),
     hasSelection: !!currentChoices[cs.flag] && currentChoices[cs.flag] !== '[object Object]',
   }));
 }
@@ -172,7 +153,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     scannedItems.add(item.uuid);
 
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
-    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices);
+    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
     if (shouldLogDeityDomains && (item.type === 'deity' || item.name === 'Domain Initiate' || item.uuid === wizard.data.deity?.uuid)) {
       debug('Cleric deity scan item', {
         item: item.name,
@@ -467,6 +448,7 @@ export async function getPendingChoices(wizard) {
   const choices = [];
   const seen = new Set();
   const scannedItems = new Set();
+  const scannedChoiceSources = new Set();
 
   const addChoice = (source, prompt) => {
     const text = game.i18n.has(prompt) ? game.i18n.localize(prompt) : prompt.replace(/^PF2E\./, '').replace(/([A-Z])/g, ' $1').trim();
@@ -515,6 +497,19 @@ export async function getPendingChoices(wizard) {
     }
   };
 
+  const scanChoiceSource = async (sourceLabel, optionSource = null) => {
+    const sourceKey = `${sourceLabel}:${optionSource?.uuid ?? 'inline'}`;
+    if (scannedChoiceSources.has(sourceKey)) return;
+    scannedChoiceSources.add(sourceKey);
+
+    for (const choiceSet of (optionSource?.choiceSets ?? [])) {
+      if (!choiceSet?.prompt) continue;
+      if (optionSource?.choices?.[choiceSet.flag]) continue;
+      if (optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[choiceSet.flag]) continue;
+      addChoice(sourceLabel, choiceSet.prompt);
+    }
+  };
+
   const topItems = [
     { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name },
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
@@ -529,7 +524,12 @@ export async function getPendingChoices(wizard) {
   for (const { uuid, label, optionSource } of topItems) {
     if (!uuid) continue;
     const item = await resolveDocument(wizard, uuid);
-    if (!item) continue;
+    if (!item) {
+      if ((optionSource?.choiceSets?.length ?? 0) > 0) {
+        await scanChoiceSource(label, optionSource);
+      }
+      continue;
+    }
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
       : uuid === wizard.data.ancestryParagonFeat?.uuid ? wizard.data.ancestryParagonFeat
       : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
@@ -544,26 +544,104 @@ export async function getPendingChoices(wizard) {
         await scanItem(featItem, `${label} -> ${feature.name}`);
       }
     }
+
+    if ((sourceChoices?.choiceSets?.length ?? 0) > 0) {
+      await scanChoiceSource(label, sourceChoices);
+    }
   }
 
   return choices;
 }
 
-export async function parseChoiceSets(wizard, rules, currentChoices = {}) {
+export async function parseChoiceSets(wizard, rules, currentChoices = {}, sourceItem = null) {
+  const allRules = [
+    ...(rules ?? []),
+    ...await buildSyntheticChoiceSetRules(wizard, rules ?? [], sourceItem),
+  ];
   const sets = [];
-  for (const [index, rule] of (rules ?? []).entries()) {
+  for (const [index, rule] of allRules.entries()) {
     if (rule.key !== 'ChoiceSet') continue;
     const flag = getChoiceSetFlag(rule, index);
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
-    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(rules, currentChoices))) continue;
+    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(allRules, currentChoices))) continue;
     const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
-      sets.push({ flag: normalizedRule.flag, prompt, options });
+      const set = {
+        flag: normalizedRule.flag,
+        prompt,
+        options,
+      };
+      if (normalizedRule.leveler?.syntheticType) set.syntheticType = normalizedRule.leveler.syntheticType;
+      if (normalizedRule.leveler?.grantsSkillTraining === true) set.grantsSkillTraining = true;
+      if (Array.isArray(normalizedRule.leveler?.blockedSkills) && normalizedRule.leveler.blockedSkills.length > 0) {
+        set.blockedSkills = [...normalizedRule.leveler.blockedSkills];
+      }
+      if (normalizedRule.leveler?.sourceName) set.sourceName = normalizedRule.leveler.sourceName;
+      sets.push(set);
     }
   }
   return sets;
+}
+
+async function buildSyntheticChoiceSetRules(wizard, rules, sourceItem) {
+  if (!sourceItem) return [];
+
+  if (!hasAncestryLoreSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return [];
+
+  const grantedSkills = extractGrantedTrainedSkills(rules);
+  if (grantedSkills.length === 0) return [];
+
+  const skillContext = await buildSkillContext(wizard);
+  const trainedSkills = new Set(
+    (skillContext ?? [])
+      .filter((entry) => entry?.selected || entry?.autoTrained)
+      .map((entry) => entry.slug),
+  );
+  const overlaps = grantedSkills.filter((skill) => trainedSkills.has(skill));
+  if (overlaps.length === 0) return [];
+
+  return overlaps.map((skill, index) => ({
+    key: 'ChoiceSet',
+    flag: `levelerSkillFallback${index + 1}`,
+    prompt: 'Select a skill.',
+    choices: { config: 'skills' },
+    leveler: {
+      syntheticType: 'skill-training-fallback',
+      grantsSkillTraining: true,
+      sourceSkill: skill,
+      blockedSkills: grantedSkills.filter((entry) => entry !== skill),
+      sourceName: sourceItem?.name ?? null,
+    },
+  }));
+}
+
+function hasAncestryLoreSkillFallbackText(html) {
+  const description = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!description) return false;
+
+  return /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/.test(description);
+}
+
+function extractGrantedTrainedSkills(rules) {
+  const skills = [];
+
+  for (const rule of (rules ?? [])) {
+    if (rule?.key !== 'ActiveEffectLike') continue;
+    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+    if (!match) continue;
+    if (Number(rule?.value) < 1) continue;
+    if (!SKILLS.includes(match[1])) continue;
+    skills.push(match[1]);
+  }
+
+  return [...new Set(skills)];
 }
 
 async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
@@ -613,44 +691,103 @@ async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}) {
   const options = resolveConfigChoiceOptions('skills');
   const skillContext = await buildSkillContext(wizard);
   const skillState = createSkillStateMap(skillContext);
+  return decorateSkillChoiceOptions(options, skillState, currentChoices, {
+    flag: rule?.flag ?? null,
+    blockedSkills: rule?.leveler?.blockedSkills ?? [],
+    blockedSourceName: rule?.leveler?.sourceName ?? null,
+  });
+}
 
+function hydrateChoiceSetOptions(choiceSet, skillState, currentChoices) {
+  const baseOptions = (choiceSet.options ?? []).map((opt) => {
+    const value = extractChoiceValue(opt);
+    const label = extractChoiceLabel(opt) || value;
+    return {
+      ...opt,
+      value,
+      label,
+      uuid: extractChoiceUuid(opt),
+      category: opt?.category ?? null,
+      range: opt?.range ?? null,
+      isRanged: !!opt?.isRanged,
+    };
+  });
+
+  if (!isStoredSkillChoiceSet(choiceSet)) {
+    return baseOptions.map((opt) => ({
+      ...opt,
+      selected: currentChoices[choiceSet.flag] === opt.value,
+      selectedInSkills: false,
+      autoTrained: false,
+      autoTrainedSource: null,
+      disabled: false,
+    }));
+  }
+
+  return decorateSkillChoiceOptions(baseOptions, skillState, currentChoices, {
+    flag: choiceSet?.flag ?? null,
+    blockedSkills: choiceSet?.blockedSkills ?? [],
+    blockedSourceName: choiceSet?.sourceName ?? null,
+  });
+}
+
+function isStoredSkillChoiceSet(choiceSet) {
+  if (choiceSet?.grantsSkillTraining === true) return true;
+  if (choiceSet?.syntheticType === 'skill-training-fallback') return true;
+  return isSkillChoiceSet(choiceSet);
+}
+
+function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { flag = null, blockedSkills = [], blockedSourceName = null } = {}) {
+  const normalizedBlockedSkills = new Set((blockedSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
   const selectedSkills = new Set(
-    Object.entries(currentChoices)
-      .filter(([flag]) => flag !== rule.flag)
+    Object.entries(currentChoices ?? {})
+      .filter(([entryFlag]) => entryFlag !== flag)
       .map(([, value]) => value)
       .filter((value) => typeof value === 'string' && value !== '[object Object]')
       .map((value) => normalizeSkillIdentity(value)),
   );
+  const currentSelected = normalizeSkillIdentity(currentChoices?.[flag] ?? null);
 
-  const currentSelected = normalizeSkillIdentity(currentChoices?.[rule.flag] ?? null);
-
-  return options
+  return (options ?? [])
     .filter((option) => {
-      const optionKeys = [
-        normalizeSkillIdentity(option.value),
-        normalizeSkillIdentity(option.label),
-      ];
+      const optionKeys = getSkillOptionKeys(option);
       if (optionKeys.includes(currentSelected)) return true;
       if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
       return true;
     })
     .map((option) => {
-      const optionKeys = [
-        normalizeSkillIdentity(option.value),
-        normalizeSkillIdentity(option.label),
-      ];
+      const optionKeys = getSkillOptionKeys(option);
       const matchedState = optionKeys
         .map((key) => findMatchingSkillState(skillState, key))
         .find(Boolean) ?? null;
+      const blockedBySyntheticGrant = optionKeys.some((key) => normalizedBlockedSkills.has(key));
+      const effectiveState = {
+        selected: !!matchedState?.selected,
+        autoTrained: !!matchedState?.autoTrained || blockedBySyntheticGrant,
+        source: matchedState?.source ?? (blockedBySyntheticGrant ? blockedSourceName : null),
+      };
 
       return {
         ...option,
-        selectedInSkills: !!matchedState?.selected,
-        autoTrained: !!matchedState?.autoTrained,
-        autoTrainedSource: matchedState?.source ?? null,
-        disabled: !!matchedState?.selected || !!matchedState?.autoTrained,
+        selected: currentChoices?.[flag] === option.value,
+        selectedInSkills: !!effectiveState.selected,
+        autoTrained: !!effectiveState.autoTrained,
+        autoTrainedSource: effectiveState.source ?? null,
+        disabled: !!effectiveState.selected || !!effectiveState.autoTrained,
       };
     });
+}
+
+function getSkillOptionKeys(option) {
+  return [
+    normalizeSkillIdentity(option?.value),
+    normalizeSkillIdentity(option?.label),
+    normalizeSkillIdentity(option?.slug),
+    normalizeSkillIdentity(option?.name),
+    normalizeSkillIdentity(option?.value?.slug),
+    normalizeSkillIdentity(option?.value?.label),
+    normalizeSkillIdentity(option?.value?.name),
+  ].filter(Boolean);
 }
 
 function normalizeSkillIdentity(value) {
@@ -714,15 +851,7 @@ function createSkillStateMap(skillContext) {
 }
 
 function findOptionSkillState(skillState, option, value, label) {
-  const optionKeys = [
-    normalizeSkillIdentity(value),
-    normalizeSkillIdentity(label),
-    normalizeSkillIdentity(option?.slug),
-    normalizeSkillIdentity(option?.name),
-    normalizeSkillIdentity(option?.value?.slug),
-    normalizeSkillIdentity(option?.value?.label),
-    normalizeSkillIdentity(option?.value?.name),
-  ];
+  const optionKeys = getSkillOptionKeys({ ...option, value, label });
 
   return optionKeys
     .map((key) => findMatchingSkillState(skillState, key))

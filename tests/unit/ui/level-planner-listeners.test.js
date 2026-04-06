@@ -50,4 +50,41 @@ describe('Level planner skill increase listeners', () => {
     ]);
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
+
+  it('uses same-level planned feat skill rank rules when selecting a skill increase', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="acrobatics"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          2: {
+            classFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.acrobat-dedication',
+                name: 'Acrobat Dedication',
+                slug: 'acrobat-dedication',
+                skillRules: [
+                  { skill: 'acrobatics', value: 2 },
+                ],
+              },
+            ],
+            skillIncreases: [],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    planner.actor.system.skills.acrobatics.rank = 1;
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectSkillIncrease"]').click();
+
+    expect(planner.plan.levels[2].skillIncreases).toEqual([
+      { skill: 'acrobatics', toRank: 3 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
 });

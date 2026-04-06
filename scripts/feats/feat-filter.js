@@ -161,7 +161,7 @@ export function sortFeats(feats, method) {
 }
 
 export function getFeatsForSelection(feats, category, actor, targetLevel, options = {}) {
-  const classTraits = buildCategoryQuery(category, actor);
+  const classTraits = buildCategoryQuery(category, actor, options.buildState);
 
   let result = filterFeatsByCategory(feats, category, classTraits, targetLevel, {
     includeDedications: !!options.includeDedications,
@@ -213,11 +213,14 @@ export async function collectAdditionalArchetypeFeatLevels(feats, ownedFeatSlugs
   return additionalFeatLevels;
 }
 
-function buildCategoryQuery(category, actor) {
+function buildCategoryQuery(category, actor, buildState) {
   switch (category) {
     case 'class':
       return actor?.class?.slug ?? '';
     case 'ancestry': {
+      if (buildState?.ancestryTraits instanceof Set && buildState.ancestryTraits.size > 0) {
+        return [...buildState.ancestryTraits];
+      }
       const queries = [actor?.ancestry?.slug ?? ''];
       const heritageSlug = actor?.heritage?.slug ?? null;
       if (heritageSlug) queries.push(heritageSlug);

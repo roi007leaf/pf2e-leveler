@@ -32,7 +32,11 @@
       "REMOVE": "Remove",
       "SELECTED": "Selected",
       "PRIMARY": "Primary",
-      "MAKE_PRIMARY": "Make Primary"
+      "MAKE_PRIMARY": "Make Primary",
+      "GRANTED_BY_FEAT": "Granted by {featName}",
+      "SET_BY_FEAT": "Set by: {featName}",
+      "SELECT_ADOPTED_ANCESTRY": "Choose the ancestry granted by this feat.",
+      "SELECT_ANCESTRY": "Select ancestry"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Class Features",
@@ -91,7 +95,8 @@
       "EXPERT": "Expert",
       "MASTER": "Master",
       "LEGENDARY": "Legendary",
-      "MAX_RANK": "Max rank for this level"
+      "MAX_RANK": "Max rank for this level",
+      "BOOSTED_BY_FEAT": "Boosted by feat"
     },
     "SPELLS": {
       "RANK": "Rank",

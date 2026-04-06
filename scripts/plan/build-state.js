@@ -1,4 +1,4 @@
-import { ATTRIBUTES, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
+import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts } from './plan-model.js';
 import { slugify } from '../utils/pf2e-api.js';
@@ -36,6 +36,7 @@ export function computeBuildState(actor, plan, atLevel) {
     class: computeClassState(classDef, plan.classSlug),
     ancestrySlug: actor?.ancestry?.slug ?? null,
     heritageSlug: actor?.heritage?.slug ?? null,
+    ancestryTraits: computeAncestryTraits(actor, plan, atLevel),
     backgroundSlug: actor?.background?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
     skills: computeSkills(actor, plan, atLevel, classDef),
@@ -58,6 +59,33 @@ function computeClassState(classDef, classSlug) {
     keyAbility: classDef?.keyAbility ?? [],
     subclassType: CLASS_SUBCLASS_TYPES[classSlug ?? classDef?.slug ?? ''] ?? null,
   };
+}
+
+function computeAncestryTraits(actor, plan, atLevel) {
+  const traits = new Set();
+
+  for (const slug of [actor?.ancestry?.slug ?? null, actor?.heritage?.slug ?? null]) {
+    addAncestryTraitAliases(traits, slug);
+  }
+
+  for (const item of getOwnedItems(actor)) {
+    if (item?.type !== 'feat') continue;
+    const featSlug = slugify(item?.slug ?? item?.name ?? '');
+    if (featSlug !== 'adopted-ancestry') continue;
+    const selected = item?.flags?.pf2e?.rulesSelections?.adoptedAncestry
+      ?? item?.flags?.pf2e?.rulesSelections?.ancestry
+      ?? null;
+    addAncestryTraitAliases(traits, selected);
+  }
+
+  for (const feat of getAllPlannedFeats(plan, atLevel)) {
+    const featSlug = slugify(feat?.slug ?? feat?.name ?? '');
+    if (featSlug !== 'adopted-ancestry') continue;
+    const selected = feat?.choices?.adoptedAncestry ?? feat?.adoptedAncestry ?? null;
+    addAncestryTraitAliases(traits, selected);
+  }
+
+  return traits;
 }
 
 function computeDeityState(actor) {
@@ -152,6 +180,21 @@ function computeAttributes(actor, plan, atLevel) {
 }
 
 function computeSkills(actor, plan, atLevel, classDef) {
+  const skills = computeSkillsWithoutPlannedFeatRules(actor, plan, atLevel, classDef);
+  applyPlannedSkillRankRules(skills, plan, atLevel);
+  return skills;
+}
+
+export function computeSkillsWithoutPlannedFeatRules(actor, plan, atLevel, classDef) {
+  return computeSkillPickerState(actor, plan, atLevel, classDef, {
+    includePlannedFeatRules: false,
+    includeCurrentLevelSkillIncrease: true,
+  });
+}
+
+export function computeSkillPickerState(actor, plan, atLevel, classDef, options = {}) {
+  const includePlannedFeatRules = options.includePlannedFeatRules !== false;
+  const includeCurrentLevelSkillIncrease = options.includeCurrentLevelSkillIncrease === true;
   const skills = {};
   for (const skill of SKILLS) {
     skills[skill] = actor?.system?.skills?.[skill]?.rank ?? PROFICIENCY_RANKS.UNTRAINED;
@@ -167,21 +210,11 @@ function computeSkills(actor, plan, atLevel, classDef) {
 
   applyActorSkillRankRules(skills, actor, atLevel);
 
-  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
-
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
 
-    for (const key of FEAT_KEYS) {
-      for (const feat of levelData[key] ?? []) {
-        for (const rule of feat.skillRules ?? []) {
-          if (!matchesRuleAtLevel(rule, atLevel)) continue;
-          if (!SKILLS.includes(rule.skill)) continue;
-          skills[rule.skill] = Math.max(skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED, rule.value);
-        }
-      }
-    }
+    if (includePlannedFeatRules) applyPlannedLevelSkillRankRules(skills, plan, level, atLevel);
 
     for (const skill of levelData.intBonusSkills ?? []) {
       if ((skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED) < PROFICIENCY_RANKS.TRAINED) {
@@ -189,11 +222,21 @@ function computeSkills(actor, plan, atLevel, classDef) {
       }
     }
 
+    if (level === atLevel && !includeCurrentLevelSkillIncrease) continue;
+
     for (const inc of levelData.skillIncreases ?? []) {
       if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
         skills[inc.skill] = inc.toRank;
       }
     }
+  }
+
+  return skills;
+}
+
+function applyPlannedSkillRankRules(skills, plan, atLevel) {
+  for (let level = 1; level <= atLevel; level++) {
+    applyPlannedLevelSkillRankRules(skills, plan, level, atLevel);
   }
 
   return skills;
@@ -247,10 +290,30 @@ export function applyActorSkillRankRules(skills, actor, atLevel) {
       const skill = match[1];
       if (!SKILLS.includes(skill)) continue;
 
-      const value = Number(resolveInjectedValue(rule.value, item));
+      const value = evaluateRuleNumericValue(rule.value, atLevel, item);
       if (!Number.isFinite(value)) continue;
 
       skills[skill] = Math.max(skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED, value);
+    }
+  }
+
+  return skills;
+}
+
+export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = level) {
+  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+  const levelData = plan?.levels?.[level];
+  if (!levelData) return skills;
+
+  for (const key of FEAT_KEYS) {
+    for (const feat of levelData[key] ?? []) {
+      for (const rule of feat.skillRules ?? []) {
+        if (!matchesRuleAtLevel(rule, atLevel)) continue;
+        if (!SKILLS.includes(rule.skill)) continue;
+        const value = evaluateRuleNumericValue(rule.value, atLevel, feat);
+        if (!Number.isFinite(value)) continue;
+        skills[rule.skill] = Math.max(skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED, value);
+      }
     }
   }
 
@@ -526,6 +589,13 @@ function normalizeLanguageSlug(value) {
   return normalized;
 }
 
+function addAncestryTraitAliases(target, slug) {
+  const normalized = normalizeEquipmentValue(slug);
+  if (!normalized) return;
+  const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
+  for (const alias of aliases) target.add(alias);
+}
+
 function collectDeityDomains(value) {
   const domains = new Set();
   const source = value?.system?.domains ?? value?.domains ?? null;
@@ -602,4 +672,91 @@ function resolveInjectedValue(value, item) {
     const resolved = foundry.utils.getProperty(item, path);
     return resolved == null ? '' : String(resolved);
   });
+}
+
+function evaluateRuleNumericValue(value, atLevel, item) {
+  const resolved = resolveInjectedValue(value, item);
+  if (typeof resolved === 'number') return resolved;
+
+  const numeric = Number(resolved);
+  if (Number.isFinite(numeric)) return numeric;
+
+  if (typeof resolved !== 'string') return NaN;
+  return evaluateRuleExpression(resolved, atLevel);
+}
+
+function evaluateRuleExpression(expression, atLevel) {
+  const text = String(expression ?? '').trim();
+  if (!text) return NaN;
+
+  if (/^@actor\.level$/i.test(text)) return atLevel;
+
+  const directNumber = Number(text);
+  if (Number.isFinite(directNumber)) return directNumber;
+
+  const ternaryArgs = parseFunctionArguments(text, 'ternary');
+  if (ternaryArgs) {
+    if (ternaryArgs.length < 3) return NaN;
+    const condition = evaluateRuleCondition(ternaryArgs[0], atLevel);
+    return evaluateRuleExpression(condition ? ternaryArgs[1] : ternaryArgs[2], atLevel);
+  }
+
+  return NaN;
+}
+
+function evaluateRuleCondition(expression, atLevel) {
+  const text = String(expression ?? '').trim();
+  if (!text) return false;
+
+  const gteArgs = parseFunctionArguments(text, 'gte');
+  if (gteArgs) return compareRuleExpressions(gteArgs, atLevel, (left, right) => left >= right);
+
+  const gtArgs = parseFunctionArguments(text, 'gt');
+  if (gtArgs) return compareRuleExpressions(gtArgs, atLevel, (left, right) => left > right);
+
+  const lteArgs = parseFunctionArguments(text, 'lte');
+  if (lteArgs) return compareRuleExpressions(lteArgs, atLevel, (left, right) => left <= right);
+
+  const ltArgs = parseFunctionArguments(text, 'lt');
+  if (ltArgs) return compareRuleExpressions(ltArgs, atLevel, (left, right) => left < right);
+
+  const eqArgs = parseFunctionArguments(text, 'eq');
+  if (eqArgs) return compareRuleExpressions(eqArgs, atLevel, (left, right) => left === right);
+
+  const numeric = evaluateRuleExpression(text, atLevel);
+  return Number.isFinite(numeric) && numeric !== 0;
+}
+
+function compareRuleExpressions(args, atLevel, comparator) {
+  if (!Array.isArray(args) || args.length < 2) return false;
+  const left = evaluateRuleExpression(args[0], atLevel);
+  const right = evaluateRuleExpression(args[1], atLevel);
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+  return comparator(left, right);
+}
+
+function parseFunctionArguments(expression, functionName) {
+  const text = String(expression ?? '').trim();
+  const prefix = `${functionName}(`;
+  if (!text.toLowerCase().startsWith(prefix)) return null;
+  if (!text.endsWith(')')) return null;
+
+  const inner = text.slice(prefix.length, -1);
+  const args = [];
+  let depth = 0;
+  let current = '';
+
+  for (const char of inner) {
+    if (char === ',' && depth === 0) {
+      args.push(current.trim());
+      current = '';
+      continue;
+    }
+    if (char === '(') depth += 1;
+    if (char === ')') depth -= 1;
+    current += char;
+  }
+
+  if (current.trim().length > 0) args.push(current.trim());
+  return args;
 }

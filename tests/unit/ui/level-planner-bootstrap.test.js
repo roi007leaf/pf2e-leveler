@@ -391,4 +391,57 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
     expect(context.showSkillIncrease).toBe(true);
   });
+
+  it('shows an ancestry feat slot under Ancestral Paragon general feats', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      slug: 'ancestral-paragon',
+      name: 'Ancestral Paragon',
+      level: 3,
+    }];
+
+    const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+    expect(context.showGeneralFeat).toBe(true);
+    expect(context.showGeneralFeatGrantedAncestryFeat).toBe(true);
+    expect(context.showAncestryFeat).toBe(false);
+  });
+
+  it('shows an ancestry selector under Adopted Ancestry general feats', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+    actor.ancestry.slug = 'human';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 1;
+    planner.plan.levels[1] = planner.plan.levels[1] ?? {};
+    planner.plan.levels[1].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+      slug: 'adopted-ancestry',
+      name: 'Adopted Ancestry',
+      level: 1,
+      choices: { adoptedAncestry: 'dwarf' },
+    }];
+    planner._compendiumCache['category-ancestries'] = [
+      { slug: 'human', name: 'Human', rarity: 'common' },
+      { slug: 'dwarf', name: 'Dwarf', rarity: 'common', img: 'dwarf.webp' },
+      { slug: 'elf', name: 'Elf', rarity: 'common', img: 'elf.webp' },
+      { slug: 'fetchling', name: 'Fetchling', rarity: 'uncommon', img: 'fetchling.webp' },
+    ];
+
+    const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+    expect(context.showGeneralFeatAdoptedAncestry).toBe(true);
+    expect(context.selectedGeneralFeatAdoptedAncestry).toBe('dwarf');
+    expect(context.generalFeatAdoptedAncestryOptions).toEqual([
+      expect.objectContaining({ value: 'dwarf', selected: true, img: 'dwarf.webp' }),
+      expect.objectContaining({ value: 'elf', selected: false, img: 'elf.webp' }),
+    ]);
+    expect(context.generalFeatAdoptedAncestryOptions).toHaveLength(2);
+  });
 });

@@ -25,7 +25,7 @@ jest.mock('../../../scripts/classes/registry.js', () => ({
 }));
 
 describe('CharacterWizard rogue key ability boosts', () => {
-  it('shows INT as the fixed class key ability for Mastermind', async () => {
+  it('shows DEX or INT as the class key ability choice for Mastermind', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { slug: 'rogue', name: 'Rogue' };
     wizard.data.subclass = { slug: 'mastermind', name: 'Mastermind', choices: {} };
@@ -34,7 +34,22 @@ describe('CharacterWizard rogue key ability boosts', () => {
     const context = await wizard._buildBoostContext();
     const classRow = context.boostRows.find((row) => row.source === 'class');
 
-    expect(classRow.keyAbility).toBe('int');
-    expect(wizard.data.boosts.class).toEqual(['int']);
+    expect(classRow.isKeyChoice).toBe(true);
+    expect(classRow.options).toEqual(['dex', 'int']);
+    expect(wizard.data.boosts.class).toEqual([]);
+  });
+
+  it('keeps boosts incomplete for rogue until the class key ability choice is selected', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'rogue', name: 'Rogue' };
+    wizard.data.subclass = { slug: 'mastermind', name: 'Mastermind', choices: {} };
+    wizard.data.boosts.free = ['str', 'con', 'wis', 'cha'];
+    wizard.classHandler = getClassHandler('rogue');
+
+    wizard._cachedRequiredClassBoostSelections = await wizard._getRequiredClassBoostSelections();
+    expect(wizard._isStepComplete('boosts')).toBe(false);
+
+    wizard.data.boosts.class = ['int'];
+    expect(wizard._isStepComplete('boosts')).toBe(true);
   });
 });

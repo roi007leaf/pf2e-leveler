@@ -44,6 +44,7 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats']);
+const FEAT_SKILL_RULES_VERSION = 2;
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -57,7 +58,7 @@ const LOCATION_TO_PLAN_CATEGORY = {
   dual_class: 'dualClassFeats',
 };
 
-function extractFeatSkillRules(feat) {
+function extractDirectFeatSkillRules(feat) {
   const result = [];
   for (const rule of feat.system?.rules ?? []) {
     if (rule.key !== 'ActiveEffectLike') continue;
@@ -65,11 +66,38 @@ function extractFeatSkillRules(feat) {
     if (typeof path !== 'string') continue;
     const match = path.match(/^system\.skills\.([^.]+)\.rank$/);
     if (!match) continue;
-    const value = Number(rule.value);
-    if (!Number.isFinite(value)) continue;
+    const value = rule.value;
     result.push({ skill: match[1], value, predicate: rule.predicate ?? null });
   }
   return result;
+}
+
+export async function extractFeatSkillRules(feat, documentResolver = fromUuid, visited = new Set()) {
+  if (!feat) return [];
+
+  const featId = feat.uuid ?? feat.slug ?? feat.name ?? null;
+  if (featId && visited.has(featId)) return [];
+  if (featId) visited.add(featId);
+
+  const results = [...extractDirectFeatSkillRules(feat)];
+
+  for (const rule of feat.system?.rules ?? []) {
+    if (rule?.key !== 'GrantItem' || typeof rule.uuid !== 'string' || !documentResolver) continue;
+
+    try {
+      const granted = await documentResolver(rule.uuid);
+      if (!granted) continue;
+      const nestedRules = await extractFeatSkillRules(granted, documentResolver, visited);
+      for (const nested of nestedRules) {
+        if (results.some((entry) => entry.skill === nested.skill && entry.value === nested.value && JSON.stringify(entry.predicate ?? null) === JSON.stringify(nested.predicate ?? null))) continue;
+        results.push(nested);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return results;
 }
 
 const MANUAL_SPELL_FEATS = new Set([
@@ -177,7 +205,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     outer: for (const levelData of Object.values(plan.levels)) {
       for (const key of SKILL_RULES_FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
-          if (feat.skillRules === undefined) {
+          if (feat.skillRulesResolved !== true || feat.skillRulesVersion !== FEAT_SKILL_RULES_VERSION) {
             this._needsSkillRulesBackfill = true;
             break outer;
           }
@@ -191,17 +219,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const levelData of Object.values(this.plan.levels ?? {})) {
       for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
-          if (feat.skillRules !== undefined) continue;
+          if (feat.skillRulesResolved === true && feat.skillRulesVersion === FEAT_SKILL_RULES_VERSION) continue;
           if (!feat.uuid) {
             feat.skillRules = [];
+            feat.skillRulesResolved = true;
+            feat.skillRulesVersion = FEAT_SKILL_RULES_VERSION;
             continue;
           }
           try {
             const doc = await fromUuid(feat.uuid);
-            feat.skillRules = doc ? extractFeatSkillRules(doc) : [];
+            feat.skillRules = doc ? await extractFeatSkillRules(doc) : [];
           } catch {
             feat.skillRules = [];
           }
+          feat.skillRulesResolved = true;
+          feat.skillRulesVersion = FEAT_SKILL_RULES_VERSION;
         }
       }
     }
@@ -325,7 +357,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         slug: feat.slug ?? feat.uuid ?? null,
         img: feat.img ?? null,
         level: feat.system?.level?.value ?? null,
-        skillRules: extractFeatSkillRules(feat),
+        skillRules: extractDirectFeatSkillRules(feat),
+        skillRulesResolved: false,
+        skillRulesVersion: 0,
       });
     }
   }
@@ -811,15 +845,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       categoryMap[category] ?? 'class',
       level,
       buildState,
-      (feat) => {
+      async (feat) => {
         const slug = feat.slug ?? feat.uuid ?? null;
+        const skillRules = await extractFeatSkillRules(feat);
         setLevelFeat(this.plan, level, category, {
           uuid: feat.uuid,
           name: feat.name,
           slug,
           img: feat.img,
           level: feat.system.level.value,
-          skillRules: extractFeatSkillRules(feat),
+          skillRules,
+          skillRulesResolved: true,
+          skillRulesVersion: FEAT_SKILL_RULES_VERSION,
         });
         clearLevelReminders(this.plan, level, slug);
         if (MANUAL_SPELL_FEATS.has(slug)) {
@@ -829,7 +866,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             message: game.i18n.localize('PF2E_LEVELER.UI.MANUAL_SPELL_NOTE'),
           });
         }
-        this._savePlanAndRender();
+        await this._savePlanAndRender();
       },
     );
     picker.render(true);

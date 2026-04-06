@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.3
+
+### Fixed
+
+- Character wizard ancestry lore and feat-choice flows now behave more like PF2E expects
+  - Ancestry lore feats now add their granted lore skills such as `Elf Lore`, alongside their trained-skill fallback prompts
+  - Synthetic feat skill prompts keep already-trained and already-selected skills locked after rerenders instead of visually unlocking invalid choices
+  - Rogue key ability selection now correctly offers `Dexterity` or the racket-based alternative, and the Boosts step stays incomplete until that choice is made
+- Character wizard browsing and completion state are more stable
+  - The Feats step now stays incomplete when a required level-1 class feat is still missing
+  - Feat Choices browsing now preserves the inner feat-pane scroll position across save/rerender cycles instead of jumping back to the top
+
 ## 1.4.2
 
 ### Improved

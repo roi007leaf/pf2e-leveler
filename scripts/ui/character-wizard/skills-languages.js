@@ -83,7 +83,7 @@ export function parseSubclassLores(rules, html) {
   if (lores.length === 0 && html) {
     for (const lore of extractLoreLabels(html)) lores.push(lore);
   }
-  return lores;
+  return lores.filter((lore) => normalizeLoreName(lore) !== 'additional lore');
 }
 
 export async function buildSkillContext(wizard) {
@@ -182,6 +182,13 @@ function cleanLoreLabel(label) {
   const parts = loreText.split(/\s+/).filter(Boolean);
   if (parts.length > 2) return parts.slice(-2).join(' ');
   return loreText;
+}
+
+function normalizeLoreName(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 function localizeWithFallback(key, fallback) {

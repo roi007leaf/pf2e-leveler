@@ -1,7 +1,8 @@
 import { ATTRIBUTES, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
 import { getGradualBoostGroupLevels } from '../../classes/progression.js';
-import { applyActorSkillRankRules, computeBuildState } from '../../plan/build-state.js';
+import { computeBuildState, computeSkillPickerState } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
+import { ClassRegistry } from '../../classes/registry.js';
 
 export function buildAttributeContext(planner, levelData, choices) {
   const selectedBoosts = levelData.abilityBoosts ?? [];
@@ -127,15 +128,21 @@ export function localizeLanguageLabel(label) {
 
 export function buildSkillContext(planner, levelData, level) {
   const maxRank = getMaxSkillRank(level);
-  const buildState = computeBuildState(planner.actor, planner.plan, level - 1);
-  applyActorSkillRankRules(buildState.skills, planner.actor, level);
-  for (const skill of levelData.intBonusSkills ?? []) {
-    buildState.skills[skill] = Math.max(buildState.skills[skill] ?? 0, 1);
-  }
+  const classDef = ClassRegistry.get(planner.plan?.classSlug);
+  const currentSkills = computeSkillPickerState(planner.actor, planner.plan, level, classDef, {
+    includePlannedFeatRules: true,
+    includeCurrentLevelSkillIncrease: false,
+  });
+  const baseSkills = computeSkillPickerState(planner.actor, planner.plan, level, classDef, {
+    includePlannedFeatRules: false,
+    includeCurrentLevelSkillIncrease: false,
+  });
   const currentIncrease = levelData.skillIncreases?.[0];
 
-  const skills = Object.entries(buildState.skills).map(([slug, rank]) => {
+  const skills = Object.entries(currentSkills).map(([slug, rank]) => {
     const nextRank = rank + 1;
+    const featGranted = rank > (baseSkills[slug] ?? 0);
+    const featSourceName = featGranted ? findSkillGrantingFeatName(planner.plan, slug, level) : null;
     return {
       slug,
       label: localizeSkillSlug(slug),
@@ -143,15 +150,39 @@ export function buildSkillContext(planner, levelData, level) {
       rankName: PROFICIENCY_RANK_NAMES[rank],
       nextRankName: PROFICIENCY_RANK_NAMES[Math.min(nextRank, 4)],
       maxed: nextRank > maxRank,
+      featGranted,
+      featSourceName,
+      disabled: !featGranted && nextRank > maxRank,
+      lockedByFeat: featGranted,
       selected: currentIncrease?.skill === slug,
     };
   });
 
-  return skills.filter((s) => !s.maxed || s.selected);
+  return skills.filter((s) => !s.maxed || s.selected || s.featGranted);
 }
 
 function localizeSkillSlug(slug) {
   const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
+function findSkillGrantingFeatName(plan, skillSlug, atLevel) {
+  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats'];
+
+  for (let level = 1; level <= atLevel; level++) {
+    const levelData = plan?.levels?.[level];
+    if (!levelData) continue;
+
+    for (const key of FEAT_KEYS) {
+      for (const feat of levelData[key] ?? []) {
+        for (const rule of feat.skillRules ?? []) {
+          if (rule?.skill !== skillSlug) continue;
+          return feat.name ?? null;
+        }
+      }
+    }
+  }
+
+  return null;
 }
