@@ -12,18 +12,12 @@
 - GMs can now restrict player-facing character options by rarity and source
   - Added world settings to allow or block `Uncommon`, `Rare`, and `Unique` content for non-GM users
   - Added a GM-only `Player Content Sources` configuration menu plus an enable toggle to limit players to approved compendium sources during character creation and leveling
-- Existing higher-level characters now seed a new planner with obvious past choices
-  - When the planner opens for an actor without a saved plan, it now pulls in stored ability boosts and owned feats with clear taken-level data
-  - This gives established characters a much more useful starting plan instead of a fully blank progression
 
 ### Fixed
 
 - Wizard skill choice-set handling is now clearer and safer
   - The Skills step now warns when a skill appears in a later choice set
   - Later skill choice sets now recognize skills already chosen in the Skills step and block duplicate selection to avoid conflicts
-- Wizard skill choice sets now stay in sync with the Skills step more reliably
-  - Later skill choice sets recognize skills already selected in the Skills step
-  - Duplicate skill selections are blocked in later choice sets to avoid conflicting picks
 
 ## 1.4.1
 
