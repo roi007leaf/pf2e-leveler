@@ -1,10 +1,14 @@
 import { MODULE_ID } from '../constants.js';
+import { getAllowedCompendiumKeysForCurrentUser } from '../access/player-content.js';
 
 export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   ancestries: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.ANCESTRIES',
     defaultKeys: ['pf2e.ancestries'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => entry.type === 'ancestry'),
+    matches: (pack, index) => isItemPack(pack)
+      && !hasFeatureLikePackIdentity(pack)
+      && !hasHeritageLikePackIdentity(pack)
+      && index.some((entry) => entry.type === 'ancestry'),
   },
   heritages: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.HERITAGES',
@@ -19,17 +23,21 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   classes: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.CLASSES',
     defaultKeys: ['pf2e.classes'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => entry.type === 'class'),
+    matches: (pack, index) => isItemPack(pack)
+      && !hasFeatureLikePackIdentity(pack)
+      && index.some((entry) => entry.type === 'class'),
   },
   feats: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS',
     defaultKeys: ['pf2e.feats-srd'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => isFeatIndexEntry(entry)),
+    matches: (pack, index) => isItemPack(pack)
+      && !hasNonFeatPackIdentity(pack)
+      && index.some((entry) => isFeatIndexEntry(entry)),
   },
   classFeatures: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.CLASS_FEATURES',
     defaultKeys: ['pf2e.classfeatures'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => isClassFeatureIndexEntry(entry)),
+    matches: (pack, index) => isItemPack(pack) && isClassFeaturesPack(pack, index),
   },
   spells: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.SPELLS',
@@ -44,7 +52,9 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   actions: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.ACTIONS',
     defaultKeys: ['pf2e.actionspf2e'],
-    matches: (pack, index) => isItemPack(pack) && index.some((entry) => entry.type === 'action'),
+    matches: (pack, index) => isItemPack(pack)
+      && !hasNonActionPackIdentity(pack)
+      && index.some((entry) => entry.type === 'action'),
   },
   deities: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.DEITIES',
@@ -70,8 +80,8 @@ export function getConfiguredCompendiumSelections() {
 export function getCompendiumKeysForCategory(category, { includeDefaults = true } = {}) {
   const configured = getConfiguredCompendiumSelections();
   const custom = configured[category] ?? [];
-  if (!includeDefaults) return [...custom];
-  return dedupeStrings([...getDefaultCompendiumKeys(category), ...custom]);
+  const defaults = includeDefaults ? getDefaultCompendiumKeys(category) : [];
+  return getAllowedCompendiumKeysForCurrentUser(category, defaults, custom);
 }
 
 export function normalizeCompendiumSelections(value) {
@@ -168,6 +178,150 @@ function isClassFeatureIndexEntry(entry) {
   if (category === 'classfeature' || category === 'class-feature') return true;
 
   return false;
+}
+
+function isClassFeaturesPack(pack, index) {
+  if (hasFeatureLikePackIdentity(pack)) return true;
+
+  const hasClassFeatures = index.some((entry) => isClassFeatureIndexEntry(entry));
+  if (!hasClassFeatures) return false;
+
+  return !index.some((entry) => isNonClassFeatureFeatEntry(entry));
+}
+
+function hasNonFeatPackIdentity(pack) {
+  return hasActionLikePackIdentity(pack)
+    || hasEffectLikePackIdentity(pack)
+    || hasFeatureLikePackIdentity(pack)
+    || hasFollowerLikePackIdentity(pack)
+    || hasSupportLikePackIdentity(pack)
+    || hasAncestryLikePackIdentity(pack)
+    || hasHeritageLikePackIdentity(pack)
+    || hasBackgroundLikePackIdentity(pack)
+    || hasClassLikePackIdentity(pack)
+    || hasSpellLikePackIdentity(pack)
+    || hasEquipmentLikePackIdentity(pack)
+    || hasDeityLikePackIdentity(pack);
+}
+
+function hasNonActionPackIdentity(pack) {
+  return hasFeatureLikePackIdentity(pack)
+    || hasFollowerLikePackIdentity(pack)
+    || hasSupportLikePackIdentity(pack)
+    || hasEffectLikePackIdentity(pack)
+    || hasAncestryLikePackIdentity(pack)
+    || hasHeritageLikePackIdentity(pack)
+    || hasBackgroundLikePackIdentity(pack)
+    || hasClassLikePackIdentity(pack)
+    || hasSpellLikePackIdentity(pack)
+    || hasEquipmentLikePackIdentity(pack)
+    || hasDeityLikePackIdentity(pack);
+}
+
+function hasFeatureLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  if (/\beffect(?:s)?\b/.test(haystack)) return false;
+  if (/\bancestry\b/.test(haystack)) return false;
+
+  return /\bclass[\s-]*feature(?:s)?\b/.test(haystack)
+    || /\bfeature(?:s)?\b/.test(haystack);
+}
+
+function isNonClassFeatureFeatEntry(entry) {
+  return getNormalizedEntryType(entry) === 'feat' && !isClassFeatureIndexEntry(entry);
+}
+
+function hasHeritageLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  return /\bheritage(?:s)?\b/.test(haystack);
+}
+
+function hasFollowerLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bfollower(?:s)?\b/.test(haystack);
+}
+
+function hasSupportLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bsupport\b|\bbenefit(?:s)?\b/.test(haystack);
+}
+
+function hasActionLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\baction(?:s)?\b/.test(haystack);
+}
+
+function hasEffectLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\beffect(?:s)?\b/.test(haystack);
+}
+
+function hasAncestryLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bancestr(?:y|ies)\b/.test(haystack);
+}
+
+function hasBackgroundLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bbackground(?:s)?\b/.test(haystack);
+}
+
+function hasClassLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  if (hasFeatureLikePackIdentity(pack)) return true;
+  return /\bclass(?:es)?\b/.test(haystack);
+}
+
+function hasSpellLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bspell(?:s)?\b/.test(haystack);
+}
+
+function hasEquipmentLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bequipment\b|\bitem(?:s)?\b|\bweapon(?:s)?\b|\barmor\b/.test(haystack);
+}
+
+function hasDeityLikePackIdentity(pack) {
+  const haystack = getPackIdentityText(pack);
+  if (!haystack) return false;
+  if (/\bfeat(?:s)?\b/.test(haystack)) return false;
+  return /\bdeit(?:y|ies)\b|\bdomain(?:s)?\b|\bdivine intercession(?:s)?\b/.test(haystack);
+}
+
+function getPackIdentityText(pack) {
+  return [
+    pack?.metadata?.label,
+    pack?.title,
+    pack?.collection,
+    pack?.metadata?.id,
+    pack?.metadata?.name,
+    pack?.metadata?.path,
+  ]
+    .map((value) => String(value ?? '').trim().toLowerCase())
+    .filter(Boolean)
+    .join(' ');
 }
 
 function getNormalizedEntryType(entry) {

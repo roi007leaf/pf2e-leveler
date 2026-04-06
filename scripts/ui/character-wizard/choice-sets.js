@@ -65,6 +65,8 @@ function looksLikeUuid(value) {
 }
 
 export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
+  const skillContext = await buildSkillContext(wizard);
+  const skillState = createSkillStateMap(skillContext);
   const hydratedChoiceSets = await Promise.all((choiceSets ?? []).map(async (cs) => {
     const options = await Promise.all((cs.options ?? []).map(async (opt) => {
       const value = extractChoiceValue(opt);
@@ -87,6 +89,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
       const value = extractChoiceValue(opt);
       const label = extractChoiceLabel(opt) || value;
       const uuid = extractChoiceUuid(opt);
+      const matchedSkillState = findOptionSkillState(skillState, opt, value, label);
       return {
         ...opt,
         value,
@@ -96,6 +99,10 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
         range: opt?.range ?? null,
         isRanged: !!opt?.isRanged,
         selected: currentChoices[cs.flag] === value,
+        selectedInSkills: !!matchedSkillState?.selected,
+        autoTrained: !!matchedSkillState?.autoTrained,
+        autoTrainedSource: matchedSkillState?.source ?? null,
+        disabled: !currentChoices[cs.flag] && (!!matchedSkillState?.selected || !!matchedSkillState?.autoTrained),
       };
     }),
     hasSelection: !!currentChoices[cs.flag] && currentChoices[cs.flag] !== '[object Object]',
@@ -605,38 +612,74 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
 async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}) {
   const options = resolveConfigChoiceOptions('skills');
   const skillContext = await buildSkillContext(wizard);
-  const unavailableSkills = new Set();
-  for (const entry of skillContext.filter((candidate) => candidate.autoTrained || candidate.selected)) {
-    unavailableSkills.add(normalizeSkillIdentity(entry.slug));
-    unavailableSkills.add(normalizeSkillIdentity(entry.label));
-  }
+  const skillState = createSkillStateMap(skillContext);
 
   const selectedSkills = new Set(
-    Object.values(currentChoices)
+    Object.entries(currentChoices)
+      .filter(([flag]) => flag !== rule.flag)
+      .map(([, value]) => value)
       .filter((value) => typeof value === 'string' && value !== '[object Object]')
       .map((value) => normalizeSkillIdentity(value)),
   );
 
   const currentSelected = normalizeSkillIdentity(currentChoices?.[rule.flag] ?? null);
 
-  return options.filter((option) => {
-    const optionKeys = [
-      normalizeSkillIdentity(option.value),
-      normalizeSkillIdentity(option.label),
-    ];
-    if (optionKeys.includes(currentSelected)) return true;
-    if (optionKeys.some((key) => hasMatchingSkillIdentity(unavailableSkills, key))) return false;
-    if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
-    return true;
-  });
+  return options
+    .filter((option) => {
+      const optionKeys = [
+        normalizeSkillIdentity(option.value),
+        normalizeSkillIdentity(option.label),
+      ];
+      if (optionKeys.includes(currentSelected)) return true;
+      if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+      return true;
+    })
+    .map((option) => {
+      const optionKeys = [
+        normalizeSkillIdentity(option.value),
+        normalizeSkillIdentity(option.label),
+      ];
+      const matchedState = optionKeys
+        .map((key) => findMatchingSkillState(skillState, key))
+        .find(Boolean) ?? null;
+
+      return {
+        ...option,
+        selectedInSkills: !!matchedState?.selected,
+        autoTrained: !!matchedState?.autoTrained,
+        autoTrainedSource: matchedState?.source ?? null,
+        disabled: !!matchedState?.selected || !!matchedState?.autoTrained,
+      };
+    });
 }
 
 function normalizeSkillIdentity(value) {
-  return String(value ?? '')
+  const normalized = String(value ?? '')
     .toLowerCase()
     .replace(/^pf2e\.skill/i, '')
     .replace(/[^a-z0-9]+/g, '');
+
+  return SKILL_ID_ALIASES[normalized] ?? normalized;
 }
+
+const SKILL_ID_ALIASES = {
+  acr: 'acrobatics',
+  arc: 'arcana',
+  ath: 'athletics',
+  cra: 'crafting',
+  dec: 'deception',
+  dip: 'diplomacy',
+  itm: 'intimidation',
+  med: 'medicine',
+  nat: 'nature',
+  occ: 'occultism',
+  prf: 'performance',
+  rel: 'religion',
+  soc: 'society',
+  ste: 'stealth',
+  sur: 'survival',
+  thi: 'thievery',
+};
 
 function hasMatchingSkillIdentity(knownSkills, candidate) {
   if (!candidate) return false;
@@ -646,6 +689,44 @@ function hasMatchingSkillIdentity(knownSkills, candidate) {
     if (known.length >= 3 && candidate.startsWith(known)) return true;
   }
   return false;
+}
+
+function findMatchingSkillState(skillState, candidate) {
+  if (!candidate) return null;
+  for (const [known, state] of skillState.entries()) {
+    if (known === candidate) return state;
+    if (candidate.length >= 3 && known.startsWith(candidate)) return state;
+    if (known.length >= 3 && candidate.startsWith(known)) return state;
+  }
+  return null;
+}
+
+function createSkillStateMap(skillContext) {
+  const skillState = new Map();
+  for (const entry of skillContext ?? []) {
+    for (const key of [entry.slug, entry.label]) {
+      const normalized = normalizeSkillIdentity(key);
+      if (!normalized) continue;
+      skillState.set(normalized, entry);
+    }
+  }
+  return skillState;
+}
+
+function findOptionSkillState(skillState, option, value, label) {
+  const optionKeys = [
+    normalizeSkillIdentity(value),
+    normalizeSkillIdentity(label),
+    normalizeSkillIdentity(option?.slug),
+    normalizeSkillIdentity(option?.name),
+    normalizeSkillIdentity(option?.value?.slug),
+    normalizeSkillIdentity(option?.value?.label),
+    normalizeSkillIdentity(option?.value?.name),
+  ];
+
+  return optionKeys
+    .map((key) => findMatchingSkillState(skillState, key))
+    .find(Boolean) ?? null;
 }
 
 function resolveConfigChoiceOptions(configPath) {

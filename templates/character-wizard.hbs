@@ -256,8 +256,15 @@
         {{#each this.options}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}">
-          <span class="skill-btn__name">{{this.label}}</span>
+          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            {{#if this.selectedInSkills}}
+            <span class="skill-btn__hint">Selected in Skills</span>
+            {{else if this.autoTrained}}
+            <span class="skill-btn__hint">Already trained from {{this.autoTrainedSource}}</span>
+            {{/if}}
+          </span>
         </button>
         {{/each}}
       </div>
@@ -330,8 +337,15 @@
         {{#each this.options}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectFeatChoice" data-slot="{{../../slot}}" data-flag="{{../flag}}" data-value="{{this.value}}">
-          <span class="skill-btn__name">{{this.label}}</span>
+          data-action="selectFeatChoice" data-slot="{{../../slot}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            {{#if this.selectedInSkills}}
+            <span class="skill-btn__hint">Selected in Skills</span>
+            {{else if this.autoTrained}}
+            <span class="skill-btn__hint">Already trained from {{this.autoTrainedSource}}</span>
+            {{/if}}
+          </span>
         </button>
         {{/each}}
       </div>
@@ -926,7 +940,16 @@
         <button type="button"
           class="skill-btn {{#if this.selected}}selected{{/if}}"
           data-action="toggleSkill" data-skill="{{this.slug}}">
-          <span class="skill-btn__name">{{this.label}}</span>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            {{#if this.futureSkillChoices.length}}
+            <span class="skill-btn__hint">
+              {{#each this.futureSkillChoices}}
+              {{#unless @first}} • {{/unless}}Later: {{this.sourceLabel}}
+              {{/each}}
+            </span>
+            {{/if}}
+          </span>
           <span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">{{localize "PF2E_LEVELER.SKILLS.TRAINED"}}</span>
         </button>
         {{/if}}

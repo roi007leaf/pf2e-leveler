@@ -2,7 +2,7 @@
   <header class="compendium-manager__hero">
     <div>
       <div class="compendium-manager__eyebrow">{{summaryLabel}}</div>
-      <h2 class="compendium-manager__title">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NAME"}}</h2>
+      <h2 class="compendium-manager__title">{{titleText}}</h2>
       <p class="compendium-manager__intro">{{intro}}</p>
     </div>
   </header>
@@ -31,7 +31,8 @@
       {{#if category.active}}
         <section class="compendium-manager__panel">
           <header class="compendium-manager__panelHeader">
-            <div>
+            <div class="compendium-manager__cardHeader">
+              <div>
               <h3 class="compendium-manager__cardTitle">{{category.label}}</h3>
               <div class="compendium-manager__meta">
                 <span class="tag tag--info">{{category.selectedCount}} selected</span>
@@ -40,27 +41,37 @@
                   <span class="tag tag--success">{{category.customCount}} custom</span>
                 {{/if}}
               </div>
+              </div>
+              <button
+                type="button"
+                class="compendium-manager__button compendium-manager__button--ghost compendium-manager__button--small"
+                data-action="toggle-all-compendiums"
+                data-category="{{category.key}}"
+                {{#unless category.hasSelectablePacks}}disabled title="{{../allDisabledLabel}}"{{/unless}}
+              >
+                {{#if category.allSelected}}{{../deselectAllLabel}}{{else}}{{../allLabel}}{{/if}}
+              </button>
             </div>
           </header>
 
           {{#if category.packs.length}}
             <div class="compendium-manager__packs">
               {{#each category.packs as |pack|}}
-                <div class="compendium-pack {{#if pack.checked}}is-selected{{/if}} {{#if pack.locked}}is-locked{{/if}}">
+                <div class="compendium-pack {{#if pack.checked}}is-selected{{/if}} {{#if pack.enforced}}is-locked{{/if}}">
                   <input
                     id="compendium-pack-{{category.key}}-{{@index}}"
                     class="compendium-pack__check"
                     type="checkbox"
                     data-category="{{category.key}}"
                     data-pack="{{pack.key}}"
-                    data-locked="{{#if pack.locked}}true{{else}}false{{/if}}"
+                    data-locked="{{#if pack.enforced}}true{{else}}false{{/if}}"
                     {{#if pack.checked}}checked{{/if}}
-                    {{#if pack.locked}}disabled{{/if}}
+                    {{#if pack.enforced}}disabled{{/if}}
                   >
                   <label class="compendium-pack__body" for="compendium-pack-{{category.key}}-{{@index}}">
                     <div class="compendium-pack__topline">
                       <button type="button" class="compendium-pack__label" data-action="open-compendium" data-pack="{{pack.key}}">{{pack.label}}</button>
-                      {{#if pack.locked}}
+                      {{#if pack.enforced}}
                         <span class="tag tag--warning">{{../../builtInLabel}}</span>
                       {{/if}}
                     </div>

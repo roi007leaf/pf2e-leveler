@@ -10,18 +10,21 @@ export function buildAttributeContext(planner, levelData, choices) {
   const boostsRemaining = maxBoosts - selectedBoosts.length;
   const variantOptions = planner._getVariantOptions?.() ?? {};
   const usedBoostsInSet = getUsedBoostsInSet(planner, planner.selectedLevel, variantOptions.gradualBoosts);
+  const actorLevel = Number(planner.actor?.system?.details?.level?.value ?? 1);
+  const alreadyAppliedLevel = planner.selectedLevel <= actorLevel;
 
   return ATTRIBUTES.map((key) => {
     const mod = buildState.attributes[key] ?? 0;
     const isPartial = mod >= 4;
     const selected = selectedBoosts.includes(key);
-    const newMod = selected ? mod + 1 : mod;
+    const newMod = selected ? (alreadyAppliedLevel ? mod : mod + 1) : mod;
     return {
       key,
       label: key.toUpperCase(),
       mod,
       newMod,
       selected,
+      applied: selected && alreadyAppliedLevel,
       partial: isPartial,
       cost: 1,
       disabled: !selected && (boostsRemaining <= 0 || usedBoostsInSet.has(key)),

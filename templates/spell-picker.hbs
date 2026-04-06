@@ -17,7 +17,7 @@
       </div>
 
       <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.FILTER_RARITY"}}</div>
         <div class="feat-picker__rarity-filters">
           <label class="feat-picker__check">
             <input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked>
@@ -31,7 +31,7 @@
       </div>
 
       <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
+        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.SORT"}}</div>
         <select class="feat-picker__search" data-action="changeSort">
           {{#each sortOptions}}
           <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
@@ -105,17 +105,17 @@
                 {{#if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
                 {{else}}
-                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                  {{localize "PF2E_LEVELER.SPELLS.SELECT"}}
                 {{/if}}
               {{else}}
-                {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{localize "PF2E_LEVELER.SPELLS.SELECT"}}
               {{/if}}
             </button>
           </div>
         </div>
         {{else}}
         <div class="planner-empty" style="padding: 2rem;">
-          <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+          <p>{{localize "PF2E_LEVELER.SPELLS.NO_RESULTS"}}</p>
         </div>
         {{/each}}
       </div>

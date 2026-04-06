@@ -165,6 +165,71 @@ describe('CharacterWizard skills step grants', () => {
     }));
   });
 
+  it('marks skills that appear in later skill choice sets', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          religion: 'Religion',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', uuid: 'class-uuid', name: 'Cleric' };
+    wizard.data.grantedFeatSections = [
+      {
+        slot: '__cleric-domain-initiate__',
+        featName: 'Domain Initiate',
+        sourceName: 'Cleric -> Domain Initiate',
+        choiceSets: [
+          {
+            flag: 'domainSkill',
+            prompt: 'Select a skill.',
+            options: [
+              { value: 'nature', label: 'Nature' },
+              { value: 'religion', label: 'Religion' },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const context = await wizard._buildSkillContext();
+
+    try {
+      expect(context.find((entry) => entry.slug === 'nature')).toEqual(expect.objectContaining({
+        futureSkillChoices: [
+          expect.objectContaining({ sourceLabel: 'Cleric -> Domain Initiate', prompt: 'Select a skill.' }),
+        ],
+      }));
+      expect(context.find((entry) => entry.slug === 'religion')).toEqual(expect.objectContaining({
+        futureSkillChoices: [
+          expect.objectContaining({ sourceLabel: 'Cleric -> Domain Initiate', prompt: 'Select a skill.' }),
+        ],
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('adds a placeholder lore for patron deity backgrounds', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'background-pilgrim-uuid') {

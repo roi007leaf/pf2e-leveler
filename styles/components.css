@@ -209,6 +209,13 @@
   color: var(--leveler-text-bright);
 }
 
+.pf2e-leveler .boost-btn.selected:disabled {
+  opacity: 1;
+  background: rgba(198, 161, 91, 0.22);
+  border-color: rgba(198, 161, 91, 0.8);
+  color: var(--leveler-text-bright);
+}
+
 .pf2e-leveler .boost-btn.partial {
   border-style: dashed;
   opacity: 0.7;
@@ -283,6 +290,14 @@
   color: var(--leveler-text);
 }
 
+.pf2e-leveler .skill-btn__content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .pf2e-leveler .skill-btn:hover:not(:disabled) {
   background: var(--leveler-bg-hover);
 }
@@ -299,11 +314,22 @@
 }
 
 .pf2e-leveler .skill-btn__name {
-  flex: 1;
   font-size: var(--leveler-font-sm);
   font-weight: 600;
   text-align: left;
   padding-right: 7.5rem;
+  width: 100%;
+}
+
+.pf2e-leveler .skill-btn__hint {
+  width: 100%;
+  padding-right: 7.5rem;
+  font-size: 0.72rem;
+  color: var(--leveler-text-muted);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pf2e-leveler .skill-btn__rank {
@@ -619,6 +645,13 @@
   transition: all 0.15s ease;
 }
 
+.pf2e-leveler .compendium-manager__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
 .pf2e-leveler .compendium-manager__button--ghost {
   color: var(--leveler-text);
   background: rgba(255, 255, 255, 0.04);
@@ -638,6 +671,12 @@
 .pf2e-leveler .compendium-manager__button--primary:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
+}
+
+.pf2e-leveler .compendium-manager__button--small {
+  min-width: 0;
+  padding: 6px 12px;
+  align-self: flex-start;
 }
 
 @media (max-width: 900px) {

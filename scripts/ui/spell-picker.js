@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { bindRarityToggles } from './shared/rarity-filters.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -248,7 +249,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _matchesTradition(spell) {
     const traditions = spell.system.traits?.traditions ?? spell.system.traditions?.value ?? [];
-    return traditions.includes(this.tradition);
+    if (traditions.includes(this.tradition)) return true;
+    const traits = spell.system.traits?.value ?? [];
+    return traits.includes(this.tradition);
   }
 
   async _updateList() {
@@ -373,7 +376,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         button.classList.toggle('active', selected);
         button.textContent = selected
           ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
-          : game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.SELECT');
+          : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
       }
     }
 
@@ -550,7 +553,9 @@ async function loadSpells() {
     const docs = await compendium.getDocuments().catch(() => []);
     const sourcePackage = compendium.metadata?.packageName ?? compendium.metadata?.package ?? '';
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
-    allDocs.push(...docs.map((spell) => {
+    allDocs.push(...docs
+      .filter((spell) => isRarityAllowedForCurrentUser(spell.system?.traits?.rarity ?? 'common'))
+      .map((spell) => {
       spell.sourcePack = key;
       spell.sourcePackage = sourcePackage || key;
       spell.sourcePackageLabel = sourcePackageLabel || key;

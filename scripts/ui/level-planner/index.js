@@ -43,6 +43,19 @@ import {
 } from './spells.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats']);
+const LOCATION_TO_PLAN_CATEGORY = {
+  class: 'classFeats',
+  skill: 'skillFeats',
+  general: 'generalFeats',
+  ancestry: 'ancestryFeats',
+  ancestryparagon: 'ancestryFeats',
+  xdy_ancestryparagon: 'ancestryFeats',
+  archetype: 'archetypeFeats',
+  mythic: 'mythicFeats',
+  dualclass: 'dualClassFeats',
+  dual_class: 'dualClassFeats',
+};
 
 function extractFeatSkillRules(feat) {
   const result = [];
@@ -95,6 +108,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!classDef) return;
 
     const options = this._getVariantOptions();
+    const actorLevel = Number(this.actor?.system?.details?.level?.value ?? 1);
     let changed = false;
 
     // Migrate per-level apparitions (old format) to plan-level cumulative list
@@ -141,6 +155,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
+    if (this._shouldClearImportedFromActor(plan, actorLevel)) {
+      delete plan.importedFromActor;
+      changed = true;
+    } else if (this._shouldMarkPlanAsImportedFromActor(plan, classDef, actorLevel)) {
+      plan.importedFromActor = {
+        actorLevel,
+        hideHistoricalSkillIncreases: true,
+      };
+      changed = true;
+    }
+
+    if (this._backfillMissingBoostsFromActor(plan)) {
+      changed = true;
+    }
+
     if (changed) savePlan(this.actor, plan);
 
     // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
@@ -185,9 +214,175 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const options = this._getVariantOptions();
     const plan = createPlan(classSlug, options);
+    const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
+    if (actorLevel > 1) {
+      plan.importedFromActor = {
+        actorLevel,
+        hideHistoricalSkillIncreases: true,
+      };
+    }
+    this._seedPlanFromActor(actor, plan, options);
     savePlan(actor, plan);
     debug(`Auto-created plan for ${actor.name} (${classSlug})`);
     return plan;
+  }
+
+  _seedPlanFromActor(actor, plan, options) {
+    this._seedPlanBoostsFromActor(actor, plan);
+    this._seedPlanFeatsFromActor(actor, plan, options);
+  }
+
+  _seedPlanBoostsFromActor(actor, plan) {
+    const actorBoosts = actor?.system?.build?.attributes?.boosts ?? {};
+
+    for (const [levelKey, boosts] of Object.entries(actorBoosts)) {
+      const level = Number(levelKey);
+      if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > MAX_LEVEL) continue;
+      if (!Array.isArray(plan?.levels?.[level]?.abilityBoosts)) continue;
+      const normalizedBoosts = normalizeActorBoostEntries(boosts);
+      if (normalizedBoosts.length === 0) continue;
+
+      const normalized = [...new Set(normalizedBoosts.filter((boost) =>
+        ['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(normalizeAbilityBoostKey(boost)),
+      ))];
+      if (normalized.length > 0) setLevelBoosts(plan, level, normalized);
+    }
+  }
+
+  _backfillMissingBoostsFromActor(plan) {
+    const actorBoosts = this.actor?.system?.build?.attributes?.boosts ?? {};
+    let changed = false;
+
+    for (const [levelKey, boosts] of Object.entries(actorBoosts)) {
+      const level = Number(levelKey);
+      if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > MAX_LEVEL) continue;
+
+      const plannedBoosts = plan?.levels?.[level]?.abilityBoosts;
+      if (!Array.isArray(plannedBoosts) || plannedBoosts.length > 0) continue;
+
+      const normalizedBoosts = normalizeActorBoostEntries(boosts);
+      if (normalizedBoosts.length === 0) continue;
+
+      const normalized = [...new Set(normalizedBoosts.filter((boost) =>
+        ['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(normalizeAbilityBoostKey(boost)),
+      ))];
+      if (normalized.length === 0) continue;
+
+      setLevelBoosts(plan, level, normalized);
+      changed = true;
+    }
+
+    return changed;
+  }
+
+  _shouldMarkPlanAsImportedFromActor(plan, classDef, actorLevel) {
+    if (plan?.importedFromActor?.hideHistoricalSkillIncreases === true) return false;
+    if (!classDef || actorLevel <= 1) return false;
+    if (this._hasPlannedSelectionsBeyondActorLevel(plan, actorLevel)) return false;
+
+    const pastSkillIncreaseLevels = classDef.skillIncreaseSchedule
+      .filter((level) => level >= MIN_PLAN_LEVEL && level <= actorLevel);
+    if (pastSkillIncreaseLevels.length === 0) return false;
+
+    return pastSkillIncreaseLevels.every((level) => {
+      const increases = plan?.levels?.[level]?.skillIncreases;
+      return !Array.isArray(increases) || increases.length === 0;
+    });
+  }
+
+  _shouldClearImportedFromActor(plan, actorLevel) {
+    if (plan?.importedFromActor?.hideHistoricalSkillIncreases !== true) return false;
+    return this._hasPlannedSelectionsBeyondActorLevel(plan, actorLevel);
+  }
+
+  _hasPlannedSelectionsBeyondActorLevel(plan, actorLevel) {
+    for (let level = actorLevel + 1; level <= MAX_LEVEL; level++) {
+      const levelData = plan?.levels?.[level];
+      if (!levelData) continue;
+      if (levelHasSelections(levelData)) return true;
+    }
+    return false;
+  }
+
+  _seedPlanFeatsFromActor(actor, plan, options) {
+    const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
+    const actorItems = actor?.items?.contents
+      ?? (Array.isArray(actor?.items) ? actor.items : []);
+    const actorFeats = actorItems
+      .filter((item) => item?.type === 'feat' && String(item?.system?.category ?? '').toLowerCase() !== 'classfeature')
+      .sort((a, b) => this._getActorFeatTakenLevel(a) - this._getActorFeatTakenLevel(b));
+
+    for (const feat of actorFeats) {
+      const placement = this._getActorFeatPlanPlacement(feat, plan, options, actorLevel);
+      if (!placement) continue;
+      const { level, category } = placement;
+      if (!plan.levels[level] || !FEAT_PLAN_CATEGORIES.has(category)) continue;
+      if ((plan.levels[level][category] ?? []).length > 0) continue;
+
+      setLevelFeat(plan, level, category, {
+        uuid: feat.sourceId ?? feat.flags?.core?.sourceId ?? feat.uuid,
+        name: feat.name,
+        slug: feat.slug ?? feat.uuid ?? null,
+        img: feat.img ?? null,
+        level: feat.system?.level?.value ?? null,
+        skillRules: extractFeatSkillRules(feat),
+      });
+    }
+  }
+
+  _getActorFeatPlanPlacement(feat, plan, options, actorLevel) {
+    const fromLocation = this._getActorFeatPlacementFromLocation(feat, plan, actorLevel);
+    if (fromLocation) return fromLocation;
+
+    const takenLevel = this._getActorFeatTakenLevel(feat);
+    if (!Number.isInteger(takenLevel) || takenLevel < MIN_PLAN_LEVEL || takenLevel > actorLevel) return null;
+
+    const category = this._inferActorFeatPlanCategory(feat, takenLevel, plan, options);
+    if (!category || !Array.isArray(plan?.levels?.[takenLevel]?.[category])) return null;
+
+    return { level: takenLevel, category };
+  }
+
+  _getActorFeatPlacementFromLocation(feat, plan, actorLevel) {
+    const rawLocation = feat?.system?.location?.value ?? feat?.system?.location ?? '';
+    const match = String(rawLocation ?? '').match(/^([a-zA-Z_]+)-(\d+)$/);
+    if (!match) return null;
+
+    const [, rawGroup, levelText] = match;
+    const level = Number(levelText);
+    if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > actorLevel) return null;
+
+    const group = rawGroup.replace(/[^a-z_]/gi, '').toLowerCase();
+    const category = LOCATION_TO_PLAN_CATEGORY[group] ?? null;
+    if (!category || !Array.isArray(plan?.levels?.[level]?.[category])) return null;
+
+    return { level, category };
+  }
+
+  _getActorFeatTakenLevel(feat) {
+    const takenLevel = Number(feat?.system?.level?.taken ?? NaN);
+    if (Number.isInteger(takenLevel)) return takenLevel;
+
+    const rawLocation = feat?.system?.location?.value ?? feat?.system?.location ?? '';
+    const match = String(rawLocation ?? '').match(/-(\d+)$/);
+    return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+  }
+
+  _inferActorFeatPlanCategory(feat, takenLevel, plan, options) {
+    const category = String(feat?.system?.category?.value ?? feat?.system?.category ?? '').toLowerCase();
+    const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    const levelData = plan?.levels?.[takenLevel] ?? {};
+
+    if (traits.includes('mythic') && Array.isArray(levelData.mythicFeats)) return 'mythicFeats';
+    if ((traits.includes('archetype') || traits.includes('dedication')) && Array.isArray(levelData.archetypeFeats) && options.freeArchetype) {
+      return 'archetypeFeats';
+    }
+    if (category === 'ancestry' && Array.isArray(levelData.ancestryFeats)) return 'ancestryFeats';
+    if (category === 'skill' && Array.isArray(levelData.skillFeats)) return 'skillFeats';
+    if (category === 'general' && Array.isArray(levelData.generalFeats)) return 'generalFeats';
+    if (category === 'class' && Array.isArray(levelData.classFeats)) return 'classFeats';
+    if (category === 'general' && traits.includes('skill') && Array.isArray(levelData.skillFeats)) return 'skillFeats';
+    return null;
   }
 
   _resolveClassSlug(actor) {
@@ -275,10 +470,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _buildSidebarLevels(classDef, options) {
     const levels = [];
+    const validationOptions = this._getPlannerValidationOptions(options);
     for (let level = MIN_PLAN_LEVEL; level <= MAX_LEVEL; level++) {
       const summary = classDef ? getLevelSummary(classDef, level, options) : '';
       const status = this.plan && classDef
-        ? validateLevel(this.plan, classDef, level, options, this.actor).status
+        ? validateLevel(this.plan, classDef, level, validationOptions, this.actor).status
         : PLAN_STATUS.EMPTY;
 
       const actorLevel = this.actor.system?.details?.level?.value ?? 1;
@@ -295,6 +491,29 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _buildLevelContext(classDef, options) {
     return buildLevelContext(this, classDef, options);
+  }
+
+  _getPlannerValidationOptions(options = {}) {
+    return {
+      ...options,
+      skipHistoricalSkillIncreaseLevels: this._getHistoricalSkillIncreaseLevelsToHide(),
+    };
+  }
+
+  _getHistoricalSkillIncreaseLevelsToHide() {
+    const importedActorLevel = Number(this.plan?.importedFromActor?.actorLevel ?? 0);
+    const shouldHide = this.plan?.importedFromActor?.hideHistoricalSkillIncreases === true;
+    if (!shouldHide || importedActorLevel < MIN_PLAN_LEVEL) return new Set();
+
+    const hidden = new Set();
+    for (let level = MIN_PLAN_LEVEL; level <= importedActorLevel; level++) {
+      hidden.add(level);
+    }
+    return hidden;
+  }
+
+  _shouldHideHistoricalSkillIncrease(level) {
+    return this._getHistoricalSkillIncreaseLevelsToHide().has(level);
   }
 
   _buildAttributeContext(levelData, choices) {
@@ -638,4 +857,64 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       content: '.planner-content',
     });
   }
+}
+
+function normalizeActorBoostEntries(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+  }
+  if (!value || typeof value !== 'object') return [];
+
+  const flattened = [];
+  for (const entry of Object.values(value)) {
+    if (typeof entry === 'string') {
+      flattened.push(entry);
+      continue;
+    }
+    if (Array.isArray(entry)) {
+      flattened.push(...entry);
+      continue;
+    }
+    if (!entry || typeof entry !== 'object') continue;
+    if (typeof entry.selected === 'string') {
+      flattened.push(entry.selected);
+      continue;
+    }
+    if (Array.isArray(entry.selected)) {
+      flattened.push(...entry.selected);
+      continue;
+    }
+    if (typeof entry.value === 'string') {
+      flattened.push(entry.value);
+    }
+  }
+
+  return flattened.map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+}
+
+function normalizeAbilityBoostKey(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  const aliases = {
+    strength: 'str',
+    dexterity: 'dex',
+    constitution: 'con',
+    intelligence: 'int',
+    wisdom: 'wis',
+    charisma: 'cha',
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+function levelHasSelections(levelData) {
+  if (!levelData || typeof levelData !== 'object') return false;
+
+  for (const [key, value] of Object.entries(levelData)) {
+    if (key === 'reminders') {
+      if (Array.isArray(value) && value.length > 0) return true;
+      continue;
+    }
+    if (Array.isArray(value) && value.length > 0) return true;
+  }
+
+  return false;
 }

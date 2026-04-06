@@ -102,12 +102,16 @@
       "ADD": "Add spell",
       "PLANNED": "Planned Spells",
       "SEARCH": "Search spells...",
+      "NO_RESULTS": "No spells found",
+      "FILTER_RARITY": "Rarity",
+      "SORT": "Sort",
       "TRAIT_FILTER": "Type trait to filter...",
       "GRANTED": "Granted Spells",
       "SPELLBOOK": "Spellbook ({selected}/{count} new spells)",
       "ADD_TO_SPELLBOOK": "Add Spells",
       "ADD_TO_SPELLBOOK_HINT": "Add spell to spellbook",
       "ADD_SELECTED": "Add Selected",
+      "SELECT": "Select",
       "SELECT_ALL": "Select All",
       "DESELECT_ALL": "Deselect All",
       "SELECTED_COUNT": "{count} selected",
@@ -392,6 +396,21 @@
         "NAME": "Hide Rare Feats",
         "HINT": "Hide rare feats from the feat picker by default"
       },
+      "PLAYER_RARITY": {
+        "UNCOMMON_NAME": "Players Can Use Uncommon Options",
+        "UNCOMMON_HINT": "Allow non-GM users to see and select uncommon content in character creation and leveling tools.",
+        "RARE_NAME": "Players Can Use Rare Options",
+        "RARE_HINT": "Allow non-GM users to see and select rare content in character creation and leveling tools.",
+        "UNIQUE_NAME": "Players Can Use Unique Options",
+        "UNIQUE_HINT": "Allow non-GM users to see and select unique content in character creation and leveling tools."
+      },
+      "PLAYER_COMPENDIUM_ACCESS": {
+        "NAME": "Player Content Sources",
+        "LABEL": "Configure Player Sources",
+        "HINT": "Choose which compendium sources non-GM users can access in character creation and leveling tools.",
+        "ENABLED_NAME": "Restrict Player Content Sources",
+        "ENABLED_HINT": "Limit non-GM users to the compendium sources selected in Player Content Sources."
+      },
       "FEAT_SORT": {
         "NAME": "Default Feat Sort",
         "HINT": "How to sort feats in the feat picker by default",
@@ -414,6 +433,9 @@
         "HINT": "Choose additional compendiums to search for each PF2E content category used by the planner and character wizard.",
         "BUILT_IN": "Built-in default pack",
         "NO_PACKS": "No matching compendiums found for this category.",
+        "ALL": "All",
+        "DESELECT_ALL": "Deselect All",
+        "ALL_DISABLED": "No custom compendiums available in this category.",
         "PACKAGE": "Package",
         "SEARCH": "Filter sources...",
         "SUMMARY": "Content Sources",

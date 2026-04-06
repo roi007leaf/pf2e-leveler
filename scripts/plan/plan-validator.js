@@ -35,7 +35,7 @@ export function validateLevel(plan, classDef, level, options = {}, actor = null)
   let hasWarning = false;
 
   for (const choice of choices) {
-    const issue = validateChoice(choice, levelData, level, plan, classDef, actor);
+    const issue = validateChoice(choice, levelData, level, plan, classDef, options, actor);
     if (issue) {
       if (issue.severity === 'error') {
         issues.push(issue);
@@ -55,7 +55,7 @@ export function validateLevel(plan, classDef, level, options = {}, actor = null)
   return { status: PLAN_STATUS.COMPLETE, issues: [] };
 }
 
-function validateChoice(choice, levelData, level, plan, classDef, actor) {
+function validateChoice(choice, levelData, level, plan, classDef, options, actor) {
   switch (choice.type) {
     case 'abilityBoosts':
       return validateBoosts(levelData, choice.count, level, plan, actor);
@@ -74,12 +74,18 @@ function validateChoice(choice, levelData, level, plan, classDef, actor) {
     case 'dualClassFeat':
       return validateFeatSlot(levelData.dualClassFeats, 'Dual Class Feat');
     case 'skillIncrease':
+      if (optionsSkipHistoricalSkillIncrease(options, level)) return null;
       return validateSkillIncrease(levelData, level, plan);
     case 'spells':
       return validateSpells(levelData, level, classDef, actor);
     default:
       return null;
   }
+}
+
+function optionsSkipHistoricalSkillIncrease(options, level) {
+  const hiddenLevels = options?.skipHistoricalSkillIncreaseLevels;
+  return hiddenLevels instanceof Set ? hiddenLevels.has(level) : false;
 }
 
 function validateBoosts(levelData, expectedCount, level, plan, actor) {

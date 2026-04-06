@@ -35,7 +35,7 @@ export async function buildLevelContext(planner, classDef, options) {
     generalFeat: annotateFeat(extractFeat(levelData.generalFeats)),
     showAncestryFeat: choiceTypes.has('ancestryFeat'),
     ancestryFeat: annotateFeat(extractFeat(levelData.ancestryFeats)),
-    showSkillIncrease: choiceTypes.has('skillIncrease'),
+    showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
     showArchetypeFeat: choiceTypes.has('archetypeFeat'),
     archetypeFeat: extractFeat(levelData.archetypeFeats),

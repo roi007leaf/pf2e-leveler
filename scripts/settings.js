@@ -1,5 +1,5 @@
 import { MODULE_ID } from './constants.js';
-import { CompendiumSettingsMenu } from './ui/compendium-settings-menu.js';
+import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from './ui/compendium-settings-menu.js';
 import { invalidateCache } from './feats/feat-cache.js';
 
 export function registerSettings() {
@@ -58,6 +58,36 @@ export function registerSettings() {
     default: true,
   });
 
+  game.settings.register(MODULE_ID, 'playerAllowUncommon', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.UNCOMMON_NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.UNCOMMON_HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => invalidateCache(),
+  });
+
+  game.settings.register(MODULE_ID, 'playerAllowRare', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.RARE_NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.RARE_HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => invalidateCache(),
+  });
+
+  game.settings.register(MODULE_ID, 'playerAllowUnique', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.UNIQUE_NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_RARITY.UNIQUE_HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => invalidateCache(),
+  });
+
   game.settings.register(MODULE_ID, 'featSortMethod', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.FEAT_SORT.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.FEAT_SORT.HINT'),
@@ -92,6 +122,25 @@ export function registerSettings() {
     restricted: true,
   });
 
+  game.settings.registerMenu(MODULE_ID, 'playerCompendiumAccessMenu', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.NAME'),
+    label: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.LABEL'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.HINT'),
+    icon: 'fas fa-user-shield',
+    type: PlayerCompendiumAccessMenu,
+    restricted: true,
+  });
+
+  game.settings.register(MODULE_ID, 'restrictPlayerCompendiumAccess', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.ENABLED_NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.ENABLED_HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => invalidateCache(),
+  });
+
   game.settings.register(MODULE_ID, 'customCompendiums', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.HINT'),
@@ -99,6 +148,16 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: {},
+    onChange: () => invalidateCache(),
+  });
+
+  game.settings.register(MODULE_ID, 'playerCompendiumAccess', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PLAYER_COMPENDIUM_ACCESS.HINT'),
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: { enabled: false, selections: {} },
     onChange: () => invalidateCache(),
   });
 

@@ -100,12 +100,16 @@
       "ADD": "Ajouter un sort",
       "PLANNED": "Sorts planifies",
       "SEARCH": "Rechercher des sorts...",
+      "NO_RESULTS": "Aucun sort trouve",
+      "FILTER_RARITY": "Rarete",
+      "SORT": "Tri",
       "TRAIT_FILTER": "Saisissez un trait pour filtrer...",
       "GRANTED": "Sorts accordes",
       "SPELLBOOK": "Grimoire ({selected}/{count} nouveaux sorts)",
       "ADD_TO_SPELLBOOK": "Ajouter au grimoire",
       "ADD_TO_SPELLBOOK_HINT": "Ajouter un sort au grimoire",
       "ADD_SELECTED": "Ajouter la selection",
+      "SELECT": "Selectionner",
       "SELECT_ALL": "Tout selectionner",
       "DESELECT_ALL": "Tout deselectionner",
       "SELECTED_COUNT": "{count} selectionnes",
@@ -389,6 +393,21 @@
         "NAME": "Masquer les dons rares",
         "HINT": "Masquer par defaut les dons rares dans le selecteur de dons"
       },
+      "PLAYER_RARITY": {
+        "UNCOMMON_NAME": "Les joueurs peuvent utiliser les options inhabituelles",
+        "UNCOMMON_HINT": "Autorise les utilisateurs non MJ a voir et selectionner le contenu inhabituel dans la creation de personnage et les outils de progression.",
+        "RARE_NAME": "Les joueurs peuvent utiliser les options rares",
+        "RARE_HINT": "Autorise les utilisateurs non MJ a voir et selectionner le contenu rare dans la creation de personnage et les outils de progression.",
+        "UNIQUE_NAME": "Les joueurs peuvent utiliser les options uniques",
+        "UNIQUE_HINT": "Autorise les utilisateurs non MJ a voir et selectionner le contenu unique dans la creation de personnage et les outils de progression."
+      },
+      "PLAYER_COMPENDIUM_ACCESS": {
+        "NAME": "Sources de contenu des joueurs",
+        "LABEL": "Configurer les sources des joueurs",
+        "HINT": "Choisissez les sources de compendium auxquelles les utilisateurs non MJ peuvent acceder dans la creation de personnage et les outils de progression.",
+        "ENABLED_NAME": "Restreindre les sources de contenu des joueurs",
+        "ENABLED_HINT": "Limite les utilisateurs non MJ aux sources de compendium selectionnees dans Sources de contenu des joueurs."
+      },
       "FEAT_SORT": {
         "NAME": "Tri par defaut des dons",
         "HINT": "Comment trier par defaut les dons dans le selecteur",
@@ -411,6 +430,9 @@
         "HINT": "Choisissez les compendiums supplementaires a rechercher pour chaque categorie de contenu PF2E utilisee par le planificateur et l'assistant de creation.",
         "BUILT_IN": "Compendium par defaut integre",
         "NO_PACKS": "Aucun compendium correspondant trouve pour cette categorie.",
+        "ALL": "Tout",
+        "DESELECT_ALL": "Tout deselectionner",
+        "ALL_DISABLED": "Aucun compendium personnalise disponible dans cette categorie.",
         "PACKAGE": "Package",
         "SEARCH": "Filtrer les sources...",
         "SUMMARY": "Sources de contenu",

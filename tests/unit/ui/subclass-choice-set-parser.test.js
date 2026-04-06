@@ -2453,7 +2453,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('filters already trained skills out of skill choice sets', async () => {
+  it('keeps already chosen skills visible in skill choice sets and annotates them', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -2489,9 +2489,51 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         },
       ]);
 
-      expect(choiceSets[0].options).toEqual([
+      expect(choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'acr', label: 'PF2E.SkillAcr' }),
-      ]);
+        expect.objectContaining({ value: 'arc', label: 'PF2E.SkillArc', autoTrained: true, autoTrainedSource: 'Class', disabled: true }),
+        expect.objectContaining({ value: 'med', label: 'PF2E.SkillMed', autoTrained: true, autoTrainedSource: 'Background', disabled: true }),
+        expect.objectContaining({ value: 'nat', label: 'PF2E.SkillNat', selectedInSkills: true, disabled: true }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('hydrates stored skill choice sets with current skill selections', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.SkillAcr',
+          ath: 'PF2E.SkillAth',
+        },
+      },
+    };
+
+    wizard.data.skills = ['acrobatics'];
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getCachedDocument = jest.fn(async () => null);
+
+    try {
+      const hydrated = await wizard._hydrateChoiceSets([
+        {
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          options: [
+            { value: 'acr', label: 'Acrobatics' },
+            { value: 'ath', label: 'Athletics' },
+          ],
+        },
+      ], {});
+
+      expect(hydrated[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'acr', selectedInSkills: true, disabled: true }),
+        expect.objectContaining({ value: 'ath', selectedInSkills: false, disabled: false }),
+      ]));
     } finally {
       global.CONFIG = originalConfig;
     }

@@ -91,6 +91,7 @@ export async function buildSkillContext(wizard) {
   const bgSkills = await getBackgroundTrainedSkills(wizard);
   const subclassSkills = wizard.data.subclass?.grantedSkills ?? [];
   const deitySkill = wizard.data.deity?.skill ?? null;
+  const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   return SKILLS.map((slug) => {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
@@ -112,9 +113,29 @@ export async function buildSkillContext(wizard) {
       selected: wizard.data.skills.includes(slug),
       autoTrained,
       source,
+      futureSkillChoices: futureSkillChoiceMap.get(slug) ?? [],
     };
   });
 }
+
+const SKILL_ID_ALIASES = {
+  acr: 'acrobatics',
+  arc: 'arcana',
+  ath: 'athletics',
+  cra: 'crafting',
+  dec: 'deception',
+  dip: 'diplomacy',
+  itm: 'intimidation',
+  med: 'medicine',
+  nat: 'nature',
+  occ: 'occultism',
+  prf: 'performance',
+  rel: 'religion',
+  soc: 'society',
+  ste: 'stealth',
+  sur: 'survival',
+  thi: 'thievery',
+};
 
 export async function getBackgroundTrainedSkills(wizard) {
   if (!wizard.data.background?.uuid) return [];
@@ -166,4 +187,102 @@ function cleanLoreLabel(label) {
 function localizeWithFallback(key, fallback) {
   const value = localize(key);
   return value === key ? fallback : value;
+}
+
+function buildFutureSkillChoiceMap(wizard) {
+  const map = new Map();
+  const sections = [
+    wizard.data.ancestryFeat
+      ? {
+        sourceLabel: wizard.data.ancestryFeat.name ?? 'Ancestry Feat',
+        choiceSets: wizard.data.ancestryFeat.choiceSets ?? [],
+      }
+      : null,
+    wizard.data.ancestryParagonFeat
+      ? {
+        sourceLabel: wizard.data.ancestryParagonFeat.name ?? 'Ancestry Feat',
+        choiceSets: wizard.data.ancestryParagonFeat.choiceSets ?? [],
+      }
+      : null,
+    wizard.data.classFeat
+      ? {
+        sourceLabel: wizard.data.classFeat.name ?? 'Class Feat',
+        choiceSets: wizard.data.classFeat.choiceSets ?? [],
+      }
+      : null,
+    ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
+      sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
+      choiceSets: section.choiceSets ?? [],
+    }))),
+  ].filter(Boolean);
+
+  for (const section of sections) {
+    for (const choiceSet of section.choiceSets) {
+      const skillSlugs = (choiceSet?.options ?? [])
+        .map((option) => resolveSkillSlug(option))
+        .filter((slug) => typeof slug === 'string' && slug.length > 0);
+      if (skillSlugs.length === 0 || skillSlugs.length !== (choiceSet?.options ?? []).length) continue;
+
+      for (const slug of skillSlugs) {
+        const entries = map.get(slug) ?? [];
+        const entry = { sourceLabel: section.sourceLabel, prompt: choiceSet.prompt ?? '' };
+        const duplicate = entries.some((candidate) =>
+          candidate.sourceLabel === entry.sourceLabel && candidate.prompt === entry.prompt);
+        if (!duplicate) entries.push(entry);
+        map.set(slug, entries);
+      }
+    }
+  }
+
+  return map;
+}
+
+function resolveSkillSlug(option) {
+  const skillLookup = getSkillLookup();
+  const candidates = [
+    option?.value,
+    option?.label,
+    option?.slug,
+    option?.name,
+    option?.value?.slug,
+    option?.value?.label,
+    option?.value?.name,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeSkillIdentity(candidate);
+    const slug = skillLookup.get(normalized);
+    if (slug) return slug;
+  }
+
+  return null;
+}
+
+function getSkillLookup() {
+  const skills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  const lookup = new Map();
+
+  for (const [alias, full] of Object.entries(SKILL_ID_ALIASES)) {
+    lookup.set(alias, full);
+    lookup.set(normalizeSkillIdentity(full), full);
+  }
+
+  for (const [slug, rawEntry] of Object.entries(skills)) {
+    const rawLabel = typeof rawEntry === 'string' ? rawEntry : (rawEntry?.label ?? slug);
+    const localizedLabel = game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+    const canonicalSlug = SKILL_ID_ALIASES[slug] ?? slug;
+    for (const candidate of [slug, canonicalSlug, rawLabel, localizedLabel]) {
+      const normalized = normalizeSkillIdentity(candidate);
+      if (normalized) lookup.set(normalized, canonicalSlug);
+    }
+  }
+
+  return lookup;
+}
+
+function normalizeSkillIdentity(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/^pf2e\.skill/i, '')
+    .replace(/[^a-z0-9]+/g, '');
 }

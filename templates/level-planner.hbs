@@ -86,7 +86,11 @@
                 {{#if this.disabled}}disabled{{/if}}>
                 <span class="boost-btn__abbr">{{this.label}}{{#if this.partial}} <small>(x2)</small>{{/if}}</span>
                 {{#if this.selected}}
+                  {{#if this.applied}}
+                  <span class="boost-btn__change">{{localize "PF2E_LEVELER.UI.APPLIED"}}</span>
+                  {{else}}
                   <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
+                  {{/if}}
                 {{else}}
                   <span class="boost-btn__mod">+{{this.mod}}</span>
                 {{/if}}

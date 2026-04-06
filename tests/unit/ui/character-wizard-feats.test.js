@@ -93,6 +93,60 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
   });
 
+  it('includes adopted ancestry feats after the adopted ancestry choice is selected', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'ancestry-human',
+      slug: 'human',
+      name: 'Human',
+    };
+    wizard.data.grantedFeatSections = [
+      {
+        slot: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+        featName: 'Adopted Ancestry',
+        choiceSets: [
+          {
+            flag: 'ancestry',
+            prompt: 'Select a common ancestry.',
+            options: [
+              { value: 'dwarf', label: 'Dwarf', uuid: 'Compendium.pf2e.ancestries.Item.dwarf' },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.feats-srd.Item.adopted-ancestry': {
+        ancestry: 'dwarf',
+      },
+    };
+
+    wizard._loadCompendiumCategory = jest.fn(async () => [
+      {
+        uuid: 'feat-human',
+        name: 'Natural Ambition',
+        level: 1,
+        traits: ['human'],
+      },
+      {
+        uuid: 'feat-dwarf',
+        name: 'Rock Runner',
+        level: 1,
+        traits: ['dwarf'],
+      },
+      {
+        uuid: 'feat-elf',
+        name: 'Other Ancestry Feat',
+        level: 1,
+        traits: ['elf'],
+      },
+    ]);
+
+    const context = await wizard._buildFeatContext();
+
+    expect(context.ancestryFeats.map((feat) => feat.name)).toEqual(['Natural Ambition', 'Rock Runner']);
+  });
+
   it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {
     const options = buildCompendiumSourceOptions('summary', {
       items: [

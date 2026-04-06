@@ -1,5 +1,6 @@
 import { debug, warn } from '../utils/logger.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 
 let cachedFeats = null;
 
@@ -30,6 +31,7 @@ async function loadCompendiumFeats(key) {
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
     return collection
       .filter((item) => item.type === 'feat' && item.system.category !== 'classfeature')
+      .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
       .map((item) => {
         item.sourcePack = key;
         item.sourcePackage = sourcePackage || key;

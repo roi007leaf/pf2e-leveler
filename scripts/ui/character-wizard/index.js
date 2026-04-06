@@ -352,6 +352,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
     setSkills(this.data, skills);
+    this._featChoiceDataDirty = true;
     this._saveAndRender();
   }
 
@@ -1154,7 +1155,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const allFeats = await this._loadCompendiumCategory('feats');
     const ancestrySlug = this.data.ancestry.slug ?? null;
     const heritageSlug = this.data.heritage?.slug ?? null;
-    const ancestryTraits = collectAncestryFeatTraits(ancestrySlug, heritageSlug);
+    const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
+    const ancestryTraits = [...new Set([
+      ...collectAncestryFeatTraits(ancestrySlug, heritageSlug),
+      ...adoptedAncestryTraits,
+    ])];
 
     const selectedAncestryUuid = this.data.ancestryFeat?.uuid;
     const selectedParagonUuid = this.data.ancestryParagonFeat?.uuid;
@@ -1275,6 +1280,45 @@ function collectAncestryFeatTraits(ancestrySlug, heritageSlug) {
   }
 
   return [...traits];
+}
+
+async function getAdoptedAncestryFeatTraits(wizard) {
+  const traits = new Set();
+
+  for (const section of (wizard.data.grantedFeatSections ?? [])) {
+    if (String(section?.featName ?? '').trim().toLowerCase() !== 'adopted ancestry') continue;
+
+    const currentChoices = wizard.data.grantedFeatChoices?.[section.slot] ?? {};
+    for (const choiceSet of (section.choiceSets ?? [])) {
+      const selectedValue = currentChoices?.[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue.length === 0) continue;
+
+      const matchedOption = (choiceSet.options ?? []).find((option) =>
+        normalizeAncestryChoiceIdentity(option?.value) === normalizeAncestryChoiceIdentity(selectedValue)
+        || normalizeAncestryChoiceIdentity(option?.uuid) === normalizeAncestryChoiceIdentity(selectedValue));
+
+      const selectedSlug = matchedOption?.value && !String(matchedOption.value).startsWith('Compendium.')
+        ? String(matchedOption.value)
+        : await resolveAncestrySlugFromChoice(wizard, matchedOption?.uuid ?? selectedValue);
+
+      if (!selectedSlug) continue;
+      for (const trait of collectAncestryFeatTraits(selectedSlug, null)) traits.add(trait);
+    }
+  }
+
+  return [...traits];
+}
+
+async function resolveAncestrySlugFromChoice(wizard, value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  if (!value.startsWith('Compendium.')) return value.toLowerCase();
+
+  const item = await wizard._getCachedDocument(value);
+  return item?.slug ? String(item.slug).toLowerCase() : null;
+}
+
+function normalizeAncestryChoiceIdentity(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : null;
 }
 
 const SOURCE_FILTERABLE_KEYS = new Set([

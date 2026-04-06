@@ -1,5 +1,6 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
+import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
 
 export async function loadCompendium(wizard, key) {
   if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
@@ -50,7 +51,8 @@ export async function loadCompendiumCategory(wizard, category, cacheKey = `categ
     ? wizard._loadCompendium.bind(wizard)
     : (key) => loadCompendium(wizard, key);
   const lists = await Promise.all(keys.map((key) => loader(key)));
-  const items = dedupeCompendiumItems(lists.flat()).sort((a, b) => a.name.localeCompare(b.name));
+  const items = filterEntriesByRarityForCurrentUser(dedupeCompendiumItems(lists.flat()))
+    .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
 }
