@@ -14,6 +14,8 @@
   - Fixed malformed custom-plan template nesting that could push later planner sections out of the main content column
   - Opening or closing `Custom Level Plan` now preserves the planner scroll position instead of jumping back to the top
   - Spellbook entries in the planner no longer show `Rank -1` when they were stored with the internal any-rank sentinel; they now display the spell's actual learned/base rank
+- Character wizard ancestry browsing now stays ancestry-only
+  - The ancestry step now filters mixed assigned packs down to real ancestry documents instead of showing ancestry-tagged feats or other non-ancestry records
 - Compendium manager search is more relevant
   - Pack assignment search no longer matches rows only because a category chip name appears in the row
 - Custom spell picking is more robust
