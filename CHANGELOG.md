@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.7
+
+### Fixed
+
+- Crashing compendiums
+
 ## 1.4.6
 
 ### Improved

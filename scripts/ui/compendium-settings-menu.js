@@ -56,6 +56,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     ]));
     const packMap = new Map();
     for (const [category, packs] of Object.entries(discovered)) {
+      if (!categoryLabels[category]) continue;
       for (const pack of packs ?? []) {
         if (!packMap.has(pack.key)) {
           packMap.set(pack.key, {

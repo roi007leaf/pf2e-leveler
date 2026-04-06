@@ -225,4 +225,32 @@ describe('CompendiumSettingsMenu', () => {
     expect(context.categories.map((category) => category.key)).not.toContain('actions');
     expect(context.categories.map((category) => category.key)).not.toContain('equipment');
   });
+
+  test('pack assignment rows ignore hidden categories instead of crashing', async () => {
+    jest.spyOn(catalog, 'discoverCompendiumsByCategory').mockResolvedValue({
+      ancestries: [],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [
+        { key: 'my-module.player-options', label: 'Player Options', locked: false, manualCandidate: false },
+      ],
+      classFeatures: [],
+      spells: [],
+      equipment: [
+        { key: 'my-module.player-options', label: 'Player Options', locked: false, manualCandidate: false },
+      ],
+      actions: [
+        { key: 'my-module.player-options', label: 'Player Options', locked: false, manualCandidate: false },
+      ],
+      deities: [],
+    });
+
+    const menu = new CompendiumSettingsMenu();
+    menu.viewMode = 'packs';
+    const context = await menu._prepareContext();
+
+    expect(context.packRows).toHaveLength(1);
+    expect(context.packRows[0].categories.map((category) => category.key)).toEqual(['feats']);
+  });
 });
