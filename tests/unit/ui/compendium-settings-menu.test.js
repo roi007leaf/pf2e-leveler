@@ -128,6 +128,40 @@ describe('CompendiumSettingsMenu', () => {
     expect(menu._draftSelections.spells).toEqual([]);
   });
 
+  test('pack assignment checkbox updates in place without rerendering', () => {
+    document.body.innerHTML = `
+      <label class="compendium-assignment__chip">
+        <input class="compendium-assignment__check" type="checkbox" data-category="feats" data-pack="my-module.player-options" data-locked="false">
+        <span>Feats</span>
+      </label>
+    `;
+
+    const menu = new CompendiumSettingsMenu();
+    menu.viewMode = 'packs';
+    menu.element = document.body;
+    menu.render = jest.fn();
+    menu._draftSelections = {
+      ancestries: [],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    };
+
+    const input = document.querySelector('.compendium-assignment__check');
+    input.checked = true;
+    menu._onPackAssignmentChange(input);
+
+    expect(menu._draftSelections.feats).toEqual(['my-module.player-options']);
+    expect(input.closest('.compendium-assignment__chip').classList.contains('is-selected')).toBe(true);
+    expect(menu.render).not.toHaveBeenCalled();
+  });
+
   test('pack assignment mode filters rows by search text', async () => {
     const menu = new CompendiumSettingsMenu();
     menu.viewMode = 'packs';
@@ -165,5 +199,30 @@ describe('CompendiumSettingsMenu', () => {
 
     expect(document.querySelector('.compendium-assignment').hidden).toBe(true);
     expect(document.querySelector('[data-pack-empty-state]').hidden).toBe(false);
+  });
+
+  test('does not expose hidden categories such as actions and equipment in the settings UI', async () => {
+    jest.spyOn(catalog, 'discoverCompendiumsByCategory').mockResolvedValue({
+      ancestries: [],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [
+        { key: 'pf2e.equipment-srd', label: 'Equipment', locked: true, manualCandidate: false },
+      ],
+      actions: [
+        { key: 'pf2e.actionspf2e', label: 'Actions', locked: true, manualCandidate: false },
+      ],
+      deities: [],
+    });
+
+    const menu = new CompendiumSettingsMenu();
+    const context = await menu._prepareContext();
+
+    expect(context.categories.map((category) => category.key)).not.toContain('actions');
+    expect(context.categories.map((category) => category.key)).not.toContain('equipment');
   });
 });

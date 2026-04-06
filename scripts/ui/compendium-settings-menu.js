@@ -4,6 +4,7 @@ import {
   getCompendiumKeysForCategory,
   discoverCompendiumsByCategory,
   getCompendiumCategoryKeys,
+  getVisibleCompendiumCategoryKeys,
   getConfiguredCompendiumSelections,
   getDefaultCompendiumKeys,
 } from '../compendiums/catalog.js';
@@ -44,7 +45,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       this._draftSelections = foundry.utils.deepClone(configured);
     }
     const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
-    const categoryKeys = getCompendiumCategoryKeys();
+    const categoryKeys = getVisibleCompendiumCategoryKeys();
     if (!categoryKeys.includes(this.activeCategory)) {
       this.activeCategory = categoryKeys[0] ?? null;
     }
@@ -158,7 +159,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       input.addEventListener('change', () => this._onPackSelectionChange(input.dataset.category));
     });
     root?.querySelectorAll?.('.compendium-assignment__check').forEach((input) => {
-      input.addEventListener('change', () => this._onPackAssignmentChange());
+      input.addEventListener('change', () => this._onPackAssignmentChange(input));
     });
     root?.querySelector('[data-action="search-pack-assignments"]')?.addEventListener('input', (event) => {
       this._onPackSearchInput(event);
@@ -211,9 +212,9 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     this.render(true);
   }
 
-  _onPackAssignmentChange() {
+  _onPackAssignmentChange(input) {
     this._syncSelectionsFromDom();
-    this.render(true);
+    this._updatePackAssignmentChipState(input);
   }
 
   _onPackSearchInput(event) {
@@ -302,6 +303,13 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
 
     const empty = root.querySelector('[data-pack-empty-state]');
     if (empty) empty.hidden = visibleCount > 0;
+  }
+
+  _updatePackAssignmentChipState(input) {
+    if (!input) return;
+    const chip = input.closest('.compendium-assignment__chip');
+    if (!chip) return;
+    chip.classList.toggle('is-selected', input.checked);
   }
 
   _getSettingKey() {

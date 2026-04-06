@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.6
+
+### Improved
+
+- Compendium manager assignment view is smoother to use
+  - Changing pack-category assignments in `Assign Packs` now updates in place instead of rerendering the whole window and snapping back to the top
+  - The compendium manager no longer exposes `Actions` or `Items and Equipment` as configurable categories, keeping the UI focused on the categories that matter most for manual assignment
+- Custom planner skill chips read more clearly
+  - Custom skill increase chips now use a neutral base style with rank-colored text and accents instead of a generic blue info style
+
+### Fixed
+
+- Custom feat picker selection now works when compendium feat rows do not provide a direct UUID
+  - Feat rows now derive a stable identity from UUID, source ID, core source flag, or compendium pack/id data before rendering selection controls
+  - This fixes `Select`, `Select All`, and `Add Selected` in custom feat picking when the rendered buttons would otherwise have empty `data-uuid` attributes
+
 ## 1.4.5
 
 ### Improved

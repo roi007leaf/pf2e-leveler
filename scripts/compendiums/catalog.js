@@ -46,11 +46,13 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   },
   equipment: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.EQUIPMENT',
+    showInSettings: false,
     defaultKeys: ['pf2e.equipment-srd'],
     matches: (pack, index) => isItemPack(pack) && index.some((entry) => EQUIPMENT_TYPES.has(entry.type)),
   },
   actions: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.ACTIONS',
+    showInSettings: false,
     defaultKeys: ['pf2e.actionspf2e'],
     matches: (pack, index) => isItemPack(pack)
       && (!hasNonActionPackIdentity(pack) || hasAdditionalRecognizedContent(index, 'actions'))
@@ -67,6 +69,12 @@ const EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'equipment', 'consumable', '
 
 export function getCompendiumCategoryKeys() {
   return Object.keys(COMPENDIUM_CATEGORY_DEFINITIONS);
+}
+
+export function getVisibleCompendiumCategoryKeys() {
+  return Object.entries(COMPENDIUM_CATEGORY_DEFINITIONS)
+    .filter(([, definition]) => definition.showInSettings !== false)
+    .map(([key]) => key);
 }
 
 export function getDefaultCompendiumKeys(category) {
