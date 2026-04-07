@@ -250,6 +250,39 @@ export function removeLevelCustomSpell(plan, level, index) {
   return plan;
 }
 
+export function setLevelEquipmentSlot(plan, level, slotIndex, entry) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.equipment)) levelData.equipment = [];
+  while (levelData.equipment.length <= slotIndex) levelData.equipment.push(null);
+  levelData.equipment[slotIndex] = entry;
+  return plan;
+}
+
+export function clearLevelEquipmentSlot(plan, level, slotIndex) {
+  const equipment = plan.levels[level]?.equipment;
+  if (!Array.isArray(equipment) || !Number.isInteger(slotIndex)) return plan;
+  if (slotIndex >= 0 && slotIndex < equipment.length) equipment[slotIndex] = null;
+  return plan;
+}
+
+export function addLevelCustomEquipment(plan, level, entry, index = null) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.customEquipment)) levelData.customEquipment = [];
+  if (Number.isInteger(index) && index >= 0 && index < levelData.customEquipment.length) {
+    levelData.customEquipment[index] = entry;
+  } else {
+    levelData.customEquipment.push(entry);
+  }
+  return plan;
+}
+
+export function removeLevelCustomEquipment(plan, level, index) {
+  const customEquipment = plan.levels[level]?.customEquipment;
+  if (!Array.isArray(customEquipment) || !Number.isInteger(index)) return plan;
+  customEquipment.splice(index, 1);
+  return plan;
+}
+
 export function getAllPlannedSpells(plan, upToLevel = MAX_LEVEL) {
   const spells = [];
   for (let level = 1; level <= upToLevel; level++) {
@@ -297,5 +330,6 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
   if (!Array.isArray(levelData.customSkillIncreases)) levelData.customSkillIncreases = [];
   if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
+  if (!Array.isArray(levelData.customEquipment)) levelData.customEquipment = [];
   return levelData;
 }

@@ -1,6 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
-import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
+import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -37,10 +37,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedTraditions = new Set();
     this.lockedTraditions = new Set(tradition && tradition !== 'any' ? [tradition.toLowerCase()] : []);
     this.selectedCategories = new Set();
-    this.lockedCategories = new Set(rank === 0 ? ['cantrip'] : []);
+    this.lockedCategories = new Set(rank === 0 ? ['cantrip'] : (options.exactRank && rank > 0 ? ['spell'] : []));
+    this.lockedRanks = new Set(options.exactRank && rank > 0 ? [rank] : []);
     this.selectedTraits = new Set();
     this.traitLogic = 'or';
-    this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
+    this.selectedRarities = getAllowedRaritiesForCurrentUser();
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
@@ -274,8 +275,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const rank = Number(target.dataset.rank);
-        if (!Number.isFinite(rank)) return;
-        this.selectedRanks = toggleSelectableChip(this.selectedRanks, rank, this._rankValues);
+        if (!Number.isFinite(rank) || this.lockedRanks.has(rank)) return;
+        this.selectedRanks = toggleSelectableChip(this.selectedRanks, rank, this._rankValues, [...this.lockedRanks]);
         for (const chip of el.querySelectorAll('[data-action="toggleSpellRank"]')) {
           chip.classList.toggle('selected', this.selectedRanks.has(Number(chip.dataset.rank)));
         }
@@ -347,9 +348,10 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _matchesTradition(spell) {
     if (this.tradition === 'any') return true;
+    const traits = spell.system.traits?.value ?? [];
+    if (traits.includes('ritual')) return true;
     const traditions = spell.system.traits?.traditions ?? spell.system.traditions?.value ?? [];
     if (traditions.includes(this.tradition)) return true;
-    const traits = spell.system.traits?.value ?? [];
     return traits.includes(this.tradition);
   }
 
@@ -616,14 +618,22 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _getRankOptions() {
     const ranks = [...new Set(this.allSpells.map((spell) => getSpellRank(spell.system ?? {})))].sort((a, b) => a - b);
     this._rankValues = ranks;
-    this.selectedRanks = initializeSelectionSet(this.selectedRanks, ranks);
+    this.selectedRanks = initializeSelectionSet(this.selectedRanks, ranks, {
+      lockedValues: [...this.lockedRanks],
+      defaultValues: [],
+    });
 
-    return ranks.map((rank) => ({
+    const visibleRanks = this.lockedRanks.size > 0
+      ? ranks.filter((r) => this.lockedRanks.has(r))
+      : ranks;
+
+    return visibleRanks.map((rank) => ({
       value: rank,
       label: rank === 0
         ? game.i18n.localize('PF2E_LEVELER.SPELLS.CANTRIP')
         : game.i18n.format('PF2E_LEVELER.SPELLS.RANK_NUMBER', { rank }),
       selected: this.selectedRanks.has(rank),
+      locked: this.lockedRanks.has(rank),
     }));
   }
 
@@ -639,6 +649,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._traditionValues = allTraditions;
     this.selectedTraditions = initializeSelectionSet(this.selectedTraditions, allTraditions, {
       lockedValues: [...this.lockedTraditions],
+      defaultValues: [],
     });
 
     return traditions.map((tradition) => ({
@@ -664,14 +675,22 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _getCategoryOptions() {
     const categories = [...new Set(this.allSpells.map((spell) => normalizeSpellCategory(spell)))].sort((a, b) => a.localeCompare(b));
     this._categoryValues = categories;
-    this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories);
+    this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories, {
+      lockedValues: [...this.lockedCategories],
+      defaultValues: [],
+    });
     const labels = {
       spell: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_SPELL'),
       cantrip: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_CANTRIP'),
       focus: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_FOCUS'),
       ritual: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_RITUAL'),
     };
-    return buildChipOptions(categories, this.selectedCategories, { labels, lockedValues: [...this.lockedCategories] });
+
+    const visibleCategories = this.lockedCategories.size > 0
+      ? categories.filter((c) => this.lockedCategories.has(c))
+      : categories;
+
+    return buildChipOptions(visibleCategories, this.selectedCategories, { labels, lockedValues: [...this.lockedCategories] });
   }
 
   _getRarityLabels() {
@@ -693,6 +712,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.selectedCategories)) this.selectedCategories = new Set(preset.selectedCategories);
     if (Array.isArray(preset.selectedRanks)) this.selectedRanks = new Set(preset.selectedRanks);
     if (Array.isArray(preset.lockedCategories)) this.lockedCategories = new Set(preset.lockedCategories.map((c) => String(c).toLowerCase()));
+    if (Array.isArray(preset.lockedRanks)) this.lockedRanks = new Set(preset.lockedRanks);
     if (Array.isArray(preset.lockedTraditions)) this.lockedTraditions = new Set(preset.lockedTraditions.map((t) => String(t).toLowerCase()));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';

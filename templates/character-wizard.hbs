@@ -1033,312 +1033,160 @@
       </div>
 
     {{else if (eq stepId "spells")}}
-      <div class="wizard-browser wizard-browser--stacked wizard-browser--spells">
-        <aside class="wizard-browser__filters">
-          <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SPELLS"}}</h2>
+      <div class="wizard-step-body">
+        <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SPELLS"}}</h2>
+        <p class="wizard-hint">{{localize "PF2E_LEVELER.CREATION.SPELLS_HINT"}}</p>
 
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SPELLS.SPELLBOOK" count=maxRank1 selected=selectedRank1.length}}</div>
-            <div class="wizard-spell-tabs wizard-spell-tabs--stacked">
-              {{#if maxCantrips}}
-              <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'cantrips')}}active{{/if}}" data-action="spellSubStep" data-substep="cantrips">
-                <i class="fa-solid fa-sparkles"></i> Cantrips ({{selectedCantrips.length}}/{{maxCantrips}})
-              </button>
-              {{/if}}
-              {{#if maxRank1}}
-              <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'rank1')}}active{{/if}}" data-action="spellSubStep" data-substep="rank1">
-                <i class="fa-solid fa-book-open"></i> 1st-Rank ({{selectedRank1.length}}/{{maxRank1}})
-              </button>
-              {{/if}}
-              {{#if hasCurriculum}}
-              <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'curriculum')}}active{{/if}}" data-action="spellSubStep" data-substep="curriculum">
-                <i class="fa-solid fa-graduation-cap"></i> Curriculum ({{curriculumSelectedCount}}/{{curriculumTargetCount}})
-              </button>
-              {{/if}}
-              {{#if focusSpells.length}}
-              <button type="button" class="wizard-spell-tab {{#if (eq spellSubStep 'focus')}}active{{/if}}" data-action="spellSubStep" data-substep="focus">
-                <i class="fa-solid fa-sun"></i> Focus ({{focusSpells.length}})
-              </button>
-              {{/if}}
-            </div>
+        {{#if maxCantrips}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-sparkles"></i> Cantrips ({{selectedCantrips.length}}/{{maxCantrips}})
           </div>
-
-          {{#if (eq spellSubStep "cantrips")}}
+          <div class="wizard-spell-chips">
+            {{#each grantedCantrips}}
+            <span class="wizard-spell-chip wizard-spell-chip--granted">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="tag tag--success tag--tiny">{{this.source}}</span>
+            </span>
+            {{/each}}
+            {{#each selectedCantrips}}
+            <span class="wizard-spell-chip">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCantrip" data-uuid="{{this.uuid}}"></i>
+            </span>
+            {{/each}}
+          </div>
           {{#unless cantripsFull}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-            <input type="text" class="picker__search" placeholder="Search cantrips..." data-action="searchCantrips">
-          </div>
-          {{#if showSpellRarityFilters}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
-            <div class="wizard-rarity-filters wizard-rarity-filters--stacked">
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="unique" checked> {{localize "PF2E.TraitUnique"}}</label>
-            </div>
-          </div>
-          {{/if}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
-            <div class="wizard-trait-input">
-              <span class="wizard-trait-chips" data-target="cantrips"></span>
-              <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="cantrips" list="trait-options">
-            </div>
-          </div>
+          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseCantrips">
+            <i class="fa-solid fa-magnifying-glass"></i> {{localize "PF2E_LEVELER.UI.BROWSE"}}
+          </button>
           {{/unless}}
-          {{/if}}
+        </div>
+        {{/if}}
 
-          {{#if (eq spellSubStep "rank1")}}
+        {{#if maxRank1}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-book-open"></i> 1st-Rank Spells ({{selectedRank1.length}}/{{maxRank1}})
+          </div>
+          <div class="wizard-spell-chips">
+            {{#each grantedRank1s}}
+            <span class="wizard-spell-chip wizard-spell-chip--granted">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="tag tag--success tag--tiny">{{this.source}}</span>
+            </span>
+            {{/each}}
+            {{#each selectedRank1}}
+            <span class="wizard-spell-chip">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeRank1" data-uuid="{{this.uuid}}"></i>
+            </span>
+            {{/each}}
+          </div>
           {{#unless rank1Full}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-            <input type="text" class="picker__search" placeholder="Search 1st-rank spells..." data-action="searchRank1">
+          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseRank1">
+            <i class="fa-solid fa-magnifying-glass"></i> {{localize "PF2E_LEVELER.UI.BROWSE"}}
+          </button>
+          {{/unless}}
+        </div>
+        {{/if}}
+
+        {{#if hasCurriculum}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-graduation-cap"></i> {{localize "PF2E_LEVELER.CREATION.WIZARD.CURRICULUM_SPELLS"}} ({{curriculumSelectedCount}}/{{curriculumTargetCount}})
           </div>
-          {{#if showSpellRarityFilters}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
-            <div class="wizard-rarity-filters wizard-rarity-filters--stacked">
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
-              <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="unique" checked> {{localize "PF2E.TraitUnique"}}</label>
-            </div>
+          <p class="wizard-hint" style="margin: 4px 0;">Choose {{maxCurriculumCantrips}} curriculum cantrip and {{maxCurriculumRank1}} 1st-rank curriculum spells.</p>
+          {{#if curriculumCantripOptions.length}}
+          <div class="wizard-feat-slot-card__label" style="font-size: var(--leveler-font-sm); margin-top: 8px;">Cantrips:</div>
+          <div class="wizard-spell-chips">
+            {{#each curriculumCantripSelected}}
+            <span class="wizard-spell-chip">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumCantrip" data-uuid="{{this.uuid}}"></i>
+            </span>
+            {{/each}}
           </div>
-          {{/if}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
-            <div class="wizard-trait-input">
-              <span class="wizard-trait-chips" data-target="rank1"></span>
-              <input type="text" class="wizard-trait-input__field" placeholder="Type trait to filter..." data-action="traitInput" data-target="rank1" list="trait-options">
+          {{#unless curriculumCantripsFull}}
+          <div class="wizard-item-grid wizard-item-grid--compact">
+            {{#each curriculumCantripOptions}}
+            {{#unless this.selected}}
+            <div class="wizard-item">
+              <img src="{{this.img}}" alt="" class="wizard-item__img">
+              <div class="wizard-item__info">
+                <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              </div>
+              <button type="button" class="wizard-item__select" data-action="addCurriculumCantrip" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumCantrips}}">+</button>
             </div>
+            {{/unless}}
+            {{/each}}
           </div>
           {{/unless}}
           {{/if}}
-
-          {{#if hasCompendiumSourceFilter}}
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-            <input
-              type="text"
-              class="picker__search wizard-source-filters__search"
-              placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
-              data-action="searchCompendiumSources">
-            <div class="wizard-source-filters wizard-source-filters--sidebar">
-              <div class="wizard-source-filters__chips">
-                {{#each compendiumSourceOptions}}
-                <button
-                  type="button"
-                  class="wizard-source-filter {{#if this.selected}}selected{{/if}}"
-                  data-action="toggleCompendiumSource"
-                  data-pack="{{this.key}}"
-                  data-tooltip="{{this.key}}"
-                  data-source-name="{{this.label}}">
-                  {{this.label}}
-                </button>
-                {{/each}}
+          <div class="wizard-feat-slot-card__label" style="font-size: var(--leveler-font-sm); margin-top: 8px;">1st-rank spells:</div>
+          <div class="wizard-spell-chips">
+            {{#each curriculumRank1Selected}}
+            <span class="wizard-spell-chip">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumRank1" data-uuid="{{this.uuid}}"></i>
+            </span>
+            {{/each}}
+          </div>
+          {{#unless curriculumRank1Full}}
+          <div class="wizard-item-grid wizard-item-grid--compact">
+            {{#each curriculumRank1Options}}
+            {{#unless this.selected}}
+            <div class="wizard-item">
+              <img src="{{this.img}}" alt="" class="wizard-item__img">
+              <div class="wizard-item__info">
+                <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               </div>
+              <button type="button" class="wizard-item__select" data-action="addCurriculumRank1" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumRank1}}">+</button>
             </div>
+            {{/unless}}
+            {{/each}}
+          </div>
+          {{/unless}}
+        </div>
+        {{/if}}
+
+        {{#if focusSpells.length}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS"}} ({{focusSpells.length}})
+          </div>
+          {{#if isDevotionChoice}}
+          <p class="wizard-hint" style="margin: 4px 0;">Choose one focus spell.</p>
+          <div class="skill-btn-grid">
+            {{#each focusSpells}}
+            <button type="button"
+              class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+              data-action="selectDevotionSpell" data-uuid="{{this.uuid}}">
+              <img src="{{this.img}}" alt="" style="width: 24px; height: 24px; border-radius: 2px; margin-right: 4px;">
+              <span class="skill-btn__name">{{this.name}}</span>
+            </button>
+            {{/each}}
+          </div>
+          {{else}}
+          <p class="wizard-hint" style="margin: 4px 0;">These focus spells will be added automatically.</p>
+          <div class="wizard-spell-chips">
+            {{#each focusSpells}}
+            <span class="wizard-spell-chip wizard-spell-chip--granted">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="tag tag--success tag--tiny">{{localize "PF2E_LEVELER.SPELLS.FOCUS"}}</span>
+            </span>
+            {{/each}}
           </div>
           {{/if}}
-        </aside>
-
-        <section class="wizard-browser__results">
-
-      {{#if (eq spellSubStep "cantrips")}}
-      <div class="wizard-browser-section">
-      <div class="wizard-browser__results-header">
-        <div class="wizard-browser__eyebrow">Cantrips</div>
-        <div class="wizard-browser__count">{{cantrips.length}}</div>
-      </div>
-      <div class="wizard-spell-chips">
-        {{#each grantedCantrips}}
-        <span class="wizard-spell-chip wizard-spell-chip--granted">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <span class="tag tag--success tag--tiny">{{this.source}}</span>
-        </span>
-        {{/each}}
-        {{#each selectedCantrips}}
-        <span class="wizard-spell-chip">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCantrip" data-uuid="{{this.uuid}}"></i>
-        </span>
-        {{/each}}
-      </div>
-      {{#unless cantripsFull}}
-      <div class="wizard-item-grid wizard-item-grid--browser" data-list="cantrips">
-        {{#each cantrips}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-          <img src="{{this.img}}" alt="" class="wizard-item__img">
-          <div class="wizard-item__info">
-            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-            <div class="wizard-item__traits">
-              {{#each this.traits}}
-              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-              {{/each}}
-              {{#if (notEqual this.rarity "common")}}
-              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-              {{/if}}
-              {{#if ../isMagus}}{{#if (includes this.traits "attack")}}<span class="tag tag--success tag--tiny">Spellstrike</span>{{/if}}{{/if}}
-            </div>
-          </div>
-          <button type="button" class="wizard-item__select" data-action="addCantrip" data-uuid="{{this.uuid}}">+</button>
         </div>
-        {{/each}}
-      </div>
-      {{/unless}}
-      </div>
-      {{/if}}
-
-      {{#if (eq spellSubStep "rank1")}}
-      <div class="wizard-browser-section">
-      <div class="wizard-browser__results-header">
-        <div class="wizard-browser__eyebrow">1st-Rank</div>
-        <div class="wizard-browser__count">{{rank1Spells.length}}</div>
-      </div>
-      <div class="wizard-spell-chips">
-        {{#each grantedRank1s}}
-        <span class="wizard-spell-chip wizard-spell-chip--granted">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <span class="tag tag--success tag--tiny">{{this.source}}</span>
-        </span>
-        {{/each}}
-        {{#each selectedRank1}}
-        <span class="wizard-spell-chip">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeRank1" data-uuid="{{this.uuid}}"></i>
-        </span>
-        {{/each}}
-      </div>
-      {{#unless rank1Full}}
-      <div class="wizard-item-grid wizard-item-grid--browser" data-list="rank1">
-        {{#each rank1Spells}}
-        <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-          <img src="{{this.img}}" alt="" class="wizard-item__img">
-          <div class="wizard-item__info">
-            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-            <div class="wizard-item__traits">
-              {{#each this.traits}}
-              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-              {{/each}}
-              {{#if (notEqual this.rarity "common")}}
-              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-              {{/if}}
-              {{#if ../isMagus}}{{#if (includes this.traits "attack")}}<span class="tag tag--success tag--tiny">Spellstrike</span>{{/if}}{{/if}}
-            </div>
-          </div>
-          <button type="button" class="wizard-item__select" data-action="addRank1" data-uuid="{{this.uuid}}">+</button>
-        </div>
-        {{/each}}
-      </div>
-      {{/unless}}
-      </div>
-      {{/if}}
-
-      {{#if (eq spellSubStep "curriculum")}}
-      <div class="wizard-browser-section">
-      <div class="wizard-browser__results-header">
-        <div class="wizard-browser__eyebrow">Curriculum</div>
-        <div class="wizard-browser__count">{{curriculumTargetCount}}</div>
-      </div>
-      <p class="wizard-hint">Choose {{maxCurriculumCantrips}} curriculum cantrip and {{maxCurriculumRank1}} 1st-rank curriculum spells to add to your spellbook. Separately, your curriculum entry still gets 1 extra cantrip slot and 1 extra 1st-rank slot.</p>
-      {{#if curriculumCantripOptions.length}}
-      <p class="wizard-hint" style="margin-top:0">Cantrips:</p>
-      <div class="wizard-spell-chips">
-        {{#each curriculumCantripSelected}}
-        <span class="wizard-spell-chip">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumCantrip" data-uuid="{{this.uuid}}"></i>
-        </span>
-        {{/each}}
-      </div>
-      {{#unless curriculumCantripsFull}}
-      <div class="wizard-item-grid wizard-item-grid--compact">
-        {{#each curriculumCantripOptions}}
-        {{#unless this.selected}}
-        <div class="wizard-item">
-          <img src="{{this.img}}" alt="" class="wizard-item__img">
-          <div class="wizard-item__info">
-            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          </div>
-          <button type="button" class="wizard-item__select" data-action="addCurriculumCantrip" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumCantrips}}">+</button>
-        </div>
-        {{/unless}}
-        {{/each}}
-      </div>
-      {{/unless}}
-      {{/if}}
-      <p class="wizard-hint" style="margin-top:0">1st-rank spells:</p>
-      <div class="wizard-spell-chips">
-        {{#each curriculumRank1Selected}}
-        <span class="wizard-spell-chip">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumRank1" data-uuid="{{this.uuid}}"></i>
-        </span>
-        {{/each}}
-      </div>
-      {{#unless curriculumRank1Full}}
-      <div class="wizard-item-grid wizard-item-grid--compact">
-        {{#each curriculumRank1Options}}
-        {{#unless this.selected}}
-        <div class="wizard-item">
-          <img src="{{this.img}}" alt="" class="wizard-item__img">
-          <div class="wizard-item__info">
-            <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          </div>
-          <button type="button" class="wizard-item__select" data-action="addCurriculumRank1" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumRank1}}">+</button>
-        </div>
-        {{/unless}}
-        {{/each}}
-      </div>
-      {{/unless}}
-      {{/if}}
-      </div>
-
-      {{#if (eq spellSubStep "focus")}}
-      <div class="wizard-browser-section">
-      <div class="wizard-browser__results-header">
-        <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SPELLS.FOCUS"}}</div>
-        <div class="wizard-browser__count">{{focusSpells.length}}</div>
-      </div>
-      {{#if isDevotionChoice}}
-      <p class="wizard-hint">Choose one focus spell.</p>
-      <div class="skill-btn-grid">
-        {{#each focusSpells}}
-        <button type="button"
-          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectDevotionSpell" data-uuid="{{this.uuid}}">
-          <img src="{{this.img}}" alt="" style="width: 24px; height: 24px; border-radius: 2px; margin-right: 4px;">
-          <span class="skill-btn__name">{{this.name}}</span>
-        </button>
-        {{/each}}
-      </div>
-      {{else}}
-      <p class="wizard-hint">These focus spells will be added to your character automatically.</p>
-      <div class="wizard-spell-chips">
-        {{#each focusSpells}}
-        <span class="wizard-spell-chip wizard-spell-chip--granted">
-          <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-          <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <span class="tag tag--success tag--tiny">{{localize "PF2E_LEVELER.SPELLS.FOCUS"}}</span>
-        </span>
-        {{/each}}
-      </div>
-      {{/if}}
-      </div>
-      {{/if}}
-
-      <datalist id="trait-options">
-        {{#each traitOptions}}
-        <option value="{{this}}">
-        {{/each}}
-      </datalist>
-      </section>
+        {{/if}}
       </div>
 
     {{else if (eq stepId "equipment")}}

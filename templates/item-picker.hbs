@@ -15,6 +15,16 @@
       </div>
 
       <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_LEVEL"}}</div>
+        <select class="picker__select" data-action="filterMaxLevel">
+          <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
+          {{#each levelOptions}}
+          <option value="{{this.value}}" {{#if (eq this.value ../maxLevel)}}selected{{/if}}>{{localize "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}</option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.ITEM_PICKER.CATEGORY"}}</div>
         <div class="picker__source-list">
           {{#each categoryOptions}}
@@ -94,6 +104,7 @@
           <div class="item-option__info">
             <div class="item-option__header">
               <span class="item-option__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="item-option__level">Lv {{this.itemLevel}}</span>
               {{#if this.priceLabel}}<span class="item-option__level">{{this.priceLabel}}</span>{{/if}}
             </div>
             <div class="item-option__traits">

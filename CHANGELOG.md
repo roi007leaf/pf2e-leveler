@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.0.1
+
+### Spell Picker
+
+- **Wizard spell step uses popup picker** — The character wizard's spell selection step now uses the same popup SpellPicker window as the level planner, replacing the old inline spell browser. Cantrips and 1st-rank spells each get a compact card with a "Browse..." button that opens a pre-configured picker. Curriculum and focus spell selection remain inline since they use fixed option lists
+- **Spell category and rank locked in context** — When browsing cantrips, the "Cantrip" category chip is locked; when browsing rank-1 spells, the "Spell" category and "Rank 1" rank chips are locked. Only applies when the picker is opened with `exactRank` mode (wizard and preparation sheets). General-purpose spell pickers (level planner, custom spells) leave all chips toggleable
+- **Ritual spells now appear in tradition-locked pickers** — Ritual spells are tradition-agnostic and were previously filtered out when the picker was locked to a specific tradition (e.g. arcane). They now always pass the tradition filter
+- **Spell rarity respects player settings** — The spell picker's rarity chips now initialize from the player's allowed rarities instead of defaulting to all four. Players restricted to common content will only see common spells pre-selected
+
+### Feat Picker
+
+- **"Bonus" and "Other" feat types hidden** — Feats without standard PF2e type traits (class, ancestry, skill, general, archetype) were tagged as "Bonus" or "Other" and shown as filterable chips. These noise types are now hidden from the feat type filter. The feats themselves still appear in results — they just don't get a dedicated chip
+- **"Mythic" feat type only shown when mythic rules are enabled** — The Mythic chip in the feat type filter is now hidden unless the Mythic variant rule is active in the game system
+- **General feat picker shows Skill chip** — The general feat picker now shows "General" (locked) + "Skill" (toggleable) as feat type chips. When "Skill" is deselected, only pure general feats (without the skill trait) are shown — giving a clean way to see just general feats without skill feats mixed in
+
+### Item Picker
+
+- **Level filter added** — The item/equipment picker now has a "Max Level" dropdown filter in the sidebar, letting you filter items by level (0–24)
+- **Item level displayed in results** — Each item row now shows "Lv X" before the price
+- **Ammunition category fixed** — Ammunition items were incorrectly categorized as "Consumable" because PF2e stores them with `type: 'consumable'` and `category: 'ammunition'`. The consumable check was running first. Ammunition now correctly appears as its own category
+
+### Filter & Chip Fixes
+
+- **Chip toggle no longer re-selects all on empty** — Fixed a bug where deselecting the last chip in any filter (rarity, rank, category, feat type, source) would re-select everything. Clicking a chip on an empty set now correctly selects just that one chip
+- **`initializeSelectionSet` no longer falls back to all** — Added `defaultValues: []` to all remaining `initializeSelectionSet` calls (spell ranks, spell traditions, spell categories, item categories, feat types) so empty sets stay empty instead of silently selecting everything
+
+### Character Wizard
+
+- **ChoiceSet options exclude class features** — The wizard's Options step (e.g. "School of Unified Magical Theory") was showing class features (Arcane Bond, Arcane School, Arcane Thesis) alongside actual feats. Items with `category: 'classfeature'` are now excluded from ChoiceSet candidates unless the rule explicitly requests class features
+- **Category field normalization** — Fixed `normalizeChoiceCandidate` to correctly resolve `system.category` when it's an object (`{ value: 'classfeature' }`) instead of a plain string, which was causing the classfeature filter to miss some items
+
+### Bug Fixes
+
+- **Ancestral paragon feat error fixed** — Fixed `wizard._getClassTrainedSkills is not a function` crash when enriching feats in the level planner. The planner's mock wizard object was missing the `_getClassTrainedSkills` method, which is called when feats grant skill training with fallback options
+- **`matchFeat` null safety** — Added optional chaining to `buildState.feats?.has()` in the prerequisite matcher, preventing crashes when the build state has no feats set (same pattern as the earlier `matchSkill`/`matchAbility` fixes)
+- **Feat cache category check** — Updated the feat cache's classfeature exclusion to handle both `system.category` (string) and `system.category.value` (object) formats
+
 ## 2.0.0
 
 ### High-Level Character Creation
@@ -10,6 +47,17 @@
   - A **Next Level** button appears at the bottom of the screen once a level is complete; click it to advance
   - After planning the final level, a **Finish Planning** button unlocks the full planner for future use
   - Sequential state persists if you close and reopen — you'll pick up right where you left off
+
+### Equipment Planning in Level Planner
+
+- **Dedicated equipment section (Table 10-10)** — When the Starting Wealth mode is set to "Items + Currency", the planner shows permanent item slots based on PF2e Table 10-10 at the character's current level
+  - Each slot has a max item level — browse to fill it with a permanent item (weapon, armor, shield, equipment)
+  - Players are restricted to permanent item types and level limits; GMs can bypass both
+  - The currency budget for the level is displayed below the slots
+- **Custom equipment in every level** — A new "Custom Equipment" sub-section in the Custom Level Plan area lets you plan equipment at any level, regardless of wealth mode
+  - Add any item from the equipment compendium as a planning note
+  - Click an item name to view its sheet; remove with the X button
+- **Equipment applied on level-up** — Both permanent slot items and custom equipment are added to the actor's inventory when the level-up plan is applied, and listed in the level-up chat message
 
 ### Compendium & Content Filtering
 

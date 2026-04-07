@@ -616,6 +616,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           addSpell(this.data, spell, isCantrip);
           this._saveAndRender();
         },
+        { exactRank: true },
       );
       picker.render(true);
     });

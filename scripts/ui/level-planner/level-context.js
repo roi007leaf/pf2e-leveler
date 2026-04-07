@@ -1,4 +1,4 @@
-import { PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
+import { PROFICIENCY_RANK_NAMES, SKILLS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -81,8 +81,36 @@ export async function buildLevelContext(planner, classDef, options) {
     customSkillIncreaseGroups,
     customAvailableSkills,
     customSpellGroups,
+    customEquipment: (levelData.customEquipment ?? []).map((entry, index) => ({ ...entry, index })),
+    ...buildEquipmentContext(planner, level, levelData),
     ...buildABPContext(level, options),
     ...(await planner._buildSpellContext(classDef, level)),
+  };
+}
+
+function buildEquipmentContext(planner, level, levelData) {
+  const wealthMode = game.settings.get(MODULE_ID, 'startingWealthMode') ?? WEALTH_MODES.DISABLED;
+  const actorLevel = planner.actor.system?.details?.level?.value ?? 1;
+  const isItemsAndCurrency = wealthMode === WEALTH_MODES.ITEMS_AND_CURRENCY;
+  const showEquipment = isItemsAndCurrency && level === actorLevel && actorLevel > 1;
+
+  if (!showEquipment) return { showEquipment: false };
+
+  const slots = expandPermanentItemSlots(actorLevel);
+  const plannedEquipment = levelData.equipment ?? [];
+  const equipmentSlots = slots.map((slot, index) => ({
+    index,
+    maxLevel: slot.level,
+    filled: plannedEquipment[index] ?? null,
+  }));
+
+  const entry = CHARACTER_WEALTH[actorLevel];
+  const currencyBudgetGp = entry?.currencyGp ?? 0;
+
+  return {
+    showEquipment: true,
+    equipmentSlots,
+    equipmentCurrencyBudgetGp: currencyBudgetGp,
   };
 }
 
@@ -387,6 +415,15 @@ function createPlannerChoiceWizard(planner) {
       return docs.map((doc) => normalizeChoiceCandidate(doc, key));
     },
     _loadDeities: async () => loadDeities(planner),
+    async _getClassTrainedSkills() {
+      const classItem = planner.actor?.class;
+      if (!classItem) return [];
+      const rules = classItem.system?.rules ?? [];
+      return rules
+        .filter((rule) => rule.key === 'ActiveEffectLike' && typeof rule.path === 'string' && rule.path.startsWith('system.skills.') && rule.path.endsWith('.rank'))
+        .map((rule) => rule.path.replace('system.skills.', '').replace('.rank', ''))
+        .filter(Boolean);
+    },
   };
 }
 

@@ -1,4 +1,4 @@
-import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS } from '../../constants.js';
+import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
 import {
@@ -18,6 +18,10 @@ import {
   removeLevelCustomSkillIncrease,
   addLevelCustomSpell,
   removeLevelCustomSpell,
+  setLevelEquipmentSlot,
+  clearLevelEquipmentSlot,
+  addLevelCustomEquipment,
+  removeLevelCustomEquipment,
 } from '../../plan/plan-model.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
@@ -1149,6 +1153,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['general', 'skill'],
           lockedFeatTypes: ['general'],
+          extraVisibleFeatTypes: ['skill'],
           showSkillFeats: true,
           maxLevel: level,
         };
@@ -1226,6 +1231,72 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.plan?.sequentialMode) {
       this.plan.sequentialMode.active = false;
     }
+    await this._savePlanAndRender();
+  }
+
+  async _openEquipmentSlotPicker(slotIndex, maxLevel) {
+    const { ItemPicker } = await import('../item-picker.js');
+    const picker = new ItemPicker(
+      this.actor,
+      async (item) => {
+        const itemType = String(item.type ?? '').toLowerCase();
+        const itemLevel = Number(item.system?.level?.value ?? 0);
+        if (!game.user.isGM) {
+          if (!PERMANENT_ITEM_TYPES.has(itemType)) {
+            ui.notifications.warn(game.i18n.localize('PF2E_LEVELER.STARTING_WEALTH.NOT_PERMANENT'));
+            return;
+          }
+          if (itemLevel > maxLevel) {
+            ui.notifications.warn(game.i18n.format('PF2E_LEVELER.STARTING_WEALTH.LEVEL_TOO_HIGH', { item: itemLevel, max: maxLevel }));
+            return;
+          }
+        }
+        setLevelEquipmentSlot(this.plan, this.selectedLevel, slotIndex, {
+          uuid: item.uuid,
+          name: item.name,
+          img: item.img,
+          itemLevel,
+          price: item.system?.price?.value,
+          category: itemType,
+        });
+        await this._savePlanAndRender();
+      },
+    );
+    picker.render(true);
+  }
+
+  async _removeEquipmentSlot(slotIndex) {
+    clearLevelEquipmentSlot(this.plan, this.selectedLevel, slotIndex);
+    await this._savePlanAndRender();
+  }
+
+  async _openCustomEquipmentPicker(level, index = null) {
+    const { ItemPicker } = await import('../item-picker.js');
+    const picker = new ItemPicker(
+      this.actor,
+      async (items) => {
+        const selectedItems = Array.isArray(items) ? items : [items];
+        const replaceMode = Number.isInteger(index);
+        for (let offset = 0; offset < selectedItems.length; offset++) {
+          const item = selectedItems[offset];
+          addLevelCustomEquipment(this.plan, level, {
+            uuid: item.uuid,
+            name: item.name,
+            img: item.img,
+            itemLevel: Number(item.system?.level?.value ?? 0),
+            price: item.system?.price?.value,
+            category: String(item.type ?? ''),
+          }, replaceMode && offset === 0 ? index : null);
+        }
+        await this._savePlanAndRender();
+      },
+      { multiSelect: index == null },
+    );
+    picker.render(true);
+  }
+
+  async _removeCustomEquipment(index) {
+    removeLevelCustomEquipment(this.plan, this.selectedLevel, index);
     await this._savePlanAndRender();
   }
 

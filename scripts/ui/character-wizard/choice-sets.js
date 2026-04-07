@@ -723,9 +723,15 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
   const slugsAsValues = !!rule.choices.slugsAsValues;
   const promptImpliesCommonAncestry = isCommonAncestryChoiceSet(rule)
     && !String(JSON.stringify(rule.choices.filter ?? [])).includes('item:rarity:')
+  const itemType = typeof rule.choices.itemType === 'string' ? rule.choices.itemType.toLowerCase() : null;
   return candidates
     .filter((item) => matchesChoiceSetFilters(item, rule.choices.filter ?? []))
     .filter((item) => !promptImpliesCommonAncestry || String(item.rarity ?? 'common').toLowerCase() === 'common')
+    .filter((item) => {
+      const cat = String(item.category ?? '').toLowerCase();
+      if (cat === 'classfeature') return itemType === 'classfeature';
+      return true;
+    })
     .filter((item) => slugsAsValues ? !!(item.slug ?? item.uuid) : !!(item.uuid ?? item.slug))
     .map((item) => ({
       value: slugsAsValues ? (item.slug ?? item.uuid) : (item.uuid ?? item.slug),
@@ -1427,7 +1433,7 @@ function normalizeChoiceCandidate(item) {
     traditions: rawSystem?.traits?.traditions ?? rawSystem?.traditions?.value ?? [],
     rarity: rawSystem?.traits?.rarity ?? 'common',
     level: rawSystem?.level?.value ?? 0,
-    category: rawSystem?.category ?? null,
+    category: typeof rawSystem?.category === 'string' ? rawSystem.category : (rawSystem?.category?.value ?? null),
     usage: rawSystem?.usage?.value ?? null,
     range: normalizeRangeValue(rawSystem?.range ?? null),
     isRanged: isRangedWeaponData(rawSystem),

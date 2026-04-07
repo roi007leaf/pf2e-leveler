@@ -171,6 +171,46 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelectorAll('[data-action="browseEquipmentSlot"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slotIndex = Number(btn.dataset.slot);
+      const maxLevel = Number(btn.dataset.maxLevel);
+      planner._openEquipmentSlotPicker(slotIndex, maxLevel);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeEquipmentSlot"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      planner._removeEquipmentSlot(Number(btn.dataset.slot));
+    });
+  });
+
+  el.querySelectorAll('[data-action="openCustomEquipmentPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const index = btn.dataset.index == null ? null : Number(btn.dataset.index);
+      planner._openCustomEquipmentPicker(planner.selectedLevel, Number.isInteger(index) ? index : null);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeCustomEquipment"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      planner._removeCustomEquipment(index);
+    });
+  });
+
+  el.querySelectorAll('[data-action="viewItem"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const uuid = btn.dataset.uuid;
+      if (!uuid) return;
+      const item = await fromUuid(uuid).catch(() => null);
+      if (item?.sheet) item.sheet.render(true);
+    });
+  });
+
   el.querySelectorAll('[data-action="addCustomSkillIncrease"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const slug = btn.dataset.skill;

@@ -73,7 +73,14 @@
       "CUSTOM_LEVEL_PLAN": "Plan personnalise du niveau",
       "CUSTOM_FEATS": "Dons personnalises",
       "CUSTOM_SKILL_INCREASES": "Augmentations de competence personnalisees",
-      "CUSTOM_SPELLS": "Sorts personnalises"
+      "CUSTOM_SPELLS": "Sorts personnalises",
+      "CUSTOM_EQUIPMENT": "Equipement personnalise",
+      "EQUIPMENT": "Equipement (Table 10-10)"
+    },
+    "EQUIPMENT": {
+      "ADD": "Ajouter un equipement",
+      "CURRENCY_BUDGET": "Budget en monnaie : {gp} po",
+      "SLOT_EMPTY": "Emplacement d'objet niveau {max} (vide)"
     },
     "ITEM_PICKER": {
       "EQUIPMENT": "Equipement",

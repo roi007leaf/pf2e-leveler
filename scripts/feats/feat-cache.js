@@ -30,7 +30,7 @@ async function loadCompendiumFeats(key) {
     const sourcePackage = compendium.metadata?.packageName ?? compendium.metadata?.package ?? '';
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
     return collection
-      .filter((item) => item.type === 'feat' && item.system.category !== 'classfeature')
+      .filter((item) => item.type === 'feat' && String(item.system.category?.value ?? item.system.category ?? '') !== 'classfeature')
       .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
       .map((item) => {
         item.sourcePack = key;

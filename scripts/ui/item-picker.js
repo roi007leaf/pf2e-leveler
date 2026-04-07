@@ -35,6 +35,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
     this.selectedTraits = new Set();
     this.traitLogic = 'or';
+    this.maxLevel = '';
     this._sourceKeys = [];
     this._categoryValues = [];
     this._updateTimer = null;
@@ -83,6 +84,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedTraitChips: this._getTraitOptions().filter((o) => o.selected),
       traitLogic: this.traitLogic,
       searchText: this.searchText,
+      maxLevel: this.maxLevel,
+      levelOptions: this._getLevelOptions(),
     };
   }
 
@@ -96,6 +99,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       img: item.img,
       rarity,
       priceLabel,
+      itemLevel: Number(item.system?.level?.value ?? 0),
       category: normalizeItemCategory(item),
       traits: [...new Set(item.system?.traits?.value ?? [])].filter((t) => t !== normalizeItemCategory(item)),
     };
@@ -111,6 +115,10 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.selectedTraits.size > 0) {
       items = applyTraitFilter(items, this.selectedTraits, (item) => item.system?.traits?.value ?? [], this.traitLogic);
     }
+    if (this.maxLevel !== '') {
+      const max = Number(this.maxLevel);
+      items = items.filter((item) => Number(item.system?.level?.value ?? 0) <= max);
+    }
     if (this.searchText) {
       const query = this.searchText.toLowerCase();
       items = items.filter((item) => String(item.name ?? '').toLowerCase().includes(query));
@@ -120,6 +128,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _hasActiveFilter() {
     if (this.searchText) return true;
+    if (this.maxLevel !== '') return true;
     if (this.selectedTraits.size > 0) return true;
     if (this.selectedCategories.size > 0 && !this._categoryValues.every((v) => this.selectedCategories.has(v))) return true;
     if (this._sourceKeys.length > 0 && !this._sourceKeys.every((k) => this.selectedSourcePackages.has(k))) return true;
@@ -144,8 +153,12 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const seen = new Set(this.allItems.map((item) => normalizeItemCategory(item)));
     const categories = [...seen].sort((a, b) => a.localeCompare(b));
     this._categoryValues = categories;
-    this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories);
+    this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories, { defaultValues: [] });
     return buildChipOptions(categories, this.selectedCategories, { labels: CATEGORY_LABELS });
+  }
+
+  _getLevelOptions() {
+    return Array.from({ length: 25 }, (_, i) => ({ value: String(i), label: String(i) }));
   }
 
   _getTraitOptions() {
@@ -303,6 +316,14 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         this._scheduleUpdate();
       }
     }, { signal });
+
+    const maxLevelSelect = el.querySelector('[data-action="filterMaxLevel"]');
+    if (maxLevelSelect) {
+      maxLevelSelect.addEventListener('change', (e) => {
+        this.maxLevel = e.target.value;
+        this._updateList();
+      }, { signal });
+    }
 
     const traitInput = el.querySelector('[data-action="traitInput"]');
     if (traitInput) {

@@ -60,9 +60,10 @@
           {{#each categoryOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
             data-action="toggleSpellCategory"
-            data-category="{{this.value}}">
+            data-category="{{this.value}}"
+            {{#if this.locked}}data-tooltip="{{localize "PF2E_LEVELER.UI.LOCKED_FILTER_HINT"}}"{{/if}}>
             {{this.label}}
           </button>
           {{/each}}
@@ -77,9 +78,10 @@
           {{#each rankOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
             data-action="toggleSpellRank"
-            data-rank="{{this.value}}">
+            data-rank="{{this.value}}"
+            {{#if this.locked}}data-tooltip="{{localize "PF2E_LEVELER.UI.LOCKED_FILTER_HINT"}}"{{/if}}>
             {{this.label}}
           </button>
           {{/each}}

@@ -75,7 +75,14 @@
       "CUSTOM_LEVEL_PLAN": "Custom Level Plan",
       "CUSTOM_FEATS": "Custom Feats",
       "CUSTOM_SKILL_INCREASES": "Custom Skill Increases",
-      "CUSTOM_SPELLS": "Custom Spells"
+      "CUSTOM_SPELLS": "Custom Spells",
+      "CUSTOM_EQUIPMENT": "Custom Equipment",
+      "EQUIPMENT": "Equipment (Table 10-10)"
+    },
+    "EQUIPMENT": {
+      "ADD": "Add Equipment",
+      "CURRENCY_BUDGET": "Currency budget: {gp} gp",
+      "SLOT_EMPTY": "Level {max} item slot (empty)"
     },
     "ITEM_PICKER": {
       "EQUIPMENT": "Equipment",

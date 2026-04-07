@@ -52,9 +52,10 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const skills = await applySkillIncreases(actor, plan, plannedLevel);
       const feats = await applyFeats(actor, plan, plannedLevel);
       const spells = await applySpells(actor, plan, plannedLevel);
+      const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells });
+      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells, equipment });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
@@ -105,6 +106,11 @@ async function createLevelUpMessage(actor, level, applied) {
   const spells = applied.spells?.map((s) => `${formatChatLink(s)}${s.rank ? ` (${s.rank})` : ''}`).filter(Boolean) ?? [];
   if (spells.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.SPELLS_ADDED'), spells));
+  }
+
+  const equipment = applied.equipment?.map((e) => formatChatLink(e)).filter(Boolean) ?? [];
+  if (equipment.length) {
+    sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.SECTIONS.EQUIPMENT'), equipment));
   }
 
   const content = buildChatCard({
@@ -179,6 +185,28 @@ function localizeLanguageSlug(slug) {
   const raw = CONFIG.PF2E?.languages?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   return game.i18n?.has?.(label) ? game.i18n.localize(label) : label;
+}
+
+async function applyEquipment(actor, plan, level) {
+  const levelData = getLevelData(plan, level);
+  if (!levelData) return [];
+
+  const entries = [
+    ...(levelData.equipment ?? []).filter(Boolean),
+    ...(levelData.customEquipment ?? []),
+  ];
+
+  const applied = [];
+  for (const entry of entries) {
+    if (!entry?.uuid) continue;
+    const item = await fromUuid(entry.uuid).catch(() => null);
+    if (!item) continue;
+    const itemData = foundry.utils.deepClone(item.toObject());
+    await actor.createEmbeddedDocuments('Item', [itemData]);
+    applied.push({ uuid: entry.uuid, name: entry.name });
+    info(`Applied equipment: ${entry.name}`);
+  }
+  return applied;
 }
 
 function formatChatLink(entry) {

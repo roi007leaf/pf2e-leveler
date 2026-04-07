@@ -454,6 +454,44 @@
         </div>
         {{/if}}
 
+        {{#if showEquipment}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-shield-halved"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.EQUIPMENT"}}
+          </div>
+          <div class="level-section__body">
+            <div class="planned-spells">
+              {{#each equipmentSlots}}
+              <div class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; width: 100%; margin-bottom: 4px;">
+                {{#if this.filled}}
+                  {{#if this.filled.img}}
+                  <img src="{{this.filled.img}}" alt="" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;">
+                  {{/if}}
+                  <button type="button" data-action="viewItem" data-uuid="{{this.filled.uuid}}" style="background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; flex: 1; text-align: left;">
+                    {{this.filled.name}}
+                  </button>
+                  <span class="tag tag--muted" style="font-size: 0.75rem; padding: 2px 6px;">{{localize "PF2E_LEVELER.STARTING_WEALTH.ITEM_LEVEL"}} {{this.filled.itemLevel}}</span>
+                  <button type="button" data-action="removeEquipmentSlot" data-slot="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                {{else}}
+                  <span style="flex: 1; opacity: 0.5;">{{format "PF2E_LEVELER.EQUIPMENT.SLOT_EMPTY" max=this.maxLevel}}</span>
+                  <button type="button" class="spell-add-btn" data-action="browseEquipmentSlot" data-slot="{{this.index}}" data-max-level="{{this.maxLevel}}" style="padding: 4px 12px;">
+                    {{localize "PF2E_LEVELER.UI.BROWSE"}}
+                  </button>
+                {{/if}}
+              </div>
+              {{/each}}
+            </div>
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm);">
+              <i class="fa-solid fa-coins"></i>
+              {{format "PF2E_LEVELER.EQUIPMENT.CURRENCY_BUDGET" gp=equipmentCurrencyBudgetGp}}
+            </div>
+          </div>
+        </div>
+        {{/if}}
+
         {{#if showCustomLevelPlan}}
         <div class="level-section level-section--custom-plan">
           <div class="section-header">
@@ -655,6 +693,31 @@
                 </button>
                 <button type="button" class="spell-add-btn" data-action="openCustomSpellPicker" data-rank="0" style="padding: 4px 12px;">
                   <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD_CUSTOM_CANTRIP"}}
+                </button>
+              </div>
+            </div>
+
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-shield-halved"></i>
+                {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_EQUIPMENT"}}
+              </div>
+              {{#each customEquipment}}
+              <div class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; margin-bottom: 4px;">
+                {{#if this.img}}
+                <img src="{{this.img}}" alt="" style="width: 20px; height: 20px; border-radius: 4px; object-fit: cover;">
+                {{/if}}
+                <button type="button" data-action="viewItem" data-uuid="{{this.uuid}}" style="background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer;">
+                  {{this.name}}
+                </button>
+                <button type="button" data-action="removeCustomEquipment" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              {{/each}}
+              <div style="margin-top: 4px;">
+                <button type="button" class="spell-add-btn" data-action="openCustomEquipmentPicker" style="padding: 4px 12px;">
+                  <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.EQUIPMENT.ADD"}}
                 </button>
               </div>
             </div>

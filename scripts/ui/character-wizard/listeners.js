@@ -353,6 +353,14 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
+  el.querySelector('[data-action="browseCantrips"]')?.addEventListener('click', () => {
+    wizard._openSpellPicker(0, true);
+  });
+
+  el.querySelector('[data-action="browseRank1"]')?.addEventListener('click', () => {
+    wizard._openSpellPicker(1, false);
+  });
+
   el.querySelectorAll('[data-action="addCantrip"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const uuid = btn.dataset.uuid;

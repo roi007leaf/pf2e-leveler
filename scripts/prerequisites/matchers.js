@@ -39,7 +39,7 @@ export function matchLevel(parsed, buildState) {
 }
 
 export function matchFeat(parsed, buildState) {
-  const met = buildState.feats.has(parsed.slug) || !!buildState.classFeatures?.has(parsed.slug);
+  const met = !!buildState.feats?.has(parsed.slug) || !!buildState.classFeatures?.has(parsed.slug);
   return { met, text: parsed.text };
 }
 

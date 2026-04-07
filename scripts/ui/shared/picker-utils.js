@@ -81,9 +81,9 @@ export function normalizeItemCategory(item) {
   if (type === 'weapon' || category === 'weapon') return 'weapon';
   if (type === 'shield' || category === 'shield') return 'shield';
   if (type === 'armor' || category === 'armor') return 'armor';
+  if (category === 'ammunition' || type === 'ammunition') return 'ammunition';
   if (type === 'consumable' || category === 'consumable') return 'consumable';
   if (type === 'backpack' || category === 'container') return 'container';
-  if (category === 'ammunition' || type === 'ammunition') return 'ammunition';
   if (['equipment', 'treasure', 'kit'].includes(type) || category === 'equipment') return 'equipment';
   return 'equipment';
 }

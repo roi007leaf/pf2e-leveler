@@ -10,6 +10,7 @@ import {
   sortFeats,
 } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
+import { isMythicEnabled } from '../utils/pf2e-api.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -172,8 +173,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
     if (this.selectedFeatTypes.size > 0) {
+      const hideSkillFromGeneral = this.selectedFeatTypes.has('general') && !this.selectedFeatTypes.has('skill');
       feats = feats.filter((feat) => {
         const types = this._getFeatTypes(feat);
+        if (hideSkillFromGeneral && types.includes('skill')) return false;
         return types.some((type) => this.selectedFeatTypes.has(type));
       });
     }
@@ -661,13 +664,18 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const type of this._getFeatTypes(feat)) seen.add(type);
     }
 
+    const hiddenTypes = new Set(['bonus', 'other']);
+    if (!isMythicEnabled()) hiddenTypes.add('mythic');
+
     const allOptions = [...seen]
+      .filter((type) => !hiddenTypes.has(type) || this.lockedFeatTypes.has(type))
       .map((type) => ({ value: type, label: labels[type] ?? type }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
     this._featTypeKeys = allOptions.map((entry) => entry.value);
     this.selectedFeatTypes = initializeSelectionSet(this.selectedFeatTypes, this._featTypeKeys, {
       lockedValues: [...this.lockedFeatTypes],
+      defaultValues: [],
     });
 
     const visibleTypeSet = this.lockedFeatTypes.size > 0
