@@ -1,4 +1,4 @@
-import { SUBCLASS_TAGS } from '../../constants.js';
+import { ANCESTRY_TRAIT_ALIASES, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
 
@@ -192,12 +192,14 @@ function isRangedWeaponData(system) {
 
 export async function loadHeritages(wizard) {
   if (!wizard.data.ancestry) return [];
-  const ancestrySlug = wizard.data.ancestry.slug ?? null;
-  if (!ancestrySlug) return [];
+  const ancestryTokens = collectAncestryMatchTokens(wizard.data.ancestry);
+  if (ancestryTokens.size === 0) return [];
   const all = await loadRawHeritages(wizard);
   return all.filter((h) => {
-    if (h.ancestrySlug === ancestrySlug) return true;
-    if (h.traits.includes(ancestrySlug)) return true;
+    const heritageAncestrySlug = normalizeSlugLike(h.ancestrySlug);
+    if (heritageAncestrySlug && ancestryTokens.has(heritageAncestrySlug)) return true;
+    const heritageTraits = (h.traits ?? []).map(normalizeSlugLike).filter(Boolean);
+    if (heritageTraits.some((trait) => ancestryTokens.has(trait))) return true;
     if (!h.ancestrySlug) return true;
     return false;
   });
@@ -412,6 +414,7 @@ export async function loadRawHeritages(wizard) {
       uuid: d.uuid,
       name: d.name,
       img: d.img,
+      type: 'heritage',
       sourcePack: d.sourcePack,
       sourceLabel: d.sourceLabel,
       sourcePackage: d.sourcePackage,
@@ -505,6 +508,43 @@ function dedupeCompendiumItems(items) {
     seen.add(item.uuid);
     return true;
   });
+}
+
+function collectAncestryMatchTokens(ancestry) {
+  const baseTokens = new Set();
+  const addToken = (value) => {
+    const normalized = normalizeSlugLike(value);
+    if (normalized) baseTokens.add(normalized);
+  };
+
+  addToken(ancestry?.slug);
+  addToken(ancestry?.name);
+
+  const uuidParts = String(ancestry?.uuid ?? '')
+    .split(/[./]/)
+    .map((part) => normalizeSlugLike(part))
+    .filter(Boolean);
+  for (const part of uuidParts) addToken(part);
+
+  const expanded = new Set();
+  for (const token of baseTokens) {
+    const aliases = ANCESTRY_TRAIT_ALIASES[token] ?? [token];
+    for (const alias of aliases) {
+      const normalized = normalizeSlugLike(alias);
+      if (normalized) expanded.add(normalized);
+    }
+  }
+
+  return expanded;
+}
+
+function normalizeSlugLike(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function resolveCompendiumPackageLabel(packageKey) {

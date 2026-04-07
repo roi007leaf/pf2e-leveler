@@ -1,4 +1,5 @@
 import { CharacterWizard, buildCompendiumSourceOptions, filterStepContextByCompendiumSource } from '../../../scripts/ui/character-wizard/index.js';
+import { loadHeritages, loadRawHeritages } from '../../../scripts/ui/character-wizard/loaders.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -153,6 +154,99 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         uuid: 'heritage-1',
         name: 'Versatile Heritage',
         type: 'heritage',
+      }),
+    ]);
+  });
+
+  it('loads heritages using ancestry aliases when ancestry and heritage use different normalized slugs', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Compendium.test.ancestries.Item.kholo',
+      slug: 'kholo',
+      name: 'Kholo',
+    };
+    wizard._compendiumCache.heritages = [
+      {
+        uuid: 'heritage-gnoll',
+        name: 'Great Gnoll Heritage',
+        type: 'heritage',
+        ancestrySlug: 'gnoll',
+        traits: ['gnoll'],
+      },
+      {
+        uuid: 'heritage-elf',
+        name: 'Elf Heritage',
+        type: 'heritage',
+        ancestrySlug: 'elf',
+        traits: ['elf'],
+      },
+    ];
+
+    const items = await loadHeritages(wizard);
+
+    expect(items.map((item) => item.uuid)).toEqual(['heritage-gnoll']);
+  });
+
+  it('loads heritages when the selected ancestry has no slug but the heritage matches its name or uuid tokens', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Compendium.battlezoo.ancestries.Item.dragon',
+      slug: null,
+      name: 'Dragon',
+    };
+    wizard._compendiumCache.heritages = [
+      {
+        uuid: 'heritage-dragon',
+        name: 'Battle Dragon Heritage',
+        type: 'heritage',
+        ancestrySlug: null,
+        traits: ['dragon'],
+      },
+      {
+        uuid: 'heritage-human',
+        name: 'Human Heritage',
+        type: 'heritage',
+        ancestrySlug: 'human',
+        traits: ['human'],
+      },
+    ];
+
+    const items = await loadHeritages(wizard);
+
+    expect(items.map((item) => item.uuid)).toEqual(['heritage-dragon']);
+  });
+
+  it('loadRawHeritages marks loaded entries as heritage type for the step filter', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._compendiumCache = {};
+    game.packs.get.mockReturnValue({
+      metadata: {
+        label: 'Test Heritages',
+        packageName: 'test-module',
+      },
+      collection: 'test-module.heritages',
+      getDocuments: jest.fn(async () => [
+        {
+          uuid: 'Compendium.test-module.heritages.Item.heritage-1',
+          name: 'Dragon Heritage',
+          img: 'icons/svg/mystery-man.svg',
+          type: 'heritage',
+          slug: 'dragon-heritage',
+          system: {
+            traits: { value: ['dragon'], rarity: 'common' },
+            ancestry: { slug: 'dragon' },
+          },
+        },
+      ]),
+    });
+
+    const items = await loadRawHeritages(wizard);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        uuid: 'Compendium.test-module.heritages.Item.heritage-1',
+        type: 'heritage',
+        ancestrySlug: 'dragon',
       }),
     ]);
   });

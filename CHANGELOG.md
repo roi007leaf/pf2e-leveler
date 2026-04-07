@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.10
+
+### Fixed
+
+- Character wizard heritage selection now works again after the mixed-pack type hardening
+  - Restored the `type: heritage` field on loaded heritage entries so the heritage step no longer filters out every valid heritage row
+  - Heritage matching now uses ancestry slug, name, UUID-derived tokens, and ancestry aliases so third-party or alias-heavy ancestry data can still resolve the correct heritage list
+
 ## 1.4.9
 
 ### Fixed
