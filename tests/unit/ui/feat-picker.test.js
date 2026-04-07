@@ -279,6 +279,15 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(context.maxLevel).toBe('7');
   });
 
+  test('level range options are capped at the picker target level', async () => {
+    const picker = new FeatPicker(createActor(), 'custom', 4, createBuildState({ level: 4 }), jest.fn());
+    picker.allFeats = [];
+
+    const context = await picker._prepareContext();
+
+    expect(context.levelOptions.map((entry) => entry.value)).toEqual(['1', '2', '3', '4']);
+  });
+
   test('supports multi-select confirmation for custom feat picking', async () => {
     const classFeat = createFeat({
       name: 'Power Attack',
@@ -332,5 +341,22 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(onSelect).toHaveBeenCalledWith([
       expect.objectContaining({ sourceId: 'Compendium.test.feats.Item.fallbackFeat', name: 'Fallback Feat' }),
     ]);
+  });
+
+  test('commits typed trait input for feat filtering', () => {
+    const feat = createFeat({
+      name: 'Attack Feat',
+      uuid: 'attack-feat',
+      slug: 'attack-feat',
+    });
+    feat.system.traits.value = ['attack'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn());
+    picker.allFeats = [feat];
+
+    picker._commitTraitInput({ value: 'attack' });
+
+    expect([...picker.selectedTraits]).toEqual(['attack']);
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Attack Feat']);
   });
 });

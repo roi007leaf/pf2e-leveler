@@ -94,7 +94,7 @@
         {{#if browserStep.showSearch}}
         <div class="wizard-browser-filter">
           <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-          <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+          <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
         </div>
         {{/if}}
 
@@ -113,7 +113,7 @@
           <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
           <input
             type="text"
-            class="feat-picker__search wizard-source-filters__search"
+            class="picker__search wizard-source-filters__search"
             placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
             data-action="searchCompendiumSources">
           <div class="wizard-source-filters wizard-source-filters--sidebar">
@@ -189,7 +189,7 @@
       <div class="wizard-source-filters__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
       <input
         type="text"
-        class="feat-picker__search wizard-source-filters__search"
+        class="picker__search wizard-source-filters__search"
         placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
         data-action="searchCompendiumSources">
       <div class="wizard-source-filters__chips">
@@ -289,7 +289,7 @@
       {{#if this.isItemChoice}}
       {{#if this.isWeaponChoice}}
       <div class="wizard-choice-filters">
-        <input type="text" class="feat-picker__search wizard-choice-filters__search" placeholder="Filter weapons..." data-action="searchChoiceSetItems">
+        <input type="text" class="picker__search wizard-choice-filters__search" placeholder="Filter weapons..." data-action="searchChoiceSetItems">
         <div class="wizard-choice-filters__buttons">
           <button type="button" class="skill-btn wizard-choice-filter selected" data-action="filterWeaponChoice" data-filter="all">All</button>
           <button type="button" class="skill-btn wizard-choice-filter" data-action="filterWeaponChoice" data-filter="melee">Melee</button>
@@ -363,7 +363,7 @@
           <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearImplement" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-rarity-filters">
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
@@ -408,7 +408,7 @@
         <i class="section-header__icon fa-solid fa-plus"></i>
         {{format "PF2E_LEVELER.CREATION.WIZARD.AVAILABLE_TACTICS" selected=selectedTacticsCount count=maxTactics}}
       </div>
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each tactics}}
         {{#unless this.selected}}
@@ -452,7 +452,7 @@
         <i class="section-header__icon fa-solid fa-plus"></i>
         {{format "PF2E_LEVELER.CREATION.WIZARD.AVAILABLE_IKONS" selected=selectedIkonsCount count=maxIkons}}
       </div>
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each ikons}}
         {{#unless this.selected}}
@@ -490,7 +490,7 @@
         </div>
       {{/if}}
       {{#unless data.innovationItem}}
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each innovationItems}}
         <div class="wizard-item" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
@@ -643,7 +643,7 @@
           <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSubconsciousMind" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-rarity-filters">
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
@@ -677,7 +677,7 @@
           <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearThesis" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-rarity-filters">
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
@@ -794,7 +794,7 @@
           <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearDeity" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="wizard-rarity-filters">
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleFont" data-font="heal" checked> {{localize "PF2E_LEVELER.CREATION.DIVINE_FONT_HEAL"}}</label>
         <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleFont" data-font="harm" checked> {{localize "PF2E_LEVELER.CREATION.DIVINE_FONT_HARM"}}</label>
@@ -899,7 +899,7 @@
         {{localize "PF2E_LEVELER.CREATION.ADDITIONAL_LANGUAGES"}}
       </div>
       <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.LANGUAGES_HINT" count=maxLanguages}} ({{selectedLanguageCount}}/{{maxLanguages}})</p>
-      <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
       <div class="skill-btn-grid">
         {{#each choosableLanguages}}
         <button type="button"
@@ -972,239 +972,64 @@
       {{/if}}
 
     {{else if (eq stepId "feats")}}
-      <div class="wizard-browser wizard-browser--stacked wizard-browser--feats">
-        <aside class="wizard-browser__filters">
-          <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}</h2>
-
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}</div>
-            <div class="wizard-spell-tabs wizard-spell-tabs--stacked">
-              <div class="wizard-feat-slot">
-                <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'ancestry')}}active{{/if}}" data-action="featSubStep" data-substep="ancestry">
-                  <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</span>
-                </button>
-                {{#if data.ancestryFeat}}
-                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryFeat.uuid}}">{{data.ancestryFeat.name}}</span>
-                {{/if}}
-                {{#if data.ancestryFeat}}
-                <button type="button" class="wizard-feat-slot__clear" data-action="clearAncestryFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                {{/if}}
-              </div>
-              {{#if ancestralParagonEnabled}}
-              <div class="wizard-feat-slot">
-                <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'paragon')}}active{{/if}}" data-action="featSubStep" data-substep="paragon">
-                  <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)</span>
-                </button>
-                {{#if data.ancestryParagonFeat}}
-                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
-                {{/if}}
-                {{#if data.ancestryParagonFeat}}
-                <button type="button" class="wizard-feat-slot__clear" data-action="clearAncestryParagonFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                {{/if}}
-              </div>
-              {{/if}}
-              {{#if hasClassFeat}}
-              <div class="wizard-feat-slot">
-                <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'class')}}active{{/if}}" data-action="featSubStep" data-substep="class">
-                  <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</span>
-                </button>
-                {{#if data.classFeat}}
-                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.classFeat.uuid}}">{{data.classFeat.name}}</span>
-                {{/if}}
-                {{#if data.classFeat}}
-                <button type="button" class="wizard-feat-slot__clear" data-action="clearClassFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                {{/if}}
-              </div>
-              {{/if}}
-              {{#if hasSkillFeat}}
-              <div class="wizard-feat-slot">
-                <button type="button" class="wizard-spell-tab wizard-spell-tab--slot {{#if (eq featSubStep 'skill')}}active{{/if}}" data-action="featSubStep" data-substep="skill">
-                  <span class="wizard-feat-slot__title"><i class="fa-solid fa-hourglass-half"></i> {{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</span>
-                </button>
-                {{#if data.skillFeat}}
-                <span class="wizard-feat-slot__value wizard-feat-slot__value--link" data-action="viewItem" data-uuid="{{data.skillFeat.uuid}}">{{data.skillFeat.name}}</span>
-                {{/if}}
-                {{#if data.skillFeat}}
-                <button type="button" class="wizard-feat-slot__clear" data-action="clearSkillFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-                {{/if}}
-              </div>
-              {{/if}}
-            </div>
+      <div class="wizard-feat-slots">
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.ancestryFeat}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.ancestryFeat.uuid}}">{{data.ancestryFeat.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearAncestryFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="ancestry">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
           </div>
+        </div>
 
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-            <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+        {{#if ancestralParagonEnabled}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.ancestryParagonFeat}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearAncestryParagonFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="paragon">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
           </div>
+        </div>
+        {{/if}}
 
-          <div class="wizard-browser-filter">
-            <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-            <input
-              type="text"
-              class="feat-picker__search wizard-source-filters__search"
-              placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
-              data-action="searchCompendiumSources">
-            <div class="wizard-source-filters wizard-source-filters--sidebar">
-              <div class="wizard-source-filters__chips">
-                {{#each compendiumSourceOptions}}
-                <button
-                  type="button"
-                  class="wizard-source-filter {{#if this.selected}}selected{{/if}}"
-                  data-action="toggleCompendiumSource"
-                  data-pack="{{this.key}}"
-                  data-tooltip="{{this.key}}"
-                  data-source-name="{{this.label}}">
-                  {{this.label}}
-                </button>
-                {{/each}}
-              </div>
-            </div>
+        {{#if hasClassFeat}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.classFeat}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.classFeat.uuid}}">{{data.classFeat.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearClassFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="class">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
           </div>
+        </div>
+        {{/if}}
 
-        </aside>
-
-        <section class="wizard-browser__results">
-          {{#if (eq featSubStep "ancestry")}}
-          <div class="wizard-browser-section">
-            <div class="wizard-browser__results-header">
-              <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}</div>
-              <div class="wizard-browser__count">{{ancestryFeats.length}}</div>
-            </div>
-            <div class="wizard-item-grid wizard-item-grid--browser wizard-item-grid--compact-section">
-              {{#each ancestryFeats}}
-              <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
-                <div class="wizard-item__info">
-                  <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                  <div class="wizard-item__traits">
-                    {{#each this.traits}}
-                    <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-                    {{/each}}
-                    {{#if (notEqual this.rarity "common")}}
-                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-                    {{/if}}
-                  </div>
-                </div>
-                {{#if this.taken}}
-                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
-                {{else}}
-                  <button type="button" class="wizard-item__select" data-action="selectAncestryFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
-                {{/if}}
-              </div>
-              {{/each}}
-            </div>
+        {{#if hasSkillFeat}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.skillFeat}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.skillFeat.uuid}}">{{data.skillFeat.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearSkillFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="skill">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
           </div>
-          {{/if}}
-
-          {{#if ancestralParagonEnabled}}
-          {{#if (eq featSubStep "paragon")}}
-          <div class="wizard-browser-section">
-            <div class="wizard-browser__results-header">
-              <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}} (Paragon)</div>
-              <div class="wizard-browser__count">{{ancestryFeats.length}}</div>
-            </div>
-            <div class="wizard-item-grid wizard-item-grid--browser wizard-item-grid--compact-section">
-              {{#each ancestryFeats}}
-              <div class="wizard-item {{#if this.paragonTaken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
-                <div class="wizard-item__info">
-                  <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                  <div class="wizard-item__traits">
-                    {{#each this.traits}}
-                    <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-                    {{/each}}
-                    {{#if (notEqual this.rarity "common")}}
-                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-                    {{/if}}
-                  </div>
-                </div>
-                {{#if this.paragonTaken}}
-                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
-                {{else}}
-                  <button type="button" class="wizard-item__select" data-action="selectAncestryParagonFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
-                {{/if}}
-              </div>
-              {{/each}}
-            </div>
-          </div>
-          {{/if}}
-          {{/if}}
-
-          {{#if hasClassFeat}}
-          {{#if (eq featSubStep "class")}}
-          <div class="wizard-browser-section">
-            <div class="wizard-browser__results-header">
-              <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</div>
-              <div class="wizard-browser__count">{{classFeats.length}}</div>
-            </div>
-            <div class="wizard-item-grid wizard-item-grid--browser wizard-item-grid--compact-section">
-              {{#each classFeats}}
-              <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
-                <div class="wizard-item__info">
-                  <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                  <div class="wizard-item__traits">
-                    {{#each this.traits}}
-                    <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-                    {{/each}}
-                    {{#if (notEqual this.rarity "common")}}
-                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-                    {{/if}}
-                  </div>
-                </div>
-                {{#if this.taken}}
-                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
-                {{else}}
-                  <button type="button" class="wizard-item__select" data-action="selectClassFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
-                {{/if}}
-              </div>
-              {{/each}}
-            </div>
-          </div>
-          {{/if}}
-          {{/if}}
-          {{#if hasSkillFeat}}
-          {{#if (eq featSubStep "skill")}}
-          <div class="wizard-browser-section">
-            <div class="wizard-browser__results-header">
-              <div class="wizard-browser__eyebrow">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</div>
-              <div class="wizard-browser__count">{{skillFeats.length}}</div>
-            </div>
-            <div class="wizard-item-grid wizard-item-grid--browser wizard-item-grid--compact-section">
-              {{#each skillFeats}}
-              <div class="wizard-item {{#if this.taken}}wizard-item--taken{{/if}}" data-name="{{this.name}} {{this.traits}}" data-rarity="{{this.rarity}}">
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
-                <div class="wizard-item__info">
-                  <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                  <div class="wizard-item__traits">
-                    {{#each this.traits}}
-                    <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
-                    {{/each}}
-                    {{#if (notEqual this.rarity "common")}}
-                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-                    {{/if}}
-                  </div>
-                </div>
-                {{#if this.taken}}
-                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
-                {{else}}
-                  <button type="button" class="wizard-item__select" data-action="selectSkillFeat" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
-                {{/if}}
-              </div>
-              {{/each}}
-            </div>
-          </div>
-          {{/if}}
-          {{/if}}
-        </section>
+        </div>
+        {{/if}}
       </div>
 
     {{else if (eq stepId "spells")}}
@@ -1242,7 +1067,7 @@
           {{#unless cantripsFull}}
           <div class="wizard-browser-filter">
             <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-            <input type="text" class="feat-picker__search" placeholder="Search cantrips..." data-action="searchCantrips">
+            <input type="text" class="picker__search" placeholder="Search cantrips..." data-action="searchCantrips">
           </div>
           {{#if showSpellRarityFilters}}
           <div class="wizard-browser-filter">
@@ -1268,7 +1093,7 @@
           {{#unless rank1Full}}
           <div class="wizard-browser-filter">
             <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-            <input type="text" class="feat-picker__search" placeholder="Search 1st-rank spells..." data-action="searchRank1">
+            <input type="text" class="picker__search" placeholder="Search 1st-rank spells..." data-action="searchRank1">
           </div>
           {{#if showSpellRarityFilters}}
           <div class="wizard-browser-filter">
@@ -1295,7 +1120,7 @@
             <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
             <input
               type="text"
-              class="feat-picker__search wizard-source-filters__search"
+              class="picker__search wizard-source-filters__search"
               placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
               data-action="searchCompendiumSources">
             <div class="wizard-source-filters wizard-source-filters--sidebar">
@@ -1514,6 +1339,42 @@
         {{/each}}
       </datalist>
       </section>
+      </div>
+
+    {{else if (eq stepId "equipment")}}
+      <div class="wizard-feat-slots">
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.CREATION.STEPS.EQUIPMENT"}}</div>
+          <div class="wizard-feat-slot-card__body" style="margin-bottom: var(--leveler-spacing-sm);">
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseEquipment">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+          </div>
+          {{#if equipment.length}}
+          <div class="wizard-equipment-list">
+            {{#each equipment}}
+            <div class="wizard-equipment-row">
+              <img class="wizard-equipment-row__img" src="{{this.img}}" alt="">
+              <span class="wizard-equipment-row__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <div class="wizard-equipment-row__qty">
+                <button type="button" class="wizard-equipment-row__qty-btn" data-action="decrementEquipment" data-uuid="{{this.uuid}}">−</button>
+                <span>{{this.quantity}}</span>
+                <button type="button" class="wizard-equipment-row__qty-btn" data-action="incrementEquipment" data-uuid="{{this.uuid}}">+</button>
+              </div>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="removeEquipment" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            {{/each}}
+          </div>
+          {{#if equipmentTotal}}
+          <div class="wizard-equipment-total">
+            <span class="wizard-equipment-total__label">{{localize "PF2E_LEVELER.ITEM_PICKER.TOTAL"}}</span>
+            <span class="wizard-equipment-total__value">{{equipmentTotal}}</span>
+          </div>
+          {{/if}}
+          {{else}}
+          <div class="wizard-feat-slot-card__empty" style="padding: var(--leveler-spacing-sm) 0;">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</div>
+          {{/if}}
+        </div>
       </div>
 
     {{else if (eq stepId "summary")}}

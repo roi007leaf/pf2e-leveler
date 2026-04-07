@@ -27,6 +27,9 @@ export function buildAttributeContext(planner, levelData, choices) {
       selected,
       applied: selected && alreadyAppliedLevel,
       partial: isPartial,
+      partialLabel: isPartial
+        ? (selected ? game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_SELECTED') : game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_PENDING'))
+        : '',
       cost: 1,
       disabled: !selected && (boostsRemaining <= 0 || usedBoostsInSet.has(key)),
     };

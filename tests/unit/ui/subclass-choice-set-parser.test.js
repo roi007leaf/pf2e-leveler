@@ -586,7 +586,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         animalInstinct: 'grizzly-bear',
       },
     };
-    wizard.currentStep = 23;
+    wizard.currentStep = 24;
 
     const context = await wizard._getStepContext();
     expect(context.subclassSummaryLabel).toBe('Animal Instinct (Grizzly Bear)');
@@ -613,7 +613,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         wayOption: 'Compendium.pf2e.feats-srd.Item.pistolero-practice',
       },
     };
-    wizard.currentStep = 23;
+    wizard.currentStep = 24;
 
     const context = await wizard._getStepContext();
     expect(context.subclassSummaryLabel).toBe('Way of the Pistolero (Pistolero Practice)');
@@ -627,7 +627,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       choiceSets: [],
       choices: {},
     };
-    wizard.currentStep = 23;
+    wizard.currentStep = 24;
 
     const context = await wizard._getStepContext();
     expect(context.showSubclassSummary).toBe(false);

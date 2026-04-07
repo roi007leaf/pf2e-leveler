@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.5.0
+
+### New Features
+
+- **Equipment picker** — Character creation now includes a dedicated equipment step where you can browse and add starting gear before finishing character creation
+  - Full compendium browser with sidebar filters: category, trait, rarity, and source
+  - Items display their price, category, and key traits at a glance
+  - Quantities can be adjusted per item with `+` and `−` controls; the same item added twice stacks automatically
+  - A running total cost is shown below the equipment list, normalized across gp, sp, and cp
+  - The equipment step is optional — skipping it creates the character without any starting gear
+  - All selected equipment is applied to the actor on character creation and listed in the creation chat card under "Starting Equipment"
+
+- **Equipment browser performance** — The browser opens instantly with a loading spinner while compendiums load in the background; item data is cached for the rest of the session so re-opening the picker is immediate
+  - When no filters are active the list is capped at 200 items to keep the UI responsive; applying any search, trait, category, rarity, or source filter lifts the cap and shows all matching results
+
+### Improved
+
+- **Unified compendium picker design** — The feat picker, spell picker, and new equipment picker now all share the same two-panel layout: a scrollable filter sidebar on the left and a results list on the right
+  - Every picker has the same sidebar structure — search field at the top, followed by collapsible filter groups for traits, rarity, category or type chips, and compendium source toggles
+  - Switching between picking a feat, a spell, or a piece of equipment feels consistent; the same gestures and filter patterns work everywhere
+  - All three pickers open in a resizable floating window at the same size, so they don't feel like separate tools bolted together
+  - Under the hood, all pickers share a single stylesheet (`compendium-picker.css`) and a set of shared filter utilities, so visual fixes and improvements apply everywhere at once
+
+- **Trait filter in equipment picker** — The equipment picker includes the same trait autocomplete input found in the feat and spell pickers, with AND/OR toggle and removable chip display
+
+- **Rarity filter chips** — Rarity filter chips across all pickers now show their PF2e rarity color when selected (amber for uncommon, blue for rare, purple for unique) and appear faded when deselected, making the active filter state immediately obvious
+
+- **Feat picker trait autocomplete** — The trait input datalist now updates dynamically as you apply other filters, so only traits that actually appear in the current results are suggested; filtering out archetypes will remove `dedication` from the suggestions, for example
+
+- **Locked filter chips no longer show a remove button** — Trait and feat-type chips that are locked by the context (e.g. the ancestry trait locked when browsing ancestry feats) no longer show the `×` icon, making it clear they cannot be removed
+
+- **Spell picker trait autocomplete fixed** — The trait autocomplete dropdown was showing `[object Object]` instead of trait names; it now correctly displays each trait as a plain string
+
+- **Character wizard feat selection redesigned** — The wizard's feat step no longer embeds a full inline browser that takes over the whole panel; each feat slot (Ancestry Feat, Class Feat, Skill Feat, Ancestry Paragon) is now a compact card with a **Browse** button that opens a pre-configured popup picker
+  - Each slot's picker opens pre-filtered and locked to the correct feat type for that slot — class feat slots only show class feats for your chosen class, ancestry feat slots lock to your ancestry's trait, and so on
+  - Previously selected feats show their name in the slot card with a clear button; clicking the name opens the feat sheet
+  - Class feat picker now correctly filters by the selected class instead of showing zero results
+
+- **Search inputs no longer lose focus while filtering** — All compendium pickers now update only the results list in the DOM when filters change, leaving the sidebar (and the active search input) completely untouched; typing in the search field no longer resets the cursor position after each character
+
+- **Partial ability score boost display** — The `(x2)` label next to partially-boosted ability scores in the level planner has been replaced with a small info icon; hovering over it shows the full explanation as a tooltip, keeping the boost buttons clean and uncluttered
+
 ## 1.4.10
 
 ### Fixed

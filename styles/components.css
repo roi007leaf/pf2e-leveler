@@ -242,6 +242,13 @@
   opacity: 0.7;
 }
 
+.pf2e-leveler .boost-btn__partial-info {
+  font-size: 0.7rem;
+  color: var(--leveler-accent-light);
+  opacity: 0.8;
+  pointer-events: all;
+}
+
 .pf2e-leveler .section-header {
   display: flex;
   align-items: center;

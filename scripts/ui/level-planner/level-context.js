@@ -3,6 +3,7 @@ import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
+import { parseChoiceSets } from '../character-wizard/choice-sets.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -19,17 +20,19 @@ export async function buildLevelContext(planner, classDef, options) {
   const levelData = getLevelData(planner.plan, level) ?? {};
   const choices = getChoicesForLevel(classDef, level, options);
   const choiceTypes = new Set(choices.map((choice) => choice.type));
-  const generalFeat = annotateFeat(extractFeat(levelData.generalFeats));
-  const ancestryFeat = annotateFeat(extractFeat(levelData.ancestryFeats));
+  const classFeat = await enrichPlannerFeat(planner, extractFeat(levelData.classFeats));
+  const skillFeat = await enrichPlannerFeat(planner, extractFeat(levelData.skillFeats));
+  const generalFeat = await enrichPlannerFeat(planner, extractFeat(levelData.generalFeats));
+  const ancestryFeat = await enrichPlannerFeat(planner, extractFeat(levelData.ancestryFeats));
   const generalFeatGrantsAncestryFeat = isAncestralParagonFeat(generalFeat);
   const generalFeatIsAdoptedAncestry = isAdoptedAncestryFeat(generalFeat);
   const adoptedAncestryOptions = generalFeatIsAdoptedAncestry
     ? await buildAdoptedAncestryOptions(planner, generalFeat)
     : [];
-  const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, extractFeat(levelData.classFeats));
+  const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, classFeat);
   const generalFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, generalFeat);
   const ancestryFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, ancestryFeat);
-  const archetypeFeat = extractFeat(levelData.archetypeFeats);
+  const archetypeFeat = await enrichPlannerFeat(planner, extractFeat(levelData.archetypeFeats));
   const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
   const customFeats = await buildCustomPlannerFeatEntries(planner, levelData.customFeats ?? []);
   const customSkillIncreaseGroups = buildCustomSkillIncreaseGroups(levelData.customSkillIncreases ?? []);
@@ -47,10 +50,10 @@ export async function buildLevelContext(planner, classDef, options) {
     intBonusSkillCount: levelData.intBonusSkills?.length ?? 0,
     intBonusLanguageCount: levelData.intBonusLanguages?.length ?? 0,
     showClassFeat: choiceTypes.has('classFeat'),
-    classFeat: annotateFeat(extractFeat(levelData.classFeats)),
+    classFeat,
     classFeatChoiceSets,
     showSkillFeat: choiceTypes.has('skillFeat'),
-    skillFeat: annotateFeat(extractFeat(levelData.skillFeats)),
+    skillFeat,
     showGeneralFeat: choiceTypes.has('generalFeat'),
     generalFeat,
     generalFeatChoiceSets,
@@ -128,7 +131,7 @@ export function extractFeat(feats) {
 async function buildCustomPlannerFeatEntries(planner, feats) {
   const entries = [];
   for (let index = 0; index < feats.length; index++) {
-    const feat = annotateFeat(feats[index]);
+    const feat = await enrichPlannerFeat(planner, feats[index]);
     entries.push({
       index,
       feat,
@@ -136,6 +139,15 @@ async function buildCustomPlannerFeatEntries(planner, feats) {
     });
   }
   return entries;
+}
+
+async function enrichPlannerFeat(planner, feat) {
+  const annotated = annotateFeat(feat);
+  if (!annotated?.uuid) return annotated;
+  const preview = await buildFeatGrantPreview(planner, annotated);
+  annotated.grantedItems = preview.grantedItems;
+  annotated.grantChoiceSets = preview.grantChoiceSets;
+  return annotated;
 }
 
 function buildCustomSkillIncreaseGroups(customSkillIncreases) {
@@ -276,6 +288,146 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   }
 
   return choiceSets.filter((entry) => entry.options.length > 0);
+}
+
+export async function buildFeatGrantPreview(planner, feat) {
+  const source = await fromUuid(feat.uuid).catch(() => null);
+  if (!source) return { grantedItems: [], grantChoiceSets: [] };
+
+  const wizard = createPlannerChoiceWizard(planner);
+  const grantedItems = [];
+  const grantChoiceSets = [];
+  const seenGranted = new Set();
+
+  await collectGrantPreviewEntries({
+    item: source,
+    planner,
+    wizard,
+    storedChoices: feat.choices ?? {},
+    grantedItems,
+    grantChoiceSets,
+    seenGranted,
+  });
+
+  return {
+    grantedItems,
+    grantChoiceSets,
+  };
+}
+
+async function collectGrantPreviewEntries({
+  item,
+  planner,
+  wizard,
+  storedChoices,
+  grantedItems,
+  grantChoiceSets,
+  seenGranted,
+}) {
+  if (!item) return;
+
+  const choiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], storedChoices, item);
+  for (const choiceSet of choiceSets) {
+    const selectedValue = storedChoices?.[choiceSet.flag];
+    if (typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]') continue;
+    if (grantChoiceSets.some((entry) => entry.flag === choiceSet.flag)) continue;
+    grantChoiceSets.push({
+      ...choiceSet,
+      choiceType: choiceSet.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
+      sourceName: item.name,
+    });
+  }
+
+  for (const rule of item.system?.rules ?? []) {
+    if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+    const ruleChoices = {
+      ...(storedChoices ?? {}),
+      ...extractGrantPreselectedChoices(rule),
+    };
+    const resolvedUuid = resolveGrantRuleUuid(rule.uuid, ruleChoices);
+    if (!resolvedUuid) continue;
+    const granted = await fromUuid(resolvedUuid).catch(() => null);
+    if (!granted) continue;
+
+    const dedupeKey = `${item.uuid ?? item.name}->${granted.uuid}`;
+    if (!seenGranted.has(dedupeKey)) {
+      seenGranted.add(dedupeKey);
+      grantedItems.push({
+        uuid: granted.uuid,
+        name: granted.name,
+        img: granted.img ?? null,
+        sourceName: item.name,
+      });
+    }
+
+    await collectGrantPreviewEntries({
+      item: granted,
+      planner,
+      wizard,
+      storedChoices: ruleChoices,
+      grantedItems,
+      grantChoiceSets,
+      seenGranted,
+    });
+  }
+}
+
+function createPlannerChoiceWizard(planner) {
+  return {
+    actor: planner.actor,
+    data: {
+      deity: planner.actor?.items?.find?.((item) => item.type === 'deity') ?? null,
+    },
+    _getCachedDocument: (uuid) => fromUuid(uuid).catch(() => null),
+    _loadCompendium: async (key) => {
+      const pack = game.packs.get(key);
+      if (!pack) return [];
+      const docs = await pack.getDocuments().catch(() => []);
+      return docs.map((doc) => normalizeChoiceCandidate(doc, key));
+    },
+    _loadDeities: async () => loadDeities(planner),
+  };
+}
+
+function normalizeChoiceCandidate(doc, sourcePack) {
+  return {
+    uuid: doc.uuid ?? doc.sourceId ?? null,
+    name: doc.name ?? '',
+    img: doc.img ?? null,
+    type: doc.type ?? null,
+    category: doc.system?.category?.value ?? doc.category ?? null,
+    traits: doc.system?.traits?.value ?? [],
+    otherTags: doc.system?.traits?.otherTags ?? [],
+    rarity: doc.system?.traits?.rarity ?? 'common',
+    level: doc.system?.level?.value ?? 0,
+    slug: doc.slug ?? null,
+    sourcePack,
+    range: doc.system?.range ?? null,
+    isRanged: !!doc.system?.range?.value,
+  };
+}
+
+function extractGrantPreselectedChoices(rule) {
+  const rawChoices = rule?.preselectChoices ?? rule?.preselectChoice;
+  if (!rawChoices || typeof rawChoices !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(rawChoices)
+      .filter(([, value]) => ['string', 'number'].includes(typeof value))
+      .map(([flag, value]) => [flag, String(value)]),
+  );
+}
+
+function resolveGrantRuleUuid(uuid, choices) {
+  const raw = String(uuid ?? '').trim();
+  if (!raw) return null;
+  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+
+  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+    const value = choices?.[flag];
+    return typeof value === 'string' ? value : '';
+  });
+
+  return resolved.includes('{item|') ? null : resolved;
 }
 
 async function buildDeityChoiceOptions(planner, feat, flag) {

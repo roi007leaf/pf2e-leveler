@@ -1019,10 +1019,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     const buildState = computeBuildState(this.actor, this.plan, level);
+    const pickerCategory = categoryMap[category] ?? 'class';
+    const preset = this._buildFeatPickerPreset(category, level, buildState);
 
     const picker = new FeatPicker(
       this.actor,
-      categoryMap[category] ?? 'class',
+      pickerCategory,
       level,
       buildState,
       async (feat) => {
@@ -1048,6 +1050,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         await this._savePlanAndRender();
       },
+      { preset },
     );
     picker.render(true);
   }
@@ -1080,9 +1083,66 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         await this._savePlanAndRender();
       },
-      { multiSelect: index == null },
+      {
+        multiSelect: index == null,
+        preset: {
+          selectedFeatTypes: ['class', 'ancestry', 'general', 'skill', 'archetype', 'mythic', 'bonus', 'other'],
+        },
+      },
     );
     picker.render(true);
+  }
+
+  _buildFeatPickerPreset(category, level, buildState) {
+    const classSlug = String(buildState?.class?.slug ?? this.actor?.class?.slug ?? '').toLowerCase();
+    switch (category) {
+      case 'classFeats':
+        return {
+          selectedFeatTypes: ['class'],
+          lockedFeatTypes: ['class'],
+          selectedTraits: [classSlug, 'dedication'].filter(Boolean),
+          lockedTraits: [classSlug].filter(Boolean),
+          traitLogic: 'or',
+          showDedications: true,
+          maxLevel: level,
+        };
+      case 'skillFeats':
+        return {
+          selectedFeatTypes: ['skill'],
+          lockedFeatTypes: ['skill'],
+          maxLevel: level,
+        };
+      case 'generalFeats':
+        return {
+          selectedFeatTypes: ['general', 'skill'],
+          lockedFeatTypes: ['general'],
+          showSkillFeats: true,
+          maxLevel: level,
+        };
+      case 'ancestryFeats':
+        return {
+          selectedFeatTypes: ['ancestry'],
+          lockedFeatTypes: ['ancestry'],
+          maxLevel: level,
+        };
+      case 'archetypeFeats':
+        return {
+          selectedFeatTypes: ['archetype'],
+          lockedFeatTypes: ['archetype'],
+          selectedTraits: ['dedication'],
+          lockedTraits: ['dedication'],
+          traitLogic: 'or',
+          maxLevel: level,
+        };
+      case 'mythicFeats':
+        return {
+          selectedFeatTypes: ['mythic'],
+          lockedFeatTypes: ['mythic'],
+          maxLevel: level,
+        };
+      default:
+        return { maxLevel: level };
+    }
   }
 
   _toggleCustomPlan(level = this.selectedLevel) {

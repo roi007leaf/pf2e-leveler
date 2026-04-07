@@ -39,6 +39,7 @@ export function createCreationData() {
     grantedFeatChoices: {},
     spells: { cantrips: [], rank1: [] },
     curriculumSpells: { cantrips: [], rank1: [] },
+    equipment: [],
   };
 }
 
@@ -405,6 +406,23 @@ export function setGrantedFeatSections(data, sections) {
   data.grantedFeatChoices = Object.fromEntries(
     Object.entries(currentChoices).filter(([slot]) => validSlots.has(slot)),
   );
+  return data;
+}
+
+export function addEquipment(data, item, quantity = 1) {
+  if (!data.equipment) data.equipment = [];
+  const existing = data.equipment.find((e) => e.uuid === item.uuid);
+  if (existing) {
+    existing.quantity = (existing.quantity ?? 1) + quantity;
+  } else {
+    const price = item.system?.price?.value ?? null;
+    data.equipment.push({ uuid: item.uuid, name: item.name, img: item.img, quantity, price });
+  }
+  return data;
+}
+
+export function removeEquipment(data, uuid) {
+  data.equipment = (data.equipment ?? []).filter((e) => e.uuid !== uuid);
   return data;
 }
 

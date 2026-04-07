@@ -1,7 +1,7 @@
 import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { ClassRegistry } from '../../classes/registry.js';
-import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections } from '../../creation/creation-model.js';
+import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setSkillFeat, addEquipment } from '../../creation/creation-model.js';
 import { getCreationData, saveCreationData, clearCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
@@ -76,7 +76,7 @@ import {
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
 
-const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'languages', 'skills', 'feats', 'featChoices', 'spells', 'summary'];
+const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'languages', 'skills', 'feats', 'featChoices', 'spells', 'equipment', 'summary'];
 const HANDLER_STEP_IDS = new Set(['deity', 'sanctification', 'divineFont', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions']);
 
 export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -376,6 +376,132 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     setLanguages(this.data, languages);
     this._saveAndRender();
+  }
+
+  async _openFeatPicker(slot) {
+    const classSlug = String(this.data.class?.slug ?? '').toLowerCase();
+    const ancestrySlug = this.data.ancestry?.slug ?? null;
+    const heritageSlug = this.data.heritage?.slug ?? null;
+    const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
+    const ancestryTraits = [...new Set([
+      ...collectAncestryFeatTraits(ancestrySlug, heritageSlug),
+      ...adoptedAncestryTraits,
+    ])];
+
+    const buildState = {
+      class: { slug: classSlug },
+      feats: new Set(),
+      ancestryTraits: new Set(ancestryTraits),
+    };
+
+    const presets = {
+      ancestry: {
+        selectedFeatTypes: ['ancestry'],
+        lockedFeatTypes: ['ancestry'],
+        selectedTraits: ancestryTraits,
+        lockedTraits: ancestryTraits,
+        traitLogic: 'or',
+        maxLevel: 1,
+      },
+      paragon: {
+        selectedFeatTypes: ['ancestry'],
+        lockedFeatTypes: ['ancestry'],
+        selectedTraits: ancestryTraits,
+        lockedTraits: ancestryTraits,
+        traitLogic: 'or',
+        maxLevel: 1,
+      },
+      class: {
+        selectedFeatTypes: ['class'],
+        lockedFeatTypes: ['class'],
+        selectedTraits: [classSlug, 'dedication'].filter(Boolean),
+        lockedTraits: [classSlug].filter(Boolean),
+        traitLogic: 'or',
+        showDedications: true,
+        maxLevel: 1,
+      },
+      skill: {
+        selectedFeatTypes: ['skill'],
+        lockedFeatTypes: ['skill'],
+        maxLevel: 1,
+      },
+    };
+
+    const callbacks = {
+      ancestry: async (feat) => {
+        const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        setAncestryFeat(this.data, feat, choiceSets, grantedLores);
+        await this._refreshGrantedFeatChoiceSections();
+        await this._saveAndRender();
+      },
+      paragon: async (feat) => {
+        const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        setAncestryParagonFeat(this.data, feat, choiceSets, grantedLores);
+        await this._refreshGrantedFeatChoiceSections();
+        await this._saveAndRender();
+      },
+      class: async (feat) => {
+        const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        setClassFeat(this.data, feat, choiceSets, grantedLores);
+        await this._refreshGrantedFeatChoiceSections();
+        await this._saveAndRender();
+      },
+      skill: async (feat) => {
+        const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        setSkillFeat(this.data, feat, choiceSets, grantedLores);
+        await this._refreshGrantedFeatChoiceSections();
+        await this._saveAndRender();
+      },
+    };
+
+    const categoryBySlot = { ancestry: 'ancestry', paragon: 'ancestry', class: 'class', skill: 'skill' };
+    const { FeatPicker } = await import('../feat-picker.js');
+    const picker = new FeatPicker(
+      this.actor,
+      categoryBySlot[slot] ?? 'ancestry',
+      1,
+      buildState,
+      callbacks[slot],
+      { preset: presets[slot] },
+    );
+    picker.render(true);
+  }
+
+  _openItemPicker() {
+    import('../item-picker.js').then(({ ItemPicker }) => {
+      const picker = new ItemPicker(this.actor, (item) => {
+        addEquipment(this.data, item);
+        this._saveAndRender();
+      });
+      picker.render(true);
+    });
+  }
+
+  _buildEquipmentContext() {
+    const equipment = this.data.equipment ?? [];
+    const totals = { gp: 0, sp: 0, cp: 0 };
+    for (const entry of equipment) {
+      if (!entry.price) continue;
+      const qty = entry.quantity ?? 1;
+      totals.gp += (entry.price.gp ?? 0) * qty;
+      totals.sp += (entry.price.sp ?? 0) * qty;
+      totals.cp += (entry.price.cp ?? 0) * qty;
+    }
+    // normalize cp → sp → gp
+    totals.sp += Math.floor(totals.cp / 10); totals.cp = totals.cp % 10;
+    totals.gp += Math.floor(totals.sp / 10); totals.sp = totals.sp % 10;
+    const totalParts = [];
+    if (totals.gp) totalParts.push(`${totals.gp} gp`);
+    if (totals.sp) totalParts.push(`${totals.sp} sp`);
+    if (totals.cp) totalParts.push(`${totals.cp} cp`);
+    return {
+      equipment: equipment.map((entry) => ({ ...entry })),
+      equipmentTotal: totalParts.join(', ') || null,
+    };
   }
 
   _openSpellPicker(rank, isCantrip) {
@@ -705,6 +831,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const mr = this._cachedMaxRank1 ?? 0;
         return this.data.spells.cantrips.length >= mc && (mr <= 0 || this.data.spells.rank1.length >= mr);
       }
+      case 'equipment': return true;
       case 'summary': return true;
       default: return false;
     }
@@ -779,6 +906,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       case 'feats': return await this._buildFeatContext();
       case 'spells': return await this._buildSpellContext();
+      case 'equipment': return this._buildEquipmentContext();
       case 'summary': return buildSummaryContext(this);
       default: return {};
     }
@@ -1230,66 +1358,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _buildFeatContext() {
-    if (!this.data.ancestry) return { ancestryFeats: [], classFeats: [], skillFeats: [] };
-
-    const allFeats = await this._loadCompendiumCategory('feats');
-    const ancestrySlug = this.data.ancestry.slug ?? null;
-    const heritageSlug = this.data.heritage?.slug ?? null;
-    const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
-    const ancestryTraits = [...new Set([
-      ...collectAncestryFeatTraits(ancestrySlug, heritageSlug),
-      ...adoptedAncestryTraits,
-    ])];
-
-    const selectedAncestryUuid = this.data.ancestryFeat?.uuid;
-    const selectedParagonUuid = this.data.ancestryParagonFeat?.uuid;
-    const selectedClassUuid = this.data.classFeat?.uuid;
-    const selectedSkillUuid = this.data.skillFeat?.uuid;
     const ancestralParagonEnabled = isAncestralParagonEnabled();
-
-    const ancestryFeats = allFeats
-      .filter((f) => ancestryTraits.some((t) => f.traits.includes(t)) && !f.traits.includes('classfeature') && f.level <= 1)
-      .map((f) => ({
-        ...f,
-        taken: f.uuid === selectedAncestryUuid,
-        paragonTaken: ancestralParagonEnabled && f.uuid === selectedParagonUuid,
-      }));
-
-    let classFeats = [];
     const hasClassFeat = await this._hasClassFeatAtLevel1();
     this._cachedHasClassFeatAtLevel1 = hasClassFeat;
-    if (hasClassFeat && this.data.class) {
-      const classSlug = this.data.class.slug;
-      classFeats = allFeats
-        .filter((f) => f.traits.includes(classSlug) && !f.traits.includes('classfeature') && f.level <= 1)
-        .map((f) => ({ ...f, taken: f.uuid === selectedClassUuid }));
-    }
-
-    let skillFeats = [];
     const hasSkillFeat = this._needsLevel1SkillFeatSelection();
-    if (hasSkillFeat) {
-      skillFeats = allFeats
-        .filter((f) => f.traits.includes('skill') && !f.traits.includes('classfeature') && f.level <= 1)
-        .map((f) => ({ ...f, taken: f.uuid === selectedSkillUuid }));
-    }
-
-    const availableFeatSubSteps = ['ancestry'];
-    if (ancestralParagonEnabled) availableFeatSubSteps.push('paragon');
-    if (hasClassFeat) availableFeatSubSteps.push('class');
-    if (hasSkillFeat) availableFeatSubSteps.push('skill');
-    if (!availableFeatSubSteps.includes(this.featSubStep)) {
-      this.featSubStep = availableFeatSubSteps[0] ?? 'ancestry';
-    }
 
     return {
-      ancestryFeats,
-      classFeats,
-      skillFeats,
       hasClassFeat,
       hasSkillFeat,
       ancestralParagonEnabled,
-      featSubStep: this.featSubStep,
-      availableFeatSubSteps,
     };
   }
 

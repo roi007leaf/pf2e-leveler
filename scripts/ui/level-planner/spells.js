@@ -41,6 +41,7 @@ export async function buildSpellContext(planner, classDef, level) {
   const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
   const hasRankSpellSelections = isSpontaneous;
   const spellbookSelectionCount = hasSpellbook ? 2 : 0;
+  const showCustomSpellRankReminder = hasNewRank && !hasSpellbook;
 
   const focusSpellData = await getFocusSpellsForLevel(planner, level);
 
@@ -52,6 +53,7 @@ export async function buildSpellContext(planner, classDef, level) {
     hasRankSpellSelections,
     hasSpellbook,
     spellbookSelectionCount,
+    showCustomSpellRankReminder,
     spellSlots,
     hasNewRank,
     newRank,

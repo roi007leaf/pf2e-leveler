@@ -84,7 +84,7 @@
                 class="boost-btn {{#if this.selected}}selected{{/if}} {{#if this.partial}}partial{{/if}}"
                 data-action="toggleBoost" data-attr="{{this.key}}"
                 {{#if this.disabled}}disabled{{/if}}>
-                <span class="boost-btn__abbr">{{this.label}}{{#if this.partial}} <small>(x2)</small>{{/if}}</span>
+                <span class="boost-btn__abbr">{{this.label}}</span>
                 {{#if this.selected}}
                   {{#if this.applied}}
                   <span class="boost-btn__change">{{localize "PF2E_LEVELER.UI.APPLIED"}}</span>
@@ -93,6 +93,9 @@
                   {{/if}}
                 {{else}}
                   <span class="boost-btn__mod">+{{this.mod}}</span>
+                {{/if}}
+                {{#if this.partialLabel}}
+                <i class="fa-solid fa-circle-info boost-btn__partial-info" data-tooltip="{{this.partialLabel}}" aria-hidden="true"></i>
                 {{/if}}
               </button>
               {{/each}}
@@ -501,7 +504,51 @@
                 {{localize 'PF2E_LEVELER.UI.MANUAL_SPELL_NOTE'}}
               </div>
               {{/if}}
+              {{#if this.feat.grantedItems.length}}
+              <div class='feat-slot__note'>
+                <i class='fa-solid fa-link'></i>
+                {{localize 'PF2E_LEVELER.UI.GRANTED_ITEMS'}}
+                {{#each this.feat.grantedItems}}
+                  <button type="button" data-action="viewFeat" data-uuid="{{this.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.name}}</button>{{#unless @last}}, {{/unless}}
+                {{/each}}
+              </div>
+              {{/if}}
               {{#each this.choiceSets}}
+              <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
+                <i class="fa-solid fa-circle-info"></i>
+                {{this.prompt}}
+              </div>
+              {{#if (eq this.choiceType "skill")}}
+              <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
+                {{#each this.options}}
+                <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+                  <span class="skill-btn__name">{{this.label}}</span>
+                </button>
+                {{/each}}
+              </div>
+              {{else}}
+              <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
+                {{#each this.options}}
+                <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
+                  {{#if this.img}}
+                  <img src="{{this.img}}" alt="" class="wizard-item__img">
+                  {{/if}}
+                  <div class="wizard-item__info">
+                    <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  </div>
+                  {{#if this.selected}}
+                  <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+                  {{else}}
+                  <button type="button" class="wizard-item__select" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}">
+                    {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                  </button>
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+              {{/if}}
+              {{/each}}
+              {{#each this.feat.grantChoiceSets}}
               <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
                 <i class="fa-solid fa-circle-info"></i>
                 {{this.prompt}}
@@ -549,7 +596,7 @@
                 {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_SKILL_INCREASES"}}
               </div>
               {{#each customSkillIncreaseGroups}}
-              <div class="feat-picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
+              <div class="picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
               <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--leveler-spacing-sm);">
                 {{#each this.entries}}
                 <button
@@ -581,7 +628,7 @@
                 {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_SPELLS"}}
               </div>
               {{#each customSpellGroups}}
-              <div class="feat-picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
+              <div class="picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
               <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--leveler-spacing-sm);">
                 {{#each this.entries}}
                 <div class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px;">
@@ -645,6 +692,12 @@
             {{/if}}
           </div>
           <div class="level-section__body">
+            {{#if showCustomSpellRankReminder}}
+            <div class="feat-slot__note" style="margin-bottom: var(--leveler-spacing-sm);">
+              <i class="fa-solid fa-circle-info"></i>
+              {{localize "PF2E_LEVELER.UI.CUSTOM_SPELL_RANK_REMINDER"}}
+            </div>
+            {{/if}}
             <table class="spell-slot-table">
               <thead>
                 <tr>

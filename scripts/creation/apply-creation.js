@@ -43,6 +43,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
   await applySelectedSkillChoices(actor, data);
+  await applyEquipment(actor, data);
 
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
   const handler = getClassHandler(data.class?.slug);
@@ -185,6 +186,17 @@ async function applySelectedItems(actor, data) {
       continue;
     }
     await applyItem(actor, entry, entry._type ?? 'selected item');
+  }
+}
+
+async function applyEquipment(actor, data) {
+  for (const entry of (data.equipment ?? [])) {
+    const item = await fromUuid(entry.uuid).catch(() => null);
+    if (!item) continue;
+    const itemData = foundry.utils.deepClone(item.toObject());
+    itemData.system.quantity = entry.quantity ?? 1;
+    await actor.createEmbeddedDocuments('Item', [itemData]);
+    debug(`Applied equipment: ${entry.name} x${entry.quantity ?? 1}`);
   }
 }
 
@@ -554,6 +566,14 @@ async function createCreationMessage(actor, data) {
   }
   if (training.length) {
     sections.push(buildChatRowsSection(localize('CREATION.CHAT.STARTING_BENEFITS'), training));
+  }
+
+  const equipmentRows = (data.equipment ?? []).map((entry) => ({
+    label: entry.quantity > 1 ? `x${entry.quantity}` : '',
+    value: formatChatLink(entry),
+  }));
+  if (equipmentRows.length) {
+    sections.push(buildChatRowsSection(localize('CREATION.CHAT.EQUIPMENT'), equipmentRows));
   }
 
   const content = buildChatCard({

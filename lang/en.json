@@ -43,7 +43,15 @@
       "CUSTOM_LEVEL_PLAN_HINT": "Use this section for extra planning outside the normal class schedule. Custom picks still affect planner awareness, prerequisites, and applied level-up choices.",
       "ADD_CUSTOM_FEAT": "Add Custom Feat",
       "ADD_CUSTOM_SPELL": "Add Custom Spell",
-      "ADD_CUSTOM_CANTRIP": "Add Custom Cantrip"
+      "ADD_CUSTOM_CANTRIP": "Add Custom Cantrip",
+      "GRANTED_ITEMS": "Granted Items:",
+      "PARTIAL_BOOST_PENDING": "Partial boost: next boost completes +1",
+      "PARTIAL_BOOST_SELECTED": "Completes a partial +1 boost",
+      "CUSTOM_SPELL_RANK_REMINDER": "This class gets a new spell rank here. Use the custom plan to note the spells you expect to need at that rank.",
+      "LOCKED_FILTER_HINT": "This filter is locked for this picker and cannot be changed.",
+      "NOT_SELECTED": "Not selected",
+      "BROWSE": "Browse...",
+      "ADD": "Add"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Class Features",
@@ -63,6 +71,14 @@
       "CUSTOM_FEATS": "Custom Feats",
       "CUSTOM_SKILL_INCREASES": "Custom Skill Increases",
       "CUSTOM_SPELLS": "Custom Spells"
+    },
+    "ITEM_PICKER": {
+      "EQUIPMENT": "Equipment",
+      "CATEGORY": "Category",
+      "QUANTITY": "Qty",
+      "SEARCH": "Search equipment...",
+      "TOTAL": "Total",
+      "SHOWING_PARTIAL": "Showing 200 of"
     },
     "FEAT_PICKER": {
       "OPTIONS": "Options",
@@ -99,6 +115,7 @@
       "FEAT_TYPES": "Feat Types",
       "TYPE_CLASS": "Class",
       "TYPE_ANCESTRY": "Ancestry",
+      "TYPE_BONUS": "Bonus",
       "TYPE_GENERAL": "General",
       "TYPE_SKILL": "Skill",
       "TYPE_ARCHETYPE": "Archetype",
@@ -156,7 +173,12 @@
       "SORT_ALPHA_DESC": "Alphabetical (Z-A)",
       "RANK_FILTER": "Spell Ranks",
       "RANK_NUMBER": "Rank {rank}",
-      "CANTRIP": "Cantrip"
+      "CANTRIP": "Cantrip",
+      "CATEGORY_FILTER": "Category",
+      "CATEGORY_SPELL": "Spell",
+      "CATEGORY_CANTRIP": "Cantrip",
+      "CATEGORY_FOCUS": "Focus",
+      "CATEGORY_RITUAL": "Ritual"
     },
     "CREATION": {
       "TITLE": "Character Creation",
@@ -267,6 +289,7 @@
         "SKILLS": "Skills",
         "FEATS": "Feats",
         "SPELLS": "Spells",
+        "EQUIPMENT": "Equipment",
         "SUMMARY": "Summary"
       },
       "CHAT": {
@@ -291,7 +314,8 @@
         "NONE": "None",
         "FOCUS_SPELL": "Focus Spell",
         "FOCUS_SPELLS": "Focus Spells",
-        "GRANTED_FEAT_CHOICE": "Granted Feat Choice"
+        "GRANTED_FEAT_CHOICE": "Granted Feat Choice",
+        "EQUIPMENT": "Starting Equipment"
       }
     },
     "SUMMARY": {

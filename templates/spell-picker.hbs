@@ -1,52 +1,82 @@
-<div class="pf2e-leveler feat-picker spell-picker">
-  <div class="feat-picker__browser">
-    <aside class="feat-picker__sidebar">
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-        <input type="text" class="feat-picker__search"
+<div class="pf2e-leveler spell-picker">
+  <div class="picker__browser">
+    <aside class="picker__sidebar">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+        <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
                data-action="searchSpells">
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
         <div class="wizard-trait-input spell-picker__trait-input">
-          <span class="wizard-trait-chips" data-target="spells"></span>
           <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" list="spell-trait-options">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
+        </div>
+        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
+          {{#each selectedTraitChips}}
+          <button
+            type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleTraitChip"
+            data-trait="{{this.value}}">
+            <span>{{this.label}}</span>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+          {{/each}}
         </div>
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.FILTER_RARITY"}}</div>
-        <div class="feat-picker__rarity-filters">
-          <label class="feat-picker__check">
-            <input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked>
-            {{localize "PF2E.TraitUncommon"}}
-          </label>
-          <label class="feat-picker__check">
-            <input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked>
-            {{localize "PF2E.TraitRare"}}
-          </label>
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.FILTER_RARITY"}}</div>
+        <div class="picker__source-list">
+          {{#each rarityOptions}}
+          <button
+            type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleRarityChip"
+            data-rarity="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
         </div>
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.SORT"}}</div>
-        <select class="feat-picker__search" data-action="changeSort">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.SORT"}}</div>
+        <select class="picker__search" data-action="changeSort">
           {{#each sortOptions}}
           <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
           {{/each}}
         </select>
       </div>
 
+      {{#if categoryOptions.length}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.CATEGORY_FILTER"}}</div>
+        <div class="picker__source-list">
+          {{#each categoryOptions}}
+          <button
+            type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleSpellCategory"
+            data-category="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
       {{#if rankOptions.length}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.RANK_FILTER"}}</div>
-        <div class="feat-picker__source-list">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.RANK_FILTER"}}</div>
+        <div class="picker__source-list">
           {{#each rankOptions}}
           <button
             type="button"
-            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
             data-action="toggleSpellRank"
             data-rank="{{this.value}}">
             {{this.label}}
@@ -57,13 +87,13 @@
       {{/if}}
 
       {{#if traditionOptions.length}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRADITION_FILTER"}}</div>
-        <div class="feat-picker__source-list">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRADITION_FILTER"}}</div>
+        <div class="picker__source-list">
           {{#each traditionOptions}}
           <button
             type="button"
-            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
             data-action="toggleSpellTradition"
             data-tradition="{{this.value}}">
             {{this.label}}
@@ -74,14 +104,14 @@
       {{/if}}
 
       {{#if sourceOptions.length}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-        <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
-        <div class="feat-picker__source-list">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
+        <div class="picker__source-list">
           {{#each sourceOptions}}
           <button
             type="button"
-            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
             data-action="toggleCompendiumSource"
             data-package="{{this.key}}"
             data-source-name="{{this.label}}"
@@ -94,37 +124,37 @@
       {{/if}}
     </aside>
 
-    <section class="feat-picker__results">
-      <div class="feat-picker__results-header">
-        <div class="feat-picker__results-label">{{capitalize tradition}} {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.SPELLS"}}</div>
+    <section class="picker__results">
+      <div class="picker__results-header">
+        <div class="picker__results-label">{{capitalize tradition}} {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.SPELLS"}}</div>
         <div class="spell-picker__results-meta">
           {{#if multiSelect}}
           <div class="spell-picker__selected-count">{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}</div>
-          <button type="button" class="feat-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
+          <button type="button" class="spell-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
             {{#if allVisibleSelected}}
               {{localize "PF2E_LEVELER.SPELLS.DESELECT_ALL"}}
             {{else}}
               {{localize "PF2E_LEVELER.SPELLS.SELECT_ALL"}}
             {{/if}}
           </button>
-          <button type="button" class="feat-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
+          <button type="button" class="spell-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
             {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}}
           </button>
           {{/if}}
-          <div class="feat-picker__results-count">{{filteredCount}}</div>
+          <div class="picker__results-count">{{filteredCount}}</div>
         </div>
       </div>
 
-      <div class="feat-list spell-list spell-picker__list">
+      <div class="spell-list spell-picker__list">
         {{#each spells}}
-        <div class="feat-option spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
-          <img class="feat-option__img" src="{{this.img}}" alt="">
-          <div class="feat-option__info">
-            <div class="feat-option__header">
-              <span class="feat-option__name" data-action="viewSpell">{{this.name}}</span>
-              <span class="feat-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
+        <div class="spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
+          <img class="spell-option__img" src="{{this.img}}" alt="">
+          <div class="spell-option__info">
+            <div class="spell-option__header">
+              <span class="spell-option__name" data-action="viewSpell">{{this.name}}</span>
+              <span class="spell-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
             </div>
-            <div class="feat-option__traits">
+            <div class="spell-option__traits">
               {{#each this.system.traits.value}}
               <span class="tag tag--muted" data-tooltip="{{titleCase this}}">{{this}}</span>
               {{/each}}
@@ -133,8 +163,8 @@
               {{/if}}
             </div>
           </div>
-          <div class="feat-option__actions">
-            <button type="button" class="feat-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
+          <div class="spell-option__actions">
+            <button type="button" class="spell-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
               {{#if ../multiSelect}}
                 {{#if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
@@ -158,7 +188,7 @@
 
   <datalist id="spell-trait-options">
     {{#each traitOptions}}
-    <option value="{{this}}">
+    <option value="{{this.value}}">
     {{/each}}
   </datalist>
 </div>

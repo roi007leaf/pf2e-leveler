@@ -32,38 +32,18 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
-  it('shows gnoll-tagged ancestry feats for kholo ancestry', async () => {
+  it('returns feat step context flags for kholo ancestry', async () => {
+    game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
-    wizard.data.ancestry = {
-      uuid: 'ancestry-kholo',
-      slug: 'kholo',
-      name: 'Kholo',
-    };
-
-    wizard._loadCompendiumCategory = jest.fn(async () => [
-      {
-        uuid: 'feat-1',
-        name: 'Crunch',
-        level: 1,
-        traits: ['gnoll'],
-      },
-      {
-        uuid: 'feat-2',
-        name: 'Pack Stalker',
-        level: 1,
-        traits: ['kholo'],
-      },
-      {
-        uuid: 'feat-3',
-        name: 'Other Ancestry Feat',
-        level: 1,
-        traits: ['elf'],
-      },
-    ]);
+    wizard.data.ancestry = { uuid: 'ancestry-kholo', slug: 'kholo', name: 'Kholo' };
+    wizard.data.class = { uuid: 'class-fighter', slug: 'fighter', name: 'Fighter' };
+    wizard._cachedHasClassFeatAtLevel1 = false;
 
     const context = await wizard._buildFeatContext();
 
-    expect(context.ancestryFeats.map((feat) => feat.name)).toEqual(['Crunch', 'Pack Stalker']);
+    expect(context.hasClassFeat).toBe(false);
+    expect(context.hasSkillFeat).toBe(false);
+    expect(context.ancestralParagonEnabled).toBe(false);
   });
 
   it('ancestry step only shows actual ancestry documents from mixed assigned packs', async () => {
@@ -302,64 +282,29 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     const context = await wizard._buildFeatContext();
     expect(context.ancestralParagonEnabled).toBe(true);
-    expect(context.ancestryFeats).toEqual([
-      expect.objectContaining({ uuid: 'feat-1', taken: true, paragonTaken: false }),
-      expect.objectContaining({ uuid: 'feat-2', taken: false, paragonTaken: true }),
-    ]);
+    expect(context.hasClassFeat).toBe(false);
+    expect(context.hasSkillFeat).toBe(false);
   });
 
-  it('includes adopted ancestry feats after the adopted ancestry choice is selected', async () => {
+  it('returns feat step context flags with adopted ancestry present', async () => {
+    game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
-    wizard.data.ancestry = {
-      uuid: 'ancestry-human',
-      slug: 'human',
-      name: 'Human',
-    };
+    wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
+    wizard.data.class = { uuid: 'class-fighter', slug: 'fighter', name: 'Fighter' };
     wizard.data.grantedFeatSections = [
       {
         slot: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
         featName: 'Adopted Ancestry',
-        choiceSets: [
-          {
-            flag: 'ancestry',
-            prompt: 'Select a common ancestry.',
-            options: [
-              { value: 'dwarf', label: 'Dwarf', uuid: 'Compendium.pf2e.ancestries.Item.dwarf' },
-            ],
-          },
-        ],
+        choiceSets: [{ flag: 'ancestry', prompt: 'Select a common ancestry.', options: [] }],
       },
     ];
-    wizard.data.grantedFeatChoices = {
-      'Compendium.pf2e.feats-srd.Item.adopted-ancestry': {
-        ancestry: 'dwarf',
-      },
-    };
-
-    wizard._loadCompendiumCategory = jest.fn(async () => [
-      {
-        uuid: 'feat-human',
-        name: 'Natural Ambition',
-        level: 1,
-        traits: ['human'],
-      },
-      {
-        uuid: 'feat-dwarf',
-        name: 'Rock Runner',
-        level: 1,
-        traits: ['dwarf'],
-      },
-      {
-        uuid: 'feat-elf',
-        name: 'Other Ancestry Feat',
-        level: 1,
-        traits: ['elf'],
-      },
-    ]);
+    wizard._cachedHasClassFeatAtLevel1 = false;
 
     const context = await wizard._buildFeatContext();
 
-    expect(context.ancestryFeats.map((feat) => feat.name)).toEqual(['Natural Ambition', 'Rock Runner']);
+    expect(context.hasClassFeat).toBe(false);
+    expect(context.hasSkillFeat).toBe(false);
+    expect(context.ancestralParagonEnabled).toBe(false);
   });
 
   it('keeps the feat step incomplete when a level 1 class feat is required but not selected yet', () => {
@@ -405,30 +350,17 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
-  it('shows level 1 skill feats in the rogue feat context', async () => {
+  it('reports hasSkillFeat true in the rogue feat context', async () => {
+    game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
-    wizard.data.ancestry = {
-      uuid: 'ancestry-elf',
-      slug: 'elf',
-      name: 'Elf',
-    };
-    wizard.data.class = {
-      uuid: 'class-rogue',
-      slug: 'rogue',
-      name: 'Rogue',
-    };
-
-    wizard._loadCompendiumCategory = jest.fn(async () => [
-      { uuid: 'feat-ancestry', name: 'Elven Lore', level: 1, traits: ['elf'] },
-      { uuid: 'feat-skill', name: 'Steady Balance', level: 1, traits: ['skill'] },
-      { uuid: 'feat-skill-2', name: 'Cat Fall', level: 1, traits: ['general', 'skill'] },
-      { uuid: 'feat-classfeature', name: 'Rogue Feature', level: 1, traits: ['skill', 'classfeature'] },
-    ]);
+    wizard.data.ancestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
+    wizard.data.class = { uuid: 'class-rogue', slug: 'rogue', name: 'Rogue' };
 
     const context = await wizard._buildFeatContext();
 
     expect(context.hasSkillFeat).toBe(true);
-    expect(context.skillFeats.map((feat) => feat.name)).toEqual(['Steady Balance', 'Cat Fall']);
+    expect(context.hasClassFeat).toBe(false);
+    expect(context.ancestralParagonEnabled).toBe(false);
   });
 
   it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {

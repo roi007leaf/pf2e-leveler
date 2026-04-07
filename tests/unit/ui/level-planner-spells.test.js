@@ -210,4 +210,27 @@ describe('level planner spell context', () => {
       }),
     ]);
   });
+
+  test('new spell ranks show a custom-plan reminder for non-spellbook casters', async () => {
+    const planner = {
+      actor: { items: [] },
+      plan: { classSlug: 'sorcerer' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const classDef = {
+      slug: 'sorcerer',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'spontaneous',
+        slots: {
+          2: { cantrips: 5, 1: 4 },
+          3: { cantrips: 5, 1: 4, 2: 3 },
+        },
+      },
+    };
+
+    const context = await buildSpellContext(planner, classDef, 3);
+
+    expect(context.showCustomSpellRankReminder).toBe(true);
+  });
 });

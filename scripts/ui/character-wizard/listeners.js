@@ -2,9 +2,11 @@ import {
   addCurriculumCantrip,
   addCurriculumRank1,
   addSpell,
+  addEquipment,
   removeCurriculumCantrip,
   removeCurriculumRank1,
   removeSpell,
+  removeEquipment,
   setAncestry,
   setAncestryFeat,
   setAncestryParagonFeat,
@@ -302,62 +304,37 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  el.querySelectorAll('[data-action="selectAncestryFeat"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const item = await fromUuid(btn.dataset.uuid);
-      if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
-        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
-        setAncestryFeat(wizard.data, item, choiceSets, grantedLores);
-        await wizard._refreshGrantedFeatChoiceSections();
-        await wizard._saveAndRender();
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-action="selectAncestryParagonFeat"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const item = await fromUuid(btn.dataset.uuid);
-      if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
-        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
-        setAncestryParagonFeat(wizard.data, item, choiceSets, grantedLores);
-        await wizard._refreshGrantedFeatChoiceSections();
-        await wizard._saveAndRender();
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-action="selectClassFeat"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const item = await fromUuid(btn.dataset.uuid);
-      if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
-        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
-        setClassFeat(wizard.data, item, choiceSets, grantedLores);
-        await wizard._refreshGrantedFeatChoiceSections();
-        await wizard._saveAndRender();
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-action="selectSkillFeat"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const item = await fromUuid(btn.dataset.uuid);
-      if (item) {
-        const choiceSets = await wizard._parseChoiceSets(item.system?.rules ?? [], {}, item);
-        const grantedLores = wizard._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
-        setSkillFeat(wizard.data, item, choiceSets, grantedLores);
-        await wizard._refreshGrantedFeatChoiceSections();
-        await wizard._saveAndRender();
-      }
-    });
-  });
-
-  el.querySelectorAll('[data-action="featSubStep"]').forEach((btn) => {
+  el.querySelectorAll('[data-action="browseFeat"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      wizard.featSubStep = btn.dataset.substep;
-      wizard.render(true);
+      wizard._openFeatPicker(btn.dataset.slot);
+    });
+  });
+
+  el.querySelector('[data-action="browseEquipment"]')?.addEventListener('click', () => {
+    wizard._openItemPicker();
+  });
+
+  el.querySelectorAll('[data-action="removeEquipment"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      removeEquipment(wizard.data, btn.dataset.uuid);
+      wizard._saveAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="incrementEquipment"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const entry = wizard.data.equipment?.find((e) => e.uuid === btn.dataset.uuid);
+      if (entry) { entry.quantity = (entry.quantity ?? 1) + 1; wizard._saveAndRender(); }
+    });
+  });
+
+  el.querySelectorAll('[data-action="decrementEquipment"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const entry = wizard.data.equipment?.find((e) => e.uuid === btn.dataset.uuid);
+      if (!entry) return;
+      if ((entry.quantity ?? 1) <= 1) { removeEquipment(wizard.data, btn.dataset.uuid); }
+      else { entry.quantity -= 1; }
+      wizard._saveAndRender();
     });
   });
 

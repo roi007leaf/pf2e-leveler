@@ -11,6 +11,14 @@ import {
   sortFeats,
 } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
+import {
+  applyRarityFilter,
+  applySourceFilter,
+  applyTraitFilter,
+  buildChipOptions,
+  initializeSelectionSet,
+  toggleSelectableChip,
+} from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -29,8 +37,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.searchText = '';
     this.sortMethod = game.settings.get(MODULE_ID, 'featSortMethod');
     this.hideFailedPrereqs = category === 'archetype';
-    this.showUncommon = !game.settings.get(MODULE_ID, 'hideUncommonFeats');
-    this.showRare = !game.settings.get(MODULE_ID, 'hideRareFeats');
+    this.selectedRarities = new Set(['common']);
+    if (!game.settings.get(MODULE_ID, 'hideUncommonFeats')) this.selectedRarities.add('uncommon');
+    if (!game.settings.get(MODULE_ID, 'hideRareFeats')) this.selectedRarities.add('rare');
+    this.selectedRarities.add('unique');
     this.selectedSkill = '';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
@@ -41,10 +51,16 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._sourceFilterInitialized = false;
     this.additionalArchetypeFeatLevels = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
+    this.selectedTraits = new Set();
+    this.traitLogic = 'or';
+    this.lockedTraitValues = new Set();
+    this.lockedFeatTypes = new Set();
     this._prereqCache = new Map();
     this._buildStateSignature = this._createBuildStateSignature();
     this._updateListTimer = null;
     this._domListeners = null;
+    this.preset = options.preset ?? null;
+    this._applyPreset(this.preset);
   }
 
   static DEFAULT_OPTIONS = {
@@ -90,6 +106,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const sourceOptions = this._getSourceOptions();
     const featTypeOptions = this._getFeatTypeOptions();
+    const traitOptions = this._getTraitOptions();
     this.filteredFeats = this._applyFilters();
 
     return {
@@ -101,14 +118,15 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       category: this.category,
       targetLevel: this.targetLevel,
       hideFailedPrereqs: this.hideFailedPrereqs,
-      showUncommon: this.showUncommon,
-      showRare: this.showRare,
+      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+        labels: this._getRarityLabels(),
+      }),
       sortMethod: this.sortMethod,
       minLevel: this.minLevel,
       maxLevel: this.maxLevel,
       showSkillFilter: this.category === 'skill',
       showGeneralSkillToggle: this.category === 'general',
-      showFeatTypeFilter: this.category === 'custom',
+      showFeatTypeFilter: featTypeOptions.length > 0,
       skillOptions: this._getSkillOptions(),
       selectedSkill: this.selectedSkill,
       showDedicationToggle: ['class', 'archetype'].includes(this.category),
@@ -117,6 +135,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       enforcePrerequisites: this.enforcePrerequisites,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedFeatUuids.size,
+      selectedTraits: [...this.selectedTraits],
+      selectedTraitChips: traitOptions.filter((option) => option.selected),
+      traitLogic: this.traitLogic,
+      traitOptions,
       allVisibleSelected: this.filteredFeats.length > 0
         && this.filteredFeats.every((feat) => this.selectedFeatUuids.has(this._getFeatUuid(feat))),
     };
@@ -132,15 +154,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this._activateListeners(el, signal);
     this._updateSelectionUI();
+    this._updateFilterControlState();
   }
 
   _applyFilters() {
     let feats = [...this.allFeats];
-    if (this.selectedSourcePackages.size > 0) {
-      feats = feats.filter((feat) => this.selectedSourcePackages.has(feat.sourcePackage ?? feat.sourcePack));
-    }
-    if (!this.showUncommon) feats = feats.filter((f) => f.system.traits.rarity !== 'uncommon');
-    if (!this.showRare) feats = feats.filter((f) => f.system.traits.rarity !== 'rare');
+    feats = applySourceFilter(feats, this.selectedSourcePackages, (feat) => feat.sourcePackage ?? feat.sourcePack, this._sourceKeys);
+    feats = applyRarityFilter(feats, this.selectedRarities, (feat) => feat.system?.traits?.rarity ?? 'common');
     if (this.minLevel !== '') {
       const minLevel = Number(this.minLevel);
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) >= minLevel);
@@ -150,10 +170,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) <= maxLevel);
     }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
+    feats = applyTraitFilter(feats, this.selectedTraits, (feat) => feat.system?.traits?.value ?? [], this.traitLogic);
     if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
     if (this.category === 'general') feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
-    if (this.category === 'custom' && this.selectedFeatTypes.size > 0) {
+    if (this.selectedFeatTypes.size > 0) {
       feats = feats.filter((feat) => {
         const types = this._getFeatTypes(feat);
         return types.some((type) => this.selectedFeatTypes.has(type));
@@ -273,31 +294,37 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }, { signal });
     }
 
-    const uncommonToggle = el.querySelector('[data-action="toggleUncommon"]');
-    if (uncommonToggle) {
-      uncommonToggle.addEventListener('change', (e) => {
-        this.showUncommon = e.target.checked;
-        this._scheduleListUpdate();
+    const traitInput = el.querySelector('[data-action="traitInput"]');
+    if (traitInput) {
+      traitInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ',') return;
+        e.preventDefault();
+        this._commitTraitInput(e.currentTarget);
+      }, { signal });
+
+      traitInput.addEventListener('change', (e) => {
+        this._commitTraitInput(e.currentTarget);
+      }, { signal });
+
+      traitInput.addEventListener('blur', (e) => {
+        this._commitTraitInput(e.currentTarget);
       }, { signal });
     }
 
-    const rareToggle = el.querySelector('[data-action="toggleRare"]');
-    if (rareToggle) {
-      rareToggle.addEventListener('change', (e) => {
-        this.showRare = e.target.checked;
-        this._scheduleListUpdate();
-      }, { signal });
-    }
+    el.querySelector('[data-action="toggleTraitLogic"]')?.addEventListener('click', () => {
+      this.traitLogic = this.traitLogic === 'and' ? 'or' : 'and';
+      this._scheduleListUpdate();
+    }, { signal });
 
     el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const sourceKey = btn.dataset.package;
         if (!sourceKey) return;
-        if (this.selectedSourcePackages.has(sourceKey)) {
-          if (this.selectedSourcePackages.size > 1) this.selectedSourcePackages.delete(sourceKey);
-        } else {
-          this.selectedSourcePackages.add(sourceKey);
-        }
+        this.selectedSourcePackages = toggleSelectableChip(
+          this.selectedSourcePackages,
+          sourceKey,
+          this._sourceKeys,
+        );
         for (const chip of el.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
           chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
         }
@@ -324,6 +351,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const dedicationToggle = el.querySelector('[data-action="toggleDedications"]');
     if (dedicationToggle) {
       dedicationToggle.addEventListener('click', () => {
+        if (this._dedicationsLocked) return;
         this.showDedications = !this.showDedications;
         dedicationToggle.classList.toggle('active', this.showDedications);
         this._scheduleListUpdate();
@@ -343,14 +371,26 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       btn.addEventListener('click', () => {
         const type = btn.dataset.type;
         if (!type) return;
-        if (this.selectedFeatTypes.has(type)) {
-          if (this.selectedFeatTypes.size > 1) this.selectedFeatTypes.delete(type);
-        } else {
-          this.selectedFeatTypes.add(type);
-        }
+        this.selectedFeatTypes = toggleSelectableChip(
+          this.selectedFeatTypes,
+          type,
+          this._featTypeKeys,
+          [...this.lockedFeatTypes],
+        );
         for (const chip of el.querySelectorAll('[data-action="toggleFeatType"]')) {
           chip.classList.toggle('selected', this.selectedFeatTypes.has(chip.dataset.type));
         }
+        this._scheduleListUpdate();
+      }, { signal });
+    });
+
+    this._bindTraitChipListeners(el, signal);
+
+    el.querySelectorAll('[data-action="toggleRarityChip"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const rarity = String(btn.dataset.rarity ?? '').trim().toLowerCase();
+        if (!rarity) return;
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
         this._scheduleListUpdate();
       }, { signal });
     });
@@ -386,6 +426,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       category: this.category,
       targetLevel: this.targetLevel,
       sortMethod: this.sortMethod,
+      selectedTraitChips: this._getTraitOptions().filter((option) => option.selected),
+      selectedTraits: [...this.selectedTraits],
+      traitLogic: this.traitLogic,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedFeatUuids.size,
       allVisibleSelected: this.filteredFeats.length > 0
@@ -403,8 +446,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this._bindActionButtons(root, this._domListeners.signal);
     }
 
-    const resultCount = root?.querySelector('.feat-picker__results-count');
+    const resultCount = root?.querySelector('.picker__results-count');
     if (resultCount) resultCount.textContent = String(this.filteredFeats.length);
+    this._updateFilterControlState();
     this._updateSelectionUI();
   }
 
@@ -523,7 +567,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const count = this.selectedFeatUuids.size;
     const visibleCount = this._getVisibleFeatUuids().length;
     const allVisibleSelected = visibleCount > 0 && this._getVisibleFeatUuids().every((uuid) => this.selectedFeatUuids.has(uuid));
-    const countEl = root.querySelector('.feat-picker__selected-count');
+    const countEl = root.querySelector('.picker__selected-count');
     if (countEl) {
       countEl.textContent = game.i18n.format('PF2E_LEVELER.FEAT_PICKER.SELECTED_COUNT', { count });
     }
@@ -570,10 +614,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-    if (!this._sourceFilterInitialized) {
-      this.selectedSourcePackages = new Set(options.map((entry) => entry.key));
-      this._sourceFilterInitialized = true;
-    }
+    this._sourceKeys = options.map((entry) => entry.key);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys);
+    this._sourceFilterInitialized = true;
 
     return options.map((entry) => ({
       ...entry,
@@ -582,11 +625,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getFeatTypeOptions() {
-    if (this.category !== 'custom') return [];
-
     const labels = {
       class: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_CLASS'),
       ancestry: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_ANCESTRY'),
+      bonus: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_BONUS'),
       general: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_GENERAL'),
       skill: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_SKILL'),
       archetype: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TYPE_ARCHETYPE'),
@@ -603,18 +645,22 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       .map((type) => ({ value: type, label: labels[type] ?? type }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    if (this.selectedFeatTypes.size === 0) {
-      this.selectedFeatTypes = new Set(options.map((entry) => entry.value));
-    }
+    this._featTypeKeys = options.map((entry) => entry.value);
+    this.selectedFeatTypes = initializeSelectionSet(this.selectedFeatTypes, this._featTypeKeys, {
+      lockedValues: [...this.lockedFeatTypes],
+    });
 
-    return options.map((entry) => ({
-      ...entry,
-      selected: this.selectedFeatTypes.has(entry.value),
-    }));
+    return buildChipOptions(this._featTypeKeys, this.selectedFeatTypes, {
+      lockedValues: [...this.lockedFeatTypes],
+      labels: Object.fromEntries(options.map((entry) => [entry.value, entry.label])),
+    });
   }
 
   _getLevelOptions() {
-    return Array.from({ length: 20 }, (_unused, index) => {
+    const maxLevel = Number.isFinite(Number(this.targetLevel)) && Number(this.targetLevel) > 0
+      ? Number(this.targetLevel)
+      : 20;
+    return Array.from({ length: maxLevel }, (_unused, index) => {
       const level = index + 1;
       return { value: String(level), label: String(level) };
     });
@@ -635,7 +681,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (ancestryTraits.some((trait) => traits.includes(trait))) types.push('ancestry');
     if (classSlug && traits.includes(classSlug)) types.push('class');
 
-    if (types.length === 0) types.push('other');
+    if (types.length === 0) types.push(this.category === 'custom' ? 'bonus' : 'other');
     return [...new Set(types)];
   }
 
@@ -658,5 +704,125 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       uuid: this._getFeatUuid(feat),
       _levelerSelected: this.selectedFeatUuids.has(this._getFeatUuid(feat)),
     };
+  }
+
+  _getTraitOptions() {
+    const traits = new Set();
+    for (const feat of this.allFeats) {
+      for (const trait of (feat.system?.traits?.value ?? [])) traits.add(String(trait).toLowerCase());
+    }
+    const ordered = [...traits].sort((a, b) => a.localeCompare(b));
+    return buildChipOptions(ordered, this.selectedTraits, {
+      lockedValues: [...this.lockedTraitValues],
+    });
+  }
+
+  _getVisibleTraits() {
+    const traits = new Set();
+    const featsToScan = this.filteredFeats?.length > 0 ? this.filteredFeats : this.allFeats;
+    for (const feat of featsToScan) {
+      for (const trait of (feat.system?.traits?.value ?? [])) traits.add(String(trait).toLowerCase());
+    }
+    for (const trait of this.selectedTraits) traits.add(trait);
+    for (const trait of this.lockedTraitValues) traits.add(trait);
+    return [...traits].sort((a, b) => a.localeCompare(b));
+  }
+
+  _commitTraitInput(input) {
+    const trait = String(input?.value ?? '').trim().toLowerCase();
+    if (!trait) return;
+    this.selectedTraits.add(trait);
+    if (input) input.value = '';
+    this._scheduleListUpdate();
+  }
+
+  _updateFilterControlState() {
+    const root = this._getRootElement();
+    if (!root) return;
+
+    const logicButton = root.querySelector('[data-action="toggleTraitLogic"]');
+    if (logicButton) {
+      logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
+    }
+
+    const traitChipContainer = root.querySelector('[data-role="selected-trait-chips"]');
+    if (traitChipContainer) {
+      const selectedTraitChips = this._getTraitOptions().filter((option) => option.selected);
+      traitChipContainer.style.display = selectedTraitChips.length > 0 ? '' : 'none';
+      traitChipContainer.innerHTML = selectedTraitChips.map((chip) => `
+        <button type="button"
+          class="picker__source-chip ${chip.selected ? 'selected' : ''} ${chip.locked ? 'locked' : ''}"
+          data-action="toggleTraitChip"
+          data-trait="${chip.value}"
+          ${chip.locked ? `data-tooltip="${game.i18n.localize('PF2E_LEVELER.UI.LOCKED_FILTER_HINT')}"` : ''}>
+          <span>${chip.label}</span>
+          ${chip.locked ? '' : '<i class="fa-solid fa-xmark" aria-hidden="true"></i>'}
+        </button>
+      `).join('');
+      if (this._domListeners?.signal) this._bindTraitChipListeners(root, this._domListeners.signal);
+    }
+
+    for (const chip of root.querySelectorAll('[data-action="toggleTraitChip"]')) {
+      const trait = String(chip.dataset.trait ?? '').trim().toLowerCase();
+      chip.classList.toggle('selected', this.selectedTraits.has(trait));
+      chip.classList.toggle('locked', this.lockedTraitValues.has(trait));
+    }
+
+    for (const chip of root.querySelectorAll('[data-action="toggleRarityChip"]')) {
+      const rarity = String(chip.dataset.rarity ?? '').trim().toLowerCase();
+      chip.classList.toggle('selected', this.selectedRarities.has(rarity));
+    }
+
+    for (const chip of root.querySelectorAll('[data-action="toggleFeatType"]')) {
+      const type = String(chip.dataset.type ?? '').trim().toLowerCase();
+      chip.classList.toggle('selected', this.selectedFeatTypes.has(type));
+      chip.classList.toggle('locked', this.lockedFeatTypes.has(type));
+    }
+
+    for (const chip of root.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
+      const source = String(chip.dataset.package ?? '').trim();
+      chip.classList.toggle('selected', this.selectedSourcePackages.has(source));
+    }
+
+    const datalist = root.querySelector('#feat-trait-options');
+    if (datalist) {
+      const visibleTraits = this._getVisibleTraits();
+      datalist.innerHTML = visibleTraits.map((t) => `<option value="${t}">`).join('');
+    }
+  }
+
+  _bindTraitChipListeners(root, signal) {
+    root.querySelectorAll('[data-action="toggleTraitChip"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const trait = String(btn.dataset.trait ?? '').trim().toLowerCase();
+        if (!trait || this.lockedTraitValues.has(trait)) return;
+        if (this.selectedTraits.has(trait)) this.selectedTraits.delete(trait);
+        else this.selectedTraits.add(trait);
+        this._scheduleListUpdate();
+      }, { signal });
+    });
+  }
+
+  _getRarityLabels() {
+    return {
+      common: game.i18n.localize('PF2E.TraitCommon'),
+      uncommon: game.i18n.localize('PF2E.TraitUncommon'),
+      rare: game.i18n.localize('PF2E.TraitRare'),
+      unique: game.i18n.localize('PF2E.TraitUnique'),
+    };
+  }
+
+  _applyPreset(preset) {
+    if (!preset || typeof preset !== 'object') return;
+    if (Array.isArray(preset.selectedFeatTypes)) this.selectedFeatTypes = new Set(preset.selectedFeatTypes);
+    if (Array.isArray(preset.lockedFeatTypes)) this.lockedFeatTypes = new Set(preset.lockedFeatTypes);
+    if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
+    if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
+    if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
+    if (typeof preset.showDedications === 'boolean') this.showDedications = preset.showDedications;
+    if (typeof preset.lockDedications === 'boolean') this._dedicationsLocked = preset.lockDedications;
+    if (typeof preset.showSkillFeats === 'boolean') this.showSkillFeats = preset.showSkillFeats;
+    if (preset.minLevel != null) this.minLevel = String(preset.minLevel);
+    if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
   }
 }

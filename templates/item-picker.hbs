@@ -1,0 +1,134 @@
+<div class="pf2e-leveler item-picker">
+  {{#if loading}}
+  <div class="item-picker__loader">
+    <i class="fa-solid fa-circle-notch fa-spin"></i>
+  </div>
+  {{else}}
+  <div class="picker__browser">
+    <aside class="picker__sidebar">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+        <input type="text" class="picker__search"
+               placeholder="{{localize 'PF2E_LEVELER.ITEM_PICKER.SEARCH'}}"
+               data-action="searchItems"
+               value="{{searchText}}">
+      </div>
+
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.ITEM_PICKER.CATEGORY"}}</div>
+        <div class="picker__source-list">
+          {{#each categoryOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleCategory"
+            data-category="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+        <div class="wizard-trait-input spell-picker__trait-input">
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" list="item-trait-options">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
+        </div>
+        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
+          {{#each selectedTraitChips}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleTraitChip"
+            data-trait="{{this.value}}">
+            <span>{{this.label}}</span>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
+        <div class="picker__source-list">
+          {{#each rarityOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleRarityChip"
+            data-rarity="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+
+      {{#if sourceOptions.length}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        <div class="picker__source-list">
+          {{#each sourceOptions}}
+          <button
+            type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleCompendiumSource"
+            data-package="{{this.key}}"
+            data-tooltip="{{this.key}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+    </aside>
+
+    <section class="picker__results">
+      <div class="picker__results-header">
+        <div class="picker__results-label">{{localize "PF2E_LEVELER.ITEM_PICKER.EQUIPMENT"}}</div>
+        <div class="picker__results-count">{{filteredCount}}</div>
+      </div>
+
+      <div class="item-list">
+        {{#each items}}
+        <div class="item-option" data-uuid="{{this.uuid}}">
+          <img class="item-option__img" src="{{this.img}}" alt="">
+          <div class="item-option__info">
+            <div class="item-option__header">
+              <span class="item-option__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              {{#if this.priceLabel}}<span class="item-option__level">{{this.priceLabel}}</span>{{/if}}
+            </div>
+            <div class="item-option__traits">
+              <span class="tag tag--muted">{{this.category}}</span>
+              {{#each this.traits}}
+              <span class="tag tag--muted">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}}">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="item-option__actions">
+            <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}">
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+            </button>
+          </div>
+        </div>
+        {{else}}
+        <div class="planner-empty" style="padding: 2rem;">
+          <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+        </div>
+        {{/each}}
+        {{#if capped}}
+        <div class="planner-empty" style="padding: 1rem 2rem;">
+          <p>{{localize "PF2E_LEVELER.ITEM_PICKER.SHOWING_PARTIAL" }} {{filteredCount}}</p>
+        </div>
+        {{/if}}
+      </div>
+    </section>
+  </div>
+
+  <datalist id="item-trait-options">
+    {{#each traitOptions}}
+    <option value="{{this.value}}">
+    {{/each}}
+  </datalist>
+  {{/if}}
+</div>

@@ -285,16 +285,36 @@ describe('SpellPicker', () => {
 
     expect(context.spells.map((spell) => spell.uuid)).toContain('city-of-sin');
   });
+
+  test('can filter spells by category', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => [
+          makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
+          makeSpell('force-barrage', 'Force Barrage', 1, ['arcane'], ['focus']),
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), { excludedSelections: [] });
+    await picker._prepareContext();
+
+    picker.selectedCategories = new Set(['focus']);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['force-barrage']);
+  });
 });
 
-function makeSpell(uuid, name, level, traditions) {
+function makeSpell(uuid, name, level, traditions, extraTraits = []) {
   return {
     uuid,
     name,
     system: {
       level: { value: level },
       traits: {
-        value: [],
+        value: extraTraits,
         traditions,
       },
     },

@@ -1,16 +1,36 @@
 <div class="pf2e-leveler feat-picker">
-  <div class="feat-picker__browser">
-    <aside class="feat-picker__sidebar">
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
-        <input type="text" class="feat-picker__search"
+  <div class="picker__browser">
+    <aside class="picker__sidebar">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+        <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEARCH'}}"
                data-action="searchFeats">
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
-        <select data-action="sortFeats" class="feat-picker__select">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+        <div class="wizard-trait-input spell-picker__trait-input">
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" list="feat-trait-options">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
+        </div>
+        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
+          {{#each selectedTraitChips}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
+            data-action="toggleTraitChip"
+            data-trait="{{this.value}}"
+            {{#if this.locked}}data-tooltip="{{localize 'PF2E_LEVELER.UI.LOCKED_FILTER_HINT'}}"{{/if}}>
+            <span>{{this.label}}</span>
+            {{#unless this.locked}}<i class="fa-solid fa-xmark" aria-hidden="true"></i>{{/unless}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
+        <select data-action="sortFeats" class="picker__select">
           <option value="LEVEL_DESC" {{#if (eq sortMethod "LEVEL_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
           <option value="LEVEL_ASC" {{#if (eq sortMethod "LEVEL_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_ASC"}}</option>
           <option value="ALPHA_ASC" {{#if (eq sortMethod "ALPHA_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_ASC"}}</option>
@@ -18,16 +38,16 @@
         </select>
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.LEVEL_RANGE"}}</div>
-        <div class="feat-picker__toggle-list">
-          <select data-action="filterMinLevel" class="feat-picker__select">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.LEVEL_RANGE"}}</div>
+        <div class="picker__toggle-list">
+          <select data-action="filterMinLevel" class="picker__select">
             <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
             {{#each levelOptions}}
             <option value="{{this.value}}" {{#if (eq ../minLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MIN_LEVEL" level=this.label}}</option>
             {{/each}}
           </select>
-          <select data-action="filterMaxLevel" class="feat-picker__select">
+          <select data-action="filterMaxLevel" class="picker__select">
             <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
             {{#each levelOptions}}
             <option value="{{this.value}}" {{#if (eq ../maxLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}</option>
@@ -37,9 +57,9 @@
       </div>
 
       {{#if showSkillFilter}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</div>
-        <select data-action="filterSkillFeats" class="feat-picker__select">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</div>
+        <select data-action="filterSkillFeats" class="picker__select">
           <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</option>
           {{#each skillOptions}}
           <option value="{{this.slug}}" {{#if (eq ../selectedSkill this.slug)}}selected{{/if}}>{{this.label}}</option>
@@ -49,15 +69,16 @@
       {{/if}}
 
       {{#if showFeatTypeFilter}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FEAT_TYPES"}}</div>
-        <div class="feat-picker__source-list">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FEAT_TYPES"}}</div>
+        <div class="picker__source-list">
           {{#each featTypeOptions}}
           <button
             type="button"
-            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
             data-action="toggleFeatType"
-            data-type="{{this.value}}">
+            data-type="{{this.value}}"
+            {{#if this.locked}}data-tooltip="{{localize 'PF2E_LEVELER.UI.LOCKED_FILTER_HINT'}}"{{/if}}>
             {{this.label}}
           </button>
           {{/each}}
@@ -65,35 +86,35 @@
       </div>
       {{/if}}
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
-        <div class="feat-picker__rarity-filters">
-          <label class="feat-picker__check">
-            <input type="checkbox" data-action="toggleUncommon" {{#if showUncommon}}checked{{/if}}>
-            {{localize "PF2E.TraitUncommon"}}
-          </label>
-          <label class="feat-picker__check">
-            <input type="checkbox" data-action="toggleRare" {{#if showRare}}checked{{/if}}>
-            {{localize "PF2E.TraitRare"}}
-          </label>
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
+        <div class="picker__source-list">
+          {{#each rarityOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleRarityChip"
+            data-rarity="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
         </div>
       </div>
 
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
-        <div class="feat-picker__toggle-list">
-          <button type="button" class="feat-picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
+        <div class="picker__toggle-list">
+          <button type="button" class="picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
             <i class="fa-solid fa-filter"></i>
             {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
           </button>
           {{#if showDedicationToggle}}
-          <button type="button" class="feat-picker__prereq-toggle {{#if showDedications}}active{{/if}}" data-action="toggleDedications">
+          <button type="button" class="picker__prereq-toggle {{#if showDedications}}active{{/if}}" data-action="toggleDedications">
             <i class="fa-solid fa-diagram-project"></i>
             {{localize "PF2E_LEVELER.FEAT_PICKER.DEDICATIONS"}}
           </button>
           {{/if}}
           {{#if showGeneralSkillToggle}}
-          <button type="button" class="feat-picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
+          <button type="button" class="picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
             <i class="fa-solid fa-screwdriver-wrench"></i>
             {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
           </button>
@@ -102,14 +123,14 @@
       </div>
 
       {{#if sourceOptions.length}}
-      <div class="feat-picker__filter-group">
-        <div class="feat-picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-        <input type="text" class="feat-picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
-        <div class="feat-picker__source-list">
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
+        <div class="picker__source-list">
           {{#each sourceOptions}}
           <button
             type="button"
-            class="feat-picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
             data-action="toggleCompendiumSource"
             data-package="{{this.key}}"
             data-source-name="{{this.label}}"
@@ -122,12 +143,12 @@
       {{/if}}
     </aside>
 
-    <section class="feat-picker__results">
-      <div class="feat-picker__results-header">
-        <div class="feat-picker__results-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS"}}</div>
+    <section class="picker__results">
+      <div class="picker__results-header">
+        <div class="picker__results-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.FEATS"}}</div>
         <div class="spell-picker__results-meta">
           {{#if multiSelect}}
-          <div class="spell-picker__selected-count feat-picker__selected-count">{{format "PF2E_LEVELER.FEAT_PICKER.SELECTED_COUNT" count=selectedCount}}</div>
+          <div class="spell-picker__selected-count picker__selected-count">{{format "PF2E_LEVELER.FEAT_PICKER.SELECTED_COUNT" count=selectedCount}}</div>
           <button type="button" class="feat-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
             {{#if allVisibleSelected}}
               {{localize "PF2E_LEVELER.FEAT_PICKER.DESELECT_ALL"}}
@@ -139,7 +160,7 @@
             {{localize "PF2E_LEVELER.FEAT_PICKER.ADD_SELECTED"}}
           </button>
           {{/if}}
-          <div class="feat-picker__results-count">{{filteredCount}}</div>
+          <div class="picker__results-count">{{filteredCount}}</div>
         </div>
       </div>
 
@@ -181,7 +202,7 @@
               <i class="fa-solid fa-comment"></i>
             </button>
             {{#if this.alreadyTaken}}
-              <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} â€” {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
+              <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} - {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
             {{else}}
               <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.selectionBlocked}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNMET_BLOCKED'}}{{else if this.hasUnknownPrerequisites}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}{{/if}}">
                 {{#if ../multiSelect}}
@@ -205,4 +226,10 @@
       </div>
     </section>
   </div>
+
+  <datalist id="feat-trait-options">
+    {{#each traitOptions}}
+    <option value="{{this.value}}">
+    {{/each}}
+  </datalist>
 </div>

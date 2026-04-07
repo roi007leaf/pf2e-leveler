@@ -1,7 +1,15 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
-import { bindRarityToggles } from './shared/rarity-filters.js';
+import {
+  applyRarityFilter,
+  applySourceFilter,
+  applyTraitFilter,
+  buildChipOptions,
+  initializeSelectionSet,
+  normalizeSpellCategory,
+  toggleSelectableChip,
+} from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -27,12 +35,18 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSpellUuids = new Set();
     this.selectedRanks = new Set();
     this.selectedTraditions = new Set();
+    this.selectedCategories = new Set();
+    this.selectedTraits = new Set();
+    this.traitLogic = 'or';
+    this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
     this.sortMode = options.sortMode ?? this._getDefaultSortMode();
     this._updateListTimer = null;
     this._domListeners = null;
+    this.preset = options.preset ?? null;
+    this._applyPreset(this.preset);
   }
 
   static DEFAULT_OPTIONS = {
@@ -84,26 +98,34 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    this.filteredSpells = this._filterSpells();
-    this._sortSpells(this.filteredSpells);
     const sourceOptions = this._getSourceOptions();
     const rankOptions = this._getRankOptions();
     const traditionOptions = this._getTraditionOptions();
+    const categoryOptions = this._getCategoryOptions();
 
     const allTraits = new Set();
     for (const spell of this.allSpells) {
       for (const trait of (spell.system?.traits?.value ?? [])) allTraits.add(trait);
     }
+    this._allTraitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
+    this.filteredSpells = this._filterSpells();
+    this._sortSpells(this.filteredSpells);
 
     return {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions,
       rankOptions,
       traditionOptions,
+      categoryOptions,
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
-      traitOptions: [...allTraits].filter((trait) => trait !== 'cantrip').sort(),
+      traitOptions: buildChipOptions(this._allTraitOptions, this.selectedTraits),
+      selectedTraitChips: buildChipOptions(this._allTraitOptions, this.selectedTraits).filter((option) => option.selected),
+      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+        labels: this._getRarityLabels(),
+      }),
+      traitLogic: this.traitLogic,
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
@@ -146,29 +168,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         const trait = traitInput.value.trim().toLowerCase();
         if (!trait) return;
-        const chipsContainer = el.querySelector('.wizard-trait-chips[data-target="spells"]');
         traitInput.value = '';
-        const chip = document.createElement('span');
-        chip.className = 'wizard-trait-chip tag tag--info tag--tiny';
-        chip.dataset.trait = trait;
-        chip.innerHTML = `${trait} <i class="fa-solid fa-xmark"></i>`;
-        chip.querySelector('i')?.addEventListener('click', () => {
-          chip.remove();
-          applyTraitFilter(el);
-          this._updateResultCount();
-          this._updateSelectionUI();
-        });
-        chipsContainer.appendChild(chip);
-        applyTraitFilter(el);
-        this._updateResultCount();
-        this._updateSelectionUI();
+        this.selectedTraits.add(trait);
+        this._scheduleListUpdate();
       }
     }, { signal });
-
-    bindRarityToggles(el, {
-      toggleSelector: '[data-action="toggleRarity"]',
-      itemSelector: '.spell-option[data-rarity]',
-    });
 
     el.addEventListener('change', (e) => {
       const sortSelect = e.target.closest?.('[data-action="changeSort"]');
@@ -178,11 +182,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      const toggle = e.target.closest?.('[data-action="toggleRarity"]');
+      const toggle = e.target.closest?.('[data-action="toggleRarityChip"]');
       if (toggle) {
-        applyTraitFilter(el);
-        this._updateResultCount();
-        this._updateSelectionUI();
+        const rarity = String(toggle.dataset.rarity ?? '').trim().toLowerCase();
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
+        this._scheduleListUpdate();
       }
     }, { signal });
 
@@ -238,11 +242,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.stopPropagation();
         const sourceKey = target.dataset.package;
         if (!sourceKey) return;
-        if (this.selectedSourcePackages.has(sourceKey)) {
-          if (this.selectedSourcePackages.size > 1) this.selectedSourcePackages.delete(sourceKey);
-        } else {
-          this.selectedSourcePackages.add(sourceKey);
-        }
+        this.selectedSourcePackages = toggleSelectableChip(this.selectedSourcePackages, sourceKey, this._sourceKeys);
         for (const chip of el.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
           chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
         }
@@ -255,11 +255,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.stopPropagation();
         const rank = Number(target.dataset.rank);
         if (!Number.isFinite(rank)) return;
-        if (this.selectedRanks.has(rank)) {
-          if (this.selectedRanks.size > 1) this.selectedRanks.delete(rank);
-        } else {
-          this.selectedRanks.add(rank);
-        }
+        this.selectedRanks = toggleSelectableChip(this.selectedRanks, rank, this._rankValues);
         for (const chip of el.querySelectorAll('[data-action="toggleSpellRank"]')) {
           chip.classList.toggle('selected', this.selectedRanks.has(Number(chip.dataset.rank)));
         }
@@ -272,20 +268,56 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.stopPropagation();
         const tradition = String(target.dataset.tradition ?? '').trim().toLowerCase();
         if (!tradition) return;
-        if (this.selectedTraditions.has(tradition)) {
-          if (this.selectedTraditions.size > 1) this.selectedTraditions.delete(tradition);
-        } else {
-          this.selectedTraditions.add(tradition);
-        }
+        this.selectedTraditions = toggleSelectableChip(this.selectedTraditions, tradition, this._traditionValues);
         for (const chip of el.querySelectorAll('[data-action="toggleSpellTradition"]')) {
           const chipTradition = String(chip.dataset.tradition ?? '').trim().toLowerCase();
           chip.classList.toggle('selected', this.selectedTraditions.has(chipTradition));
         }
         this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleSpellCategory') {
+        e.preventDefault();
+        e.stopPropagation();
+        const category = String(target.dataset.category ?? '').trim().toLowerCase();
+        if (!category) return;
+        this.selectedCategories = toggleSelectableChip(this.selectedCategories, category, this._categoryValues);
+        this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleRarityChip') {
+        e.preventDefault();
+        e.stopPropagation();
+        const rarity = String(target.dataset.rarity ?? '').trim().toLowerCase();
+        if (!rarity) return;
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
+        this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleTraitLogic') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.traitLogic = this.traitLogic === 'and' ? 'or' : 'and';
+        this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleTraitChip') {
+        e.preventDefault();
+        e.stopPropagation();
+        const trait = String(target.dataset.trait ?? '').trim().toLowerCase();
+        if (!trait) return;
+        if (this.selectedTraits.has(trait)) this.selectedTraits.delete(trait);
+        else this.selectedTraits.add(trait);
+        this._scheduleListUpdate();
       }
     }, { signal });
 
     this._updateResultCount();
+    this._updateFilterControlState();
     this._updateSelectionUI();
   }
 
@@ -308,10 +340,17 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const html = await renderTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions: this._getSourceOptions(),
+      rankOptions: this._getRankOptions(),
       traditionOptions: this._getTraditionOptions(),
+      categoryOptions: this._getCategoryOptions(),
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
+      selectedTraitChips: buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected),
+      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+        labels: this._getRarityLabels(),
+      }),
+      traitLogic: this.traitLogic,
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
@@ -327,25 +366,28 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       listContainer.innerHTML = newList.innerHTML;
     }
 
-    applyTraitFilter(root);
     this._updateResultCount();
+    this._updateFilterControlState();
     this._updateSelectionUI();
   }
 
   _filterSpells() {
     let spells = [...this.allSpells];
-    if (this.selectedSourcePackages.size > 0) {
-      spells = spells.filter((spell) => this.selectedSourcePackages.has(spell.sourcePackage ?? spell.sourcePack));
-    }
-    if (this.selectedTraditions.size > 0) {
+    spells = applySourceFilter(spells, this.selectedSourcePackages, (spell) => spell.sourcePackage ?? spell.sourcePack, this._sourceKeys);
+    spells = applyRarityFilter(spells, this.selectedRarities, (spell) => spell.system?.traits?.rarity ?? 'common');
+    if (this.selectedTraditions.size > 0 && !this._allSelected(this.selectedTraditions, this._traditionValues)) {
       spells = spells.filter((spell) => {
         const traditions = getSpellTraditions(spell.system ?? {});
         return traditions.some((tradition) => this.selectedTraditions.has(tradition));
       });
     }
-    if (this.selectedRanks.size > 0) {
+    if (this.selectedRanks.size > 0 && !this._allSelected(this.selectedRanks, this._rankValues)) {
       spells = spells.filter((spell) => this.selectedRanks.has(getSpellRank(spell.system ?? {})));
     }
+    if (this.selectedCategories.size > 0 && !this._allSelected(this.selectedCategories, this._categoryValues)) {
+      spells = spells.filter((spell) => this.selectedCategories.has(normalizeSpellCategory(spell)));
+    }
+    spells = applyTraitFilter(spells, this.selectedTraits, (spell) => spell.system?.traits?.value ?? [], this.traitLogic);
     if (!this.searchText) return spells;
     return spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
   }
@@ -369,7 +411,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const el = this._getRootElement();
     if (!el) return;
     const visibleCount = this._getVisibleSpellOptions().length;
-    const resultCount = el.querySelector('.feat-picker__results-count');
+    const resultCount = el.querySelector('.picker__results-count');
     if (resultCount) resultCount.textContent = String(visibleCount);
   }
 
@@ -455,6 +497,29 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
+  _updateFilterControlState() {
+    const root = this._getRootElement();
+    if (!root) return;
+
+    const logicButton = root.querySelector('[data-action="toggleTraitLogic"]');
+    if (logicButton) logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
+
+    const traitChipContainer = root.querySelector('[data-role="selected-trait-chips"]');
+    if (traitChipContainer) {
+      const selectedTraitChips = buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected);
+      traitChipContainer.style.display = selectedTraitChips.length > 0 ? '' : 'none';
+      traitChipContainer.innerHTML = selectedTraitChips.map((chip) => `
+        <button type="button"
+          class="picker__source-chip ${chip.selected ? 'selected' : ''}"
+          data-action="toggleTraitChip"
+          data-trait="${chip.value}">
+          <span>${chip.label}</span>
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      `).join('');
+    }
+  }
+
   _scheduleListUpdate(delay = 0) {
     if (this._updateListTimer) clearTimeout(this._updateListTimer);
     this._updateListTimer = setTimeout(() => {
@@ -514,10 +579,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-    if (!this._sourceFilterInitialized) {
-      this.selectedSourcePackages = new Set(options.map((entry) => entry.key));
-      this._sourceFilterInitialized = true;
-    }
+    this._sourceKeys = options.map((entry) => entry.key);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys);
+    this._sourceFilterInitialized = true;
 
     return options.map((entry) => ({
       ...entry,
@@ -527,9 +591,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getRankOptions() {
     const ranks = [...new Set(this.allSpells.map((spell) => getSpellRank(spell.system ?? {})))].sort((a, b) => a - b);
-    if (this.selectedRanks.size === 0) {
-      this.selectedRanks = new Set(ranks);
-    }
+    this._rankValues = ranks;
+    this.selectedRanks = initializeSelectionSet(this.selectedRanks, ranks);
 
     return ranks.map((rank) => ({
       value: rank,
@@ -545,14 +608,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this.allSpells.flatMap((spell) => getSpellTraditions(spell.system ?? {})),
     )].sort((a, b) => a.localeCompare(b));
 
-    if (this.selectedTraditions.size === 0) {
-      this.selectedTraditions = new Set(traditions);
-    } else {
-      this.selectedTraditions = new Set(
-        [...this.selectedTraditions].filter((tradition) => traditions.includes(tradition)),
-      );
-      if (this.selectedTraditions.size === 0) this.selectedTraditions = new Set(traditions);
-    }
+    this._traditionValues = traditions;
+    this.selectedTraditions = initializeSelectionSet(this.selectedTraditions, traditions);
 
     return traditions.map((tradition) => ({
       value: tradition,
@@ -571,6 +628,40 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _matchesOwnedSpellIdentity(spell, ownedIdentityKeys) {
     const keys = getSpellMatchKeys(spell);
     return keys.some((key) => ownedIdentityKeys.has(key));
+  }
+
+  _getCategoryOptions() {
+    const categories = [...new Set(this.allSpells.map((spell) => normalizeSpellCategory(spell)))].sort((a, b) => a.localeCompare(b));
+    this._categoryValues = categories;
+    this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories);
+    const labels = {
+      spell: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_SPELL'),
+      cantrip: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_CANTRIP'),
+      focus: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_FOCUS'),
+      ritual: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_RITUAL'),
+    };
+    return buildChipOptions(categories, this.selectedCategories, { labels });
+  }
+
+  _getRarityLabels() {
+    return {
+      common: game.i18n.localize('PF2E.TraitCommon'),
+      uncommon: game.i18n.localize('PF2E.TraitUncommon'),
+      rare: game.i18n.localize('PF2E.TraitRare'),
+      unique: game.i18n.localize('PF2E.TraitUnique'),
+    };
+  }
+
+  _allSelected(selected, available) {
+    return Array.isArray(available) && available.length > 0 && available.every((value) => selected.has(value));
+  }
+
+  _applyPreset(preset) {
+    if (!preset || typeof preset !== 'object') return;
+    if (Array.isArray(preset.selectedTraditions)) this.selectedTraditions = new Set(preset.selectedTraditions);
+    if (Array.isArray(preset.selectedCategories)) this.selectedCategories = new Set(preset.selectedCategories);
+    if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
+    if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
   }
 }
 
@@ -628,20 +719,6 @@ function getSpellTraditions(system) {
 function getTraditionLabel(tradition) {
   const key = `PF2E.Trait${tradition.charAt(0).toUpperCase()}${tradition.slice(1)}`;
   return game.i18n?.has?.(key) ? game.i18n.localize(key) : tradition.charAt(0).toUpperCase() + tradition.slice(1);
-}
-
-function applyTraitFilter(el) {
-  const chips = [...el.querySelectorAll('.wizard-trait-chips[data-target="spells"] .wizard-trait-chip')].map((c) => c.dataset.trait);
-  const showUncommon = el.querySelector('[data-action="toggleRarity"][data-rarity="uncommon"]')?.checked ?? true;
-  const showRare = el.querySelector('[data-action="toggleRarity"][data-rarity="rare"]')?.checked ?? true;
-
-  el.querySelectorAll('.spell-option').forEach((item) => {
-    const traits = item.dataset.traits?.toLowerCase() ?? '';
-    const rarity = item.dataset.rarity ?? 'common';
-    const traitMatch = chips.length === 0 || chips.every((t) => traits.includes(t));
-    const rarityMatch = (rarity !== 'uncommon' || showUncommon) && (rarity !== 'rare' || showRare);
-    item.style.display = traitMatch && rarityMatch ? '' : 'none';
-  });
 }
 
 async function loadSpells() {

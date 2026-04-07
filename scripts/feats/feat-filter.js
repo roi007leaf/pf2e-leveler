@@ -226,7 +226,7 @@ function buildCategoryQuery(category, actor, buildState) {
     case 'custom':
       return '';
     case 'class':
-      return actor?.class?.slug ?? '';
+      return buildState?.class?.slug || actor?.class?.slug || '';
     case 'ancestry': {
       if (buildState?.ancestryTraits instanceof Set && buildState.ancestryTraits.size > 0) {
         return [...buildState.ancestryTraits];
