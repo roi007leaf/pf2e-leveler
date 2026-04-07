@@ -77,6 +77,23 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
 
 const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'languages', 'skills', 'feats', 'featChoices', 'spells', 'equipment', 'summary'];
+
+function equipmentTotalCp(equipment) {
+  let cp = 0;
+  for (const entry of equipment) {
+    if (!entry.price) continue;
+    const qty = entry.quantity ?? 1;
+    cp += ((entry.price.gp ?? 0) * 100 + (entry.price.sp ?? 0) * 10 + (entry.price.cp ?? 0)) * qty;
+  }
+  return cp;
+}
+
+function normalizeCp(totalCp) {
+  const gp = Math.floor(totalCp / 100);
+  const sp = Math.floor((totalCp % 100) / 10);
+  const cp = totalCp % 10;
+  return { gp, sp, cp };
+}
 const HANDLER_STEP_IDS = new Set(['deity', 'sanctification', 'divineFont', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions']);
 
 export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -474,6 +491,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _openItemPicker() {
     import('../item-picker.js').then(({ ItemPicker }) => {
       const picker = new ItemPicker(this.actor, (item) => {
+        const goldLimit = game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0;
+        if (goldLimit > 0 && !game.user.isGM) {
+          const currentCp = equipmentTotalCp(this.data.equipment ?? []);
+          const itemCp = ((item.system?.price?.value?.gp ?? 0) * 100)
+            + ((item.system?.price?.value?.sp ?? 0) * 10)
+            + (item.system?.price?.value?.cp ?? 0);
+          if (currentCp + itemCp > goldLimit * 100) {
+            ui.notifications.warn(game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', { limit: goldLimit }));
+            return;
+          }
+        }
         addEquipment(this.data, item);
         this._saveAndRender();
       });
@@ -483,24 +511,32 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _buildEquipmentContext() {
     const equipment = this.data.equipment ?? [];
-    const totals = { gp: 0, sp: 0, cp: 0 };
-    for (const entry of equipment) {
-      if (!entry.price) continue;
-      const qty = entry.quantity ?? 1;
-      totals.gp += (entry.price.gp ?? 0) * qty;
-      totals.sp += (entry.price.sp ?? 0) * qty;
-      totals.cp += (entry.price.cp ?? 0) * qty;
-    }
-    // normalize cp → sp → gp
-    totals.sp += Math.floor(totals.cp / 10); totals.cp = totals.cp % 10;
-    totals.gp += Math.floor(totals.sp / 10); totals.sp = totals.sp % 10;
+    const totalCp = equipmentTotalCp(equipment);
+    const totals = normalizeCp(totalCp);
     const totalParts = [];
     if (totals.gp) totalParts.push(`${totals.gp} gp`);
     if (totals.sp) totalParts.push(`${totals.sp} sp`);
     if (totals.cp) totalParts.push(`${totals.cp} cp`);
+
+    const goldLimit = game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0;
+    const limitCp = goldLimit * 100;
+    const overBudget = goldLimit > 0 && totalCp > limitCp;
+    const remainingCp = goldLimit > 0 ? Math.max(0, limitCp - totalCp) : null;
+    const remaining = remainingCp !== null ? normalizeCp(remainingCp) : null;
+    const remainingParts = remaining ? [] : null;
+    if (remainingParts) {
+      if (remaining.gp) remainingParts.push(`${remaining.gp} gp`);
+      if (remaining.sp) remainingParts.push(`${remaining.sp} sp`);
+      if (remaining.cp) remainingParts.push(`${remaining.cp} cp`);
+      if (!remainingParts.length) remainingParts.push('0 gp');
+    }
+
     return {
       equipment: equipment.map((entry) => ({ ...entry })),
       equipmentTotal: totalParts.join(', ') || null,
+      goldLimit: goldLimit || null,
+      remaining: remainingParts?.join(', ') ?? null,
+      overBudget,
     };
   }
 

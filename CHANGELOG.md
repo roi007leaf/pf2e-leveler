@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.1
+
+### Added
+
+- **Starting equipment gold limit (GM setting)** — GMs can now set a gold piece budget for starting equipment under module settings; set to 0 to disable
+  - Players cannot select an item that would push the total over the budget — a notification explains why the item was blocked; GMs are exempt and can always add any item
+  - The equipment list shows the current total against the limit and how much gold remains; the total turns red with a warning icon if the budget is somehow exceeded
+
 ## 1.5.0
 
 ### New Features

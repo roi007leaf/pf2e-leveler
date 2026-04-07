@@ -10,6 +10,14 @@
   color: var(--leveler-text);
 }
 
+.pf2e-leveler .item-picker__cap-notice {
+  padding: 6px var(--leveler-spacing-md);
+  font-size: var(--leveler-font-xs);
+  color: var(--leveler-text-muted);
+  text-align: center;
+  opacity: 0.7;
+}
+
 .pf2e-leveler .item-picker__loader {
   flex: 1;
   display: flex;

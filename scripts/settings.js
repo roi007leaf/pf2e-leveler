@@ -103,6 +103,15 @@ export function registerSettings() {
     },
   });
 
+  game.settings.register(MODULE_ID, 'startingEquipmentGoldLimit', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.HINT'),
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 0,
+  });
+
   game.settings.register(MODULE_ID, 'ancestralParagon', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ANCESTRAL_PARAGON.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ANCESTRAL_PARAGON.HINT'),

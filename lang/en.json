@@ -78,6 +78,7 @@
       "QUANTITY": "Qty",
       "SEARCH": "Search equipment...",
       "TOTAL": "Total",
+      "REMAINING": "remaining",
       "SHOWING_PARTIAL": "Showing 200 of"
     },
     "FEAT_PICKER": {
@@ -480,6 +481,12 @@
         "LEVEL_ASC": "Level (Low to High)",
         "ALPHA_ASC": "Alphabetical (A-Z)",
         "ALPHA_DESC": "Alphabetical (Z-A)"
+      },
+      "EQUIPMENT_GOLD_LIMIT": {
+        "NAME": "Starting Equipment Gold Limit",
+        "HINT": "Maximum gold pieces players can spend on starting equipment during character creation. Set to 0 to disable the limit.",
+        "EXCEEDED": "This item would exceed the starting equipment budget of {limit} gp.",
+        "EXCEEDED_TOOLTIP": "Total cost exceeds the set gold limit."
       },
       "ANCESTRAL_PARAGON": {
         "NAME": "Ancestry Paragon Variant Rule",

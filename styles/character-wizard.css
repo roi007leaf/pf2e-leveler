@@ -966,8 +966,8 @@
 
 .pf2e-leveler .wizard-equipment-total {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: var(--leveler-spacing-sm);
   padding: var(--leveler-spacing-sm) var(--leveler-spacing-md);
   margin-top: var(--leveler-spacing-sm);
   border-top: 1px solid var(--leveler-border);
@@ -983,6 +983,27 @@
 .pf2e-leveler .wizard-equipment-total__value {
   font-weight: 700;
   color: var(--leveler-accent);
+}
+
+.pf2e-leveler .wizard-equipment-total__limit {
+  font-size: var(--leveler-font-sm);
+  color: var(--leveler-text-muted);
+  margin-left: 2px;
+}
+
+.pf2e-leveler .wizard-equipment-total__remaining {
+  font-size: var(--leveler-font-sm);
+  color: var(--leveler-text-muted);
+  margin-left: auto;
+}
+
+.pf2e-leveler .wizard-equipment-total__warning {
+  color: var(--color-level-warning, #f0a500);
+  margin-left: auto;
+}
+
+.pf2e-leveler .wizard-equipment-total--over .wizard-equipment-total__value {
+  color: var(--color-level-error, #c00);
 }
 
 .pf2e-leveler .wizard-spell-tab.active {

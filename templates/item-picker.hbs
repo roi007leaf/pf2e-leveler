@@ -117,9 +117,7 @@
         </div>
         {{/each}}
         {{#if capped}}
-        <div class="planner-empty" style="padding: 1rem 2rem;">
-          <p>{{localize "PF2E_LEVELER.ITEM_PICKER.SHOWING_PARTIAL" }} {{filteredCount}}</p>
-        </div>
+        <div class="item-picker__cap-notice">{{localize "PF2E_LEVELER.ITEM_PICKER.SHOWING_PARTIAL"}} {{filteredCount}}</div>
         {{/if}}
       </div>
     </section>

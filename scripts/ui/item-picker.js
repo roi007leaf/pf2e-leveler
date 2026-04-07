@@ -97,7 +97,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rarity,
       priceLabel,
       category: normalizeItemCategory(item),
-      traits: (item.system?.traits?.value ?? []).slice(0, 4),
+      traits: [...new Set(item.system?.traits?.value ?? [])].filter((t) => t !== normalizeItemCategory(item)),
     };
   }
 

@@ -1366,9 +1366,17 @@
             {{/each}}
           </div>
           {{#if equipmentTotal}}
-          <div class="wizard-equipment-total">
+          <div class="wizard-equipment-total {{#if overBudget}}wizard-equipment-total--over{{/if}}">
             <span class="wizard-equipment-total__label">{{localize "PF2E_LEVELER.ITEM_PICKER.TOTAL"}}</span>
             <span class="wizard-equipment-total__value">{{equipmentTotal}}</span>
+            {{#if goldLimit}}
+            <span class="wizard-equipment-total__limit">/ {{goldLimit}} gp</span>
+            {{#if overBudget}}
+            <i class="fa-solid fa-triangle-exclamation wizard-equipment-total__warning" data-tooltip="{{localize 'PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED_TOOLTIP'}}"></i>
+            {{else}}
+            <span class="wizard-equipment-total__remaining">({{remaining}} {{localize "PF2E_LEVELER.ITEM_PICKER.REMAINING"}})</span>
+            {{/if}}
+            {{/if}}
           </div>
           {{/if}}
           {{else}}

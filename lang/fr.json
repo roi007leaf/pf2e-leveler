@@ -76,6 +76,7 @@
       "QUANTITY": "Qte",
       "SEARCH": "Rechercher un equipement...",
       "TOTAL": "Total",
+      "REMAINING": "restant",
       "SHOWING_PARTIAL": "Affichage de 200 sur"
     },
     "FEAT_PICKER": {
@@ -477,6 +478,12 @@
         "LEVEL_ASC": "Niveau (du plus faible au plus eleve)",
         "ALPHA_ASC": "Alphabetique (A-Z)",
         "ALPHA_DESC": "Alphabetique (Z-A)"
+      },
+      "EQUIPMENT_GOLD_LIMIT": {
+        "NAME": "Limite d'or pour l'equipement de depart",
+        "HINT": "Montant maximum en pieces d'or que les joueurs peuvent depenser pour l'equipement de depart. Mettre 0 pour desactiver la limite.",
+        "EXCEEDED": "Cet objet depasserait le budget d'equipement de depart de {limit} po.",
+        "EXCEEDED_TOOLTIP": "Le cout total depasse la limite d'or fixee par le MJ."
       },
       "ANCESTRAL_PARAGON": {
         "NAME": "Regle optionnelle : Parangon d'ascendance",
