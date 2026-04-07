@@ -223,7 +223,7 @@ describe('CompendiumSettingsMenu', () => {
     const context = await menu._prepareContext();
 
     expect(context.categories.map((category) => category.key)).not.toContain('actions');
-    expect(context.categories.map((category) => category.key)).not.toContain('equipment');
+    expect(context.categories.map((category) => category.key)).toContain('equipment');
   });
 
   test('pack assignment rows ignore hidden categories instead of crashing', async () => {
@@ -251,7 +251,7 @@ describe('CompendiumSettingsMenu', () => {
     const context = await menu._prepareContext();
 
     expect(context.packRows).toHaveLength(1);
-    expect(context.packRows[0].categories.map((category) => category.key)).toEqual(['feats']);
+    expect(context.packRows[0].categories.map((category) => category.key)).toEqual(['equipment', 'feats']);
   });
 
   test('category view only shows packs assigned to that category instead of every auto-detected pack', async () => {

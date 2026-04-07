@@ -16,9 +16,18 @@ export function buildAttributeContext(planner, levelData, choices) {
 
   return ATTRIBUTES.map((key) => {
     const mod = buildState.attributes[key] ?? 0;
+    const rawMod = buildState.rawAttributes?.[key] ?? mod;
     const isPartial = mod >= 4;
+    const hasPendingPartial = rawMod % 1 !== 0;
     const selected = selectedBoosts.includes(key);
-    const newMod = selected ? (alreadyAppliedLevel ? mod : mod + 1) : mod;
+    const newMod = selected
+      ? (alreadyAppliedLevel ? mod : mod + 1)
+      : mod;
+    const partialLabel = !isPartial
+      ? ''
+      : hasPendingPartial
+        ? game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_COMPLETING')
+        : game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_PENDING');
     return {
       key,
       label: key.toUpperCase(),
@@ -27,9 +36,8 @@ export function buildAttributeContext(planner, levelData, choices) {
       selected,
       applied: selected && alreadyAppliedLevel,
       partial: isPartial,
-      partialLabel: isPartial
-        ? (selected ? game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_SELECTED') : game.i18n.localize('PF2E_LEVELER.UI.PARTIAL_BOOST_PENDING'))
-        : '',
+      completesPartial: isPartial && hasPendingPartial,
+      partialLabel,
       cost: 1,
       disabled: !selected && (boostsRemaining <= 0 || usedBoostsInSet.has(key)),
     };

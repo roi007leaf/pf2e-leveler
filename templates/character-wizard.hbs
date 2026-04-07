@@ -1343,8 +1343,42 @@
 
     {{else if (eq stepId "equipment")}}
       <div class="wizard-feat-slots">
+
+        {{!-- Permanent Item Slots (Items + Currency mode) --}}
+        {{#if permanentItemSlots}}
         <div class="wizard-feat-slot-card">
-          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.CREATION.STEPS.EQUIPMENT"}}</div>
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.STARTING_WEALTH.PERMANENT_ITEMS"}}</div>
+          <div class="wizard-equipment-list">
+            {{#each permanentItemSlots}}
+            <div class="wizard-equipment-row wizard-permanent-slot">
+              {{#if this.filled}}
+              <img class="wizard-equipment-row__img" src="{{this.filled.img}}" alt="">
+              <span class="wizard-equipment-row__name" data-action="viewItem" data-uuid="{{this.filled.uuid}}">{{this.filled.name}}</span>
+              <span class="wizard-permanent-slot__level-badge">{{localize "PF2E_LEVELER.STARTING_WEALTH.ITEM_LEVEL"}} {{this.filled.itemLevel}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="removePermanentItem" data-slot="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+              {{else}}
+              <span class="wizard-permanent-slot__empty">
+                {{format "PF2E_LEVELER.STARTING_WEALTH.SLOT_LABEL" maxLevel=this.maxLevel}}
+              </span>
+              <button type="button" class="wizard-feat-slot-card__browse" data-action="browsePermanentItem" data-slot="{{this.index}}" data-max-level="{{this.maxLevel}}">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+              {{/if}}
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{!-- Currency / Lump Sum / Custom equipment --}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            {{#if goldLimitLabel}}
+              {{goldLimitLabel}}
+            {{else}}
+              {{localize "PF2E_LEVELER.CREATION.STEPS.EQUIPMENT"}}
+            {{/if}}
+          </div>
           <div class="wizard-feat-slot-card__body" style="margin-bottom: var(--leveler-spacing-sm);">
             <button type="button" class="wizard-feat-slot-card__browse" data-action="browseEquipment">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
           </div>

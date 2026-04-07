@@ -136,7 +136,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
     this._sourceKeys = options.map((e) => e.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
     return options.map((e) => ({ ...e, selected: this.selectedSourcePackages.has(e.key) }));
   }
 
@@ -172,6 +172,49 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedTraits.add(trait);
     if (input) input.value = '';
     this._updateList();
+  }
+
+  _updateAutocomplete(el, query) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (!dropdown) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { this._closeAutocomplete(el); return; }
+    const traits = (this._cachedVisibleTraits ?? [])
+      .filter((t) => t.includes(q) && !this.selectedTraits.has(t));
+    if (traits.length === 0) { this._closeAutocomplete(el); return; }
+    dropdown.innerHTML = traits.slice(0, 15).map((t) => {
+      const idx = t.indexOf(q);
+      const highlighted = idx >= 0
+        ? `${t.slice(0, idx)}<mark>${t.slice(idx, idx + q.length)}</mark>${t.slice(idx + q.length)}`
+        : t;
+      return `<li data-trait="${t}">${highlighted}</li>`;
+    }).join('');
+    dropdown.classList.add('open');
+    for (const li of dropdown.querySelectorAll('li')) {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const input = el.querySelector('[data-action="traitInput"]');
+        if (input) input.value = li.dataset.trait;
+        this._commitTraitInput(input);
+        this._closeAutocomplete(el);
+      });
+    }
+  }
+
+  _closeAutocomplete(el) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (dropdown) { dropdown.classList.remove('open'); dropdown.innerHTML = ''; }
+  }
+
+  _navigateAutocomplete(dropdown, direction) {
+    if (!dropdown) return;
+    const items = [...dropdown.querySelectorAll('li')];
+    if (items.length === 0) return;
+    const current = items.findIndex((li) => li.classList.contains('highlighted'));
+    items.forEach((li) => li.classList.remove('highlighted'));
+    const next = current < 0 ? (direction > 0 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, current + direction));
+    items[next].classList.add('highlighted');
+    items[next].scrollIntoView({ block: 'nearest' });
   }
 
   _bindTraitChipListeners(root, signal) {
@@ -219,10 +262,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (this._domListeners?.signal) this._bindTraitChipListeners(root, this._domListeners.signal);
     }
 
-    const datalist = root?.querySelector('#item-trait-options');
-    if (datalist) {
-      datalist.innerHTML = this._getVisibleTraits().map((t) => `<option value="${t}">`).join('');
-    }
+    this._cachedVisibleTraits = this._getVisibleTraits();
   }
 
   _scheduleUpdate() {
@@ -267,10 +307,33 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const traitInput = el.querySelector('[data-action="traitInput"]');
     if (traitInput) {
       traitInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); this._commitTraitInput(e.currentTarget); }
+        const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          this._navigateAutocomplete(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const highlighted = dropdown?.querySelector('.highlighted');
+          if (highlighted) traitInput.value = highlighted.dataset.trait;
+          this._commitTraitInput(traitInput);
+          this._closeAutocomplete(el);
+          return;
+        }
+        if (e.key === 'Escape') {
+          this._closeAutocomplete(el);
+        }
       }, { signal });
-      traitInput.addEventListener('change', (e) => { this._commitTraitInput(e.currentTarget); }, { signal });
-      traitInput.addEventListener('blur', (e) => { this._commitTraitInput(e.currentTarget); }, { signal });
+      traitInput.addEventListener('input', () => {
+        this._updateAutocomplete(el, traitInput.value);
+      }, { signal });
+      traitInput.addEventListener('blur', () => {
+        setTimeout(() => this._closeAutocomplete(el), 150);
+      }, { signal });
+      traitInput.addEventListener('focus', () => {
+        if (traitInput.value) this._updateAutocomplete(el, traitInput.value);
+      }, { signal });
     }
 
     this._bindTraitChipListeners(el, signal);

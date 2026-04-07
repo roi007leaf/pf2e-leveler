@@ -48,6 +48,16 @@
   border-left: 3px solid var(--leveler-accent);
 }
 
+.pf2e-leveler .sidebar-level.locked {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: default;
+}
+
+.pf2e-leveler .sidebar-level.locked:hover {
+  background: none;
+}
+
 .pf2e-leveler .sidebar-level__num {
   width: 28px;
   height: 28px;
@@ -402,4 +412,53 @@
 
 .pf2e-leveler .planner-actions button {
   flex: 1;
+}
+
+.pf2e-leveler .sequential-controls {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--leveler-spacing-md);
+  padding: var(--leveler-spacing-md) var(--leveler-spacing-lg);
+  background: var(--leveler-bg-surface);
+  border-top: 2px solid var(--leveler-accent);
+  z-index: 10;
+}
+
+.pf2e-leveler .sequential-progress {
+  font-size: var(--leveler-font-sm);
+  color: var(--leveler-text-muted);
+}
+
+.pf2e-leveler .sequential-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--leveler-accent);
+  border-radius: var(--leveler-radius-md);
+  font-size: var(--leveler-font-md);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pf2e-leveler .sequential-btn--next {
+  background: var(--leveler-accent);
+  color: var(--leveler-bg);
+}
+
+.pf2e-leveler .sequential-btn--next:hover {
+  filter: brightness(1.15);
+}
+
+.pf2e-leveler .sequential-btn--finish {
+  background: rgba(46, 125, 50, 0.8);
+  border-color: rgba(46, 125, 50, 0.9);
+  color: var(--leveler-text-bright);
+}
+
+.pf2e-leveler .sequential-btn--finish:hover {
+  background: rgba(46, 125, 50, 1);
 }

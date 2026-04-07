@@ -1,5 +1,5 @@
 export function matchSkill(parsed, buildState) {
-  const currentRank = buildState.skills[parsed.skill] ?? 0;
+  const currentRank = buildState.skills?.[parsed.skill] ?? 0;
   return {
     met: currentRank >= parsed.minRank,
     text: parsed.text,
@@ -23,7 +23,7 @@ export function matchLanguage(parsed, buildState) {
 }
 
 export function matchAbility(parsed, buildState) {
-  const currentMod = buildState.attributes[parsed.ability] ?? 0;
+  const currentMod = buildState.attributes?.[parsed.ability] ?? 0;
   if (parsed.isModifier) {
     return { met: currentMod >= parsed.minValue, text: parsed.text };
   }

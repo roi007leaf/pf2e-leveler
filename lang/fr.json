@@ -43,13 +43,18 @@
       "ADD_CUSTOM_SPELL": "Ajouter un sort personnalise",
       "ADD_CUSTOM_CANTRIP": "Ajouter un tour de magie personnalise",
       "GRANTED_ITEMS": "Objets accordes :",
-      "PARTIAL_BOOST_PENDING": "Augmentation partielle : le prochain boost complete le +1",
+      "PARTIALLY_APPLIED": "Partiellement applique",
+      "PARTIAL_BOOST_PENDING": "Augmentation partielle : deux boosts necessaires pour +1",
+      "PARTIAL_BOOST_COMPLETING": "Complete une augmentation partielle de +1 en attente",
       "PARTIAL_BOOST_SELECTED": "Complete une augmentation partielle de +1",
       "CUSTOM_SPELL_RANK_REMINDER": "Cette classe obtient ici un nouveau rang de sort. Utilisez le plan personnalise pour noter les sorts dont vous pensez avoir besoin a ce rang.",
       "LOCKED_FILTER_HINT": "Ce filtre est verrouille pour ce selecteur et ne peut pas etre modifie.",
       "NOT_SELECTED": "Non sélectionné",
       "BROWSE": "Parcourir...",
-      "ADD": "Ajouter"
+      "ADD": "Ajouter",
+      "NEXT_LEVEL": "Niveau suivant",
+      "FINISH_PLANNING": "Terminer la planification",
+      "SEQUENTIAL_PROGRESS": "Planification du niveau {current} sur {target}"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Capacites de classe",
@@ -78,6 +83,14 @@
       "TOTAL": "Total",
       "REMAINING": "restant",
       "SHOWING_PARTIAL": "Affichage de 200 sur"
+    },
+    "STARTING_WEALTH": {
+      "PERMANENT_ITEMS": "Objets permanents",
+      "SLOT_LABEL": "Emplacement objet niveau {maxLevel} (vide)",
+      "ITEM_LEVEL": "Nv",
+      "CURRENCY_BUDGET": "Monnaie ({gp} po)",
+      "NOT_PERMANENT": "Seuls les objets permanents (armes, armures, boucliers, equipement) peuvent remplir cet emplacement.",
+      "LEVEL_TOO_HIGH": "Cet objet est de niveau {item} mais l'emplacement autorise jusqu'au niveau {max}."
     },
     "FEAT_PICKER": {
       "OPTIONS": "Options",
@@ -479,9 +492,17 @@
         "ALPHA_ASC": "Alphabetique (A-Z)",
         "ALPHA_DESC": "Alphabetique (Z-A)"
       },
+      "STARTING_WEALTH": {
+        "MODE_NAME": "Mode de richesse de depart",
+        "MODE_HINT": "Comment le budget d'equipement de depart est determine. Objets + Monnaie utilise la Table 10-10 avec des emplacements d'objets permanents et une allocation de monnaie. Somme forfaitaire utilise la valeur en or de la Table 10-10. Personnalise utilise une limite d'or manuelle.",
+        "DISABLED": "Desactive",
+        "ITEMS_AND_CURRENCY": "Objets + Monnaie (Table 10-10)",
+        "LUMP_SUM": "Somme forfaitaire (Table 10-10)",
+        "CUSTOM": "Limite d'or personnalisee"
+      },
       "EQUIPMENT_GOLD_LIMIT": {
-        "NAME": "Limite d'or pour l'equipement de depart",
-        "HINT": "Montant maximum en pieces d'or que les joueurs peuvent depenser pour l'equipement de depart. Mettre 0 pour desactiver la limite.",
+        "NAME": "Limite d'or personnalisee",
+        "HINT": "Budget en pieces d'or pour le mode personnalise. S'applique uniquement lorsque le mode de richesse est Personnalise.",
         "EXCEEDED": "Cet objet depasserait le budget d'equipement de depart de {limit} po.",
         "EXCEEDED_TOOLTIP": "Le cout total depasse la limite d'or fixee par le MJ."
       },

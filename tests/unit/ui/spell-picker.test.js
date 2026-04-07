@@ -267,6 +267,7 @@ describe('SpellPicker', () => {
           {
             uuid: 'city-of-sin',
             name: 'City of Sin',
+            type: 'spell',
             system: {
               heightenedLevel: 7,
               traits: {
@@ -311,6 +312,7 @@ function makeSpell(uuid, name, level, traditions, extraTraits = []) {
   return {
     uuid,
     name,
+    type: 'spell',
     system: {
       level: { value: level },
       traits: {

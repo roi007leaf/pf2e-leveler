@@ -5,7 +5,6 @@ import {
   collectAdditionalArchetypeFeatLevels,
   getAdditionalArchetypeMatchKeys,
   filterByDedication,
-  filterByGeneralSkillFeats,
   filterBySearch,
   filterBySkill,
   sortFeats,
@@ -125,11 +124,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       minLevel: this.minLevel,
       maxLevel: this.maxLevel,
       showSkillFilter: this.category === 'skill',
-      showGeneralSkillToggle: this.category === 'general',
+      showGeneralSkillToggle: false,
       showFeatTypeFilter: featTypeOptions.length > 0,
       skillOptions: this._getSkillOptions(),
       selectedSkill: this.selectedSkill,
-      showDedicationToggle: ['class', 'archetype'].includes(this.category),
+      showDedicationToggle: this.category === 'archetype',
       showDedications: this.showDedications,
       showSkillFeats: this.showSkillFeats,
       enforcePrerequisites: this.enforcePrerequisites,
@@ -170,9 +169,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) <= maxLevel);
     }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
-    feats = applyTraitFilter(feats, this.selectedTraits, (feat) => feat.system?.traits?.value ?? [], this.traitLogic);
     if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
-    if (this.category === 'general') feats = filterByGeneralSkillFeats(feats, this.showSkillFeats);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
     if (this.selectedFeatTypes.size > 0) {
       feats = feats.filter((feat) => {
@@ -180,6 +177,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return types.some((type) => this.selectedFeatTypes.has(type));
       });
     }
+    this._preTraitFeats = feats;
+    feats = applyTraitFilter(feats, this.selectedTraits, (feat) => feat.system?.traits?.value ?? [], this.traitLogic);
 
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
@@ -297,17 +296,38 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const traitInput = el.querySelector('[data-action="traitInput"]');
     if (traitInput) {
       traitInput.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' && e.key !== ',') return;
-        e.preventDefault();
-        this._commitTraitInput(e.currentTarget);
+        const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          this._navigateAutocomplete(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const highlighted = dropdown?.querySelector('.highlighted');
+          if (highlighted) {
+            traitInput.value = highlighted.dataset.trait;
+          }
+          this._commitTraitInput(traitInput);
+          this._closeAutocomplete(el);
+          return;
+        }
+        if (e.key === 'Escape') {
+          this._closeAutocomplete(el);
+          return;
+        }
       }, { signal });
 
-      traitInput.addEventListener('change', (e) => {
-        this._commitTraitInput(e.currentTarget);
+      traitInput.addEventListener('input', () => {
+        this._updateAutocomplete(el, traitInput.value);
       }, { signal });
 
-      traitInput.addEventListener('blur', (e) => {
-        this._commitTraitInput(e.currentTarget);
+      traitInput.addEventListener('blur', () => {
+        setTimeout(() => this._closeAutocomplete(el), 150);
+      }, { signal });
+
+      traitInput.addEventListener('focus', () => {
+        if (traitInput.value) this._updateAutocomplete(el, traitInput.value);
       }, { signal });
     }
 
@@ -615,7 +635,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
     this._sourceKeys = options.map((entry) => entry.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
     this._sourceFilterInitialized = true;
 
     return options.map((entry) => ({
@@ -641,19 +661,30 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const type of this._getFeatTypes(feat)) seen.add(type);
     }
 
-    const options = [...seen]
+    const allOptions = [...seen]
       .map((type) => ({ value: type, label: labels[type] ?? type }))
       .sort((a, b) => a.label.localeCompare(b.label));
 
-    this._featTypeKeys = options.map((entry) => entry.value);
+    this._featTypeKeys = allOptions.map((entry) => entry.value);
     this.selectedFeatTypes = initializeSelectionSet(this.selectedFeatTypes, this._featTypeKeys, {
       lockedValues: [...this.lockedFeatTypes],
     });
 
-    return buildChipOptions(this._featTypeKeys, this.selectedFeatTypes, {
-      lockedValues: [...this.lockedFeatTypes],
-      labels: Object.fromEntries(options.map((entry) => [entry.value, entry.label])),
-    });
+    const visibleTypeSet = this.lockedFeatTypes.size > 0
+      ? new Set([...this.lockedFeatTypes, ...(this._extraVisibleFeatTypes ?? [])])
+      : null;
+    const visibleOptions = visibleTypeSet
+      ? allOptions.filter((entry) => visibleTypeSet.has(entry.value))
+      : allOptions;
+
+    return buildChipOptions(
+      visibleOptions.map((entry) => entry.value),
+      this.selectedFeatTypes,
+      {
+        lockedValues: [...this.lockedFeatTypes],
+        labels: Object.fromEntries(visibleOptions.map((entry) => [entry.value, entry.label])),
+      },
+    );
   }
 
   _getLevelOptions() {
@@ -719,7 +750,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getVisibleTraits() {
     const traits = new Set();
-    const featsToScan = this.filteredFeats?.length > 0 ? this.filteredFeats : this.allFeats;
+    const featsToScan = this._preTraitFeats?.length > 0 ? this._preTraitFeats : this.allFeats;
     for (const feat of featsToScan) {
       for (const trait of (feat.system?.traits?.value ?? [])) traits.add(String(trait).toLowerCase());
     }
@@ -784,11 +815,50 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       chip.classList.toggle('selected', this.selectedSourcePackages.has(source));
     }
 
-    const datalist = root.querySelector('#feat-trait-options');
-    if (datalist) {
-      const visibleTraits = this._getVisibleTraits();
-      datalist.innerHTML = visibleTraits.map((t) => `<option value="${t}">`).join('');
+    this._cachedVisibleTraits = this._getVisibleTraits();
+  }
+
+  _updateAutocomplete(el, query) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (!dropdown) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { this._closeAutocomplete(el); return; }
+    const traits = (this._cachedVisibleTraits ?? [])
+      .filter((t) => t.includes(q) && !this.selectedTraits.has(t) && !this.lockedTraitValues.has(t));
+    if (traits.length === 0) { this._closeAutocomplete(el); return; }
+    dropdown.innerHTML = traits.slice(0, 15).map((t) => {
+      const idx = t.indexOf(q);
+      const highlighted = idx >= 0
+        ? `${t.slice(0, idx)}<mark>${t.slice(idx, idx + q.length)}</mark>${t.slice(idx + q.length)}`
+        : t;
+      return `<li data-trait="${t}">${highlighted}</li>`;
+    }).join('');
+    dropdown.classList.add('open');
+    for (const li of dropdown.querySelectorAll('li')) {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const input = el.querySelector('[data-action="traitInput"]');
+        if (input) input.value = li.dataset.trait;
+        this._commitTraitInput(input);
+        this._closeAutocomplete(el);
+      });
     }
+  }
+
+  _closeAutocomplete(el) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (dropdown) { dropdown.classList.remove('open'); dropdown.innerHTML = ''; }
+  }
+
+  _navigateAutocomplete(dropdown, direction) {
+    if (!dropdown) return;
+    const items = [...dropdown.querySelectorAll('li')];
+    if (items.length === 0) return;
+    const current = items.findIndex((li) => li.classList.contains('highlighted'));
+    items.forEach((li) => li.classList.remove('highlighted'));
+    const next = current < 0 ? (direction > 0 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, current + direction));
+    items[next].classList.add('highlighted');
+    items[next].scrollIntoView({ block: 'nearest' });
   }
 
   _bindTraitChipListeners(root, signal) {
@@ -819,6 +889,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
+    if (Array.isArray(preset.extraVisibleFeatTypes)) this._extraVisibleFeatTypes = new Set(preset.extraVisibleFeatTypes);
     if (typeof preset.showDedications === 'boolean') this.showDedications = preset.showDedications;
     if (typeof preset.lockDedications === 'boolean') this._dedicationsLocked = preset.lockDedications;
     if (typeof preset.showSkillFeats === 'boolean') this.showSkillFeats = preset.showSkillFeats;

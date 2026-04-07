@@ -45,13 +45,18 @@
       "ADD_CUSTOM_SPELL": "Add Custom Spell",
       "ADD_CUSTOM_CANTRIP": "Add Custom Cantrip",
       "GRANTED_ITEMS": "Granted Items:",
-      "PARTIAL_BOOST_PENDING": "Partial boost: next boost completes +1",
+      "PARTIALLY_APPLIED": "Partially Applied",
+      "PARTIAL_BOOST_PENDING": "Partial boost: two boosts needed for +1",
+      "PARTIAL_BOOST_COMPLETING": "This completes a pending partial +1 boost",
       "PARTIAL_BOOST_SELECTED": "Completes a partial +1 boost",
       "CUSTOM_SPELL_RANK_REMINDER": "This class gets a new spell rank here. Use the custom plan to note the spells you expect to need at that rank.",
       "LOCKED_FILTER_HINT": "This filter is locked for this picker and cannot be changed.",
       "NOT_SELECTED": "Not selected",
       "BROWSE": "Browse...",
-      "ADD": "Add"
+      "ADD": "Add",
+      "NEXT_LEVEL": "Next Level",
+      "FINISH_PLANNING": "Finish Planning",
+      "SEQUENTIAL_PROGRESS": "Planning level {current} of {target}"
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Class Features",
@@ -80,6 +85,14 @@
       "TOTAL": "Total",
       "REMAINING": "remaining",
       "SHOWING_PARTIAL": "Showing 200 of"
+    },
+    "STARTING_WEALTH": {
+      "PERMANENT_ITEMS": "Permanent Items",
+      "SLOT_LABEL": "Level {maxLevel} item slot (empty)",
+      "ITEM_LEVEL": "Lv",
+      "CURRENCY_BUDGET": "Currency ({gp} gp)",
+      "NOT_PERMANENT": "Only permanent items (weapons, armor, shields, equipment) can fill this slot.",
+      "LEVEL_TOO_HIGH": "This item is level {item} but the slot allows up to level {max}."
     },
     "FEAT_PICKER": {
       "OPTIONS": "Options",
@@ -482,9 +495,17 @@
         "ALPHA_ASC": "Alphabetical (A-Z)",
         "ALPHA_DESC": "Alphabetical (Z-A)"
       },
+      "STARTING_WEALTH": {
+        "MODE_NAME": "Starting Wealth Mode",
+        "MODE_HINT": "How starting equipment budget is determined. Items + Currency uses Table 10-10 with permanent item slots and a currency allowance. Lump Sum uses the flat gold value from Table 10-10. Custom uses a manual gold limit.",
+        "DISABLED": "Disabled",
+        "ITEMS_AND_CURRENCY": "Items + Currency (Table 10-10)",
+        "LUMP_SUM": "Lump Sum (Table 10-10)",
+        "CUSTOM": "Custom Gold Limit"
+      },
       "EQUIPMENT_GOLD_LIMIT": {
-        "NAME": "Starting Equipment Gold Limit",
-        "HINT": "Maximum gold pieces players can spend on starting equipment during character creation. Set to 0 to disable the limit.",
+        "NAME": "Custom Gold Limit",
+        "HINT": "Gold piece budget for Custom wealth mode. Only applies when Starting Wealth Mode is set to Custom.",
         "EXCEEDED": "This item would exceed the starting equipment budget of {limit} gp.",
         "EXCEEDED_TOOLTIP": "Total cost exceeds the set gold limit."
       },

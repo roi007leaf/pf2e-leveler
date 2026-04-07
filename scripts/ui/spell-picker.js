@@ -35,7 +35,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSpellUuids = new Set();
     this.selectedRanks = new Set();
     this.selectedTraditions = new Set();
+    this.lockedTraditions = new Set(tradition && tradition !== 'any' ? [tradition.toLowerCase()] : []);
     this.selectedCategories = new Set();
+    this.lockedCategories = new Set(rank === 0 ? ['cantrip'] : []);
     this.selectedTraits = new Set();
     this.traitLogic = 'or';
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
@@ -163,15 +165,33 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     el.addEventListener('keydown', (e) => {
       const traitInput = e.target.closest?.('[data-action="traitInput"]');
-      if (traitInput) {
-        if (e.key !== 'Enter' && e.key !== ',') return;
+      if (!traitInput) return;
+      const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
+        this._navigateAutocomplete(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const highlighted = dropdown?.querySelector('.highlighted');
+        if (highlighted) traitInput.value = highlighted.dataset.trait;
         const trait = traitInput.value.trim().toLowerCase();
         if (!trait) return;
         traitInput.value = '';
         this.selectedTraits.add(trait);
+        this._closeAutocomplete(el);
         this._scheduleListUpdate();
+        return;
       }
+      if (e.key === 'Escape') {
+        this._closeAutocomplete(el);
+      }
+    }, { signal });
+
+    el.addEventListener('input', (e) => {
+      const traitInput = e.target.closest?.('[data-action="traitInput"]');
+      if (traitInput) this._updateAutocomplete(el, traitInput.value);
     }, { signal });
 
     el.addEventListener('change', (e) => {
@@ -268,7 +288,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.stopPropagation();
         const tradition = String(target.dataset.tradition ?? '').trim().toLowerCase();
         if (!tradition) return;
-        this.selectedTraditions = toggleSelectableChip(this.selectedTraditions, tradition, this._traditionValues);
+        this.selectedTraditions = toggleSelectableChip(this.selectedTraditions, tradition, this._traditionValues, [...this.lockedTraditions]);
         for (const chip of el.querySelectorAll('[data-action="toggleSpellTradition"]')) {
           const chipTradition = String(chip.dataset.tradition ?? '').trim().toLowerCase();
           chip.classList.toggle('selected', this.selectedTraditions.has(chipTradition));
@@ -281,8 +301,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const category = String(target.dataset.category ?? '').trim().toLowerCase();
-        if (!category) return;
+        if (!category || this.lockedCategories.has(category)) return;
         this.selectedCategories = toggleSelectableChip(this.selectedCategories, category, this._categoryValues);
+        for (const chip of el.querySelectorAll('[data-action="toggleSpellCategory"]')) {
+          const chipCategory = String(chip.dataset.category ?? '').trim().toLowerCase();
+          chip.classList.toggle('selected', this.selectedCategories.has(chipCategory));
+        }
         this._scheduleListUpdate();
         return;
       }
@@ -580,7 +604,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
     this._sourceKeys = options.map((entry) => entry.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
     this._sourceFilterInitialized = true;
 
     return options.map((entry) => ({
@@ -604,17 +628,24 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getTraditionOptions() {
-    const traditions = [...new Set(
+    const allTraditions = [...new Set(
       this.allSpells.flatMap((spell) => getSpellTraditions(spell.system ?? {})),
     )].sort((a, b) => a.localeCompare(b));
 
-    this._traditionValues = traditions;
-    this.selectedTraditions = initializeSelectionSet(this.selectedTraditions, traditions);
+    const traditions = this.lockedTraditions.size > 0
+      ? allTraditions.filter((t) => this.lockedTraditions.has(t))
+      : allTraditions;
+
+    this._traditionValues = allTraditions;
+    this.selectedTraditions = initializeSelectionSet(this.selectedTraditions, allTraditions, {
+      lockedValues: [...this.lockedTraditions],
+    });
 
     return traditions.map((tradition) => ({
       value: tradition,
       label: getTraditionLabel(tradition),
       selected: this.selectedTraditions.has(tradition),
+      locked: this.lockedTraditions.has(tradition),
     }));
   }
 
@@ -640,7 +671,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       focus: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_FOCUS'),
       ritual: game.i18n.localize('PF2E_LEVELER.SPELLS.CATEGORY_RITUAL'),
     };
-    return buildChipOptions(categories, this.selectedCategories, { labels });
+    return buildChipOptions(categories, this.selectedCategories, { labels, lockedValues: [...this.lockedCategories] });
   }
 
   _getRarityLabels() {
@@ -660,8 +691,55 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!preset || typeof preset !== 'object') return;
     if (Array.isArray(preset.selectedTraditions)) this.selectedTraditions = new Set(preset.selectedTraditions);
     if (Array.isArray(preset.selectedCategories)) this.selectedCategories = new Set(preset.selectedCategories);
+    if (Array.isArray(preset.selectedRanks)) this.selectedRanks = new Set(preset.selectedRanks);
+    if (Array.isArray(preset.lockedCategories)) this.lockedCategories = new Set(preset.lockedCategories.map((c) => String(c).toLowerCase()));
+    if (Array.isArray(preset.lockedTraditions)) this.lockedTraditions = new Set(preset.lockedTraditions.map((t) => String(t).toLowerCase()));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
+  }
+
+  _updateAutocomplete(el, query) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (!dropdown) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { this._closeAutocomplete(el); return; }
+    const traits = (this._allTraitOptions ?? [])
+      .filter((t) => t.includes(q) && !this.selectedTraits.has(t));
+    if (traits.length === 0) { this._closeAutocomplete(el); return; }
+    dropdown.innerHTML = traits.slice(0, 15).map((t) => {
+      const idx = t.indexOf(q);
+      const highlighted = idx >= 0
+        ? `${t.slice(0, idx)}<mark>${t.slice(idx, idx + q.length)}</mark>${t.slice(idx + q.length)}`
+        : t;
+      return `<li data-trait="${t}">${highlighted}</li>`;
+    }).join('');
+    dropdown.classList.add('open');
+    for (const li of dropdown.querySelectorAll('li')) {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const input = el.querySelector('[data-action="traitInput"]');
+        if (input) input.value = '';
+        this.selectedTraits.add(li.dataset.trait);
+        this._closeAutocomplete(el);
+        this._scheduleListUpdate();
+      });
+    }
+  }
+
+  _closeAutocomplete(el) {
+    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+    if (dropdown) { dropdown.classList.remove('open'); dropdown.innerHTML = ''; }
+  }
+
+  _navigateAutocomplete(dropdown, direction) {
+    if (!dropdown) return;
+    const items = [...dropdown.querySelectorAll('li')];
+    if (items.length === 0) return;
+    const current = items.findIndex((li) => li.classList.contains('highlighted'));
+    items.forEach((li) => li.classList.remove('highlighted'));
+    const next = current < 0 ? (direction > 0 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, current + direction));
+    items[next].classList.add('highlighted');
+    items[next].scrollIntoView({ block: 'nearest' });
   }
 }
 
@@ -734,6 +812,7 @@ async function loadSpells() {
     const sourcePackage = compendium.metadata?.packageName ?? compendium.metadata?.package ?? '';
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
     allDocs.push(...docs
+      .filter((doc) => doc.type === 'spell')
       .filter((spell) => isRarityAllowedForCurrentUser(spell.system?.traits?.rarity ?? 'common'))
       .map((spell) => {
       spell.sourcePack = key;

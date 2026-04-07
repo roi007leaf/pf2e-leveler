@@ -5,7 +5,7 @@
     </div>
     <div class="sidebar-levels">
       {{#each sidebarLevels}}
-      <div class="sidebar-level {{#if this.active}}active{{/if}}"
+      <div class="sidebar-level {{#if this.active}}active{{/if}} {{#if this.locked}}locked{{/if}}"
            data-action="selectLevel" data-level="{{this.level}}">
         <div class="sidebar-level__num">{{this.level}}</div>
         <div class="sidebar-level__summary" data-tooltip="{{this.summary}}">{{this.summary}}</div>
@@ -75,7 +75,7 @@
         <div class="level-section">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-arrow-up"></i>
-            {{format "PF2E_LEVELER.BOOSTS.TITLE" count=boostCount}}
+            {{format "PF2E_LEVELER.BOOSTS.TITLE" count=boostCount}} ({{selectedBoostCount}}/{{boostCount}})
           </div>
           <div class="level-section__body">
             <div class="boost-grid">
@@ -86,8 +86,12 @@
                 {{#if this.disabled}}disabled{{/if}}>
                 <span class="boost-btn__abbr">{{this.label}}</span>
                 {{#if this.selected}}
-                  {{#if this.applied}}
-                  <span class="boost-btn__change">{{localize "PF2E_LEVELER.UI.APPLIED"}}</span>
+                  {{#if this.partial}}
+                    {{#if this.completesPartial}}
+                    <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
+                    {{else}}
+                    <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}(partial)</span>
+                    {{/if}}
                   {{else}}
                   <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
                   {{/if}}
@@ -855,6 +859,22 @@
           <p>{{localize "PF2E_LEVELER.UI.NO_CLASS"}}</p>
         {{/if}}
       </div>
+    {{/if}}
+    {{#if sequentialMode}}
+    <div class="sequential-controls">
+      <div class="sequential-progress">
+        {{format "PF2E_LEVELER.UI.SEQUENTIAL_PROGRESS" current=sequentialCurrentLevel target=sequentialTargetLevel}}
+      </div>
+      {{#if showNextLevel}}
+      <button type="button" class="sequential-btn sequential-btn--next" data-action="sequentialNextLevel">
+        {{localize "PF2E_LEVELER.UI.NEXT_LEVEL"}} <i class="fa-solid fa-arrow-right"></i>
+      </button>
+      {{else if showFinishSequential}}
+      <button type="button" class="sequential-btn sequential-btn--finish" data-action="sequentialFinish">
+        <i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.FINISH_PLANNING"}}
+      </button>
+      {{/if}}
+    </div>
     {{/if}}
   </div>
 </div>

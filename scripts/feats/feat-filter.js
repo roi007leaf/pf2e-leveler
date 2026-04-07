@@ -47,11 +47,11 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
-      return traits.includes('skill');
+      return traits.includes('skill') && !traits.includes('archetype');
     case 'general':
-      return (traits.includes('general') && (includeSkillFeats || !traits.includes('skill')))
+      return (traits.includes('general') && !traits.includes('archetype') && (includeSkillFeats || !traits.includes('skill')))
         || (includeSkillFeats && isAdditionalArchetypeFeat && traits.includes('skill'))
-        || (includeSkillFeats && !traits.includes('general') && traits.includes('skill'));
+        || (includeSkillFeats && !traits.includes('general') && !traits.includes('archetype') && traits.includes('skill'));
     case 'archetype':
       return traits.includes('archetype')
         || isAdditionalArchetypeFeat;

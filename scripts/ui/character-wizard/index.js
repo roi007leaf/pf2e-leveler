@@ -1,7 +1,7 @@
-import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES } from '../../constants.js';
+import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { ClassRegistry } from '../../classes/registry.js';
-import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setSkillFeat, addEquipment } from '../../creation/creation-model.js';
+import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setSkillFeat, addEquipment, setPermanentItem } from '../../creation/creation-model.js';
 import { getCreationData, saveCreationData, clearCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
@@ -431,7 +431,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       class: {
         selectedFeatTypes: ['class'],
         lockedFeatTypes: ['class'],
-        selectedTraits: [classSlug, 'dedication'].filter(Boolean),
+        extraVisibleFeatTypes: ['archetype'],
+        selectedTraits: [classSlug].filter(Boolean),
         lockedTraits: [classSlug].filter(Boolean),
         traitLogic: 'or',
         showDedications: true,
@@ -488,17 +489,32 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     picker.render(true);
   }
 
+  _getWealthMode() {
+    return game.settings.get(MODULE_ID, 'startingWealthMode') ?? WEALTH_MODES.DISABLED;
+  }
+
+  _getGoldBudgetCp() {
+    const mode = this._getWealthMode();
+    const level = this.actor.system?.details?.level?.value ?? 1;
+    const entry = CHARACTER_WEALTH[level];
+    if (mode === WEALTH_MODES.LUMP_SUM && entry) return entry.lumpSumGp * 100;
+    if (mode === WEALTH_MODES.ITEMS_AND_CURRENCY && entry) return entry.currencyGp * 100;
+    if (mode === WEALTH_MODES.CUSTOM) return (game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0) * 100;
+    return 0;
+  }
+
   _openItemPicker() {
     import('../item-picker.js').then(({ ItemPicker }) => {
       const picker = new ItemPicker(this.actor, (item) => {
-        const goldLimit = game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0;
-        if (goldLimit > 0 && !game.user.isGM) {
+        const budgetCp = this._getGoldBudgetCp();
+        if (budgetCp > 0 && !game.user.isGM) {
           const currentCp = equipmentTotalCp(this.data.equipment ?? []);
           const itemCp = ((item.system?.price?.value?.gp ?? 0) * 100)
             + ((item.system?.price?.value?.sp ?? 0) * 10)
             + (item.system?.price?.value?.cp ?? 0);
-          if (currentCp + itemCp > goldLimit * 100) {
-            ui.notifications.warn(game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', { limit: goldLimit }));
+          if (currentCp + itemCp > budgetCp) {
+            const limitGp = budgetCp / 100;
+            ui.notifications.warn(game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', { limit: limitGp }));
             return;
           }
         }
@@ -509,7 +525,33 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     });
   }
 
+  _openPermanentItemPicker(slotIndex, maxLevel) {
+    import('../item-picker.js').then(({ ItemPicker }) => {
+      const picker = new ItemPicker(this.actor, (item) => {
+        const itemLevel = item.system?.level?.value ?? 0;
+        const itemType = item.type;
+        if (!game.user.isGM) {
+          if (!PERMANENT_ITEM_TYPES.has(itemType)) {
+            ui.notifications.warn(game.i18n.localize('PF2E_LEVELER.STARTING_WEALTH.NOT_PERMANENT'));
+            return;
+          }
+          if (itemLevel > maxLevel) {
+            ui.notifications.warn(game.i18n.format('PF2E_LEVELER.STARTING_WEALTH.LEVEL_TOO_HIGH', { max: maxLevel, item: itemLevel }));
+            return;
+          }
+        }
+        setPermanentItem(this.data, slotIndex, item);
+        this._saveAndRender();
+      });
+      picker.render(true);
+    });
+  }
+
   _buildEquipmentContext() {
+    const mode = this._getWealthMode();
+    const level = this.actor.system?.details?.level?.value ?? 1;
+    const entry = CHARACTER_WEALTH[level];
+
     const equipment = this.data.equipment ?? [];
     const totalCp = equipmentTotalCp(equipment);
     const totals = normalizeCp(totalCp);
@@ -518,10 +560,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (totals.sp) totalParts.push(`${totals.sp} sp`);
     if (totals.cp) totalParts.push(`${totals.cp} cp`);
 
-    const goldLimit = game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0;
-    const limitCp = goldLimit * 100;
-    const overBudget = goldLimit > 0 && totalCp > limitCp;
-    const remainingCp = goldLimit > 0 ? Math.max(0, limitCp - totalCp) : null;
+    const budgetCp = this._getGoldBudgetCp();
+    const goldLimit = budgetCp > 0 ? budgetCp / 100 : null;
+    const overBudget = goldLimit !== null && totalCp > budgetCp;
+    const remainingCp = goldLimit !== null ? Math.max(0, budgetCp - totalCp) : null;
     const remaining = remainingCp !== null ? normalizeCp(remainingCp) : null;
     const remainingParts = remaining ? [] : null;
     if (remainingParts) {
@@ -531,12 +573,29 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!remainingParts.length) remainingParts.push('0 gp');
     }
 
+    let permanentItemSlots = null;
+    if (mode === WEALTH_MODES.ITEMS_AND_CURRENCY && entry) {
+      const slots = expandPermanentItemSlots(level);
+      const stored = this.data.permanentItems ?? [];
+      permanentItemSlots = slots.map((slot, i) => ({
+        index: i,
+        maxLevel: slot.level,
+        filled: stored[i] ?? null,
+      }));
+    }
+
     return {
+      wealthMode: mode,
+      characterLevel: level,
       equipment: equipment.map((entry) => ({ ...entry })),
       equipmentTotal: totalParts.join(', ') || null,
-      goldLimit: goldLimit || null,
+      goldLimit,
+      goldLimitLabel: mode === WEALTH_MODES.ITEMS_AND_CURRENCY
+        ? game.i18n.format('PF2E_LEVELER.STARTING_WEALTH.CURRENCY_BUDGET', { gp: goldLimit })
+        : null,
       remaining: remainingParts?.join(', ') ?? null,
       overBudget,
+      permanentItemSlots,
     };
   }
 
@@ -614,6 +673,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       await clearCreationData(this.actor);
       ui.notifications.info(localize('CREATION.CREATION_COMPLETE'));
       this.close();
+
+      const actorLevel = this.actor.system?.details?.level?.value ?? 1;
+      if (actorLevel > 1) {
+        const { LevelPlanner } = await import('../level-planner/index.js');
+        new LevelPlanner(this.actor, { sequentialMode: true }).render(true);
+      }
     } finally {
       this._stopApplyPromptWatcher();
       this.isApplying = false;

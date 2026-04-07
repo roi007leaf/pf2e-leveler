@@ -426,6 +426,24 @@ export function removeEquipment(data, uuid) {
   return data;
 }
 
+export function setPermanentItem(data, slotIndex, item) {
+  if (!data.permanentItems) data.permanentItems = [];
+  data.permanentItems[slotIndex] = {
+    uuid: item.uuid,
+    name: item.name,
+    img: item.img,
+    itemLevel: item.system?.level?.value ?? 0,
+    price: item.system?.price?.value ?? null,
+  };
+  return data;
+}
+
+export function removePermanentItem(data, slotIndex) {
+  if (!data.permanentItems) return data;
+  data.permanentItems[slotIndex] = null;
+  return data;
+}
+
 export function addSpell(data, spell, isCantrip) {
   const list = isCantrip ? data.spells.cantrips : data.spells.rank1;
   list.push({ uuid: spell.uuid, name: spell.name, img: spell.img });

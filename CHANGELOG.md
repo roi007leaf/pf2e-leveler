@@ -1,5 +1,57 @@
 # Changelog
 
+## 2.0.0
+
+### High-Level Character Creation
+
+- **Sequential planner mode** — When you create a character above level 1 using the character wizard, the level planner now opens in sequential mode
+  - The planner walks you through each level from 2 up to your character's level, one at a time
+  - The sidebar locks to the current level — you can't skip ahead until you've made all required picks for the level you're on
+  - A **Next Level** button appears at the bottom of the screen once a level is complete; click it to advance
+  - After planning the final level, a **Finish Planning** button unlocks the full planner for future use
+  - Sequential state persists if you close and reopen — you'll pick up right where you left off
+
+### Compendium & Content Filtering
+
+- **Equipment compendiums are now configurable** — The equipment category is now visible in the compendium settings, so GMs can add custom equipment compendiums from third-party modules
+- **Spell picker no longer shows non-spell items** — When a custom compendium contains mixed content (feats, spells, class features), the spell picker now correctly filters to only show spells
+- **Content source filter reworked** — Source chips now start deselected; when nothing is selected, all sources are shown. Select a specific source to filter down to just that source's content. No more needing to deselect everything first to isolate one compendium
+
+### Feat Picker Improvements
+
+- **Skill feats no longer include archetype feats** — The skill feat picker now correctly excludes feats with the archetype trait
+- **General feats no longer include archetype feats** — Same fix for the general feat picker
+- **Feat type filter simplified** — When a feat type is locked (e.g. "Class" for a class feat slot), only the locked type and relevant extras are shown as chips instead of the full list. Class feat slots show "Class" (locked) + "Archetype" (toggleable). Custom feat slots still show all types
+- **Dedication toggle removed for class feats** — Replaced by the Archetype feat type chip, which is cleaner and more consistent
+- **Skill feats toggle removed for general feats** — Replaced by the Skill feat type chip in the feat types filter
+- **Free archetype slot shows all archetype feats** — The free archetype feat slot now correctly lets you pick any archetype feat (not just dedications), matching PF2e rules. If you don't have a dedication yet, the picker filters to only show dedications, multiclass, and class archetype entry feats
+- **Trait autocomplete updates dynamically** — The trait input dropdown now shows traits from the current filtered results (respecting feat type, rarity, level, source filters), not from the entire unfiltered list
+
+### Spell Picker Improvements
+
+- **Spell category filter now updates visually** — Toggling spell category chips (Spell, Cantrip, Focus, Ritual) now immediately updates the chip's visual state, matching how rank and tradition chips already worked
+- **Cantrip picker locks the category** — When the spell picker is opened specifically for cantrips, the "Cantrip" category chip is shown as locked with a lock icon
+- **Tradition locked on class spell pickers** — The regular spell picker (used when adding spells during level-up) now shows only your class's tradition as a locked chip. The custom spell picker still shows all traditions as toggleable
+- **Spell rank pre-selected by level** — When opening the spell picker from a level-up slot, the rank filter pre-selects only the spell rank that slot grants, instead of showing all ranks selected. Custom spell pickers pre-select ranks available at that character level
+
+### Ability Boost Improvements
+
+- **Boost count shown in header** — The ability boosts section now shows how many boosts you've selected out of the total, e.g. "Choose 4 Ability Boosts (2/4)"
+- **Partial boost display improved** — Selected boosts at 18+ ability scores now show `+4 → +5(partial)` to clearly indicate this is a partial boost that needs a second boost to take full effect. When the second boost completes the partial, it shows a clean `+4 → +5` without the partial label
+- **Partial boost tooltips differentiated** — The info icon on partial boosts now shows distinct messages: "Partial boost: two boosts needed for +1" when no half-boost is pending, and "This completes a pending partial +1 boost" when a prior half-boost exists
+
+### Custom Autocomplete
+
+- **Styled trait autocomplete** — The trait filter input across all three pickers (feat, spell, equipment) now uses a custom styled dropdown instead of the browser's native datalist. Features include:
+  - Matching text highlighted in gold
+  - Keyboard navigation with arrow keys, Enter to select, Escape to close
+  - Click to select from the dropdown
+  - Already-selected traits are excluded from suggestions
+
+### Bug Fixes
+
+- **Class feat browsing error fixed** — Fixed a crash ("Cannot read properties of undefined reading 'deception'") when opening the class feat picker during character creation, caused by the prerequisite checker accessing an incomplete build state
+
 ## 1.5.1
 
 ### Added

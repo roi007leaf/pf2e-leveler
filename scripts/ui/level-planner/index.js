@@ -242,14 +242,25 @@ const MANUAL_SPELL_FEATS = new Set([
 ]);
 
 export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor(actor) {
+  constructor(actor, options = {}) {
     super();
     this.actor = actor;
     this._compendiumCache = {};
     this._customPlanOpenLevels = new Set();
     this.plan = this._loadOrCreatePlan(actor);
     const actorLevel = actor.system?.details?.level?.value ?? 1;
-    this.selectedLevel = Math.max(actorLevel, MIN_PLAN_LEVEL);
+
+    if (options.sequentialMode && actorLevel > 1 && this.plan) {
+      this.plan.sequentialMode = { active: true, targetLevel: actorLevel, currentLevel: MIN_PLAN_LEVEL };
+      savePlan(this.actor, this.plan);
+    }
+
+    const seq = this.plan?.sequentialMode;
+    if (seq?.active) {
+      this.selectedLevel = seq.currentLevel;
+    } else {
+      this.selectedLevel = Math.max(actorLevel, MIN_PLAN_LEVEL);
+    }
   }
 
   _loadOrCreatePlan(actor) {
@@ -597,6 +608,15 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const actorClassName = this.actor.class?.name ?? null;
     const unsupportedClass = actorClassName && !this.plan;
 
+    const seq = this.plan?.sequentialMode;
+    const isSequential = seq?.active === true;
+    const validationOptions = this._getPlannerValidationOptions(options);
+    const currentLevelStatus = isSequential && classDef
+      ? validateLevel(this.plan, classDef, seq.currentLevel, validationOptions, this.actor).status
+      : null;
+    const sequentialLevelComplete = currentLevelStatus != null && currentLevelStatus !== PLAN_STATUS.INCOMPLETE;
+    const isLastSequentialLevel = isSequential && seq.currentLevel >= seq.targetLevel;
+
     return {
       hasPlan: !!this.plan,
       unsupportedClass,
@@ -604,6 +624,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedLevel: this.selectedLevel,
       sidebarLevels: this._buildSidebarLevels(classDef, options),
       availableClasses: ClassRegistry.getAll(),
+      sequentialMode: isSequential,
+      sequentialTargetLevel: seq?.targetLevel ?? 0,
+      sequentialCurrentLevel: seq?.currentLevel ?? 0,
+      showNextLevel: isSequential && sequentialLevelComplete && !isLastSequentialLevel,
+      showFinishSequential: isSequential && sequentialLevelComplete && isLastSequentialLevel,
       ...(await this._buildLevelContext(classDef, options)),
     };
   }
@@ -646,6 +671,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _buildSidebarLevels(classDef, options) {
     const levels = [];
     const validationOptions = this._getPlannerValidationOptions(options);
+    const seq = this.plan?.sequentialMode;
+    const isSequential = seq?.active === true;
     for (let level = MIN_PLAN_LEVEL; level <= MAX_LEVEL; level++) {
       const summary = classDef ? getLevelSummary(classDef, level, options) : '';
       const status = this.plan && classDef
@@ -659,6 +686,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         status,
         active: level === this.selectedLevel,
         isCurrent: level === actorLevel,
+        locked: isSequential && level !== seq.currentLevel,
       });
     }
     return levels;
@@ -876,7 +904,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           });
           this._savePlanAndRender();
         },
-        { excludedUuids, excludedSelections, maxRank },
+        { excludedUuids, excludedSelections, maxRank, preset: rank > 0 ? { selectedRanks: [rank] } : undefined },
       );
       picker.render(true);
     });
@@ -886,6 +914,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const pickerRank = rank;
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
     const excludedSelections = (levelData.customSpells ?? []).map((spell) => ({ uuid: spell.uuid, rank: spell.rank ?? spell.baseRank ?? 0 }));
+    const classDef = ClassRegistry.get(this.plan.classSlug);
+    const currentSlots = classDef?.spellcasting?.slots?.[this.selectedLevel] ?? {};
+    const levelRanks = Object.keys(currentSlots).filter((k) => k !== 'cantrips').map(Number).filter(Number.isFinite);
 
     import('../spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
@@ -914,6 +945,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           excludeOwnedByIdentity: false,
           multiSelect: true,
           excludedSelections,
+          preset: levelRanks.length > 0 ? { selectedRanks: levelRanks } : undefined,
         },
       );
       picker.render(true);
@@ -1100,7 +1132,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['class'],
           lockedFeatTypes: ['class'],
-          selectedTraits: [classSlug, 'dedication'].filter(Boolean),
+          extraVisibleFeatTypes: ['archetype'],
+          selectedTraits: [classSlug].filter(Boolean),
           lockedTraits: [classSlug].filter(Boolean),
           traitLogic: 'or',
           showDedications: true,
@@ -1179,6 +1212,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _removeCustomSpell(index) {
     removeLevelCustomSpell(this.plan, this.selectedLevel, index);
     this._savePlanAndRender();
+  }
+
+  async _advanceSequentialLevel() {
+    const seq = this.plan?.sequentialMode;
+    if (!seq?.active) return;
+    seq.currentLevel = Math.min(seq.currentLevel + 1, seq.targetLevel);
+    this.selectedLevel = seq.currentLevel;
+    await this._savePlanAndRender();
+  }
+
+  async _finishSequentialMode() {
+    if (this.plan?.sequentialMode) {
+      this.plan.sequentialMode.active = false;
+    }
+    await this._savePlanAndRender();
   }
 
   async _savePlanAndRender() {

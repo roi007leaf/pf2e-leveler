@@ -15,9 +15,9 @@ describe('picker utils', () => {
     expect([...next]).toEqual(['a', 'c']);
   });
 
-  test('toggling the last selected value restores all values', () => {
+  test('toggling the last selected value returns an empty set', () => {
     const next = toggleSelectableChip(new Set(['b']), 'b', ['a', 'b', 'c']);
-    expect([...next]).toEqual(['a', 'b', 'c']);
+    expect([...next]).toEqual([]);
   });
 
   test('normalizes item categories for the item picker', () => {

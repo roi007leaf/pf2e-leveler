@@ -190,6 +190,14 @@ async function applySelectedItems(actor, data) {
 }
 
 async function applyEquipment(actor, data) {
+  for (const entry of (data.permanentItems ?? [])) {
+    if (!entry) continue;
+    const item = await fromUuid(entry.uuid).catch(() => null);
+    if (!item) continue;
+    const itemData = foundry.utils.deepClone(item.toObject());
+    await actor.createEmbeddedDocuments('Item', [itemData]);
+    debug(`Applied permanent item: ${entry.name} (level ${entry.itemLevel})`);
+  }
   for (const entry of (data.equipment ?? [])) {
     const item = await fromUuid(entry.uuid).catch(() => null);
     if (!item) continue;

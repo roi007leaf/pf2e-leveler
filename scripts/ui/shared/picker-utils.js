@@ -27,17 +27,18 @@ export function isUnrestrictedSelection(selectedValues, availableValues) {
 }
 
 export function toggleSelectableChip(currentValues, value, availableValues, lockedValues = []) {
-  const available = (availableValues ?? []).filter(Boolean);
+  const available = new Set((availableValues ?? []).filter(Boolean));
   const locked = new Set((lockedValues ?? []).filter(Boolean));
-  if (!available.includes(value) || locked.has(value)) return new Set(currentValues ?? []);
+  if (!available.has(value) || locked.has(value)) return new Set(currentValues ?? []);
 
-  const current = initializeSelectionSet(currentValues, available, { lockedValues: [...locked] });
-  const next = new Set(current);
+  const next = new Set(
+    [...(currentValues instanceof Set ? currentValues : new Set(currentValues ?? []))]
+      .filter((v) => available.has(v)),
+  );
   if (next.has(value)) next.delete(value);
   else next.add(value);
   for (const entry of locked) next.add(entry);
 
-  if (next.size === 0) return new Set(available);
   return next;
 }
 

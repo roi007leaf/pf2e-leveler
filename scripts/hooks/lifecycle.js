@@ -1,5 +1,5 @@
 import { MODULE_ID } from '../constants.js';
-import { registerSettings } from '../settings.js';
+import { registerSettings, migrateWealthSettings } from '../settings.js';
 import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { ALCHEMIST } from '../classes/alchemist.js';
@@ -49,8 +49,9 @@ async function onInit() {
   await preloadTemplates();
 }
 
-function onReady() {
+async function onReady() {
   info('Module ready');
+  await migrateWealthSettings();
   registerSheetIntegration();
 }
 

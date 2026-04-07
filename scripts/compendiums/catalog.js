@@ -46,7 +46,6 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   },
   equipment: {
     labelKey: 'PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.EQUIPMENT',
-    showInSettings: false,
     defaultKeys: ['pf2e.equipment-srd'],
     matches: (pack, index) => isItemPack(pack) && index.some((entry) => EQUIPMENT_TYPES.has(entry.type)),
   },

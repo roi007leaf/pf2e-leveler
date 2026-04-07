@@ -1006,6 +1006,28 @@
   color: var(--color-level-error, #c00);
 }
 
+.pf2e-leveler .wizard-permanent-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--leveler-spacing-sm, 6px);
+  min-height: 32px;
+}
+
+.pf2e-leveler .wizard-permanent-slot__empty {
+  flex: 1;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.pf2e-leveler .wizard-permanent-slot__level-badge {
+  font-size: var(--font-size-11, 11px);
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--leveler-bg-hover, rgba(255, 255, 255, 0.05));
+  color: var(--leveler-text-muted, #999);
+  white-space: nowrap;
+}
+
 .pf2e-leveler .wizard-spell-tab.active {
   background: var(--leveler-bg-hover);
   color: var(--leveler-text-bright);

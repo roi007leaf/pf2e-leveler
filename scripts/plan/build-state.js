@@ -39,6 +39,7 @@ export function computeBuildState(actor, plan, atLevel) {
     ancestryTraits: computeAncestryTraits(actor, plan, atLevel),
     backgroundSlug: actor?.background?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
+    rawAttributes: computeAttributes(actor, plan, atLevel, { raw: true }),
     skills: computeSkills(actor, plan, atLevel, classDef),
     languages: computeLanguages(actor),
     lores: computeLoreSkills(actor),
@@ -162,7 +163,7 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
   };
 }
 
-function computeAttributes(actor, plan, atLevel) {
+function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
   const attrs = {};
   for (const attr of ATTRIBUTES) {
     attrs[attr] = actor?.system?.abilities?.[attr]?.mod ?? 0;
@@ -182,8 +183,10 @@ function computeAttributes(actor, plan, atLevel) {
     }
   }
 
-  for (const attr of ATTRIBUTES) {
-    attrs[attr] = Math.trunc(attrs[attr]);
+  if (!raw) {
+    for (const attr of ATTRIBUTES) {
+      attrs[attr] = Math.trunc(attrs[attr]);
+    }
   }
 
   return attrs;

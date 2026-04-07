@@ -30,9 +30,10 @@
 
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
-        <div class="wizard-trait-input spell-picker__trait-input">
-          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" list="item-trait-options">
+        <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" autocomplete="off">
           <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
+          <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
         </div>
         <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
           {{#each selectedTraitChips}}
@@ -123,10 +124,5 @@
     </section>
   </div>
 
-  <datalist id="item-trait-options">
-    {{#each traitOptions}}
-    <option value="{{this.value}}">
-    {{/each}}
-  </datalist>
   {{/if}}
 </div>

@@ -6,10 +6,19 @@ export function activateLevelPlannerListeners(planner, html) {
 
   el.querySelectorAll('[data-action="selectLevel"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
+      if (e.currentTarget.classList.contains('locked')) return;
       const level = Number(e.currentTarget.dataset.level);
       planner.selectedLevel = level;
       planner.render(true);
     });
+  });
+
+  el.querySelector('[data-action="sequentialNextLevel"]')?.addEventListener('click', () => {
+    planner._advanceSequentialLevel();
+  });
+
+  el.querySelector('[data-action="sequentialFinish"]')?.addEventListener('click', () => {
+    planner._finishSequentialMode();
   });
 
   el.querySelectorAll('[data-action="toggleBoost"]').forEach((btn) => {

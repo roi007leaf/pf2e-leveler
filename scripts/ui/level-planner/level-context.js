@@ -43,6 +43,7 @@ export async function buildLevelContext(planner, classDef, options) {
     classFeatures: getClassFeaturesForLevel(planner, level),
     showBoosts: choiceTypes.has('abilityBoosts'),
     boostCount: choices.find((choice) => choice.type === 'abilityBoosts')?.count ?? 4,
+    selectedBoostCount: (levelData.abilityBoosts ?? []).length,
     attributes: planner._buildAttributeContext(levelData, choices),
     intelligenceBenefit: planner._buildIntelligenceBenefitContext(level),
     intBonusSkillOptions: planner._buildIntBonusSkillContext(levelData, level),

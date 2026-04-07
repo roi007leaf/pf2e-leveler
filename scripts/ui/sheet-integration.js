@@ -16,8 +16,8 @@ function isSupportedClass(actor) {
   return ClassRegistry.has(actorClass.slug);
 }
 
-function isLevel1WithoutClass(actor) {
-  return actor.system?.details?.level?.value === 1 && !actor.class;
+function isWithoutClass(actor) {
+  return !actor.class;
 }
 
 function onRenderCharacterSheet(sheet, html) {
@@ -33,7 +33,7 @@ function onRenderCharacterSheet(sheet, html) {
   const windowHeader = appElement.find('.window-header');
   const closeBtn = windowHeader.find('button.close, a.close, .header-button.close, [data-action="close"]').first();
 
-  if (isLevel1WithoutClass(actor)) {
+  if (isWithoutClass(actor)) {
     const createTitle = localize('CREATION.BUTTON');
     const createBtn = $(`
       <a class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}" data-tooltip="${createTitle}" role="button">

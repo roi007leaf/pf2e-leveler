@@ -103,6 +103,21 @@ export function registerSettings() {
     },
   });
 
+  game.settings.register(MODULE_ID, 'startingWealthMode', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_HINT'),
+    scope: 'world',
+    config: true,
+    type: String,
+    default: 'DISABLED',
+    choices: {
+      DISABLED: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.DISABLED'),
+      ITEMS_AND_CURRENCY: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.ITEMS_AND_CURRENCY'),
+      LUMP_SUM: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.LUMP_SUM'),
+      CUSTOM: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.CUSTOM'),
+    },
+  });
+
   game.settings.register(MODULE_ID, 'startingEquipmentGoldLimit', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.HINT'),
@@ -179,4 +194,14 @@ export function registerSettings() {
     default: '',
     requiresReload: true,
   });
+}
+
+export async function migrateWealthSettings() {
+  if (!game.user.isGM) return;
+  const mode = game.settings.get(MODULE_ID, 'startingWealthMode');
+  if (mode !== 'DISABLED') return;
+  const goldLimit = game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit');
+  if (goldLimit > 0) {
+    await game.settings.set(MODULE_ID, 'startingWealthMode', 'CUSTOM');
+  }
 }

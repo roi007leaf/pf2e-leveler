@@ -2,7 +2,6 @@ import {
   addCurriculumCantrip,
   addCurriculumRank1,
   addSpell,
-  addEquipment,
   removeCurriculumCantrip,
   removeCurriculumRank1,
   removeSpell,
@@ -33,6 +32,7 @@ import {
   toggleIkon,
   toggleKineticImpulse,
   toggleTactic,
+  removePermanentItem,
 } from '../../creation/creation-model.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { bindRarityToggles } from '../shared/rarity-filters.js';
@@ -334,6 +334,21 @@ export function activateCharacterWizardListeners(wizard, el) {
       if (!entry) return;
       if ((entry.quantity ?? 1) <= 1) { removeEquipment(wizard.data, btn.dataset.uuid); }
       else { entry.quantity -= 1; }
+      wizard._saveAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="browsePermanentItem"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slotIndex = Number(btn.dataset.slot);
+      const maxLevel = Number(btn.dataset.maxLevel);
+      wizard._openPermanentItemPicker(slotIndex, maxLevel);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removePermanentItem"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      removePermanentItem(wizard.data, Number(btn.dataset.slot));
       wizard._saveAndRender();
     });
   });
