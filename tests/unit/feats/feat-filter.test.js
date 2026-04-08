@@ -190,6 +190,103 @@ describe('filterFeatsByCategory', () => {
     ]));
   });
 
+  test('does not include skill-tagged dedication additional feats in the archetype category', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 7th Graceful Leaper</p>',
+        },
+      },
+    };
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper],
+      new Set(['acrobat-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, gracefulLeaper],
+      'archetype',
+      '',
+      7,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Acrobat Dedication' }),
+    ]));
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Graceful Leaper' }),
+    ]));
+  });
+
+  test('includes skill-tagged dedication additional feats in the skill category once unlocked', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 7th Graceful Leaper</p>',
+        },
+      },
+    };
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper],
+      new Set(['acrobat-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, gracefulLeaper],
+      'skill',
+      '',
+      7,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Graceful Leaper' }),
+    ]);
+  });
+
+  test('duplicate non-matching feat names do not hide a later matching skill feat entry', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 7th Graceful Leaper</p>',
+        },
+      },
+    };
+    const wrongGracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype']);
+    const matchingGracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, wrongGracefulLeaper, matchingGracefulLeaper],
+      new Set(['acrobat-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, wrongGracefulLeaper, matchingGracefulLeaper],
+      'skill',
+      '',
+      7,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Graceful Leaper', system: expect.objectContaining({ traits: expect.objectContaining({ value: ['archetype', 'skill'] }) }) }),
+    ]);
+  });
+
   test('includes multiple additional feats listed at the same archetype level', async () => {
     const dedication = {
       ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
@@ -540,6 +637,40 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-riposte')).toBe(12);
   });
 
+  test('collectAdditionalArchetypeFeatLevels matches archetype journal pages with loose names like "Acrobat Archetype"', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: { value: '@UUID[Compendium.pf2e.journals.JournalEntry.acrobat-journal]{Acrobat}' },
+      },
+    };
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper],
+      new Set(['acrobat-dedication']),
+      {
+        documentResolver: async () => ({
+          pages: {
+            contents: [
+              {
+                name: 'Acrobat Archetype',
+                text: {
+                  content: '<p><strong>Additional Feats:</strong> 7th <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.graceful-leaper">Graceful Leaper</a></p>',
+                },
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    expect(additionalLevels.get('graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('name:graceful leaper')).toBe(7);
+  });
+
   test('collectAdditionalArchetypeFeatLevels parses PF2E content-link HTML with bolded level markers and multiple later feats', async () => {
     const feats = [
       {
@@ -634,6 +765,143 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-parry')).toBe(6);
     expect(result.get('twin-riposte')).toBe(12);
     expect(result.get('improved-twin-riposte')).toBe(16);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels parses heading-style Additional Feats sections from journal pages', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '@UUID[Compendium.pf2e.journals.JournalEntry.acrobat-journal]{Acrobat}',
+        },
+      },
+    };
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper],
+      new Set(['acrobat-dedication']),
+      {
+        documentResolver: async () => ({
+          pages: {
+            contents: [
+              {
+                name: 'Acrobat Archetype',
+                text: {
+                  content: '<h2>Additional Feats</h2><p><strong>7th</strong> <a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.graceful-leaper">Graceful Leaper</a></p><h2>Special</h2><p>Other text</p>',
+                },
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    expect(additionalLevels.get('graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('name:graceful leaper')).toBe(7);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels parses archetype journal feat listings without an Additional Feats section', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '@UUID[Compendium.pf2e.journals.JournalEntry.acrobat-journal]{Acrobat}',
+        },
+      },
+    };
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper],
+      new Set(['acrobat-dedication']),
+      {
+        documentResolver: async () => ({
+          pages: {
+            contents: [
+              {
+                name: 'Acrobat',
+                text: {
+                  content: [
+                    '<h1>Acrobat</h1>',
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.acrobat-dedication">Acrobat Dedication</a>',
+                    '<span>Feat 2</span>',
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.graceful-leaper">Graceful Leaper</a>',
+                    '<span>Feat 7</span>',
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.show-off">Show-Off</a>',
+                    '<span>Feat 8</span>',
+                  ].join(''),
+                },
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    expect(additionalLevels.get('graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('Compendium.pf2e.feats-srd.Item.graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('name:graceful leaper')).toBe(7);
+    expect(additionalLevels.has('acrobat-dedication')).toBe(false);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels falls back to archetype feat prerequisites when the named page only contains dedication text', async () => {
+    const dedication = {
+      ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
+      slug: 'acrobat-dedication',
+      system: {
+        ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']).system,
+        description: { value: '' },
+      },
+    };
+    dedication.uuid = 'Compendium.pf2e.feats-srd.Item.acrobat-dedication';
+    dedication.system.description.value = '@UUID[Compendium.pf2e.journals.JournalEntry.acrobat]{Acrobat}';
+
+    const gracefulLeaper = makeFeat('Graceful Leaper', 7, ['archetype', 'skill']);
+    gracefulLeaper.uuid = 'Compendium.pf2e.feats-srd.Item.graceful-leaper';
+    gracefulLeaper.system.prerequisites.value = [{ value: 'Acrobat Dedication, Master in Acrobatics' }];
+
+    const showOff = makeFeat('Show-Off', 8, ['archetype']);
+    showOff.uuid = 'Compendium.pf2e.feats-srd.Item.show-off';
+    showOff.system.prerequisites.value = [{ value: 'Acrobat Dedication' }];
+
+    const resolver = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.journals.JournalEntry.acrobat') {
+        return {
+          pages: {
+            contents: [
+              { name: 'Acrobat', text: { content: '<p>You have trained your body to perform incredible feats.</p>' } },
+              {
+                name: 'Overview',
+                text: {
+                  content: [
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.acrobat-dedication">Acrobat Dedication</a> Feat 2',
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.graceful-leaper">Graceful Leaper</a> Feat 7',
+                    '<a class="content-link" data-uuid="Compendium.pf2e.feats-srd.Item.show-off">Show-Off</a> Feat 8',
+                  ].join(' '),
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, gracefulLeaper, showOff],
+      new Set(['acrobat-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(additionalLevels.get('graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('Compendium.pf2e.feats-srd.Item.graceful-leaper')).toBe(7);
+    expect(additionalLevels.get('name:graceful leaper')).toBe(7);
+    expect(additionalLevels.get('show-off')).toBe(8);
   });
 
   test('collectAdditionalArchetypeFeatLevels does not stop when later paragraphs begin with bolded levels', async () => {

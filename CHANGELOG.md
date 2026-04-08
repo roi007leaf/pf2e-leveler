@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.6
+
+### Fixed
+
+- Improved archetype dedication feat discovery for archetypes like `Acrobat` that list follow-up feats in journal pages instead of a dedicated `Additional Feats` block.
+- Fixed skill feat browsing so dedication-unlocked archetype skill feats such as `Graceful Leaper` appear correctly in the skill feat picker.
+
 ## 2.1.5
 
 ### Feat Picker

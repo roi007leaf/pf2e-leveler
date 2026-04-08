@@ -1,5 +1,3 @@
-import { debug } from '../utils/logger.js';
-
 export function filterFeatsByCategory(feats, category, searchQuery, targetLevel, options = {}) {
   const normalizedQuery = normalizeQuery(searchQuery);
   const existingFeatNames = new Set();
@@ -21,9 +19,10 @@ export function filterFeatsByCategory(feats, category, searchQuery, targetLevel,
       ? unlockedLevel
       : feat.system.level.value;
     const withinLevel = levelRequirement <= targetLevel;
+    if (!matchesCategory || !withinLevel) return false;
     const notDuplicate = checkNotDuplicate(feat, existingFeatNames);
 
-    return matchesCategory && withinLevel && notDuplicate;
+    return notDuplicate;
   });
 }
 
@@ -39,24 +38,25 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
   const featMatchKeys = Array.isArray(options.featMatchKeys) ? options.featMatchKeys : [];
   const additionalArchetypeFeatLevels = options.additionalArchetypeFeatLevels ?? new Map();
   const isAdditionalArchetypeFeat = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys) != null;
+  const isSkillFeat = traits.includes('skill');
   switch (category) {
     case 'custom':
       return true;
     case 'class':
       return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
-        || (includeDedications && isAdditionalArchetypeFeat)
+        || (includeDedications && isAdditionalArchetypeFeat && !isSkillFeat)
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
-      return traits.includes('skill') && !traits.includes('archetype');
+      return isSkillFeat && (!traits.includes('archetype') || isAdditionalArchetypeFeat);
     case 'general':
       return (traits.includes('general') && !traits.includes('archetype') && (includeSkillFeats || !traits.includes('skill')))
         || (includeSkillFeats && isAdditionalArchetypeFeat && traits.includes('skill'))
         || (includeSkillFeats && !traits.includes('general') && !traits.includes('archetype') && traits.includes('skill'));
     case 'archetype':
-      return traits.includes('archetype')
-        || isAdditionalArchetypeFeat;
+      return traits.includes('dedication')
+        || ((traits.includes('archetype') || isAdditionalArchetypeFeat) && !isSkillFeat);
     case 'mythic':
       return traits.includes('mythic');
     default:
@@ -205,29 +205,13 @@ export async function collectAdditionalArchetypeFeatLevels(feats, ownedFeatSlugs
   const additionalFeatLevels = new Map();
   const documentResolver = options.documentResolver ?? defaultDocumentResolver;
 
-  debug('Additional archetype feat level scan start', {
-    ownedDedicationSlugs: [...ownedSlugs],
-    totalFeats: feats.length,
-  });
-
   for (const feat of feats) {
     const slug = getFeatFilterSlug(feat);
     if (!slug || !ownedSlugs.has(slug) || !isArchetypeDedication(feat)) continue;
 
-    const parsedEntries = await collectAdditionalFeatEntriesFromDedication(feat, documentResolver);
-    debug('Parsed additional archetype feat entries', {
-      dedication: feat.name,
-      dedicationSlug: slug,
-      parsedEntries: parsedEntries.map((entry) => ({ level: entry.level, slug: entry.slug, name: entry.name, uuid: entry.uuid ?? null })),
-    });
+    const parsedEntries = await collectAdditionalFeatEntriesFromDedication(feat, documentResolver, feats);
     for (const entry of parsedEntries) {
       const matchKeys = getAdditionalArchetypeMatchKeys(entry, feats);
-      debug('Resolved additional archetype feat match keys', {
-        dedication: feat.name,
-        entryName: entry.name,
-        entryLevel: entry.level,
-        matchKeys,
-      });
       for (const key of matchKeys) {
         const currentLevel = additionalFeatLevels.get(key);
         if (currentLevel == null || entry.level < currentLevel) {
@@ -252,7 +236,7 @@ export async function collectAdditionalArchetypeFeatTraits(feats, ownedFeatSlugs
     const dedicationTraits = getAdditionalArchetypeTraits(feat);
     if (dedicationTraits.size === 0) continue;
 
-    const parsedEntries = await collectAdditionalFeatEntriesFromDedication(feat, documentResolver);
+    const parsedEntries = await collectAdditionalFeatEntriesFromDedication(feat, documentResolver, feats);
     for (const entry of parsedEntries) {
       for (const key of getAdditionalArchetypeMatchKeys(entry, feats)) {
         if (!additionalFeatTraits.has(key)) additionalFeatTraits.set(key, new Set());
@@ -261,10 +245,6 @@ export async function collectAdditionalArchetypeFeatTraits(feats, ownedFeatSlugs
       }
     }
   }
-
-  debug('Additional archetype feat trait map complete', {
-    entries: [...additionalFeatTraits.entries()].map(([key, traits]) => ({ key, traits: [...traits] })),
-  });
 
   return additionalFeatTraits;
 }
@@ -401,14 +381,10 @@ function parseAdditionalFeatEntries(html) {
   return entries;
 }
 
-async function collectAdditionalFeatEntriesFromDedication(feat, documentResolver) {
+async function collectAdditionalFeatEntriesFromDedication(feat, documentResolver, candidateFeats = []) {
   const descriptionHtml = feat.system?.description?.value ?? '';
   const directEntries = parseAdditionalFeatEntries(descriptionHtml);
   if (directEntries.length > 0) {
-    debug('Additional feats parsed from dedication description', {
-      dedication: feat.name,
-      entries: directEntries.map((entry) => ({ level: entry.level, slug: entry.slug, name: entry.name, uuid: entry.uuid ?? null })),
-    });
     return directEntries;
   }
 
@@ -417,24 +393,21 @@ async function collectAdditionalFeatEntriesFromDedication(feat, documentResolver
     const fallbackJournalUuid = await findArchetypeJournalUuid(feat);
     if (fallbackJournalUuid) journalUuids.add(fallbackJournalUuid);
   }
-  debug('Attempting dedication journal lookup for additional feats', {
-    dedication: feat.name,
-    journalUuids: [...journalUuids],
-  });
   const targetPageName = getArchetypeJournalLookupName(feat);
   for (const uuid of journalUuids) {
     const document = await documentResolver(uuid).catch(() => null);
-    const journalEntries = parseAdditionalFeatEntries(extractJournalHtml(document, targetPageName));
-    debug('Parsed additional feats from journal candidate', {
-      dedication: feat.name,
-      uuid,
-      foundDocument: !!document,
-      entries: journalEntries.map((entry) => ({ level: entry.level, slug: entry.slug, name: entry.name, uuid: entry.uuid ?? null })),
-    });
-    if (journalEntries.length > 0) return journalEntries;
+    const journalHtml = extractJournalHtml(document, targetPageName);
+    const journalEntries = parseAdditionalFeatEntries(journalHtml);
+    const fallbackJournalEntries = journalEntries.length === 0
+      ? parseArchetypeJournalFeatEntries(journalHtml, feat)
+      : [];
+    let resolvedEntries = journalEntries.length > 0 ? journalEntries : fallbackJournalEntries;
+    const prereqFallbackEntries = resolvedEntries.length === 0
+      ? deriveDedicationEntriesFromPrerequisites(candidateFeats, feat)
+      : [];
+    if (prereqFallbackEntries.length > 0) resolvedEntries = prereqFallbackEntries;
+    if (resolvedEntries.length > 0) return resolvedEntries;
   }
-
-  debug('No additional feats resolved for dedication', { dedication: feat.name });
   return [];
 }
 
@@ -463,6 +436,18 @@ function collectJournalUuids(feat) {
 function extractJournalHtml(document, targetPageName = null) {
   if (!document) return '';
 
+  const parentDocument = document?.parent;
+  if (parentDocument && parentDocument !== document) {
+    const parentPages = Array.isArray(parentDocument?.pages)
+      ? parentDocument.pages
+      : Array.isArray(parentDocument?.pages?.contents)
+        ? parentDocument.pages.contents
+        : [];
+    if (parentPages.length > 0) {
+      return extractJournalHtml(parentDocument, targetPageName);
+    }
+  }
+
   const pages = Array.isArray(document.pages)
     ? document.pages
     : Array.isArray(document.pages?.contents)
@@ -471,7 +456,10 @@ function extractJournalHtml(document, targetPageName = null) {
 
   const normalizedTarget = normalizeJournalName(targetPageName);
   if (normalizedTarget) {
-    const matchingPage = pages.find((page) => normalizeJournalName(page?.name) === normalizedTarget);
+    const matchingPage = pages.find((page) => normalizeJournalName(page?.name) === normalizedTarget)
+      ?? pages.find((page) => normalizeJournalNameLoose(page?.name) === normalizeJournalNameLoose(targetPageName))
+      ?? pages.find((page) => normalizeJournalName(page?.name).includes(normalizedTarget))
+      ?? pages.find((page) => normalizeJournalNameLoose(page?.name).includes(normalizeJournalNameLoose(targetPageName)));
     if (matchingPage) {
       return matchingPage?.text?.content ?? matchingPage?.system?.text?.content ?? '';
     }
@@ -596,6 +584,13 @@ function normalizeJournalName(name) {
     .replace(/\s+/g, ' ');
 }
 
+function normalizeJournalNameLoose(name) {
+  return normalizeJournalName(name)
+    .replace(/\s+archetype$/i, '')
+    .replace(/\s+dedication$/i, '')
+    .trim();
+}
+
 function parseAdditionalFeatUuidEntries(html) {
   const entries = [];
   for (const { level, content } of splitAdditionalFeatSegments(html)) {
@@ -635,10 +630,82 @@ function parseAdditionalFeatUuidEntries(html) {
   return entries;
 }
 
+function parseArchetypeJournalFeatEntries(html, dedicationFeat = null) {
+  const normalizedHtml = String(html ?? '');
+  const entries = [];
+  const seen = new Set();
+  const dedicationName = normalizeAdditionalFeatName(dedicationFeat?.name);
+
+  for (const match of normalizedHtml.matchAll(/<a\b[^>]*data-uuid="([^"]+)"[^>]*>(?:<i\b[^>]*><\/i>)?\s*([^<]+)<\/a>([\s\S]{0,400}?)Feat\s*(\d+)/gi)) {
+    const uuid = String(match[1] ?? '').startsWith('Compendium.')
+      ? String(match[1])
+      : null;
+    const name = String(match[2] ?? '')
+      .replace(/\s*\([^)]*\)\s*$/u, '')
+      .trim();
+    const normalizedName = normalizeAdditionalFeatName(name);
+    const level = Number(match[4]);
+    const slug = getFeatFilterSlug({ name });
+    if (!uuid || !slug || !Number.isFinite(level)) continue;
+    if (normalizedName === dedicationName) continue;
+
+    const key = `${uuid}|${level}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push({ level, slug, name, uuid });
+  }
+
+  return entries;
+}
+
+function deriveDedicationEntriesFromPrerequisites(feats, dedicationFeat) {
+  const dedicationName = normalizeAdditionalFeatName(dedicationFeat?.name);
+  const dedicationSlug = getFeatFilterSlug(dedicationFeat);
+  if (!dedicationName && !dedicationSlug) return [];
+
+  const entries = [];
+  for (const feat of feats ?? []) {
+    if (!feat || feat === dedicationFeat) continue;
+    const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    if (!traits.includes('archetype')) continue;
+
+    const prereqTexts = (feat.system?.prerequisites?.value ?? [])
+      .map((prereq) => normalizeAdditionalFeatName(prereq?.value))
+      .filter(Boolean);
+
+    const matchesDedication = prereqTexts.some((text) => text.includes(dedicationName))
+      || prereqTexts.some((text) => dedicationSlug && text.includes(dedicationSlug.replace(/-/g, ' ')));
+    if (!matchesDedication) continue;
+
+    const level = Number(feat.system?.level?.value ?? NaN);
+    const slug = getFeatFilterSlug(feat);
+    if (!Number.isFinite(level) || !slug) continue;
+
+    entries.push({
+      level,
+      slug,
+      name: feat.name,
+      uuid: feat.uuid ?? feat.sourceId ?? feat.flags?.core?.sourceId ?? null,
+    });
+  }
+
+  return entries.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+}
+
 function extractAdditionalFeatsSection(html) {
   const normalizedHtml = String(html ?? '');
-  const match = normalizedHtml.match(/Additional Feats\s*:\s*(.+?)(?=(?:<p>\s*<strong>\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|<strong>\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:|Critical Success:|Success:|Failure:|Critical Failure:|$))/is);
-  return match?.[1]?.trim() ?? '';
+  const stopPattern = '(?=(?:<p>\\s*<strong>\\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|<strong>\\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|<(?:h1|h2|h3|h4|h5|h6)\\b[^>]*>\\s*(?:Special|Access|Prerequisites|Requirements|Frequency|Trigger|Effect)\\s*</(?:h1|h2|h3|h4|h5|h6)>|Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:|Critical Success:|Success:|Failure:|Critical Failure:|$))';
+
+  const inlineMatch = normalizedHtml.match(new RegExp(`Additional Feats\\s*:\\s*(.+?)${stopPattern}`, 'is'));
+  if (inlineMatch?.[1]) return inlineMatch[1].trim();
+
+  const headingMatch = normalizedHtml.match(new RegExp(`<(?:h1|h2|h3|h4|h5|h6)\\b[^>]*>\\s*Additional Feats\\s*</(?:h1|h2|h3|h4|h5|h6)>\\s*(.+?)${stopPattern}`, 'is'));
+  if (headingMatch?.[1]) return headingMatch[1].trim();
+
+  const boldHeadingMatch = normalizedHtml.match(new RegExp(`<p>\\s*<strong>\\s*Additional Feats\\s*</strong>\\s*</p>\\s*(.+?)${stopPattern}`, 'is'));
+  if (boldHeadingMatch?.[1]) return boldHeadingMatch[1].trim();
+
+  return '';
 }
 
 function splitAdditionalFeatSegments(text) {

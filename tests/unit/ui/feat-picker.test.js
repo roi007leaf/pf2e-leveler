@@ -86,13 +86,14 @@ describe('FeatPicker prerequisite enforcement', () => {
     const picker = new FeatPicker(createActor(), 'archetype', 2, createBuildState(), jest.fn());
     picker.allFeats = [feat];
 
-    const filtered = picker._applyFilters();
+    const [result] = picker._applyFilters();
 
-    expect(filtered).toHaveLength(0);
-    expect(feat.hasFailedPrerequisites).toBe(true);
-    expect(feat.hasUnknownPrerequisites).toBe(false);
-    expect(feat.prerequisitesFailed).toBe(true);
-    expect(feat.selectionBlocked).toBe(true);
+    expect(result).toBeDefined();
+    expect(result.name).toBe('Heavy Armor Trick');
+    expect(result.hasFailedPrerequisites).toBe(true);
+    expect(result.hasUnknownPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(true);
+    expect(result.selectionBlocked).toBe(true);
   });
 
   test('signature trick prerequisites are shown as unknown and do not block selection', () => {
@@ -297,6 +298,28 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.name).toBe('Twin Parry');
     expect(picker._getFeatTypes(feat)).toContain('archetype');
     expect(picker._getTraitFilterValues(feat)).toEqual(expect.arrayContaining(['archetype', 'dual-weapon-warrior']));
+  });
+
+  test('skill-tagged dedication additional feats do not gain virtual archetype type or trait filtering', () => {
+    const feat = createFeat({
+      name: 'Graceful Leaper',
+      uuid: 'Compendium.pf2e.feats-srd.Item.graceful-leaper',
+      slug: 'graceful-leaper',
+    });
+    feat.system.traits.value = ['archetype', 'skill'];
+    feat.system.level.value = 7;
+
+    const picker = new FeatPicker(createActor(), 'custom', 7, createBuildState({
+      level: 7,
+      feats: new Set(['acrobat-dedication']),
+    }), jest.fn());
+    picker.additionalArchetypeFeatLevels = new Map([['graceful-leaper', 7]]);
+    picker.additionalArchetypeFeatTraits = new Map([['graceful-leaper', new Set(['acrobat'])]]);
+
+    expect(picker._getFeatTypes(feat)).not.toContain('archetype');
+    expect(picker._getFeatTypes(feat)).toContain('skill');
+    expect(picker._getTraitFilterValues(feat)).not.toContain('archetype');
+    expect(picker._getTraitFilterValues(feat)).toEqual(expect.arrayContaining(['skill', 'acrobat']));
   });
 
   test('archetype-unlocked skill feats stay selectable in the general picker when skill feats are enabled', () => {
