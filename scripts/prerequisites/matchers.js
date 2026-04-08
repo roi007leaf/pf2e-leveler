@@ -177,6 +177,18 @@ export function matchClassIdentity(parsed, buildState) {
   };
 }
 
+export function matchSense(parsed, buildState) {
+  const senses = buildState.senses ?? new Set();
+  const required = parsed.sense;
+  if (required === 'darkvision' || required === 'greater-darkvision') {
+    return { met: senses.has('darkvision') || senses.has('greater-darkvision'), text: parsed.text };
+  }
+  if (required === 'low-light-vision') {
+    return { met: senses.has('low-light-vision') || senses.has('darkvision') || senses.has('greater-darkvision'), text: parsed.text };
+  }
+  return { met: senses.has(required), text: parsed.text };
+}
+
 export function matchSubclassSpell(parsed, buildState) {
   const subclassType = normalizeText(buildState.class?.subclassType);
   const expectedType = normalizeText(parsed.subclassType);

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.1.1
+
+### Character Wizard
+
+- **Languages step now appears after feats** — The languages step was moved to after feat selection so that feat-granted languages (e.g. Angelkin granting Empyrean) are already known when the step renders
+- **Feat-granted languages shown as auto-granted** — The wizard now scans selected feats for language grants via `system.subfeatures.languages.granted` (PF2e runtime data), `ActiveEffectLike` rules targeting `system.traits.languages.value` and `system.build.languages.granted`, and follows `GrantItem` rules recursively. Granted languages appear in the "granted" (non-removable) section with a "Feat" source label
+- **Feat-granted language slots added to maximum** — Feats like Multilingual that add extra language slots via `system.subfeatures.languages.slots` or an `ActiveEffectLike` rule targeting `system.build.languages.max` now correctly increase the choosable language count
+- **Feat cards show granted items** — When a feat grants items via `GrantItem` rules, the feat card in the wizard now shows a "Grants" section listing those items (e.g. Angelkin granting the Angelkin Heritage feat item)
+
+- **Dromaar/Aiuvarin heritages grant parent ancestry traits** — Dromaar now correctly unlocks orc ancestry feats, and Aiuvarin unlocks elf ancestry feats. Added ancestry trait aliases for Remaster half-heritage names and heritage rule scanning for `ActiveEffectLike` trait grants
+- **Vision/sense prerequisites now checked** — Prerequisites like "low-light vision" and "darkvision" are now parsed, matched against senses from the selected ancestry and heritage, and displayed correctly. Darkvision satisfies low-light vision requirements. Heritage-granted senses (e.g. Dromaar granting low-light vision) are detected from both `system.vision` and `Sense` rules
+
+### Equipment
+
+- **Ammunition and batch-priced items handled correctly** — Items with a per-batch price (e.g. 1 sp per 10 rounds) are now added in the correct batch quantity. The item picker label shows "1 sp / 10", the equipment list displays the actual batch quantity, and the total cost is calculated per-batch. Increment/decrement steps by the batch size
+
+### Level Planner
+
+- **Archetype feat picker no longer locks dedication filter** — When using Free Archetype, the archetype feat picker previously always locked the "dedication" trait filter, preventing browsing non-dedication archetype feats at later levels. Now the dedication filter is only locked when no archetype dedication has been selected yet
+
 ## 2.1.0
 
 ### GM Content Guidance

@@ -202,6 +202,8 @@ async function applyEquipment(actor, plan, level) {
     const item = await fromUuid(entry.uuid).catch(() => null);
     if (!item) continue;
     const itemData = foundry.utils.deepClone(item.toObject());
+    const quantity = entry.quantity ?? 1;
+    if (quantity > 1) itemData.system.quantity = quantity;
     await actor.createEmbeddedDocuments('Item', [itemData]);
     applied.push({ uuid: entry.uuid, name: entry.name });
     info(`Applied equipment: ${entry.name}`);

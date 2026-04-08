@@ -92,7 +92,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _toTemplateItem(item) {
     const rarity = item.system?.traits?.rarity ?? 'common';
     const price = item.system?.price?.value;
-    const priceLabel = price ? formatPrice(price) : '';
+    const pricePer = Number(item.system?.price?.per ?? 1);
+    const priceLabel = price ? formatPrice(price) + (pricePer > 1 ? ` / ${pricePer}` : '') : '';
     return {
       uuid: item.uuid,
       name: item.name,
@@ -102,6 +103,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       itemLevel: Number(item.system?.level?.value ?? 0),
       category: normalizeItemCategory(item),
       traits: [...new Set(item.system?.traits?.value ?? [])].filter((t) => t !== normalizeItemCategory(item)),
+      isRecommended: item.isRecommended ?? false,
+      isDisallowed: item.isDisallowed ?? false,
     };
   }
 

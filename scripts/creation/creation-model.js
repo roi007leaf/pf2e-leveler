@@ -416,7 +416,8 @@ export function addEquipment(data, item, quantity = 1) {
     existing.quantity = (existing.quantity ?? 1) + quantity;
   } else {
     const price = item.system?.price?.value ?? null;
-    data.equipment.push({ uuid: item.uuid, name: item.name, img: item.img, quantity, price });
+    const pricePer = Number(item.system?.price?.per ?? 1) || 1;
+    data.equipment.push({ uuid: item.uuid, name: item.name, img: item.img, quantity, price, pricePer });
   }
   return data;
 }

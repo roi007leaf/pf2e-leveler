@@ -58,6 +58,7 @@ const CURSE_STATE_PATTERN = /\bcursed\b/i;
 const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\s+trick\b/i;
 const MULTIPLE_ANCESTRY_FEATS_PATTERN = /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
 const SUBCLASS_SPELL_PATTERN = /^(?:a\s+)?(bloodline|mystery|patron)\s+spell$/i;
+const SENSE_PATTERN = /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -106,6 +107,9 @@ export function parsePrerequisite(text) {
 
   const equipmentMatch = tryParseEquipmentRequirement(baseText, trimmed);
   if (equipmentMatch) return equipmentMatch;
+
+  const senseMatch = tryParseSenseRequirement(baseText, trimmed);
+  if (senseMatch) return senseMatch;
 
   const classFeatureMatch = tryParseClassFeatureRequirement(baseText, trimmed);
   if (classFeatureMatch) return classFeatureMatch;
@@ -346,6 +350,17 @@ function tryParseSpellcastingRequirement(text, fullText = text) {
   }
 
   return null;
+}
+
+function tryParseSenseRequirement(text, fullText = text) {
+  const match = text.match(SENSE_PATTERN);
+  if (!match) return null;
+  const sense = slugifySense(match[1]);
+  return { type: 'sense', sense, text: fullText };
+}
+
+function slugifySense(value) {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '-');
 }
 
 function tryParseEquipmentRequirement(text, fullText = text) {

@@ -72,6 +72,10 @@ export const SUBCLASS_TAGS = {
 export const ANCESTRY_TRAIT_ALIASES = {
   kholo: ['kholo', 'gnoll'],
   gnoll: ['gnoll', 'kholo'],
+  dromaar: ['dromaar', 'orc'],
+  'half-orc': ['half-orc', 'orc', 'dromaar'],
+  aiuvarin: ['aiuvarin', 'elf'],
+  'half-elf': ['half-elf', 'elf', 'aiuvarin'],
 };
 
 export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus'];

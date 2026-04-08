@@ -45,7 +45,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 19;
+    wizard.currentStep = 18;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Barrister' };
     wizard.data.subclass = {
@@ -88,7 +88,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('includes lore granted by selected ancestry lore feats', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 19;
+    wizard.currentStep = 18;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Barrister' };
     wizard.data.ancestryFeat = {
@@ -199,7 +199,7 @@ describe('CharacterWizard skills step grants', () => {
     });
 
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 19;
+    wizard.currentStep = 18;
     wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Warrior' };
 

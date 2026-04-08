@@ -921,7 +921,7 @@
         {{#each grantedLanguages}}
         <button type="button" class="skill-btn selected" disabled>
           <span class="skill-btn__name">{{this.label}}</span>
-          <span class="skill-btn__rank rank-text-trained">{{localize "PF2E_LEVELER.CREATION.STEPS.ANCESTRY"}}</span>
+          <span class="skill-btn__rank rank-text-trained">{{#if (eq this.source "feat")}}{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}{{else}}{{localize "PF2E_LEVELER.CREATION.STEPS.ANCESTRY"}}{{/if}}</span>
         </button>
         {{/each}}
       </div>
@@ -1015,6 +1015,9 @@
             {{#if data.ancestryFeat}}
               <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.ancestryFeat.uuid}}">{{data.ancestryFeat.name}}</span>
               <button type="button" class="wizard-feat-slot-card__clear" data-action="clearAncestryFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.ancestryFeat.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.ancestryFeat.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
             {{else}}
               <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
             {{/if}}
@@ -1029,6 +1032,9 @@
             {{#if data.ancestryParagonFeat}}
               <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.ancestryParagonFeat.uuid}}">{{data.ancestryParagonFeat.name}}</span>
               <button type="button" class="wizard-feat-slot-card__clear" data-action="clearAncestryParagonFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.ancestryParagonFeat.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.ancestryParagonFeat.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
             {{else}}
               <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
             {{/if}}
@@ -1044,6 +1050,9 @@
             {{#if data.classFeat}}
               <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.classFeat.uuid}}">{{data.classFeat.name}}</span>
               <button type="button" class="wizard-feat-slot-card__clear" data-action="clearClassFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.classFeat.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.classFeat.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
             {{else}}
               <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
             {{/if}}
@@ -1059,6 +1068,9 @@
             {{#if data.skillFeat}}
               <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.skillFeat.uuid}}">{{data.skillFeat.name}}</span>
               <button type="button" class="wizard-feat-slot-card__clear" data-action="clearSkillFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.skillFeat.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.skillFeat.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
             {{else}}
               <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
             {{/if}}

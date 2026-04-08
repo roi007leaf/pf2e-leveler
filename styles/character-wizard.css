@@ -901,6 +901,30 @@
   border-color: var(--leveler-accent);
 }
 
+.pf2e-leveler .wizard-feat-slot-card__grants {
+  grid-column: 1 / -1;
+  font-size: var(--leveler-font-sm, 0.82rem);
+  color: var(--leveler-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pf2e-leveler .wizard-feat-slot-card__grant-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--leveler-accent-light);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.pf2e-leveler .wizard-feat-slot-card__grant-link:hover {
+  color: var(--leveler-text-bright);
+}
+
 .pf2e-leveler .wizard-feat-slot-card__browse {
   padding: 6px 14px;
   background: var(--leveler-accent);

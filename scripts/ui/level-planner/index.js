@@ -1163,15 +1163,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           lockedFeatTypes: ['ancestry'],
           maxLevel: level,
         };
-      case 'archetypeFeats':
+      case 'archetypeFeats': {
+        const hasDedication = (buildState?.classArchetypeDedications?.size ?? 0) > 0;
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
-          selectedTraits: ['dedication'],
-          lockedTraits: ['dedication'],
+          selectedTraits: hasDedication ? [] : ['dedication'],
+          lockedTraits: hasDedication ? [] : ['dedication'],
           traitLogic: 'or',
+          showDedications: true,
           maxLevel: level,
         };
+      }
       case 'mythicFeats':
         return {
           selectedFeatTypes: ['mythic'],
@@ -1251,6 +1254,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             return;
           }
         }
+        const pricePer = Number(item.system?.price?.per ?? 1);
         setLevelEquipmentSlot(this.plan, this.selectedLevel, slotIndex, {
           uuid: item.uuid,
           name: item.name,
@@ -1258,6 +1262,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           itemLevel,
           price: item.system?.price?.value,
           category: itemType,
+          quantity: pricePer > 1 ? pricePer : 1,
         });
         await this._savePlanAndRender();
       },
@@ -1279,6 +1284,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         const replaceMode = Number.isInteger(index);
         for (let offset = 0; offset < selectedItems.length; offset++) {
           const item = selectedItems[offset];
+          const pricePer = Number(item.system?.price?.per ?? 1);
           addLevelCustomEquipment(this.plan, level, {
             uuid: item.uuid,
             name: item.name,
@@ -1286,6 +1292,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             itemLevel: Number(item.system?.level?.value ?? 0),
             price: item.system?.price?.value,
             category: String(item.type ?? ''),
+            quantity: pricePer > 1 ? pricePer : 1,
           }, replaceMode && offset === 0 ? index : null);
         }
         await this._savePlanAndRender();

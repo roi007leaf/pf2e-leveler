@@ -324,7 +324,11 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="incrementEquipment"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const entry = wizard.data.equipment?.find((e) => e.uuid === btn.dataset.uuid);
-      if (entry) { entry.quantity = (entry.quantity ?? 1) + 1; wizard._saveAndRender(); }
+      if (entry) {
+        const step = entry.pricePer > 1 ? entry.pricePer : 1;
+        entry.quantity = (entry.quantity ?? 1) + step;
+        wizard._saveAndRender();
+      }
     });
   });
 
@@ -332,8 +336,9 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', () => {
       const entry = wizard.data.equipment?.find((e) => e.uuid === btn.dataset.uuid);
       if (!entry) return;
-      if ((entry.quantity ?? 1) <= 1) { removeEquipment(wizard.data, btn.dataset.uuid); }
-      else { entry.quantity -= 1; }
+      const step = entry.pricePer > 1 ? entry.pricePer : 1;
+      if ((entry.quantity ?? 1) <= step) { removeEquipment(wizard.data, btn.dataset.uuid); }
+      else { entry.quantity -= step; }
       wizard._saveAndRender();
     });
   });

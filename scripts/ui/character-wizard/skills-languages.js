@@ -3,11 +3,15 @@ import { localize } from '../../utils/i18n.js';
 
 export async function buildLanguageContext(wizard) {
   const ancestryItem = wizard.data.ancestry?.uuid ? await wizard._getCachedDocument(wizard.data.ancestry.uuid) : null;
-  const grantedSlugs = ancestryItem?.system?.languages?.value ?? [];
+  const grantedSlugs = [...(ancestryItem?.system?.languages?.value ?? [])];
+  const featGrants = await collectFeatLanguageGrants(wizard);
+  for (const slug of featGrants.slugs) {
+    if (!grantedSlugs.includes(slug)) grantedSlugs.push(slug);
+  }
   const suggestedSlugs = new Set(ancestryItem?.system?.additionalLanguages?.value ?? []);
   const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
   const intMod = await wizard._computeIntMod();
-  const maxAdditional = Math.max(0, baseCount + intMod);
+  const maxAdditional = Math.max(0, baseCount + intMod + featGrants.bonusSlots);
   wizard._cachedMaxLanguages = maxAdditional;
 
   const langMap = getLanguageMap();
@@ -17,6 +21,7 @@ export async function buildLanguageContext(wizard) {
     label: langMap[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1),
     granted: true,
     selected: false,
+    source: featGrants.slugs.includes(slug) ? 'feat' : 'ancestry',
   }));
 
   const allLanguageSlugs = Object.keys(langMap);
@@ -39,6 +44,68 @@ export async function buildLanguageContext(wizard) {
     maxLanguages: maxAdditional,
     selectedLanguageCount: wizard.data.languages.length,
   };
+}
+
+export async function collectFeatLanguageGrants(wizard) {
+  const slugs = [];
+  let bonusSlots = 0;
+  const feats = [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.skillFeat].filter(Boolean);
+  for (const feat of feats) {
+    if (!feat.uuid) continue;
+    const item = await wizard._getCachedDocument(feat.uuid);
+    if (!item) continue;
+    const result = { slugs: [], bonusSlots: 0 };
+    await scanItemForLanguages(wizard, item, result);
+    slugs.push(...result.slugs);
+    bonusSlots += result.bonusSlots;
+  }
+  return { slugs, bonusSlots };
+}
+
+async function scanItemForLanguages(wizard, item, result, seen = new Set()) {
+  if (!item || seen.has(item.uuid)) return;
+  seen.add(item.uuid);
+
+  const subfeatureLangs = item.system?.subfeatures?.languages;
+  if (subfeatureLangs) {
+    for (const slug of subfeatureLangs.granted ?? []) {
+      const normalized = String(slug).toLowerCase();
+      if (normalized && !result.slugs.includes(normalized)) result.slugs.push(normalized);
+    }
+    const slots = Number(subfeatureLangs.slots ?? 0);
+    if (slots > 0) result.bonusSlots += slots;
+  }
+
+  for (const rule of item.system?.rules ?? []) {
+    if (rule.key === 'ActiveEffectLike' && typeof rule.path === 'string') {
+      if ((rule.path === 'system.traits.languages.value' || rule.path === 'system.languages.value') && typeof rule.value === 'string') {
+        const slug = rule.value.toLowerCase();
+        if (!result.slugs.includes(slug)) result.slugs.push(slug);
+      }
+      if (rule.path === 'system.build.languages.granted') {
+        const slug = typeof rule.value === 'string' ? rule.value.toLowerCase() : (rule.value?.slug ?? '').toLowerCase();
+        if (slug && !result.slugs.includes(slug)) result.slugs.push(slug);
+      }
+      if (rule.path === 'system.build.languages.max') {
+        const bonus = parseLanguageBonusValue(rule.value);
+        if (bonus > 0) result.bonusSlots += bonus;
+      }
+    }
+    if (rule.key === 'GrantItem' && typeof rule.uuid === 'string') {
+      const granted = await fromUuid(rule.uuid).catch(() => null);
+      if (granted) await scanItemForLanguages(wizard, granted, result, seen);
+    }
+  }
+}
+
+function parseLanguageBonusValue(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const num = parseInt(value, 10);
+    if (Number.isFinite(num)) return num;
+    if (value.startsWith('ternary(')) return 1;
+  }
+  return 0;
 }
 
 export function getLanguageMap() {

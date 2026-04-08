@@ -33,6 +33,7 @@ import { buildSummaryContext } from './summary.js';
 import {
   buildLanguageContext,
   buildSkillContext,
+  collectFeatLanguageGrants,
   getBackgroundLores,
   getBackgroundTrainedSkills,
   getLanguageMap,
@@ -77,14 +78,16 @@ import { annotateGuidance, annotateGuidanceBySlug, sortRecommendedFirst } from '
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
 
-const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'languages', 'skills', 'feats', 'featChoices', 'spells', 'equipment', 'summary'];
+const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'skills', 'feats', 'featChoices', 'languages', 'spells', 'equipment', 'summary'];
 
 function equipmentTotalCp(equipment) {
   let cp = 0;
   for (const entry of equipment) {
     if (!entry.price) continue;
     const qty = entry.quantity ?? 1;
-    cp += ((entry.price.gp ?? 0) * 100 + (entry.price.sp ?? 0) * 10 + (entry.price.cp ?? 0)) * qty;
+    const per = entry.pricePer ?? 1;
+    const unitCp = (entry.price.gp ?? 0) * 100 + (entry.price.sp ?? 0) * 10 + (entry.price.cp ?? 0);
+    cp += Math.ceil((qty / per) * unitCp);
   }
   return cp;
 }
@@ -401,15 +404,19 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const ancestrySlug = this.data.ancestry?.slug ?? null;
     const heritageSlug = this.data.heritage?.slug ?? null;
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
+    const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
     const ancestryTraits = [...new Set([
       ...collectAncestryFeatTraits(ancestrySlug, heritageSlug),
       ...adoptedAncestryTraits,
+      ...heritageGrantedTraits,
     ])];
 
+    const senses = await this._collectSenses();
     const buildState = {
       class: { slug: classSlug },
       feats: new Set(),
       ancestryTraits: new Set(ancestryTraits),
+      senses,
     };
 
     const presets = {
@@ -519,7 +526,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             return;
           }
         }
-        addEquipment(this.data, item);
+        const batchSize = Number(item.system?.price?.per ?? 1);
+        addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
         this._saveAndRender();
       });
       picker.render(true);
@@ -1453,7 +1461,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const ancestryItem = this.data.ancestry?.uuid ? await this._getCachedDocument(this.data.ancestry.uuid) : null;
     const baseCount = ancestryItem?.system?.additionalLanguages?.count ?? 0;
     const intMod = await this._computeIntMod();
-    return Math.max(0, baseCount + intMod);
+    const featGrants = await collectFeatLanguageGrants(this);
+    return Math.max(0, baseCount + intMod + featGrants.bonusSlots);
   }
 
   async _getBackgroundLores() {
@@ -1462,6 +1471,59 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _parseSubclassLores(rules, html) {
     return parseSubclassLores(rules, html);
+  }
+
+  async _collectGrantedItems(uuid) {
+    const source = await this._getCachedDocument(uuid);
+    if (!source) return [];
+    const items = [];
+    const seen = new Set();
+    const scan = async (item) => {
+      for (const rule of item?.system?.rules ?? []) {
+        if (rule.key !== 'GrantItem' || typeof rule.uuid !== 'string') continue;
+        const granted = await fromUuid(rule.uuid).catch(() => null);
+        if (!granted || seen.has(granted.uuid)) continue;
+        seen.add(granted.uuid);
+        items.push({ uuid: granted.uuid, name: granted.name, img: granted.img });
+        await scan(granted);
+      }
+    };
+    await scan(source);
+    return items;
+  }
+
+  async _collectHeritageGrantedTraits() {
+    const heritageItem = this.data.heritage?.uuid ? await this._getCachedDocument(this.data.heritage.uuid) : null;
+    if (!heritageItem) return [];
+    const traits = [];
+    for (const trait of heritageItem.system?.traits?.value ?? []) {
+      traits.push(String(trait).toLowerCase());
+    }
+    for (const rule of heritageItem.system?.rules ?? []) {
+      if (rule.key !== 'ActiveEffectLike' || typeof rule.path !== 'string' || typeof rule.value !== 'string') continue;
+      if (rule.path === 'system.traits.value' || rule.path === 'system.details.ancestry.trait') {
+        traits.push(rule.value.toLowerCase());
+      }
+    }
+    return traits;
+  }
+
+  async _collectSenses() {
+    const senses = new Set();
+    const ancestryItem = this.data.ancestry?.uuid ? await this._getCachedDocument(this.data.ancestry.uuid) : null;
+    const heritageItem = this.data.heritage?.uuid ? await this._getCachedDocument(this.data.heritage.uuid) : null;
+    for (const item of [ancestryItem, heritageItem]) {
+      if (!item) continue;
+      const vision = item.system?.vision;
+      if (vision === 'darkvision') senses.add('darkvision');
+      else if (vision === 'lowLightVision' || vision === 'low-light-vision') senses.add('low-light-vision');
+      for (const rule of item.system?.rules ?? []) {
+        if (rule.key === 'Sense' && typeof rule.selector === 'string') {
+          senses.add(rule.selector.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, ''));
+        }
+      }
+    }
+    return senses;
   }
 
   async _buildSkillContext() {
@@ -1477,6 +1539,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const hasClassFeat = await this._hasClassFeatAtLevel1();
     this._cachedHasClassFeatAtLevel1 = hasClassFeat;
     const hasSkillFeat = this._needsLevel1SkillFeatSelection();
+
+    const featSlots = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.skillFeat];
+    for (const feat of featSlots) {
+      if (feat?.uuid) feat.grantedItems = await this._collectGrantedItems(feat.uuid);
+    }
 
     return {
       hasClassFeat,

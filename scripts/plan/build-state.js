@@ -50,6 +50,7 @@ export function computeBuildState(actor, plan, atLevel) {
     spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
+    senses: computeSenses(actor),
   };
 }
 
@@ -497,6 +498,23 @@ function computeFeats(actor, plan, atLevel) {
   if (actor?.system?.resources?.focus?.max > 0) feats.add('focus-pool');
 
   return feats;
+}
+
+function computeSenses(actor) {
+  const senses = new Set();
+  const perceptionSenses = actor?.system?.perception?.senses ?? [];
+  for (const sense of perceptionSenses) {
+    const type = typeof sense === 'string' ? sense : (sense?.type ?? null);
+    if (type) senses.add(slugifySense(type));
+  }
+  if (actor?.system?.perception?.vision) {
+    senses.add('low-light-vision');
+  }
+  return senses;
+}
+
+function slugifySense(value) {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
 function computeClassFeatures(classDef, atLevel) {
