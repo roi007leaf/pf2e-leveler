@@ -44,6 +44,7 @@ export function computeBuildState(actor, plan, atLevel) {
     languages: computeLanguages(actor),
     lores: computeLoreSkills(actor),
     proficiencies: computeProficiencies(actor, classDef, atLevel),
+    weaponProficiencies: computeWeaponProficiencies(actor),
     equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
     deity: computeDeityState(actor),
@@ -55,6 +56,31 @@ export function computeBuildState(actor, plan, atLevel) {
     classFeatures: computeClassFeatures(classDef, atLevel),
     senses: computeSenses(actor),
   };
+}
+
+function computeWeaponProficiencies(actor) {
+  const attacks = actor?.system?.proficiencies?.attacks ?? actor?.system?.martial ?? {};
+  const entries = {
+    simple: readWeaponProficiencyRank(attacks, 'simple'),
+    martial: readWeaponProficiencyRank(attacks, 'martial'),
+    unarmed: readWeaponProficiencyRank(attacks, 'unarmed'),
+    advanced: readWeaponProficiencyRank(attacks, 'advanced'),
+    crossbow: readWeaponProficiencyRank(attacks, 'crossbow'),
+    bow: readWeaponProficiencyRank(attacks, 'bow'),
+    firearm: readWeaponProficiencyRank(attacks, 'firearm'),
+  };
+
+  return Object.fromEntries(
+    Object.entries(entries).filter(([, rank]) => Number.isFinite(rank) && rank > 0),
+  );
+}
+
+function readWeaponProficiencyRank(source, key) {
+  const entry = source?.[key];
+  if (Number.isFinite(entry)) return Number(entry);
+  if (Number.isFinite(entry?.rank)) return Number(entry.rank);
+  if (Number.isFinite(entry?.value)) return Number(entry.value);
+  return 0;
 }
 
 function computeClassState(classDef, classSlug) {

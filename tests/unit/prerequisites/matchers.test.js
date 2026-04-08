@@ -1,6 +1,7 @@
 import {
   matchSkill,
   matchAnySkill,
+  matchWeaponFamilyProficiency,
   matchLore,
   matchLanguage,
   matchAbility,
@@ -58,6 +59,24 @@ describe('matchAnySkill', () => {
     const result = matchAnySkill(
       { type: 'anySkill', minRank: 1, text: 'trained in at least one skill' },
       { skills: { athletics: 0, crafting: 0, stealth: 0 } },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchWeaponFamilyProficiency', () => {
+  test('meets crossbow proficiency when simple weapon proficiency is sufficient', () => {
+    const result = matchWeaponFamilyProficiency(
+      { type: 'weaponFamilyProficiency', family: 'crossbow', minRank: 1, text: 'trained in at least one crossbow' },
+      { weaponProficiencies: { simple: 1 } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails crossbow proficiency when no relevant weapon proficiency is present', () => {
+    const result = matchWeaponFamilyProficiency(
+      { type: 'weaponFamilyProficiency', family: 'crossbow', minRank: 1, text: 'trained in at least one crossbow' },
+      { weaponProficiencies: { martial: 1 } },
     );
     expect(result.met).toBe(false);
   });

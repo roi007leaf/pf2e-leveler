@@ -706,6 +706,23 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].met).toBeNull();
   });
 
+  test('meets crossbow proficiency prerequisites from simple weapon proficiency', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'trained in at least one crossbow' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      weaponProficiencies: { simple: 1 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBe(true);
+  });
+
   test('treats weapon-name proficiency prerequisites as unverified instead of unmet', () => {
     const feat = {
       system: {

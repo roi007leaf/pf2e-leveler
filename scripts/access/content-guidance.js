@@ -74,6 +74,16 @@ export function sortRecommendedFirst(items) {
   });
 }
 
+export function sortByGuidancePriority(items, fallback = null) {
+  return items.sort((a, b) => {
+    const aPriority = a.isRecommended ? 0 : a.isNotRecommended ? 2 : 1;
+    const bPriority = b.isRecommended ? 0 : b.isNotRecommended ? 2 : 1;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    if (typeof fallback === 'function') return fallback(a, b);
+    return 0;
+  });
+}
+
 export function filterDisallowedForCurrentUser(items) {
   if (!shouldRestrictContentForUser()) return items;
   return items.filter((item) => !item.isDisallowed);

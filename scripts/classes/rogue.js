@@ -11,7 +11,7 @@ export const ROGUE = {
     general: [3, 7, 11, 15, 19],
     ancestry: [5, 9, 13, 17],
   },
-  skillIncreaseSchedule: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  skillIncreaseSchedule: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
   abilityBoostSchedule: [5, 10, 15, 20],
 
   classFeatures: [

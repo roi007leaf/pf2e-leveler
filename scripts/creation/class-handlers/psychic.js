@@ -9,7 +9,7 @@ export class PsychicHandler extends CasterBaseHandler {
   }
 
   getSpellbookCounts(_data, _classDef) {
-    return { cantrips: 6, rank1: 2 };
+    return { cantrips: 3, rank1: 3 };
   }
 
   isStepComplete(stepId, data) {
@@ -29,11 +29,22 @@ export class PsychicHandler extends CasterBaseHandler {
     const subSlug = data.subclass?.slug;
     if (!subSlug) return base;
 
-    const consciousMind = resolvePsychicLevelOneSpells(subSlug);
     return {
-      cantrips: await this._resolveEntries(consciousMind.cantrips, data.subclass?.name),
-      rank1s: await this._resolveEntries(consciousMind.rank1s, data.subclass?.name),
+      cantrips: base.cantrips,
+      rank1s: base.rank1s,
     };
+  }
+
+  async resolveFocusSpells(data) {
+    const base = await super.resolveFocusSpells(data);
+    const subSlug = data.subclass?.slug;
+    if (!subSlug) return base;
+
+    const consciousMind = resolvePsychicLevelOneSpells(subSlug);
+    return [
+      ...base,
+      ...await this._resolveEntries(consciousMind.cantrips, data.subclass?.name),
+    ];
   }
 
   async _resolveEntries(uuids, source) {

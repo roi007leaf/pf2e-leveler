@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.7
+
+### Character Wizard
+
+- **Witch focus spell choices are selectable again** - Witch focus spell options such as `Patron's Puppet` and `Phase Familiar` now render as real focus-spell choices instead of static cards, so the patron focus spell can be picked correctly during creation
+- **Psychic psi cantrips now use the focus-spell lane** - Psi cantrips from conscious minds are no longer mixed into the normal cantrip list, while granted rank-1 spells such as `Sure Strike` are still preserved in the main spell selection flow
+- **Skills and languages now keep disallowed options visible** - Disallowed skills and languages remain visible in Character Creation with disabled controls and guidance badges instead of disappearing from the list
+- **Not Recommended guidance now affects wizard ordering** - Suggested options rise to the top, neutral options stay in the middle, and not-recommended options sink to the bottom across wizard browsers, skills, and languages
+- **Language badges no longer overlap** - Language rows now stack and wrap guidance / rarity badges cleanly so suggested, ancestry-suggested, and rarity tags no longer collide
+- **General-feat grant previews no longer crash when skills data is missing** - Fixed an initialization bug in the skill context builder that could throw an `includes` error while previewing feat-granted skill choices
+
+### Suggested Character Options
+
+- **Layout now uses horizontal space more effectively** - Flat categories now use a tighter two-column layout with a less oversized window, and the bulk rarity actions render as compact cards instead of leaving a large empty middle
+- **Searching no longer hides rarity bulk controls** - Filtering the list now only narrows the visible items and keeps all rarity bulk actions available for the active category
+
 ## 2.1.6
 
 ### Fixed

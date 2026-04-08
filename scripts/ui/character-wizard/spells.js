@@ -88,6 +88,12 @@ export async function buildSpellContext(wizard) {
     totalRank1 = spellbookCounts.rank1;
   }
 
+  const rawFocusSpells = await resolveFocusSpells(wizard);
+  const focusContext = wizard.classHandler.buildFocusContext
+    ? wizard.classHandler.buildFocusContext(wizard.data, rawFocusSpells)
+    : { focusSpells: rawFocusSpells, isDevotionChoice: wizard.classHandler.isFocusSpellChoice() };
+  const { isDevotionChoice, ...focusCtx } = focusContext;
+  const focusSpells = focusCtx.focusSpells ?? rawFocusSpells;
   const grantedSpells = await resolveGrantedSpells(wizard);
   const maxCantrips = totalCantrips - grantedSpells.cantrips.length;
   const maxRank1 = totalRank1 - grantedSpells.rank1s.length;
@@ -110,6 +116,7 @@ export async function buildSpellContext(wizard) {
     ...autoCurriculumUuids,
     ...curriculumSelectedUuids,
     ...grantedUuids,
+    ...focusSpells.map((s) => s.uuid),
   ]);
 
   const matchesTradition = (s) => {
@@ -139,20 +146,21 @@ export async function buildSpellContext(wizard) {
   }
   const traitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
 
-  const focusSpells = await resolveFocusSpells(wizard);
-  const isDevotionChoice = wizard.classHandler.isFocusSpellChoice();
+  // Classes like witch choose between focus cantrips, so keep all focus spells
+  // in the selectable lane instead of auto-adding cantrips.
+  let focusCantrips = [];
+  let focusNonCantrips = [];
 
-  // Separate focus spells into cantrips and spells
-  // Need to load each spell to check its traits
-  const focusCantrips = [];
-  const focusNonCantrips = [];
-
-  for (const spellEntry of focusSpells) {
-    const spell = await fromUuid(spellEntry.uuid).catch(() => null);
-    if (spell?.system?.traits?.value?.includes('cantrip')) {
-      focusCantrips.push(spellEntry);
-    } else {
-      focusNonCantrips.push(spellEntry);
+  if (isDevotionChoice) {
+    focusNonCantrips = [...focusSpells];
+  } else {
+    for (const spellEntry of focusSpells) {
+      const spell = await fromUuid(spellEntry.uuid).catch(() => null);
+      if (spell?.system?.traits?.value?.includes('cantrip')) {
+        focusCantrips.push(spellEntry);
+      } else {
+        focusNonCantrips.push(spellEntry);
+      }
     }
   }
 

@@ -29,7 +29,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
   static DEFAULT_OPTIONS = {
     id: `${MODULE_ID}-content-guidance`,
     classes: ['pf2e-leveler', 'pf2e-leveler-compendium-app'],
-    position: { width: 900, height: 720 },
+    position: { width: 980, height: 760 },
     window: { resizable: true },
   };
 
@@ -88,12 +88,13 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     return {
       categories,
       items: displayItems,
+      useGridLayout: this.activeCategory !== 'heritages',
       searchText: this.searchText,
       totalMarked,
       countLabel: game.i18n.format('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.COUNT', { count: totalMarked }),
       intro: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.INTRO'),
       searchPlaceholder: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.SEARCH'),
-      rarityBulkGroups: this._buildRarityBulkGroups(displayItems),
+      rarityBulkGroups: this._buildRarityBulkGroups(items),
       groupedItems: this.activeCategory === 'heritages' ? this._buildHeritageGroups(displayItems) : null,
     };
   }

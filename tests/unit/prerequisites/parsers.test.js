@@ -312,6 +312,13 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
+  test('parses weapon-family proficiency prerequisites like crossbows', () => {
+    const result = parsePrerequisite('trained in at least one crossbow');
+    expect(result.type).toBe('weaponFamilyProficiency');
+    expect(result.family).toBe('crossbow');
+    expect(result.minRank).toBe(1);
+  });
+
   test('treats weapon-name proficiency prerequisites as unknown instead of fake proficiency keys', () => {
     const result = parsePrerequisite('trained in sawtooth sabres');
     expect(result.type).toBe('unknown');

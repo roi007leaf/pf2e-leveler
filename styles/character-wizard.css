@@ -1146,7 +1146,8 @@
 }
 
 .pf2e-leveler .wizard-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: flex-start;
   gap: var(--leveler-spacing-sm);
   padding: var(--leveler-spacing-sm);
@@ -1181,13 +1182,15 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-right: 4px;
 }
 
 .pf2e-leveler .wizard-item__traits {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 2px;
+  width: 100%;
+  gap: 4px;
   margin-top: 1px;
 }
 
@@ -1195,8 +1198,9 @@
   display: inline-flex;
   flex: 0 0 auto;
   width: auto;
-  max-width: max-content;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .pf2e-leveler .wizard-item__desc {

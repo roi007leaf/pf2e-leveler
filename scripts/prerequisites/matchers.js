@@ -14,6 +14,20 @@ export function matchAnySkill(parsed, buildState) {
   };
 }
 
+export function matchWeaponFamilyProficiency(parsed, buildState) {
+  const weaponProficiencies = buildState.weaponProficiencies ?? {};
+  const family = normalizeWeaponFamily(parsed.family);
+  const candidates = new Set([family]);
+
+  for (const alias of getWeaponFamilyAliases(family)) candidates.add(alias);
+
+  const met = [...candidates].some((key) => Number(weaponProficiencies[key] ?? 0) >= parsed.minRank);
+  return {
+    met,
+    text: parsed.text,
+  };
+}
+
 export function matchLore(parsed, buildState) {
   const currentRank = buildState.lores?.[parsed.loreSlug] ?? 0;
   return {
@@ -274,6 +288,25 @@ export function matchUnknown(parsed) {
     met: null,
     text: parsed.text,
   };
+}
+
+function normalizeWeaponFamily(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+function getWeaponFamilyAliases(family) {
+  switch (family) {
+    case 'crossbow':
+      return ['crossbow', 'crossbows', 'simple', 'simple-weapons'];
+    case 'bow':
+      return ['bow', 'bows', 'martial', 'martial-weapons'];
+    case 'firearm':
+      return ['firearm', 'firearms'];
+    default:
+      return [family];
+  }
 }
 
 function normalizeProficiencyKey(key) {

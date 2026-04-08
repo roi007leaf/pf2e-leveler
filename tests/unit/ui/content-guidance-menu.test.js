@@ -21,6 +21,7 @@ describe('ContentGuidanceMenu', () => {
 
     const context = await menu._prepareContext();
 
+    expect(context.useGridLayout).toBe(false);
     expect(context.groupedItems.map((entry) => entry.label)).toEqual(['Dwarf', 'Elf', 'PF2E_LEVELER.CREATION.HERITAGE_GROUP_VERSATILE']);
     expect(context.groupedItems.find((entry) => entry.label === 'Elf')).toEqual(expect.objectContaining({
       bulkScopeType: 'ancestry',
@@ -44,9 +45,29 @@ describe('ContentGuidanceMenu', () => {
 
     const context = await menu._prepareContext();
 
+    expect(context.useGridLayout).toBe(true);
     expect(context.rarityBulkGroups).toEqual([
       expect.objectContaining({ scopeType: 'rarity', scopeValue: 'common' }),
       expect.objectContaining({ scopeType: 'rarity', scopeValue: 'rare' }),
+    ]);
+  });
+
+  test('search filtering does not hide rarity bulk groups for the active category', async () => {
+    const menu = new ContentGuidanceMenu();
+    menu.activeCategory = 'backgrounds';
+    menu.searchText = 'scholar';
+    menu._draft = {};
+    menu._itemCache.backgrounds = [
+      { uuid: 'bg-common', name: 'Scholar', rarity: 'common', level: 1 },
+      { uuid: 'bg-rare', name: 'Time Traveler', rarity: 'rare', level: 1 },
+    ];
+
+    const context = await menu._prepareContext();
+
+    expect(context.items.map((entry) => entry.uuid)).toEqual(['bg-common']);
+    expect(context.rarityBulkGroups).toEqual([
+      expect.objectContaining({ scopeValue: 'common' }),
+      expect.objectContaining({ scopeValue: 'rare' }),
     ]);
   });
 

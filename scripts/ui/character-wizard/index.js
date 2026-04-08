@@ -75,7 +75,7 @@ import {
   parseSpellUuidsFromDescription,
   parseVesselSpell,
 } from './loaders.js';
-import { annotateGuidance, annotateGuidanceBySlug, sortRecommendedFirst } from '../../access/content-guidance.js';
+import { annotateGuidance, annotateGuidanceBySlug, sortByGuidancePriority } from '../../access/content-guidance.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
@@ -130,6 +130,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._missingStoredCreationData = !storedCreationData;
     this._cachedHasClassFeatAtLevel1 = null;
     this._cachedRequiredClassBoostSelections = 0;
+    this._cachedBoostStepComplete = null;
   }
 
   _preloadCompendiums() {
@@ -195,6 +196,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     this._cachedHasClassFeatAtLevel1 = this.data.class?.uuid ? await this._hasClassFeatAtLevel1() : false;
     this._cachedRequiredClassBoostSelections = await this._getRequiredClassBoostSelections();
+    this._cachedBoostStepComplete = await this._computeBoostStepComplete();
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: localize('CREATION.FEAT_CHOICES'),
@@ -1231,6 +1233,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         }));
       }
       case 'boosts':
+        if (typeof this._cachedBoostStepComplete === 'boolean') return this._cachedBoostStepComplete;
         return this.data.boosts.free.length === 4
           && (this.data.boosts.class?.length ?? 0) >= (this._cachedRequiredClassBoostSelections ?? 0);
       case 'languages': return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
@@ -1302,9 +1305,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'languages': {
         const langCtx = await this._buildLanguageContext();
         annotateGuidanceBySlug(langCtx.choosableLanguages, 'language');
-        langCtx.choosableLanguages.sort((a, b) => {
-          if (a.isRecommended && !b.isRecommended) return -1;
-          if (!a.isRecommended && b.isRecommended) return 1;
+        sortByGuidancePriority(langCtx.choosableLanguages, (a, b) => {
           if (a.suggested !== b.suggested) return a.suggested ? -1 : 1;
           return a.label.localeCompare(b.label);
         });
@@ -1331,6 +1332,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         setLores(this.data, allLores.map((l) => l.name));
         const skills = await this._buildSkillContext();
         annotateGuidanceBySlug(skills, 'skill');
+        sortByGuidancePriority(skills, (a, b) => a.label.localeCompare(b.label));
         return { skills, maxSkills, selectedCount, skillsNote: this._getSkillsNote(), lores: allLores };
       }
       case 'feats': return await this._buildFeatContext();
@@ -1643,7 +1645,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const summary = ATTRIBUTES.map((key) => ({ key, label: key.toUpperCase(), mod: totals[key] }));
+    this._cachedBoostStepComplete = boostRows.every((row) => row.complete);
     return { boostRows, summary, alternateAncestryBoosts: this.data.alternateAncestryBoosts, hasAncestry: !!this.data.ancestry };
+  }
+
+  async _computeBoostStepComplete() {
+    const { boostRows } = await this._buildBoostContext();
+    return boostRows.every((row) => row.complete);
   }
 
   async _getRequiredClassBoostSelections() {
@@ -2166,11 +2174,11 @@ function buildBrowserStepContext(stepId, data, stepContext) {
   if (!config) return null;
 
   const baseItems = Array.isArray(stepContext?.items) ? stepContext.items : [];
-  const items = sortRecommendedFirst(annotateGuidance(baseItems).map((item) => ({
+  const items = sortByGuidancePriority(annotateGuidance(baseItems).map((item) => ({
     ...item,
     trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
     boostsText: Array.isArray(item?.boosts) ? item.boosts.join(',') : '',
-  })));
+  })), (a, b) => a.name.localeCompare(b.name));
   const context = {
     stepId,
     title: localize(config.titleKey),

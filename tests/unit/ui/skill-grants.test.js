@@ -1,4 +1,6 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+import { MODULE_ID } from '../../../scripts/constants.js';
+import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -16,6 +18,7 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 
 describe('CharacterWizard skills step grants', () => {
   beforeEach(() => {
+    invalidateGuidanceCache();
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'class-uuid') {
         return {
@@ -54,6 +57,13 @@ describe('CharacterWizard skills step grants', () => {
     };
     global.game = {
       ...(global.game ?? {}),
+      user: {
+        ...(global.game?.user ?? {}),
+        isGM: true,
+      },
+      settings: {
+        get: jest.fn(() => ({})),
+      },
       pf2e: {
         ...(global.game?.pf2e ?? {}),
         settings: {
@@ -250,6 +260,82 @@ describe('CharacterWizard skills step grants', () => {
     ]));
   });
 
+  it('keeps disallowed languages visible but marked as disallowed', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 21;
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };
+
+    global.game.user.isGM = false;
+    global.game.settings.get = jest.fn((moduleId, settingKey) => {
+      if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
+        return { 'language:draconic': 'disallowed' };
+      }
+      return {};
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-uuid') {
+        return {
+          system: {
+            languages: { value: ['common'] },
+            additionalLanguages: { value: ['draconic'], count: 1 },
+          },
+        };
+      }
+      return null;
+    });
+
+    const context = await wizard._getStepContext();
+
+    expect(context.choosableLanguages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'draconic', isDisallowed: true }),
+    ]));
+  });
+
+  it('keeps disallowed skills visible but marked as disallowed', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 18;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+
+    global.game.user.isGM = false;
+    global.game.settings.get = jest.fn((moduleId, settingKey) => {
+      if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
+        return { 'skill:arcana': 'disallowed' };
+      }
+      return {};
+    });
+
+    const context = await wizard._getStepContext();
+
+    expect(context.skills).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'arcana', isDisallowed: true }),
+    ]));
+  });
+
+  it('sorts recommended skills first and not-recommended skills last', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 18;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+
+    global.game.settings.get = jest.fn((moduleId, settingKey) => {
+      if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
+        return {
+          'skill:arcana': 'recommended',
+          'skill:athletics': 'not-recommended',
+        };
+      }
+      return {};
+    });
+
+    const context = await wizard._getStepContext();
+    const arcanaIndex = context.skills.findIndex((entry) => entry.slug === 'arcana');
+    const athleticsIndex = context.skills.findIndex((entry) => entry.slug === 'athletics');
+    const craftingIndex = context.skills.findIndex((entry) => entry.slug === 'crafting');
+
+    expect(arcanaIndex).toBeLessThan(craftingIndex);
+    expect(athleticsIndex).toBeGreaterThan(craftingIndex);
+  });
+
   it('adds an extra selectable skill when background and class auto-train the same skill', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'class-uuid') {
@@ -409,5 +495,20 @@ describe('CharacterWizard skills step grants', () => {
     await expect(wizard._getBackgroundLores()).resolves.toEqual([
       { name: 'Abadar Lore', source: 'Background' },
     ]);
+  });
+
+  it('builds skill context safely when selected skills are not initialized yet', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data = {
+      class: { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' },
+      subclass: null,
+      deity: null,
+    };
+
+    await expect(wizard._buildSkillContext()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ slug: 'acrobatics', selected: false }),
+      ]),
+    );
   });
 });

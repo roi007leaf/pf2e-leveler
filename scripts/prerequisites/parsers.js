@@ -55,6 +55,10 @@ const NARRATIVE_DEATH_PATTERN = /\b(dead|died|mummified)\b/i;
 const NARRATIVE_INITIATION_PATTERN = /\b(initiates you into|earned the trust of)\b/i;
 const ACTION_CAPABILITY_PATTERN = /\bskill to\b/i;
 const WEAPON_TYPE_PROFICIENCY_PATTERN = /^trained in at least one type of\b/i;
+const WEAPON_FAMILY_PROFICIENCY_PATTERN = new RegExp(
+  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+at\\s+least\\s+one\\s+(.+)$`,
+  'i',
+);
 const WEAPON_NAME_PROFICIENCY_PATTERN = /^trained in\s+(?:an?\s+)?(.+)$/i;
 const COMPANION_PROHIBITION_PATTERN = /\byou\s+do(?:\s+not|n't)\s+have\b.*\bcompanion\b/i;
 const ALIGNMENT_PATTERN = /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neutral|chaotic|good|evil))?\s+alignment$/i;
@@ -82,6 +86,9 @@ export function parsePrerequisite(text) {
 
   const rankMatch = tryParseRankRequirement(baseText, trimmed);
   if (rankMatch) return rankMatch;
+
+  const weaponFamilyMatch = tryParseWeaponFamilyProficiency(baseText, trimmed);
+  if (weaponFamilyMatch) return weaponFamilyMatch;
 
   if (ACTION_CAPABILITY_PATTERN.test(baseText)) {
     return { type: 'unknown', text: trimmed };
@@ -171,9 +178,6 @@ export function parsePrerequisiteNode(text) {
 function tryParseRankRequirement(text, fullText = text) {
   if (RANK_WITH_EITHER_PATTERN.test(text)) return null;
 
-  if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(text)) return null;
-  if (looksLikeWeaponNameProficiency(text)) return null;
-
   const anySkillMatch = text.match(ANY_SKILL_PATTERN);
   if (anySkillMatch) {
     const rankName = anySkillMatch[1].toLowerCase();
@@ -182,6 +186,10 @@ function tryParseRankRequirement(text, fullText = text) {
       return { type: 'anySkill', minRank, text: fullText };
     }
   }
+
+  if (WEAPON_FAMILY_PROFICIENCY_PATTERN.test(text)) return null;
+  if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(text)) return null;
+  if (looksLikeWeaponNameProficiency(text)) return null;
 
   const normalizedText = text.split(/[;,]/, 1)[0].trim();
   const match = normalizedText.match(RANK_PATTERN);
@@ -214,6 +222,29 @@ function tryParseRankRequirement(text, fullText = text) {
     .trim();
   const key = PROFICIENCY_SUBJECT_ALIASES[normalizedSubject] ?? slugify(normalizedSubject);
   return { type: 'proficiency', key, minRank, text: fullText };
+}
+
+function tryParseWeaponFamilyProficiency(text, fullText = text) {
+  if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(text)) return null;
+
+  const match = text.match(WEAPON_FAMILY_PROFICIENCY_PATTERN);
+  if (!match) return null;
+
+  const rankName = match[1].toLowerCase();
+  const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
+  if (minRank < 0) return null;
+
+  const subject = normalizeEquipmentKeyword(match[2]);
+  if (!subject) return null;
+
+  if (!looksLikeWeaponFamilyRequirement(subject)) return null;
+
+  return {
+    type: 'weaponFamilyProficiency',
+    family: normalizeWeaponFamilyRequirement(subject),
+    minRank,
+    text: fullText,
+  };
 }
 
 function tryParseAbilityRequirement(text, fullText = text) {
@@ -784,4 +815,18 @@ function looksLikeWeaponNameProficiency(text) {
   if (Object.prototype.hasOwnProperty.call(PROFICIENCY_SUBJECT_ALIASES, subject)) return false;
 
   return /\b(sabre|sabres|sword|swords|axe|axes|bow|bows|firearm|firearms|gun|guns|hammer|hammers|spear|spears|polearm|polearms|weapon|weapons)\b/i.test(subject);
+}
+
+function looksLikeWeaponFamilyRequirement(subject) {
+  if (/\bskill\b/i.test(subject)) return false;
+  return /\b(crossbow|crossbows|bow|bows|firearm|firearms|weapon|weapons)\b/i.test(subject);
+}
+
+function normalizeWeaponFamilyRequirement(subject) {
+  const normalized = String(subject ?? '').trim().toLowerCase();
+  if (normalized.endsWith('crossbows')) return 'crossbow';
+  if (normalized.endsWith('bows')) return 'bow';
+  if (normalized.endsWith('firearms')) return 'firearm';
+  if (normalized.endsWith('weapons')) return normalized.replace(/\s+weapons$/u, '');
+  return normalized;
 }

@@ -2,6 +2,7 @@ import { CasterBaseHandler } from '../../../scripts/creation/class-handlers/cast
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
+import { PSYCHIC } from '../../../scripts/classes/psychic.js';
 
 describe('CasterBaseHandler._applySpellcasting', () => {
   beforeEach(() => {
@@ -9,6 +10,7 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     ClassRegistry.clear();
     ClassRegistry.register(DRUID);
     ClassRegistry.register(MAGUS);
+    ClassRegistry.register(PSYCHIC);
     global.foundry = {
       utils: {
         deepClone: (value) => JSON.parse(JSON.stringify(value)),
@@ -117,5 +119,35 @@ describe('CasterBaseHandler._applySpellcasting', () => {
         'system.slots.slot2.max': 2,
       }),
     ]);
+  });
+
+  it('does not add psychic subclass psi cantrips to the primary spellcasting entry', async () => {
+    const createdDocs = [];
+    const actor = {
+      items: [],
+      system: {
+        details: { level: { value: 1 } },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => {
+        createdDocs.push(...docs);
+        return docs.map((doc, index) => ({ id: doc.type === 'spellcastingEntry' ? 'entry-1' : `spell-${index}`, ...doc }));
+      }),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+
+    const handler = new CasterBaseHandler();
+    await handler._applySpellcasting(actor, {
+      class: { slug: 'psychic', name: 'Psychic' },
+      subclass: { slug: 'the-infinite-eye', name: 'The Infinite Eye' },
+      spells: {
+        cantrips: [
+          { uuid: 'Compendium.pf2e.spells-srd.Item.message', name: 'Message' },
+        ],
+        rank1: [],
+      },
+    });
+
+    const createdSpells = createdDocs.filter((doc) => doc.type === 'spell');
+    expect(createdSpells.map((doc) => doc.name).sort()).toEqual(['Gb7SeieEvd0pL2Eh', 'message']);
   });
 });

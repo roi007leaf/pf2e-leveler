@@ -193,9 +193,10 @@ export function parseSubclassLores(rules, html) {
 }
 
 export async function buildSkillContext(wizard) {
-  const classSkills = await wizard._getClassTrainedSkills();
-  const bgSkills = await getBackgroundTrainedSkills(wizard);
-  const subclassSkills = wizard.data.subclass?.grantedSkills ?? [];
+  const classSkills = await wizard._getClassTrainedSkills() ?? [];
+  const bgSkills = await getBackgroundTrainedSkills(wizard) ?? [];
+  const selectedSkills = Array.isArray(wizard.data.skills) ? wizard.data.skills : [];
+  const subclassSkills = Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : [];
   const deitySkill = wizard.data.deity?.skill ?? null;
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   return SKILLS.map((slug) => {
@@ -216,7 +217,7 @@ export async function buildSkillContext(wizard) {
     return {
       slug,
       label: localizeSkillSlug(slug),
-      selected: wizard.data.skills.includes(slug),
+      selected: selectedSkills.includes(slug),
       autoTrained,
       source,
       futureSkillChoices: futureSkillChoiceMap.get(slug) ?? [],

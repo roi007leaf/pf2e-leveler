@@ -332,6 +332,19 @@ describe('computeBuildState', () => {
     expect(state.proficiencies.classdc).toBe(PROFICIENCY_RANKS.TRAINED);
   });
 
+  test('collects weapon proficiency categories from actor data', () => {
+    mockActor.system.proficiencies = {
+      attacks: {
+        simple: { rank: 1 },
+        martial: { rank: 2 },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.weaponProficiencies.simple).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.weaponProficiencies.martial).toBe(PROFICIENCY_RANKS.EXPERT);
+  });
+
   test('collects lore ranks from owned lore items', () => {
     mockActor.items = [
       {

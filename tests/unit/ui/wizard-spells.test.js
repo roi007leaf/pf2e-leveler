@@ -130,4 +130,152 @@ describe('buildSpellContext', () => {
     expect(wizard._loadCompendiumCategory).toHaveBeenCalledWith('spells');
     expect(context.cantrips.map((spell) => spell.uuid)).toContain('custom-cantrip');
   });
+
+  it('shows psychic psi cantrips as focus cantrips and keeps them out of regular cantrip choices', async () => {
+    ClassRegistry.get.mockReturnValue({
+      slug: 'psychic',
+      spellcasting: {
+        tradition: 'occult',
+        type: 'spontaneous',
+        slots: {
+          1: {
+            cantrips: 3,
+            1: 2,
+          },
+        },
+      },
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      system: {
+        traits: {
+          value: ['cantrip', 'focus'],
+        },
+      },
+    }));
+
+    const wizard = {
+      data: {
+        class: { slug: 'psychic' },
+        subclass: { slug: 'the-infinite-eye', name: 'The Infinite Eye' },
+        spells: { cantrips: [], rank1: [] },
+      },
+      classHandler: {
+        needsNonCasterSpellStep: () => false,
+        getSpellbookCounts: () => ({ cantrips: 3, rank1: 2 }),
+        resolveGrantedSpells: async () => ({ cantrips: [], rank1s: [{ uuid: 'sure-strike', name: 'Sure Strike' }] }),
+        resolveFocusSpells: async () => ([
+          { uuid: 'detect-magic', name: 'Detect Magic' },
+          { uuid: 'guidance', name: 'Guidance' },
+          { uuid: 'glimpse-weakness', name: 'Glimpse Weakness' },
+        ]),
+        isFocusSpellChoice: () => false,
+        getSpellContext: async () => ({}),
+      },
+      _isCaster: () => true,
+      _loadCompendiumCategory: async () => ([
+        {
+          uuid: 'detect-magic',
+          name: 'Detect Magic',
+          level: 0,
+          rarity: 'common',
+          traditions: ['occult'],
+          traits: ['cantrip', 'focus'],
+        },
+        {
+          uuid: 'guidance',
+          name: 'Guidance',
+          level: 0,
+          rarity: 'common',
+          traditions: ['occult'],
+          traits: ['cantrip', 'focus'],
+        },
+        {
+          uuid: 'glimpse-weakness',
+          name: 'Glimpse Weakness',
+          level: 0,
+          rarity: 'common',
+          traditions: ['occult'],
+          traits: ['cantrip', 'focus'],
+        },
+        {
+          uuid: 'message',
+          name: 'Message',
+          level: 0,
+          rarity: 'common',
+          traditions: ['occult'],
+          traits: ['cantrip'],
+        },
+      ]),
+    };
+
+    const context = await buildSpellContext(wizard);
+
+    expect(context.maxCantrips).toBe(3);
+    expect(context.cantrips.map((spell) => spell.uuid)).toEqual(['message']);
+    expect(context.focusCantrips.map((spell) => spell.uuid)).toEqual(['detect-magic', 'guidance', 'glimpse-weakness']);
+    expect(context.grantedCantrips).toEqual([]);
+  });
+
+  it('keeps witch focus cantrips selectable when the class requires a focus-spell choice', async () => {
+    ClassRegistry.get.mockReturnValue({
+      slug: 'witch',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'prepared',
+        slots: {
+          1: {
+            cantrips: 5,
+            1: 2,
+          },
+        },
+      },
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      system: {
+        traits: {
+          value: ['cantrip', 'focus'],
+        },
+      },
+    }));
+
+    const wizard = {
+      data: {
+        class: { slug: 'witch' },
+        subclass: { tradition: 'arcane' },
+        devotionSpell: { uuid: 'phase-familiar', name: 'Phase Familiar' },
+        spells: { cantrips: [], rank1: [] },
+      },
+      classHandler: {
+        needsNonCasterSpellStep: () => false,
+        getSpellbookCounts: () => ({ cantrips: 11, rank1: 6 }),
+        resolveGrantedSpells: async () => ({ cantrips: [], rank1s: [] }),
+        resolveFocusSpells: async () => ([
+          { uuid: 'patrons-puppet', name: "Patron's Puppet" },
+          { uuid: 'phase-familiar', name: 'Phase Familiar' },
+        ]),
+        isFocusSpellChoice: () => true,
+        buildFocusContext: (data, focusSpells) => ({
+          focusSpells: focusSpells.map((spell) => ({
+            ...spell,
+            selected: spell.uuid === data.devotionSpell?.uuid,
+          })),
+          isDevotionChoice: true,
+        }),
+        getSpellContext: async () => ({}),
+      },
+      _isCaster: () => true,
+      _loadCompendiumCategory: async () => ([]),
+    };
+
+    const context = await buildSpellContext(wizard);
+
+    expect(context.isDevotionChoice).toBe(true);
+    expect(context.focusCantrips).toEqual([]);
+    expect(context.focusNonCantrips.map((spell) => spell.uuid)).toEqual(['patrons-puppet', 'phase-familiar']);
+    expect(context.focusNonCantrips.find((spell) => spell.uuid === 'phase-familiar')?.selected).toBe(true);
+  });
 });

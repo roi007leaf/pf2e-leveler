@@ -143,7 +143,7 @@ export class CasterBaseHandler extends BaseClassHandler {
     const subSlug = data.subclass?.slug;
     if (subSlug) {
       const resolved = resolveSubclassSpells(subSlug, data.subclass?.choices ?? {});
-      if (resolved?.cantrip) grantedUuids.add(resolved.cantrip);
+      if (resolved?.cantrip && data.class?.slug !== 'psychic') grantedUuids.add(resolved.cantrip);
       if (resolved?.rank1) grantedUuids.add(resolved.rank1);
     }
 

@@ -985,10 +985,14 @@
       </div>
       <div class="skill-btn-grid">
         {{#each grantedLanguages}}
-        <button type="button" class="skill-btn selected" disabled>
-          <span class="skill-btn__name">{{this.label}}</span>
-          {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
-          <span class="skill-btn__rank rank-text-trained">{{#if (eq this.source "feat")}}{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}{{else}}{{localize "PF2E_LEVELER.CREATION.STEPS.ANCESTRY"}}{{/if}}</span>
+        <button type="button" class="skill-btn skill-btn--stacked selected" disabled>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            <span class="skill-btn__tags">
+              {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
+              <span class="tag tag--info tag--tiny">{{#if (eq this.source "feat")}}{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}{{else}}{{localize "PF2E_LEVELER.CREATION.STEPS.ANCESTRY"}}{{/if}}</span>
+            </span>
+          </span>
         </button>
         {{/each}}
       </div>
@@ -1004,14 +1008,23 @@
       <div class="skill-btn-grid">
         {{#each choosableLanguages}}
         <button type="button"
-          class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
-          data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}">
-          <span class="skill-btn__name">{{this.label}}</span>
-          {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
-          {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-          {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
-          {{#if this.suggested}}<span class="skill-btn__rank tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
-          {{#unless this.suggested}}<span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>{{/unless}}
+          class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
+          data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}" {{#if this.isDisallowed}}disabled{{/if}}>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            <span class="skill-btn__tags">
+              {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+              {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+              {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
+              {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
+            </span>
+          </span>
+          {{#unless this.suggested}}
+          <span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}{{#if this.isDisallowed}}visibility: hidden;{{else}}visibility: hidden;{{/if}}{{/unless}}">
+            {{localize "PF2E_LEVELER.UI.SELECTED"}}
+          </span>
+          {{/unless}}
         </button>
         {{/each}}
       </div>
@@ -1042,12 +1055,15 @@
         </button>
         {{else}}
         <button type="button"
-          class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
-          data-action="toggleSkill" data-skill="{{this.slug}}">
+          class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
+          data-action="toggleSkill" data-skill="{{this.slug}}" {{#if this.isDisallowed}}disabled{{/if}}>
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
+            <span class="skill-btn__tags">
             {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
             {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+            {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+            </span>
             {{#if this.futureSkillChoices.length}}
             <span class="skill-btn__hint">
               {{#each this.futureSkillChoices}}

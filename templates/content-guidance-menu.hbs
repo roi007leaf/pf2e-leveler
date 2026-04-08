@@ -56,7 +56,7 @@
       </section>
       {{/if}}
 
-      <div class="guidance-list">
+      <div class="guidance-list {{#if useGridLayout}}guidance-list--grid{{/if}}">
         {{#if groupedItems}}
           {{#each groupedItems}}
           <div class="wizard-browser__group-label guidance-group__header">
