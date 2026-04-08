@@ -104,6 +104,7 @@
       "TITLE": "Selectionner un don",
       "SEARCH": "Rechercher des dons...",
       "ALL_SKILLS": "Toutes les competences",
+      "SKILL_FILTER": "Filtrer par competence...",
       "NO_RESULTS": "Aucun don trouve",
       "FILTER_LEVEL": "Niveau max",
       "LEVEL_RANGE": "Plage de niveaux",

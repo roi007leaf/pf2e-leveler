@@ -89,21 +89,21 @@ export function filterByRareRarity(feats, hideRare) {
   return feats.filter((feat) => feat.system.traits.rarity !== 'rare');
 }
 
-export function filterBySkill(feats, skillSlugs) {
+export function filterBySkill(feats, skillSlugs, logic = 'or') {
   if (!skillSlugs || skillSlugs.length === 0) return feats;
   const normalizedSkills = skillSlugs.map((skill) => String(skill).toLowerCase());
   const skillLabels = getSkillLabels(normalizedSkills);
 
   return feats.filter((feat) => {
-    const prereqs = feat.system.prerequisites?.value ?? [];
-    const traits = feat.system.traits?.value?.map((trait) => String(trait).toLowerCase()) ?? [];
-    const prereqTexts = prereqs.map((p) => String(p.value ?? '').toLowerCase());
+    const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    const prereqTexts = (feat.system.prerequisites?.value ?? []).map((p) => String(p.value ?? '').toLowerCase());
 
-    return normalizedSkills.some((skill) => {
+    const matchesSkill = (skill) => {
       const label = skillLabels.get(skill) ?? skill;
-      return traits.includes(skill)
-        || prereqTexts.some((text) => text.includes(skill) || text.includes(label));
-    });
+      return traits.includes(skill) || prereqTexts.some((text) => text.includes(skill) || text.includes(label));
+    };
+
+    return logic === 'and' ? normalizedSkills.every(matchesSkill) : normalizedSkills.some(matchesSkill);
   });
 }
 

@@ -57,17 +57,25 @@
         </div>
       </div>
 
-      {{#if showSkillFilter}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</div>
-        <select data-action="filterSkillFeats" class="picker__select">
-          <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ALL_SKILLS"}}</option>
-          {{#each skillOptions}}
-          <option value="{{this.slug}}" {{#if (eq ../selectedSkill this.slug)}}selected{{/if}}>{{this.label}}</option>
+      <div class="picker__filter-group" data-role="skill-filter-group" {{#unless showSkillFilter}}style="display:none"{{/unless}}>
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FILTER"}}</div>
+        <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SKILL_FILTER'}}" data-action="skillInput" autocomplete="off">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleSkillLogic">{{#if (eq skillLogic "and")}}AND{{else}}OR{{/if}}</button>
+          <ul class="picker__trait-autocomplete" data-role="skill-autocomplete"></ul>
+        </div>
+        <div class="picker__source-list" data-role="selected-skill-chips" style="margin-top: 8px;{{#unless selectedSkillChips.length}} display: none;{{/unless}}">
+          {{#each selectedSkillChips}}
+          <button type="button"
+            class="picker__source-chip selected"
+            data-action="toggleSkillChip"
+            data-skill="{{this.value}}">
+            <span>{{this.label}}</span>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
           {{/each}}
-        </select>
+        </div>
       </div>
-      {{/if}}
 
       {{#if showFeatTypeFilter}}
       <div class="picker__filter-group">

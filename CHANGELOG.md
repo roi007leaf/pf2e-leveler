@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1.2
+
+### Feat Picker
+
+- **Skill filter now available in all feat pickers** — A chip-based skill filter (with AND/OR toggle) now appears in any feat picker whose pool contains feats with skill traits or skill prerequisites. Previously the filter only appeared in the dedicated Skill Feats picker. Now class feat, general feat, ancestry feat, archetype feat, and custom plan pickers all show the filter when relevant
+- **Skill filter shows when feat type "Skill" is selected** — In pickers with a feat-type filter, the skill filter appears automatically when the Skill type chip is active, and hides when it's deselected
+- **Skill filter supports multi-select with AND/OR logic** — Multiple skills can be filtered simultaneously; OR mode shows feats matching any selected skill, AND mode shows feats requiring all of them
+
+### Character Wizard
+
+- **Wizard schools no longer falsely grant skill proficiencies** — The subclass skill parser was scanning the full description text for any mention of a skill name, causing items like "Pathfinder **Society**'s School of Spells" to incorrectly show Society as auto-trained. The HTML fallback now only matches explicit "trained in [skill]" phrasing
+- **Duplicate auto-trained skills now grant an extra free skill choice** — When a subclass (e.g. Rogue Thief granting Thievery) and a background (e.g. Street Urchin granting Thievery) both auto-train the same skill, the duplicate now correctly increments the free skill choice count. Previously only class-vs-background duplicates were detected; subclass and deity skill grants are now included in the check
+- **Skill prerequisites now evaluate correctly in feat pickers** — Feats requiring "Trained in X" (e.g. You're Next requiring Trained in Intimidation) were always shown as unmet in the wizard feat picker because the build state had no skills map. The picker now receives a full skills map built from class, subclass, background, deity, and user-selected skills
+
+### Export / Import
+
+- **`equipment` and `permanentItems` normalized on wizard import** — Importing a creation file exported before equipment features were added now correctly initializes both fields to empty arrays instead of leaving them undefined
+- **Planner import normalizes `apparitions`** — Importing an older plan file missing the `apparitions` field no longer requires consumers to guard against undefined
+
 ## 2.1.1
 
 ### Character Wizard

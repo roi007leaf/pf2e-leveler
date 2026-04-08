@@ -106,6 +106,7 @@
       "TITLE": "Select Feat",
       "SEARCH": "Search feats...",
       "ALL_SKILLS": "All Skills",
+      "SKILL_FILTER": "Filter by skill...",
       "NO_RESULTS": "No feats found",
       "FILTER_LEVEL": "Max Level",
       "LEVEL_RANGE": "Level Range",

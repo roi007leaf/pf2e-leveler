@@ -41,7 +41,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!game.settings.get(MODULE_ID, 'hideUncommonFeats')) this.selectedRarities.add('uncommon');
     if (!game.settings.get(MODULE_ID, 'hideRareFeats')) this.selectedRarities.add('rare');
     this.selectedRarities.add('unique');
-    this.selectedSkill = '';
+    this.selectedSkills = new Set();
+    this.skillLogic = 'or';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
     this.minLevel = '';
@@ -102,11 +103,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         buildState: this.buildState,
         additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
       });
+      // Computed once — allFeats is fixed for the lifetime of this picker instance
+      this._showSkillFilter = this._featsHaveSkillRelevance();
     }
 
     const sourceOptions = this._getSourceOptions();
     const featTypeOptions = this._getFeatTypeOptions();
     const traitOptions = this._getTraitOptions();
+    const skillChips = this._getSkillChipOptions();
     this.filteredFeats = this._applyFilters();
 
     return {
@@ -124,11 +128,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       sortMethod: this.sortMethod,
       minLevel: this.minLevel,
       maxLevel: this.maxLevel,
-      showSkillFilter: this.category === 'skill',
+      showSkillFilter: this._showSkillFilter ?? false,
       showGeneralSkillToggle: false,
       showFeatTypeFilter: featTypeOptions.length > 0,
-      skillOptions: this._getSkillOptions(),
-      selectedSkill: this.selectedSkill,
+      skillChips,
+      selectedSkillChips: skillChips.filter((o) => o.selected),
+      skillLogic: this.skillLogic,
       showDedicationToggle: this.category === 'archetype',
       showDedications: this.showDedications,
       showSkillFeats: this.showSkillFeats,
@@ -170,7 +175,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) <= maxLevel);
     }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
-    if (this.category === 'skill' && this.selectedSkill) feats = filterBySkill(feats, [this.selectedSkill]);
+    if (this._showSkillFilter && this.selectedSkills.size > 0) feats = filterBySkill(feats, [...this.selectedSkills], this.skillLogic);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
     if (this.selectedFeatTypes.size > 0) {
       const hideSkillFromGeneral = this.selectedFeatTypes.has('general') && !this.selectedFeatTypes.has('skill');
@@ -363,13 +368,36 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }, { signal });
 
-    const skillSelect = el.querySelector('[data-action="filterSkillFeats"]');
-    if (skillSelect) {
-      skillSelect.addEventListener('change', (e) => {
-        this.selectedSkill = e.target.value;
-        this._scheduleListUpdate();
+    const skillInput = el.querySelector('[data-action="skillInput"]');
+    if (skillInput) {
+      skillInput.addEventListener('keydown', (e) => {
+        const dropdown = el.querySelector('[data-role="skill-autocomplete"]');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          this._navigateAutocomplete(dropdown, e.key === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          const highlighted = dropdown?.querySelector('.highlighted');
+          if (highlighted) skillInput.value = highlighted.dataset.skill;
+          this._commitSkillInput(skillInput);
+          this._closeDropdown(el, 'skill-autocomplete');
+          return;
+        }
+        if (e.key === 'Escape') { this._closeDropdown(el, 'skill-autocomplete'); return; }
       }, { signal });
+      skillInput.addEventListener('input', () => this._updateSkillAutocomplete(el, skillInput.value), { signal });
+      skillInput.addEventListener('blur', () => setTimeout(() => this._closeDropdown(el, 'skill-autocomplete'), 150), { signal });
+      skillInput.addEventListener('focus', () => { if (skillInput.value) this._updateSkillAutocomplete(el, skillInput.value); }, { signal });
     }
+
+    el.querySelector('[data-action="toggleSkillLogic"]')?.addEventListener('click', () => {
+      this.skillLogic = this.skillLogic === 'and' ? 'or' : 'and';
+      this._scheduleListUpdate();
+    }, { signal });
+
+    this._bindSkillChipListeners(el, signal);
 
     const dedicationToggle = el.querySelector('[data-action="toggleDedications"]');
     if (dedicationToggle) {
@@ -607,20 +635,86 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (confirmButton) confirmButton.disabled = count === 0;
   }
 
-  _getSkillOptions() {
-    if (this.category !== 'skill') return [];
+  _featsHaveSkillRelevance() {
+    const configSkills = globalThis.CONFIG?.PF2E?.skills ?? {};
+    const skillSlugs = new Set(Object.keys(configSkills).map((s) => s.toLowerCase()));
+    return this.allFeats.some((feat) => {
+      const traits = (feat.system?.traits?.value ?? []).map((t) => String(t).toLowerCase());
+      if (traits.some((t) => skillSlugs.has(t))) return true;
+      const prereqText = (feat.system?.prerequisites?.value ?? [])
+        .map((p) => String(p.value ?? '').toLowerCase()).join(' ');
+      return prereqText && [...skillSlugs].some((slug) => prereqText.includes(slug));
+    });
+  }
+
+  _buildSkillOptionsBase() {
+    if (this._skillOptionsBase) return this._skillOptionsBase;
     const configSkills = globalThis.CONFIG?.PF2E?.skills ?? {};
     const options = Object.entries(configSkills).map(([slug, rawEntry]) => {
       const rawLabel = typeof rawEntry === 'string'
         ? rawEntry
         : rawEntry?.label ?? rawEntry?.short ?? rawEntry?.long ?? slug;
-      return {
-        slug,
-        label: typeof rawLabel === 'string' && game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel,
-      };
+      const label = typeof rawLabel === 'string' && game.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : String(rawLabel);
+      return { slug, label };
     });
-    options.sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    options.sort((a, b) => a.label.localeCompare(b.label));
+    this._skillOptionsBase = options;
     return options;
+  }
+
+  _getSkillChipOptions() {
+    const base = this._buildSkillOptionsBase();
+    const labels = Object.fromEntries(base.map((o) => [o.slug, o.label]));
+    return buildChipOptions(base.map((o) => o.slug), this.selectedSkills, { labels });
+  }
+
+  _commitSkillInput(input) {
+    const query = String(input?.value ?? '').trim().toLowerCase();
+    if (!query) return;
+    const match = this._buildSkillOptionsBase().find((o) => o.label.toLowerCase() === query || o.slug === query);
+    if (match) this.selectedSkills.add(match.slug);
+    if (input) input.value = '';
+    this._scheduleListUpdate();
+  }
+
+  _updateSkillAutocomplete(el, query) {
+    const dropdown = el.querySelector('[data-role="skill-autocomplete"]');
+    if (!dropdown) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { this._closeDropdown(el, 'skill-autocomplete'); return; }
+    const skills = this._buildSkillOptionsBase()
+      .filter((o) => !this.selectedSkills.has(o.slug) && (o.label.toLowerCase().includes(q) || o.slug.includes(q)));
+    if (skills.length === 0) { this._closeDropdown(el, 'skill-autocomplete'); return; }
+    dropdown.innerHTML = skills.map((o) => {
+      const lbl = o.label.toLowerCase();
+      const idx = lbl.indexOf(q);
+      const highlighted = idx >= 0
+        ? `${o.label.slice(0, idx)}<mark>${o.label.slice(idx, idx + q.length)}</mark>${o.label.slice(idx + q.length)}`
+        : o.label;
+      return `<li data-skill="${o.slug}">${highlighted}</li>`;
+    }).join('');
+    dropdown.classList.add('open');
+    for (const li of dropdown.querySelectorAll('li')) {
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const input = el.querySelector('[data-action="skillInput"]');
+        if (input) input.value = li.dataset.skill;
+        this._commitSkillInput(input);
+        this._closeDropdown(el, 'skill-autocomplete');
+      }, { signal: this._domListeners?.signal });
+    }
+  }
+
+  _bindSkillChipListeners(root, signal) {
+    root.querySelectorAll('[data-action="toggleSkillChip"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const skill = btn.dataset.skill;
+        if (!skill) return;
+        if (this.selectedSkills.has(skill)) this.selectedSkills.delete(skill);
+        else this.selectedSkills.add(skill);
+        this._scheduleListUpdate();
+      }, { signal });
+    });
   }
 
   _getSourceOptions() {
@@ -780,8 +874,30 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!root) return;
 
     const logicButton = root.querySelector('[data-action="toggleTraitLogic"]');
-    if (logicButton) {
-      logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
+    if (logicButton) logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
+
+    const skillFilterGroup = root.querySelector('[data-role="skill-filter-group"]');
+    if (skillFilterGroup) skillFilterGroup.style.display = this._showSkillFilter ? '' : 'none';
+
+    const skillLogicButton = root.querySelector('[data-action="toggleSkillLogic"]');
+    if (skillLogicButton) skillLogicButton.textContent = this.skillLogic === 'and' ? 'AND' : 'OR';
+
+    const skillChipContainer = root.querySelector('[data-role="selected-skill-chips"]');
+    if (skillChipContainer) {
+      const selectedSkillChips = this._buildSkillOptionsBase()
+        .filter((o) => this.selectedSkills.has(o.slug))
+        .map((o) => ({ value: o.slug, label: o.label }));
+      skillChipContainer.style.display = selectedSkillChips.length > 0 ? '' : 'none';
+      skillChipContainer.innerHTML = selectedSkillChips.map((chip) => `
+        <button type="button"
+          class="picker__source-chip selected"
+          data-action="toggleSkillChip"
+          data-skill="${chip.value}">
+          <span>${chip.label}</span>
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      `).join('');
+      if (this._domListeners?.signal) this._bindSkillChipListeners(root, this._domListeners.signal);
     }
 
     const traitChipContainer = root.querySelector('[data-role="selected-trait-chips"]');
@@ -849,14 +965,16 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (input) input.value = li.dataset.trait;
         this._commitTraitInput(input);
         this._closeAutocomplete(el);
-      });
+      }, { signal: this._domListeners?.signal });
     }
   }
 
-  _closeAutocomplete(el) {
-    const dropdown = el.querySelector('[data-role="trait-autocomplete"]');
+  _closeDropdown(el, role) {
+    const dropdown = el.querySelector(`[data-role="${role}"]`);
     if (dropdown) { dropdown.classList.remove('open'); dropdown.innerHTML = ''; }
   }
+
+  _closeAutocomplete(el) { this._closeDropdown(el, 'trait-autocomplete'); }
 
   _navigateAutocomplete(dropdown, direction) {
     if (!dropdown) return;

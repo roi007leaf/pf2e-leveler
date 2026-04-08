@@ -28,5 +28,6 @@ export function importPlan(jsonString) {
   if (!plan?.classSlug || !plan?.levels || !plan?.version) {
     throw new Error('Invalid plan format');
   }
+  plan.apparitions ??= [];
   return plan;
 }

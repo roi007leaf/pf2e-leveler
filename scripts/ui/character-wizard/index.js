@@ -412,11 +412,25 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     ])];
 
     const senses = await this._collectSenses();
+    const [classSkillsForState, bgSkillsForState] = await Promise.all([
+      this._getClassTrainedSkills(),
+      this._getBackgroundTrainedSkills(),
+    ]);
+    const allTrainedSkills = [
+      ...classSkillsForState,
+      ...bgSkillsForState,
+      ...(this.data.subclass?.grantedSkills ?? []),
+      ...(this.data.deity?.skill ? [this.data.deity.skill] : []),
+      ...this.data.skills,
+    ];
+    const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
+
     const buildState = {
       class: { slug: classSlug },
       feats: new Set(),
       ancestryTraits: new Set(ancestryTraits),
       senses,
+      skills: skillsMap,
     };
 
     const presets = {
@@ -836,16 +850,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getDuplicateAutoTrainedSkillCount(classItem = null) {
     const resolvedClassItem = classItem ?? (this.data.class?.uuid ? await this._getCachedDocument(this.data.class.uuid) : null);
-    if (!resolvedClassItem) return 0;
 
-    const classSkills = new Set(
-      (resolvedClassItem.system?.trainedSkills?.value ?? [])
-        .filter((skill) => typeof skill === 'string' && skill.length > 0),
-    );
-    if (classSkills.size === 0) return 0;
+    const autoTrainedSkills = new Set([
+      ...(resolvedClassItem?.system?.trainedSkills?.value ?? []).filter((s) => typeof s === 'string' && s.length > 0),
+      ...(this.data.subclass?.grantedSkills ?? []).filter((s) => typeof s === 'string' && s.length > 0),
+      ...(this.data.deity?.skill ? [this.data.deity.skill] : []),
+    ]);
+    if (autoTrainedSkills.size === 0) return 0;
 
     const backgroundSkills = await this._getBackgroundTrainedSkills();
-    return backgroundSkills.filter((skill) => classSkills.has(skill)).length;
+    return backgroundSkills.filter((skill) => autoTrainedSkills.has(skill)).length;
   }
 
   _getSkillsNote() {
@@ -1202,11 +1216,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (match && rule.value >= 1) skills.push(match[1]);
     }
     if (skills.length === 0 && html) {
-      const text = html.replace(/<[^>]+>/g, ' ');
-      const lowerText = text.toLowerCase();
+      const text = html.replace(/<[^>]+>/g, ' ').toLowerCase();
       for (const skill of SKILLS) {
         const localized = this._localizeSkillSlug(skill).toLowerCase();
-        if (lowerText.includes(localized) || lowerText.includes(skill)) skills.push(skill);
+        const pattern = new RegExp(`(?:trained|expert|master|legendary)\\s+in\\s+(?:[\\w,\\s]+,\\s*)?(?:${localized}|${skill})`, 'i');
+        if (pattern.test(text)) skills.push(skill);
       }
     }
     return skills;

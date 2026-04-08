@@ -58,6 +58,8 @@ function normalizeCreationImport(payload) {
   normalized.curriculumSpells.cantrips ??= [];
   normalized.curriculumSpells.rank1 ??= [];
   normalized.alternateAncestryBoosts ??= false;
+  normalized.equipment ??= [];
+  normalized.permanentItems ??= [];
 
   return normalized;
 }
