@@ -1,4 +1,4 @@
-import { CompendiumSettingsMenu } from '../../../scripts/ui/compendium-settings-menu.js';
+import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from '../../../scripts/ui/compendium-settings-menu.js';
 import * as catalog from '../../../scripts/compendiums/catalog.js';
 
 describe('CompendiumSettingsMenu', () => {
@@ -299,5 +299,94 @@ describe('CompendiumSettingsMenu', () => {
     const classesCategory = context.categories.find((category) => category.key === 'classes');
 
     expect(classesCategory.packs.map((pack) => pack.key)).toEqual(['pf2e.classes']);
+  });
+
+  test('category view uses draft selections so deselected custom packs stay unchecked after rerender', async () => {
+    jest.spyOn(catalog, 'discoverCompendiumsByCategory').mockResolvedValue({
+      ancestries: [
+        { key: 'battlezoo-dragons-fairy-dragons-pf2e.ancestry', label: 'Ancestry', locked: false, manualCandidate: false, packageName: 'battlezoo-dragons-fairy-dragons-pf2e', packageLabel: 'Battlezoo Dragons' },
+      ],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    });
+
+    const menu = new CompendiumSettingsMenu();
+    menu.activeCategory = 'ancestries';
+    menu._draftSelections = {
+      ancestries: [],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    };
+
+    const context = await menu._prepareContext();
+    const ancestriesCategory = context.categories.find((category) => category.key === 'ancestries');
+
+    expect(ancestriesCategory.packs.map((pack) => pack.key)).toEqual(['pf2e.ancestries']);
+    expect(ancestriesCategory.packs.some((pack) => pack.key === 'battlezoo-dragons-fairy-dragons-pf2e.ancestry')).toBe(false);
+  });
+
+  test('player content sources hide pack remapping and follow main compendium assignments', async () => {
+    jest.spyOn(catalog, 'discoverCompendiumsByCategory').mockResolvedValue({
+      ancestries: [
+        { key: 'pf2e.ancestries', label: 'Ancestries', locked: true, manualCandidate: false, packageName: 'pf2e', packageLabel: 'PF2E' },
+        { key: 'battlezoo-dragons-fairy-dragons-pf2e.ancestry', label: 'Fairy Dragons', locked: false, manualCandidate: false, packageName: 'battlezoo-dragons-fairy-dragons-pf2e', packageLabel: 'Battlezoo Dragons' },
+      ],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    });
+
+    jest.spyOn(catalog, 'getConfiguredCompendiumSelections').mockReturnValue({
+      ancestries: [],
+      heritages: [],
+      backgrounds: [],
+      classes: [],
+      feats: [],
+      classFeatures: [],
+      spells: [],
+      equipment: [],
+      actions: [],
+      deities: [],
+    });
+
+    game.settings.get = jest.fn((moduleId, settingId) => {
+      if (moduleId === 'pf2e-leveler' && settingId === 'playerCompendiumAccess') {
+        return {
+          enabled: true,
+          selections: {
+            ancestries: ['battlezoo-dragons-fairy-dragons-pf2e.ancestry'],
+          },
+        };
+      }
+      return {};
+    });
+
+    const menu = new PlayerCompendiumAccessMenu();
+    const context = await menu._prepareContext();
+    const ancestriesCategory = context.categories.find((category) => category.key === 'ancestries');
+
+    expect(context.showViewModeTabs).toBe(false);
+    expect(context.isCategoryView).toBe(true);
+    expect(ancestriesCategory.packs.map((pack) => pack.key)).toEqual(['pf2e.ancestries']);
   });
 });

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.3
+
+### Character Wizard
+
+- **Older characters can recover missing creation plans when reopened** - If a character's saved creation snapshot was lost by earlier versions, reopening Character Creation now rebuilds a best-effort level 1 plan from the actor's ancestry, heritage, background, class, deity, and recoverable level 1 feat selections, then saves that recovered snapshot for future edits
+- **Granted feat Browse Feats buttons now open correctly** - Fixed the feat-choice template wiring so granted feat pickers such as `Versatile Human` correctly launch the locked feat picker instead of doing nothing when clicked
+
+### Player Content Sources
+
+- **Player access now follows the main compendium mapping** - The Player Content Sources menu no longer acts like a second compendium assignment tool. It now follows the main compendium manager's category mapping and only controls which of those mapped sources non-GM users are allowed to access
+
 ## 2.1.2
 
 ### Feat Picker

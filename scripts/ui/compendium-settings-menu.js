@@ -116,6 +116,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       titleText: this._getMenuTitle(),
       intro: this._getIntroText(),
       viewMode: this.viewMode,
+      showViewModeTabs: this._showViewModeTabs(),
       isPackView: this.viewMode === 'packs',
       isCategoryView: this.viewMode !== 'packs',
       categoriesViewLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CATEGORIES_VIEW'),
@@ -137,8 +138,9 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       summaryLabel: game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY'),
       packRows,
       categories: categoryKeys.map((category) => {
-        const assignedKeys = getCompendiumKeysForCategory(category, { includeDefaults: true });
-        const packs = assignedKeys.map((key) => {
+        const selectedKeys = configured[category] ?? [];
+        const visibleKeys = this._getVisiblePackKeys(category, configured);
+        const packs = visibleKeys.map((key) => {
           const discoveredPack = (discovered[category] ?? []).find((pack) => pack.key === key);
           const metadataPack = packMetadataLookup.get(key);
           const pack = discoveredPack ?? metadataPack ?? {
@@ -151,7 +153,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
 
           return {
             ...pack,
-            checked: true,
+            checked: (pack.locked ?? pack.lockedCategories?.has?.(category) ?? false) || selectedKeys.includes(key),
             locked: pack.locked ?? pack.lockedCategories?.has?.(category) ?? false,
             enforced: this._isPackEnforced({
               ...pack,
@@ -359,6 +361,14 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     return getConfiguredCompendiumSelections();
   }
 
+  _getVisiblePackKeys(category, configuredSelections = {}) {
+    const selectedKeys = configuredSelections[category] ?? [];
+    return [...new Set([
+      ...getDefaultCompendiumKeys(category),
+      ...selectedKeys,
+    ])];
+  }
+
   _getIntroText() {
     return game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.HINT');
   }
@@ -371,6 +381,10 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     return !!pack.locked;
   }
 
+  _showViewModeTabs() {
+    return true;
+  }
+
   _resolvePackageLabel(packageName) {
     if (!packageName) return '';
     if (game.system?.id === packageName) return game.system.title ?? packageName;
@@ -379,6 +393,11 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
 }
 
 export class PlayerCompendiumAccessMenu extends CompendiumSettingsMenu {
+  constructor(options = {}) {
+    super(options);
+    this.viewMode = 'categories';
+  }
+
   _getSettingKey() {
     return 'playerCompendiumAccess';
   }
@@ -410,6 +429,17 @@ export class PlayerCompendiumAccessMenu extends CompendiumSettingsMenu {
   }
 
   _isPackEnforced() {
+    return false;
+  }
+
+  _getVisiblePackKeys(category) {
+    return [...new Set([
+      ...getDefaultCompendiumKeys(category),
+      ...(getConfiguredCompendiumSelections()[category] ?? []),
+    ])];
+  }
+
+  _showViewModeTabs() {
     return false;
   }
 }
