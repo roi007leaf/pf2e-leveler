@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.4
+
+### Feat Picker
+
+- **Custom plan feat picker now opens truly unfiltered** - The `All Feats` custom planner picker no longer inherits default rarity restrictions from module settings. It now starts with all rarities visible and only limits results by level until the user applies filters
+- **Archetype additional feats now parse correctly from PF2e journal content** - Fixed dedication `Additional Feats` parsing so linked feats like `Twin Parry` are resolved correctly from archetype journal pages instead of being misread as raw `@UUID[...]` text or mixed with unrelated archetype pages
+- **Dedication-unlocked feats now show their unlock level** - Feats made selectable by a dedication now display a badge such as `Dedication Lv 6+` in the feat picker so players can immediately see why the feat is available
+
 ## 2.1.3
 
 ### Character Wizard

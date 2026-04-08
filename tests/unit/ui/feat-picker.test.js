@@ -162,6 +162,143 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
+  test('archetype additional feats remain visible under locked archetype trait filtering', () => {
+    const feat = createFeat({
+      name: 'Quick Draw',
+      uuid: 'Compendium.pf2e.feats-srd.Item.quick-draw',
+      slug: 'quick-draw',
+    });
+    feat.system.traits.value = ['fighter'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState({
+      level: 4,
+      feats: new Set(['dual-weapon-warrior-dedication']),
+    }), jest.fn(), {
+      preset: {
+        selectedTraits: ['archetype', 'dedication'],
+        lockedTraits: ['archetype', 'dedication'],
+        traitLogic: 'or',
+      },
+    });
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['quick-draw', 4]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe('Quick Draw');
+  });
+
+  test('archetype additional feats inherit their dedication archetype trait for filtering', () => {
+    const feat = createFeat({
+      name: 'Quick Draw',
+      uuid: 'Compendium.pf2e.feats-srd.Item.quick-draw',
+      slug: 'quick-draw',
+    });
+    feat.system.traits.value = ['fighter'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState({
+      level: 4,
+      feats: new Set(['dual-weapon-warrior-dedication']),
+    }), jest.fn(), {
+      preset: {
+        selectedTraits: ['dual-weapon-warrior'],
+        lockedTraits: ['dual-weapon-warrior'],
+      },
+    });
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['quick-draw', 4]]);
+    picker.additionalArchetypeFeatTraits = new Map([['quick-draw', new Set(['dual-weapon-warrior'])]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe('Quick Draw');
+  });
+
+  test('archetype additional feats count as archetype feat type for locked feat-type filtering', () => {
+    const feat = createFeat({
+      name: 'Quick Draw',
+      uuid: 'Compendium.pf2e.feats-srd.Item.quick-draw',
+      slug: 'quick-draw',
+    });
+    feat.system.traits.value = ['fighter'];
+    feat.system.level.value = 1;
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState({
+      level: 4,
+      feats: new Set(['dual-weapon-warrior-dedication']),
+    }), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['archetype'],
+        lockedFeatTypes: ['archetype'],
+      },
+    });
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['quick-draw', 4]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe('Quick Draw');
+  });
+
+  test('template feats expose dedication unlock level for additional archetype feats', () => {
+    const feat = createFeat({
+      name: 'Twin Parry',
+      uuid: 'Compendium.pf2e.feats-srd.Item.twin-parry',
+      slug: 'twin-parry',
+    });
+    feat.system.traits.value = ['fighter', 'ranger'];
+    feat.system.level.value = 4;
+
+    const picker = new FeatPicker(createActor(), 'archetype', 6, createBuildState({
+      level: 6,
+      feats: new Set(['dual-weapon-warrior-dedication']),
+    }), jest.fn());
+    picker.additionalArchetypeFeatLevels = new Map([['twin-parry', 6]]);
+
+    const templated = picker._toTemplateFeat(feat);
+
+    expect(templated.isAdditionalArchetypeFeat).toBe(true);
+    expect(templated.additionalArchetypeUnlockLevel).toBe(6);
+  });
+
+  test('custom feat picker treats dedication additional feats as archetype feats for filtering', () => {
+    const feat = createFeat({
+      name: 'Twin Parry',
+      uuid: 'Compendium.pf2e.feats-srd.Item.twin-parry',
+      slug: 'twin-parry',
+    });
+    feat.system.traits.value = ['fighter', 'ranger'];
+    feat.system.level.value = 4;
+
+    const picker = new FeatPicker(createActor(), 'custom', 6, createBuildState({
+      level: 6,
+      feats: new Set(['dual-weapon-warrior-dedication']),
+    }), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['archetype'],
+        lockedFeatTypes: ['archetype'],
+        selectedTraits: ['archetype', 'dedication'],
+        lockedTraits: ['archetype', 'dedication'],
+        traitLogic: 'or',
+      },
+    });
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['twin-parry', 6]]);
+    picker.additionalArchetypeFeatTraits = new Map([['twin-parry', new Set(['dual-weapon-warrior'])]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe('Twin Parry');
+    expect(picker._getFeatTypes(feat)).toContain('archetype');
+    expect(picker._getTraitFilterValues(feat)).toEqual(expect.arrayContaining(['archetype', 'dual-weapon-warrior']));
+  });
+
   test('archetype-unlocked skill feats stay selectable in the general picker when skill feats are enabled', () => {
     const feat = createFeat({
       name: 'Trap Finder',
@@ -277,6 +414,47 @@ describe('FeatPicker prerequisite enforcement', () => {
 
     expect(picker.maxLevel).toBe('7');
     expect(context.maxLevel).toBe('7');
+  });
+
+  test('custom feat picker starts with all rarities enabled regardless of hide settings', () => {
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      'pf2e-leveler': {
+        ...(global._testSettings?.['pf2e-leveler'] ?? {}),
+        hideUncommonFeats: true,
+        hideRareFeats: true,
+      },
+    };
+
+    const commonFeat = createFeat({
+      name: 'Common Feat',
+      uuid: 'common-feat',
+      slug: 'common-feat',
+    });
+    commonFeat.system.traits.value = ['general'];
+    commonFeat.system.traits.rarity = 'common';
+
+    const uncommonFeat = createFeat({
+      name: 'Uncommon Feat',
+      uuid: 'uncommon-feat',
+      slug: 'uncommon-feat',
+    });
+    uncommonFeat.system.traits.value = ['general'];
+    uncommonFeat.system.traits.rarity = 'uncommon';
+
+    const rareFeat = createFeat({
+      name: 'Rare Feat',
+      uuid: 'rare-feat',
+      slug: 'rare-feat',
+    });
+    rareFeat.system.traits.value = ['general'];
+    rareFeat.system.traits.rarity = 'rare';
+
+    const picker = new FeatPicker(createActor(), 'custom', 6, createBuildState({ level: 6 }), jest.fn());
+    picker.allFeats = [commonFeat, uncommonFeat, rareFeat];
+
+    expect([...picker.selectedRarities].sort()).toEqual(['common', 'rare', 'uncommon', 'unique']);
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Common Feat', 'Rare Feat', 'Uncommon Feat']);
   });
 
   test('restricts custom feat picker results to allowed feat uuids from a preset', () => {

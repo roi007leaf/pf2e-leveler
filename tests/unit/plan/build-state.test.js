@@ -492,7 +492,29 @@ describe('computeBuildState', () => {
     };
 
     const state = computeBuildState(mockActor, plan, 4);
+    expect(state.archetypeDedications.has('druid-dedication')).toBe(true);
     expect(state.classArchetypeDedications.has('druid-dedication')).toBe(true);
     expect(state.classArchetypeTraits.has('druid')).toBe(true);
+  });
+
+  test('tracks planned non-class archetype dedications from stored planner feat traits', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.aldori-duelist-dedication',
+              name: 'Aldori Duelist Dedication',
+              slug: 'aldori-duelist-dedication',
+              traits: ['archetype', 'dedication'],
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+    expect(state.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
+    expect(state.classArchetypeDedications.has('aldori-duelist-dedication')).toBe(false);
   });
 });

@@ -191,6 +191,12 @@
               {{#if (notEqual this.system.traits.rarity "common")}}
               <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
               {{/if}}
+              {{#if this.isAdditionalArchetypeFeat}}
+              <span class="tag tag--info" data-tooltip="{{format 'PF2E_LEVELER.FEAT_PICKER.ARCHETYPE_UNLOCK_HINT' level=this.additionalArchetypeUnlockLevel}}">
+                <i class="fa-solid fa-diagram-project"></i>
+                {{format "PF2E_LEVELER.FEAT_PICKER.ARCHETYPE_UNLOCK" level=this.additionalArchetypeUnlockLevel}}
+              </span>
+              {{/if}}
             </div>
             {{#if this.prereqResults.length}}
             <div class="prereq-tags">

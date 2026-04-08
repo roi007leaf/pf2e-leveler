@@ -190,6 +190,44 @@ describe('filterFeatsByCategory', () => {
     ]));
   });
 
+  test('includes multiple additional feats listed at the same archetype level', async () => {
+    const dedication = {
+      ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+      slug: 'dual-weapon-warrior-dedication',
+      system: {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+        description: {
+          value: '<p><strong>Additional Feats:</strong> 4th Quick Draw, Dual-Weapon Reload; 6th Twin Parry</p>',
+        },
+      },
+    };
+    const quickDraw = makeFeat('Quick Draw', 1, ['fighter']);
+    const dualWeaponReload = makeFeat('Dual-Weapon Reload', 1, ['gunslinger']);
+    const twinParry = makeFeat('Twin Parry', 1, ['fighter']);
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, quickDraw, dualWeaponReload, twinParry],
+      new Set(['dual-weapon-warrior-dedication']),
+    );
+
+    const result = filterFeatsByCategory(
+      [dedication, quickDraw, dualWeaponReload, twinParry],
+      'archetype',
+      '',
+      4,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Dual-Weapon Warrior Dedication' }),
+      expect.objectContaining({ name: 'Quick Draw' }),
+      expect.objectContaining({ name: 'Dual-Weapon Reload' }),
+    ]));
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Twin Parry' }),
+    ]));
+  });
+
   test('ancestry feat filtering includes adopted ancestry traits from build state', () => {
     const feats = [
       makeFeat('Dwarven Lore', 1, ['dwarf']),
@@ -412,6 +450,26 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-parry')).toBe(6);
   });
 
+  test('collectAdditionalArchetypeFeatLevels normalizes raw @UUID text fallback entries', async () => {
+    const feats = [
+      {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+        slug: 'dual-weapon-warrior-dedication',
+        system: {
+          ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: 'Additional Feats: 4th @UUID[Compendium.pf2e.feats-srd.Item.Gw0wGXikhAhiGoud]{Twin Takedown}, 6th @UUID[Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou]{Twin Parry}',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(feats, new Set(['dual-weapon-warrior-dedication']));
+
+    expect(result.get('twin-takedown')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+  });
+
   test('collectAdditionalArchetypeFeatLevels can parse Additional Feats from a linked journal entry', async () => {
     const feats = [
       {
@@ -480,6 +538,49 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-takedown')).toBe(4);
     expect(result.get('twin-parry')).toBe(6);
     expect(result.get('twin-riposte')).toBe(12);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels scopes linked journal parsing to the matching archetype page', async () => {
+    const feats = [
+      {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+        slug: 'dual-weapon-warrior-dedication',
+        system: {
+          ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p>See @UUID[Compendium.pf2e.journals.JournalEntry.vx5FGEG34AxI2dow]{Dual-Weapon Warrior} for details.</p>',
+          },
+        },
+      },
+    ];
+
+    const resolver = jest.fn(async (uuid) => ({
+      uuid,
+      pages: [
+        {
+          name: 'Archer',
+          text: {
+            content: '<p><strong>Additional Feats:</strong> 4th @UUID[Compendium.pf2e.feats-srd.Item.UiQbjeqBUFjUtgUR]{Assisting Shot}</p>',
+          },
+        },
+        {
+          name: 'Dual-Weapon Warrior',
+          text: {
+            content: '<p><strong>Additional Feats:</strong> 4th @UUID[Compendium.pf2e.feats-srd.Item.Nn1aG3Bnq7sNQJ8n]{Quick Draw}, 6th @UUID[Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou]{Twin Parry}</p>',
+          },
+        },
+      ],
+    }));
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['dual-weapon-warrior-dedication']),
+      { documentResolver: resolver },
+    );
+
+    expect(result.get('quick-draw')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+    expect(result.has('assisting-shot')).toBe(false);
   });
 
   test('collectAdditionalArchetypeFeatLevels resolves listed feat names to actual feat slugs', async () => {

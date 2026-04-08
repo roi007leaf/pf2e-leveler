@@ -633,6 +633,30 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.showDedications).toBe(true);
   });
 
+  it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.aldori-duelist-dedication',
+      slug: 'aldori-duelist-dedication',
+      name: 'Aldori Duelist Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication'],
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 4);
+    const preset = planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
+
+    expect(buildState.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.showDedications).toBe(true);
+  });
+
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {
     const originalConfig = global.CONFIG;
     const originalFromUuid = global.fromUuid;

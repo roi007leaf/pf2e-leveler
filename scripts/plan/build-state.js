@@ -49,6 +49,7 @@ export function computeBuildState(actor, plan, atLevel) {
     deity: computeDeityState(actor),
     divineFont: computeDivineFontState(actor),
     spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
+    archetypeDedications: computeArchetypeDedications(actor, plan, atLevel),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
@@ -574,6 +575,22 @@ function computeClassArchetypeDedications(actor, plan, atLevel) {
   return dedications;
 }
 
+function computeArchetypeDedications(actor, plan, atLevel) {
+  const dedications = new Set();
+
+  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  for (const feat of existingFeats) {
+    if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+  }
+
+  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  for (const feat of plannedFeats) {
+    if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+  }
+
+  return dedications;
+}
+
 function computeClassArchetypeTraits(actor, plan, atLevel) {
   const traits = new Set();
 
@@ -619,13 +636,21 @@ function getPrimaryFeatAlias(feat) {
   return '';
 }
 
+function isArchetypeDedication(feat) {
+  const traits = [
+    ...(Array.isArray(feat?.traits) ? feat.traits : []),
+    ...(feat?.system?.traits?.value ?? []),
+  ].map((trait) => String(trait).toLowerCase());
+  return traits.includes('dedication') && traits.includes('archetype');
+}
+
 function isClassArchetypeDedication(feat) {
   const traits = [
     ...(Array.isArray(feat?.traits) ? feat.traits : []),
     ...(feat?.system?.traits?.value ?? []),
   ].map((trait) => String(trait).toLowerCase());
   const isClassLikeArchetype = traits.includes('class') || traits.includes('multiclass');
-  return traits.includes('dedication') && traits.includes('archetype') && isClassLikeArchetype;
+  return isArchetypeDedication(feat) && isClassLikeArchetype;
 }
 
 function getClassArchetypeTrait(feat) {

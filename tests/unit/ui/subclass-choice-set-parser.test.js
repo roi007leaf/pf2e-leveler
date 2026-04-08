@@ -1,4 +1,5 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+import { hydrateChoiceSets } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { toggleKineticImpulse } from '../../../scripts/creation/creation-model.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -103,6 +104,32 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         }],
       ]),
     };
+  });
+
+  it('filters duplicate skill choice options down to the currently valid rank-predicate branch', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['acrobatics'];
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+
+    const hydrated = await hydrateChoiceSets(wizard, [
+      {
+        flag: 'skill',
+        prompt: 'Select a skill.',
+        options: [
+          { label: 'PF2E.Skill.Acrobatics', value: { rank: 1, slug: 'acrobatics' }, predicate: ['skill:acrobatics:rank:0'] },
+          { label: 'PF2E.Skill.Athletics', value: { rank: 1, slug: 'athletics' }, predicate: ['skill:athletics:rank:0'] },
+          { label: 'PF2E.Skill.Acrobatics', value: { rank: 2, slug: 'acrobatics' }, predicate: ['skill:acrobatics:rank:1'] },
+          { label: 'PF2E.Skill.Athletics', value: { rank: 2, slug: 'athletics' }, predicate: ['skill:athletics:rank:1'] },
+        ],
+      },
+    ], {});
+
+    expect(hydrated).toHaveLength(1);
+    expect(hydrated[0].options.map((option) => option.label)).toEqual([
+      'PF2E.Skill.Athletics',
+      'PF2E.Skill.Acrobatics',
+    ]);
+    expect(hydrated[0].options.map((option) => option.rank)).toEqual([1, 2]);
   });
 
   it('resolves filter-backed choice sets into selectable options', async () => {

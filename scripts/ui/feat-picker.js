@@ -3,6 +3,7 @@ import { loadFeats } from '../feats/feat-cache.js';
 import {
   getFeatsForSelection,
   collectAdditionalArchetypeFeatLevels,
+  collectAdditionalArchetypeFeatTraits,
   getAdditionalArchetypeMatchKeys,
   filterByDedication,
   filterBySearch,
@@ -11,6 +12,7 @@ import {
 } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 import { isMythicEnabled } from '../utils/pf2e-api.js';
+import { debug } from '../utils/logger.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -38,9 +40,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.sortMethod = game.settings.get(MODULE_ID, 'featSortMethod');
     this.hideFailedPrereqs = category === 'archetype';
     this.selectedRarities = new Set(['common']);
-    if (!game.settings.get(MODULE_ID, 'hideUncommonFeats')) this.selectedRarities.add('uncommon');
-    if (!game.settings.get(MODULE_ID, 'hideRareFeats')) this.selectedRarities.add('rare');
-    this.selectedRarities.add('unique');
+    if (category === 'custom') {
+      this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
+    } else {
+      if (!game.settings.get(MODULE_ID, 'hideUncommonFeats')) this.selectedRarities.add('uncommon');
+      if (!game.settings.get(MODULE_ID, 'hideRareFeats')) this.selectedRarities.add('rare');
+      this.selectedRarities.add('unique');
+    }
     this.selectedSkills = new Set();
     this.skillLogic = 'or';
     this.showDedications = category !== 'class';
@@ -51,6 +57,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.additionalArchetypeFeatLevels = new Map();
+    this.additionalArchetypeFeatTraits = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
     this.selectedTraits = new Set();
     this.traitLogic = 'or';
@@ -100,8 +107,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     if (this.allFeats.length === 0) {
       const allCachedFeats = await loadFeats();
-      this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill'].includes(this.category)
+      this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
         ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
+        : new Map();
+      this.additionalArchetypeFeatTraits = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
+        ? await collectAdditionalArchetypeFeatTraits(allCachedFeats, this.buildState?.feats ?? new Set())
         : new Map();
       this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
         sortMethod: this.sortMethod,
@@ -109,6 +119,19 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         includeSkillFeats: this.category === 'general',
         buildState: this.buildState,
         additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
+      });
+      debug('Feat picker initialized', {
+        category: this.category,
+        title: this.title,
+        targetLevel: this.targetLevel,
+        selectedFeatTypes: [...this.selectedFeatTypes],
+        lockedFeatTypes: [...this.lockedFeatTypes],
+        selectedTraits: [...this.selectedTraits],
+        lockedTraits: [...this.lockedTraitValues],
+        buildStateFeats: [...(this.buildState?.feats ?? new Set())],
+        additionalArchetypeFeatLevels: [...this.additionalArchetypeFeatLevels.entries()],
+        additionalArchetypeFeatTraits: [...this.additionalArchetypeFeatTraits.entries()].map(([key, traits]) => ({ key, traits: [...traits] })),
+        twinParryPresentInAllFeats: this.allFeats.some((feat) => String(feat?.name ?? '').toLowerCase() === 'twin parry'),
       });
       // Computed once — allFeats is fixed for the lifetime of this picker instance
       this._showSkillFilter = this._featsHaveSkillRelevance();
@@ -198,10 +221,21 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
     this._preTraitFeats = feats;
-    feats = applyTraitFilter(feats, this.selectedTraits, (feat) => feat.system?.traits?.value ?? [], this.traitLogic);
+    feats = applyTraitFilter(feats, this.selectedTraits, (feat) => this._getTraitFilterValues(feat), this.traitLogic);
 
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
+    debug('Feat picker filters applied', {
+      category: this.category,
+      searchText: this.searchText,
+      selectedFeatTypes: [...this.selectedFeatTypes],
+      selectedTraits: [...this.selectedTraits],
+      selectedRarities: [...this.selectedRarities],
+      minLevel: this.minLevel,
+      maxLevel: this.maxLevel,
+      resultCount: feats.length,
+      twinParryVisible: feats.some((feat) => String(feat?.name ?? '').toLowerCase() === 'twin parry'),
+    });
     return sortFeats(feats, this.sortMethod);
   }
 
@@ -235,8 +269,17 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
       const slug = feat.slug ?? null;
       const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
-      const isArchetypeAdditionalFeat = ['archetype', 'class', 'general', 'skill'].includes(this.category)
+      const isArchetypeAdditionalFeat = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
         && featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
+      if (String(feat?.name ?? '').toLowerCase() === 'twin parry') {
+        debug('Twin Parry prerequisite enrichment', {
+          category: this.category,
+          featKeys,
+          isArchetypeAdditionalFeat,
+          additionalArchetypeFeatLevels: [...this.additionalArchetypeFeatLevels.entries()],
+          additionalArchetypeFeatTraits: [...this.additionalArchetypeFeatTraits.entries()].map(([key, traits]) => ({ key, traits: [...traits] })),
+        });
+      }
       feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
 
@@ -818,10 +861,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       ? [...this.buildState.ancestryTraits].map((trait) => String(trait).toLowerCase())
       : [];
     const classSlug = String(this.buildState?.class?.slug ?? this.actor?.class?.slug ?? '').toLowerCase();
+    const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+    const isAdditionalArchetypeFeat = featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
     const types = [];
 
     if (traits.includes('mythic')) types.push('mythic');
-    if (traits.includes('archetype') || traits.includes('dedication')) types.push('archetype');
+    if (traits.includes('archetype') || traits.includes('dedication') || isAdditionalArchetypeFeat) types.push('archetype');
     if (traits.includes('general')) types.push('general');
     if (traits.includes('skill')) types.push('skill');
     if (ancestryTraits.some((trait) => traits.includes(trait))) types.push('ancestry');
@@ -844,10 +889,37 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return getAdditionalArchetypeMatchKeys(feat);
   }
 
+  _getTraitFilterValues(feat) {
+    const traits = [...(feat.system?.traits?.value ?? [])].map((trait) => String(trait).toLowerCase());
+    const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+    const isAdditionalArchetypeFeat = featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
+    if (isAdditionalArchetypeFeat && !traits.includes('archetype')) traits.push('archetype');
+    for (const key of featKeys) {
+      const extraTraits = this.additionalArchetypeFeatTraits.get(key);
+      if (!extraTraits) continue;
+      for (const trait of extraTraits) {
+        if (!traits.includes(trait)) traits.push(trait);
+      }
+    }
+    return traits;
+  }
+
+  _getAdditionalArchetypeUnlockLevel(feat) {
+    const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+    for (const key of featKeys) {
+      const level = this.additionalArchetypeFeatLevels.get(key);
+      if (level != null) return level;
+    }
+    return null;
+  }
+
   _toTemplateFeat(feat) {
+    const additionalArchetypeUnlockLevel = this._getAdditionalArchetypeUnlockLevel(feat);
     return {
       ...feat,
       uuid: this._getFeatUuid(feat),
+      additionalArchetypeUnlockLevel,
+      isAdditionalArchetypeFeat: additionalArchetypeUnlockLevel != null,
       _levelerSelected: this.selectedFeatUuids.has(this._getFeatUuid(feat)),
     };
   }

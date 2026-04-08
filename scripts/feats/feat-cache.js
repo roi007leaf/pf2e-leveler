@@ -1,4 +1,4 @@
-import { debug, warn } from '../utils/logger.js';
+import { warn } from '../utils/logger.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 
@@ -11,7 +11,6 @@ export async function loadFeats() {
   const allFeats = dedupeByUuid(featGroups.flat());
 
   cachedFeats = allFeats;
-  debug(`Cached ${allFeats.length} feats`);
   return cachedFeats;
 }
 

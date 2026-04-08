@@ -107,11 +107,11 @@ export async function getSelectedFeatChoiceLabels(wizard, slot) {
   const grantedSection = (wizard.data.grantedFeatSections ?? []).find((section) => section.slot === slot);
   const feat = slot === 'ancestry' ? wizard.data.ancestryFeat
     : slot === 'ancestryParagon' ? wizard.data.ancestryParagonFeat
-    : slot === 'class' ? wizard.data.classFeat
-      : slot === 'skill' ? wizard.data.skillFeat
-      : grantedSection
-        ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
-        : null;
+      : slot === 'class' ? wizard.data.classFeat
+        : slot === 'skill' ? wizard.data.skillFeat
+          : grantedSection
+            ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
+            : null;
   return getSelectedChoiceLabels(wizard, feat);
 }
 
@@ -146,15 +146,6 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     const option = choiceSet.options?.find((entry) => extractChoiceValue(entry) === resolvedSelectedValue);
     const uuid = option?.uuid ?? (resolvedSelectedValue.startsWith('Compendium.') ? resolvedSelectedValue : null);
-    if (shouldLogDeityDomains && (choiceSet.flag === 'deity' || String(choiceSet.prompt ?? '').includes('Deity'))) {
-      debug('Cleric deity choice traversal', {
-        flag: choiceSet.flag ?? null,
-        prompt: choiceSet.prompt ?? null,
-        resolvedSelectedValue,
-        matchedOptionUuid: option?.uuid ?? null,
-        matchedOptionLabel: option ? extractChoiceLabel(option) : null,
-      });
-    }
     if (!uuid) return null;
     return resolveDocument(wizard, uuid);
   };
@@ -165,24 +156,6 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
     const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
-    if (shouldLogDeityDomains && (item.type === 'deity' || item.name === 'Domain Initiate' || item.uuid === wizard.data.deity?.uuid)) {
-      debug('Cleric deity scan item', {
-        item: item.name,
-        uuid: item.uuid,
-        type: item.type ?? null,
-        sourceName,
-        parsedChoiceSets: parsedChoiceSets.map((entry) => ({
-          flag: entry.flag,
-          prompt: entry.prompt,
-          optionCount: entry.options?.length ?? 0,
-          options: (entry.options ?? []).map((opt) => ({
-            value: extractChoiceValue(opt),
-            label: extractChoiceLabel(opt),
-            uuid: extractChoiceUuid(opt),
-          })),
-        })),
-      });
-    }
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
@@ -201,14 +174,6 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
         sourceName,
         choiceSets: parsedChoiceSets,
       });
-      if (shouldLogDeityDomains) {
-        debug('Added granted feat choice section', {
-          featName: item.name,
-          slot: item.uuid,
-          sourceName,
-          choiceSetFlags: parsedChoiceSets.map((entry) => entry.flag),
-        });
-      }
     }
 
     for (const choiceSet of parsedChoiceSets) {
@@ -247,19 +212,6 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
   }
 
   maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections, shouldLogDeityDomains);
-
-  if (shouldLogDeityDomains) {
-    debug('Final cleric granted feat sections', sections.map((section) => ({
-      featName: section.featName,
-      slot: section.slot,
-      sourceName: section.sourceName,
-      choiceSets: (section.choiceSets ?? []).map((entry) => ({
-        flag: entry.flag,
-        prompt: entry.prompt,
-        optionCount: entry.options?.length ?? 0,
-      })),
-    })));
-  }
 
   return sections;
 }
@@ -334,7 +286,7 @@ function isHandlerManagedSelectionItem(wizard, item) {
     wizard.classHandler?.getExtraSteps?.()
       ?.map((step) => step?.id)
       .filter((id) => typeof id === 'string' && id.length > 0)
-      ?? [],
+    ?? [],
   );
   const managedFlags = new Set([
     'implement',
@@ -361,10 +313,10 @@ function isHandlerManagedSelectionItem(wizard, item) {
   const rules = item.system?.rules ?? [];
   return rules.some((rule) =>
     rule.key === 'ChoiceSet'
-      && (
-        managedFlags.has(rule.flag)
-        || isHandlerManagedChoiceRule(rule, managedStepIds)
-      ));
+    && (
+      managedFlags.has(rule.flag)
+      || isHandlerManagedChoiceRule(rule, managedStepIds)
+    ));
 }
 
 function isHandlerManagedChoiceRule(rule, managedStepIds) {
@@ -544,9 +496,9 @@ export async function getPendingChoices(wizard) {
     }
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
       : uuid === wizard.data.ancestryParagonFeat?.uuid ? wizard.data.ancestryParagonFeat
-      : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
-        : uuid === wizard.data.skillFeat?.uuid ? wizard.data.skillFeat
-        : null);
+        : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
+          : uuid === wizard.data.skillFeat?.uuid ? wizard.data.skillFeat
+            : null);
     await scanItem(item, label, sourceChoices);
 
     if (item.system?.items) {
@@ -815,6 +767,7 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
     .filter((option) => {
       const optionKeys = getSkillOptionKeys(option);
       if (optionKeys.includes(currentSelected)) return true;
+      if (!matchesSkillOptionPredicate(option?.predicate, skillState)) return false;
       if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
       return true;
     })
@@ -839,6 +792,30 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
         disabled: !!effectiveState.selected || !!effectiveState.autoTrained,
       };
     });
+}
+
+function matchesSkillOptionPredicate(predicate, skillState) {
+  if (!predicate) return true;
+  if (typeof predicate === 'string') return matchesSkillOptionPredicateString(predicate, skillState);
+  if (Array.isArray(predicate)) return predicate.every((entry) => matchesSkillOptionPredicate(entry, skillState));
+  if (typeof predicate !== 'object') return true;
+  if (Array.isArray(predicate.or)) return predicate.or.some((entry) => matchesSkillOptionPredicate(entry, skillState));
+  if (Array.isArray(predicate.and)) return predicate.and.every((entry) => matchesSkillOptionPredicate(entry, skillState));
+  if ('not' in predicate) return !matchesSkillOptionPredicate(predicate.not, skillState);
+  if (Array.isArray(predicate.nor)) return predicate.nor.every((entry) => !matchesSkillOptionPredicate(entry, skillState));
+  return true;
+}
+
+function matchesSkillOptionPredicateString(predicate, skillState) {
+  const text = String(predicate ?? '').trim().toLowerCase();
+  const rankMatch = text.match(/^skill:([^:]+):rank:(\d+)$/u);
+  if (!rankMatch) return true;
+
+  const [, rawSkill, rawRank] = rankMatch;
+  const candidate = normalizeSkillIdentity(rawSkill);
+  const state = findMatchingSkillState(skillState, candidate);
+  const currentRank = Number(state?.rank ?? (state?.selected || state?.autoTrained ? 1 : 0));
+  return currentRank === Number(rawRank);
 }
 
 function getSkillOptionKeys(option) {
@@ -1143,22 +1120,28 @@ async function enrichChoiceOption(wizard, choice) {
 
   if (!item) {
     return {
+      ...choice,
       value,
       label: label ?? value,
       uuid: choiceUuid,
+      slug: choice?.slug ?? choiceValue?.slug ?? null,
       img: choice?.img ?? choiceValue?.img ?? null,
       traits: choice?.traits ?? choiceValue?.traits ?? [],
       rarity: choice?.rarity ?? choiceValue?.rarity ?? 'common',
       type: choice?.type ?? choiceValue?.type ?? null,
+      predicate: choice?.predicate ?? choiceValue?.predicate ?? null,
+      rank: choice?.rank ?? choiceValue?.rank ?? null,
       description: choice?.description ?? choiceValue?.description ?? '',
       summary: summarizeChoiceDescription(choice?.description ?? choiceValue?.description ?? ''),
     };
   }
 
   return {
+    ...choice,
     value,
     label: resolveChoiceOptionLabel(label, item, value, choiceUuid),
     uuid: item.uuid,
+    slug: item.slug ?? choice?.slug ?? choiceValue?.slug ?? null,
     img: item.img ?? null,
     traits: item.system?.traits?.value ?? [],
     rarity: item.system?.traits?.rarity ?? 'common',
@@ -1166,6 +1149,8 @@ async function enrichChoiceOption(wizard, choice) {
     category: item.system?.category ?? null,
     range: normalizeRangeValue(item.system?.range ?? null),
     isRanged: isRangedWeaponItem(item),
+    predicate: choice?.predicate ?? choiceValue?.predicate ?? null,
+    rank: choice?.rank ?? choiceValue?.rank ?? null,
     description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
     summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
     level: Number(item.system?.level?.value ?? choice?.level ?? choiceValue?.level ?? 0) || 0,

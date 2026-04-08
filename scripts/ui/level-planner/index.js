@@ -1170,7 +1170,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           maxLevel: level,
         };
       case 'archetypeFeats': {
-        const hasDedication = (buildState?.classArchetypeDedications?.size ?? 0) > 0;
+        const hasDedication = (buildState?.archetypeDedications?.size ?? 0) > 0;
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],

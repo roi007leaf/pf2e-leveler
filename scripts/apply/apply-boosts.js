@@ -1,5 +1,3 @@
-import { debug } from '../utils/logger.js';
-
 export async function applyBoosts(actor, plan, level) {
   const levelData = plan.levels[level];
   if (!levelData?.abilityBoosts?.length) return [];
@@ -14,7 +12,6 @@ export async function applyBoosts(actor, plan, level) {
   buildSource.attributes.boosts[boostKey] = [...existing, ...levelData.abilityBoosts];
   await actor.update({ 'system.build': buildSource });
 
-  debug(`Applied boosts at level ${level} (key ${boostKey}): ${levelData.abilityBoosts.join(', ')}`);
   return levelData.abilityBoosts;
 }
 
