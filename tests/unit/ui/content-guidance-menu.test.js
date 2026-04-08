@@ -100,4 +100,27 @@ describe('ContentGuidanceMenu', () => {
     expect(global.fromUuid).toHaveBeenCalledWith('Compendium.test.items.Item.abc');
     expect(render).toHaveBeenCalledWith(true);
   });
+
+  test('changing guidance preserves the current list scroll position', () => {
+    document.body.innerHTML = `
+      <div class="compendium-manager__panelWrap" style="overflow:auto">
+        <button type="button" data-action="cycle-guidance" data-uuid="heritage-elf"></button>
+      </div>
+    `;
+
+    const menu = new ContentGuidanceMenu();
+    menu._draft = {};
+    menu.element = document.body;
+    menu.render = jest.fn();
+
+    const panel = document.querySelector('.compendium-manager__panelWrap');
+    panel.scrollTop = 240;
+
+    menu._onRender();
+    document.querySelector('[data-action="cycle-guidance"]').click();
+
+    expect(menu._draft).toEqual({ 'heritage-elf': 'recommended' });
+    expect(menu._pendingScrollTop).toBe(240);
+    expect(menu.render).toHaveBeenCalledWith(true);
+  });
 });

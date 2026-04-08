@@ -23,6 +23,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     this.searchText = '';
     this._draft = null;
     this._itemCache = {};
+    this._pendingScrollTop = null;
   }
 
   static DEFAULT_OPTIONS = {
@@ -173,7 +174,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         if (category && category !== this.activeCategory) {
           this.activeCategory = category;
           this.searchText = '';
-          this.render(true);
+          this._rerenderPreservingScroll({ resetScroll: true });
         }
       });
     });
@@ -195,7 +196,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         } else {
           this._draft[uuid] = next;
         }
-        this.render(true);
+        this._rerenderPreservingScroll();
       });
     });
 
@@ -215,7 +216,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         const scopeValue = btn.dataset.scopeValue;
         if (!BULK_GUIDANCE_STATES.includes(status) || !scopeType || !scopeValue) return;
         this._applyBulkGuidance(scopeType, scopeValue, status);
-        this.render(true);
+        this._rerenderPreservingScroll();
       });
     });
 
@@ -232,8 +233,10 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         const cached = this._findCachedItem(uuid);
         if (cached?.categoryKey === this.activeCategory) delete this._draft[uuid];
       }
-      this.render(true);
+      this._rerenderPreservingScroll();
     });
+
+    this._restoreScrollPosition();
   }
 
   _updateListOnly() {
@@ -347,6 +350,25 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     if (status === 'not-recommended') return 'tag--muted';
     if (status === 'disallowed') return 'tag--disallowed';
     return '';
+  }
+
+  _getScrollContainer() {
+    return this.element?.querySelector?.('.compendium-manager__panelWrap')
+      ?? this.element?.closest?.('.window-content')
+      ?? null;
+  }
+
+  _rerenderPreservingScroll({ resetScroll = false } = {}) {
+    const container = this._getScrollContainer();
+    this._pendingScrollTop = resetScroll ? 0 : (container?.scrollTop ?? 0);
+    this.render(true);
+  }
+
+  _restoreScrollPosition() {
+    if (this._pendingScrollTop == null) return;
+    const container = this._getScrollContainer();
+    if (container) container.scrollTop = this._pendingScrollTop;
+    this._pendingScrollTop = null;
   }
 }
 
