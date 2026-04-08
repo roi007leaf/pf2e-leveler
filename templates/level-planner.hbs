@@ -128,10 +128,17 @@
             <div class="skill-btn-grid">
               {{#each intBonusSkillOptions}}
               <button type="button"
-                class="skill-btn {{#if this.selected}}selected{{/if}}"
+                class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="toggleIntBonusSkill" data-skill="{{this.slug}}"
-                {{#if this.disabled}}disabled{{/if}}>
-                <span class="skill-btn__name">{{this.label}}</span>
+                {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
+                <span class="skill-btn__content">
+                  <span class="skill-btn__name">{{this.label}}</span>
+                  <span class="skill-btn__tags">
+                    {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                    {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                  </span>
+                </span>
               </button>
               {{/each}}
             </div>
@@ -151,7 +158,7 @@
               <button type="button"
                 class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="toggleIntBonusLanguage" data-language="{{this.slug}}"
-                {{#if this.disabled}}disabled{{/if}}>
+                {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -368,18 +375,25 @@
             <div class="skill-btn-grid">
               {{#each availableSkills}}
               <button type="button"
-                class="skill-btn rank-bg-{{this.rankName}} {{#if this.selected}}selected{{/if}} {{#if this.lockedByFeat}}skill-btn--feat-granted{{/if}}"
+                class="skill-btn skill-btn--stacked rank-bg-{{this.rankName}} {{#if this.selected}}selected{{/if}} {{#if this.lockedByFeat}}skill-btn--feat-granted{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="selectSkillIncrease" data-skill="{{this.slug}}"
                 data-locked="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
                 aria-disabled="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
-                {{#if (and this.disabled (not this.lockedByFeat))}}disabled{{/if}}>
-                <span class="skill-btn__name">
-                  {{this.label}}
-                  {{#if this.featGranted}}
-                  <span class="skill-btn__info" data-tooltip='{{format "PF2E_LEVELER.UI.SET_BY_FEAT" featName=this.featSourceName}}' aria-label='{{format "PF2E_LEVELER.UI.SET_BY_FEAT" featName=this.featSourceName}}'>
-                    <i class="fa-solid fa-circle-info"></i>
+                {{#if (or this.isDisallowed (and this.disabled (not this.lockedByFeat)))}}disabled{{/if}}>
+                <span class="skill-btn__content">
+                  <span class="skill-btn__name">
+                    {{this.label}}
+                    {{#if this.featGranted}}
+                    <span class="skill-btn__info" data-tooltip='{{format "PF2E_LEVELER.UI.SET_BY_FEAT" featName=this.featSourceName}}' aria-label='{{format "PF2E_LEVELER.UI.SET_BY_FEAT" featName=this.featSourceName}}'>
+                      <i class="fa-solid fa-circle-info"></i>
+                    </span>
+                    {{/if}}
                   </span>
-                  {{/if}}
+                  <span class="skill-btn__tags">
+                    {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                    {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                  </span>
                 </span>
                 {{#if this.featGranted}}
                 <span class="skill-btn__rank rank-text-{{this.rankName}}">{{titleCase this.rankName}}</span>
@@ -666,8 +680,15 @@
               {{/each}}
               <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each customAvailableSkills}}
-                <button type="button" class="skill-btn" data-action="addCustomSkillIncrease" data-skill="{{this.slug}}" {{#if this.disabled}}disabled{{/if}}>
-                  <span class="skill-btn__name">{{this.label}}</span>
+                <button type="button" class="skill-btn skill-btn--stacked {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="addCustomSkillIncrease" data-skill="{{this.slug}}" {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
+                  <span class="skill-btn__content">
+                    <span class="skill-btn__name">{{this.label}}</span>
+                    <span class="skill-btn__tags">
+                      {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                      {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    </span>
+                  </span>
                   <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>
                 </button>
                 {{/each}}

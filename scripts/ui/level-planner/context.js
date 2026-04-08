@@ -79,7 +79,7 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
   const selected = new Set(levelData.intBonusSkills ?? []);
   const buildState = computeBuildState(planner.actor, planner.plan, level - 1);
 
-  return SKILLS.map((slug) => {
+  const entries = SKILLS.map((slug) => {
     const trained = (buildState.skills[slug] ?? 0) >= 1;
     return {
       slug,
@@ -89,6 +89,11 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
       trained,
     };
   }).filter((entry) => !entry.disabled || entry.selected);
+
+  return annotateGuidanceBySlug(entries, 'skill').map((entry) => ({
+    ...entry,
+    disabled: entry.disabled || entry.isDisallowed === true,
+  }));
 }
 
 export function buildIntBonusLanguageContext(planner, levelData, level) {
@@ -107,7 +112,10 @@ export function buildIntBonusLanguageContext(planner, levelData, level) {
     disabled: current.has(entry.slug) && !selected.has(entry.slug),
   })).filter((entry) => !entry.disabled || entry.selected);
 
-  return annotateGuidanceBySlug(entries, 'language');
+  return annotateGuidanceBySlug(entries, 'language').map((entry) => ({
+    ...entry,
+    disabled: entry.disabled || entry.isDisallowed === true,
+  }));
 }
 
 export function getPlannedLanguagesBeforeLevel(planner, level) {
@@ -169,7 +177,13 @@ export function buildSkillContext(planner, levelData, level) {
     };
   });
 
-  return skills.filter((s) => !s.maxed || s.selected || s.featGranted);
+  return annotateGuidanceBySlug(
+    skills.filter((s) => !s.maxed || s.selected || s.featGranted),
+    'skill',
+  ).map((entry) => ({
+    ...entry,
+    disabled: entry.disabled || entry.isDisallowed === true,
+  }));
 }
 
 function localizeSkillSlug(slug) {

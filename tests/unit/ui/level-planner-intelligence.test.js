@@ -2,6 +2,7 @@ import { extractFeatSkillRules, LevelPlanner } from '../../../scripts/ui/level-p
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { createPlan, setLevelBoosts, setLevelSkillIncrease } from '../../../scripts/plan/plan-model.js';
+import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 jest.mock('../../../scripts/plan/plan-store.js', () => ({
   getPlan: jest.fn(() => null),
   savePlan: jest.fn(),
@@ -120,6 +121,64 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       expect.objectContaining({ slug: 'draconic', rarity: 'uncommon', isRecommended: true }),
       expect.objectContaining({ slug: 'elven', rarity: 'common', isNotRecommended: true }),
     ]));
+  });
+
+  it('marks disallowed planner bonus languages as disabled', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.languages = { value: ['common'] };
+    global.game = {
+      ...global.game,
+      i18n: {
+        has: jest.fn((key) => key.startsWith('PF2E.Actor.Creature.Language.')),
+        localize: jest.fn((key) => ({
+          'PF2E.Actor.Creature.Language.common': 'Common',
+          'PF2E.Actor.Creature.Language.draconic': 'Draconic',
+        }[key] ?? key)),
+      },
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e-leveler' && key === 'gmContentGuidance') {
+            return { 'language:draconic': 'disallowed' };
+          }
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          if (scope === 'pf2e' && ['gradualBoostsVariant', 'freeArchetypeVariant', 'dualClassVariant'].includes(key)) return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          return false;
+        }),
+      },
+      pf2e: {
+        settings: {
+          campaign: {
+            languages: {
+              common: new Set(['common']),
+              uncommon: new Set(['draconic']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+    };
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'PF2E.Actor.Creature.Language.common',
+          draconic: 'PF2E.Actor.Creature.Language.draconic',
+        },
+      },
+    };
+    invalidateGuidanceCache();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    setLevelBoosts(planner.plan, 5, ['str', 'dex', 'con', 'int']);
+
+    const languages = planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5);
+    expect(languages.find((entry) => entry.slug === 'draconic')).toEqual(
+      expect.objectContaining({ isDisallowed: true, disabled: true }),
+    );
   });
 
   it('marks imported past boosts as applied instead of previewing a new increase', () => {
@@ -322,6 +381,40 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       featGranted: true,
       featSourceName: 'Battlefield Bravado',
     }));
+  });
+
+  it('includes GM guidance flags in planner skill increase choices', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e-leveler' && key === 'gmContentGuidance') {
+            return {
+              'skill:arcana': 'recommended',
+              'skill:athletics': 'not-recommended',
+              'skill:stealth': 'disallowed',
+            };
+          }
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          if (scope === 'pf2e' && ['gradualBoostsVariant', 'freeArchetypeVariant', 'dualClassVariant'].includes(key)) return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          return false;
+        }),
+      },
+    };
+    invalidateGuidanceCache();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+
+    const skills = planner._buildSkillContext(planner.plan.levels[2], 2);
+
+    expect(skills.find((entry) => entry.slug === 'arcana')).toEqual(expect.objectContaining({ isRecommended: true }));
+    expect(skills.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({ isNotRecommended: true }));
+    expect(skills.find((entry) => entry.slug === 'stealth')).toEqual(expect.objectContaining({ isDisallowed: true }));
   });
 
   it('extracts skill rules through GrantItem chains', async () => {

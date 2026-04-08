@@ -4,6 +4,7 @@ import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
 import { parseChoiceSets } from '../character-wizard/choice-sets.js';
+import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -199,7 +200,7 @@ function buildCustomAvailableSkills(planner, levelData, level) {
   const maxRank = level >= 15 ? 4 : level >= 7 ? 3 : 2;
   const currentIncrease = levelData?.skillIncreases?.[0];
 
-  return SKILLS.map((slug) => {
+  const entries = SKILLS.map((slug) => {
     const rank = currentSkills[slug] ?? 0;
     const nextRank = rank + 1;
     return {
@@ -210,6 +211,8 @@ function buildCustomAvailableSkills(planner, levelData, level) {
       selected: currentIncrease?.skill === slug,
     };
   }).filter((entry) => !entry.disabled);
+
+  return annotateGuidanceBySlug(entries, 'skill');
 }
 
 function buildCustomSpellGroups(customSpells) {
