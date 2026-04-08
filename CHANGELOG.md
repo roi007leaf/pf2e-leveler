@@ -1,12 +1,23 @@
 # Changelog
 
+## 2.1.5
+
+### Feat Picker
+
+- **Archetype additional feat parsing now handles full PF2e HTML formatting** - Additional feats lists that use PF2e content-link anchors, bolded level markers, paragraph breaks, and multiple feats at the same level now parse correctly, including later unlocks such as `Twin Riposte`, `Improved Twin Riposte`, `Two-Weapon Flurry`, and `Twinned Defense`
+- **Dedication-unlocked feats now show their unlock level** - Feats made selectable by a dedication now display a badge such as `Dedication Lv 6+` in the feat picker so players can immediately see why the feat is available
+- **Removed the old Dedications toggle from the feat picker** - The separate `Dedications` option was leftover UI and is now gone, since feat type and trait filters already cover that use case
+
+### Suggested Character Options
+
+- **Selection changes no longer jump back to the top** - Changing a mark in Suggested Character Options now preserves the current scroll position instead of rerendering back at the top of the list
+
 ## 2.1.4
 
 ### Feat Picker
 
 - **Custom plan feat picker now opens truly unfiltered** - The `All Feats` custom planner picker no longer inherits default rarity restrictions from module settings. It now starts with all rarities visible and only limits results by level until the user applies filters
 - **Archetype additional feats now parse correctly from PF2e journal content** - Fixed dedication `Additional Feats` parsing so linked feats like `Twin Parry` are resolved correctly from archetype journal pages instead of being misread as raw `@UUID[...]` text or mixed with unrelated archetype pages
-- **Dedication-unlocked feats now show their unlock level** - Feats made selectable by a dedication now display a badge such as `Dedication Lv 6+` in the feat picker so players can immediately see why the feat is available
 
 ## 2.1.3
 

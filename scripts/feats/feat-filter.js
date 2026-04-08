@@ -637,12 +637,13 @@ function parseAdditionalFeatUuidEntries(html) {
 
 function extractAdditionalFeatsSection(html) {
   const normalizedHtml = String(html ?? '');
-  const match = normalizedHtml.match(/Additional Feats\s*:\s*(.+?)(?=(?:<\/p>|<p><strong>|<strong>Special:|<strong>Access:|<strong>Prerequisites:|<strong>Requirements:|<strong>Frequency:|<strong>Trigger:|<strong>Effect:|Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:|Critical Success:|Success:|Failure:|Critical Failure:|$))/is);
+  const match = normalizedHtml.match(/Additional Feats\s*:\s*(.+?)(?=(?:<p>\s*<strong>\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|<strong>\s*(?:Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:)|Special:|Access:|Prerequisites:|Requirements:|Frequency:|Trigger:|Effect:|Critical Success:|Success:|Failure:|Critical Failure:|$))/is);
   return match?.[1]?.trim() ?? '';
 }
 
 function splitAdditionalFeatSegments(text) {
-  const source = String(text ?? '');
+  const source = String(text ?? '')
+    .replace(/<strong>\s*(\d+(?:st|nd|rd|th))\s*<\/strong>/gi, '$1 ');
   const pattern = /(\d+)(?:st|nd|rd|th)\s+/gi;
   const matches = [...source.matchAll(pattern)];
   const segments = [];

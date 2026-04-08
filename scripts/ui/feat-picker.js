@@ -166,8 +166,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       skillChips,
       selectedSkillChips: skillChips.filter((o) => o.selected),
       skillLogic: this.skillLogic,
-      showDedicationToggle: this.category === 'archetype',
-      showDedications: this.showDedications,
       showSkillFeats: this.showSkillFeats,
       enforcePrerequisites: this.enforcePrerequisites,
       multiSelect: this.multiSelect,
@@ -454,16 +452,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }, { signal });
 
     this._bindSkillChipListeners(el, signal);
-
-    const dedicationToggle = el.querySelector('[data-action="toggleDedications"]');
-    if (dedicationToggle) {
-      dedicationToggle.addEventListener('click', () => {
-        if (this._dedicationsLocked) return;
-        this.showDedications = !this.showDedications;
-        dedicationToggle.classList.toggle('active', this.showDedications);
-        this._scheduleListUpdate();
-      }, { signal });
-    }
 
     const skillFeatToggle = el.querySelector('[data-action="toggleGeneralSkillFeats"]');
     if (skillFeatToggle) {

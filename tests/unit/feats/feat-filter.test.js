@@ -540,6 +540,34 @@ describe('dedication and skill filters', () => {
     expect(result.get('twin-riposte')).toBe(12);
   });
 
+  test('collectAdditionalArchetypeFeatLevels parses PF2E content-link HTML with bolded level markers and multiple later feats', async () => {
+    const feats = [
+      {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+        slug: 'dual-weapon-warrior-dedication',
+        system: {
+          ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p><strong>Additional Feats:</strong> <strong>4th</strong> <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.qFt6zyWVX1njJf1l" data-id="qFt6zyWVX1njJf1l" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Quick Draw</a>, <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.sjChYEuEWPqndCSK" data-id="sjChYEuEWPqndCSK" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Dual-Weapon Reload</a>; <strong>6th</strong> <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou" data-id="Y8LHfkzGyOhPlUou" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Twin Parry</a>; <strong>12th</strong> <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.GJIAecRq1bD2r8O0" data-id="GJIAecRq1bD2r8O0" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Twin Riposte</a>; <strong>16th</strong> <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.w2v5LZmpJy0MBxo5" data-id="w2v5LZmpJy0MBxo5" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Improved Twin Riposte</a>, <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.1SvBUzVH5tp0lmn5" data-id="1SvBUzVH5tp0lmn5" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Two-Weapon Flurry</a>; <strong>18th</strong> <a class="content-link" draggable="true" data-link="" data-uuid="Compendium.pf2e.feats-srd.Item.xjLbabfyQzBNT4y1" data-id="xjLbabfyQzBNT4y1" data-type="Item" data-pack="pf2e.feats-srd" data-tooltip="Item" data-tooltip-text="Feat/Feature Item"><i class="fa-solid fa-medal" inert=""></i>Twinned Defense</a></p>',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['dual-weapon-warrior-dedication']),
+    );
+
+    expect(result.get('quick-draw')).toBe(4);
+    expect(result.get('dual-weapon-reload')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+    expect(result.get('twin-riposte')).toBe(12);
+    expect(result.get('improved-twin-riposte')).toBe(16);
+    expect(result.get('two-weapon-flurry')).toBe(16);
+    expect(result.get('twinned-defense')).toBe(18);
+  });
+
   test('collectAdditionalArchetypeFeatLevels scopes linked journal parsing to the matching archetype page', async () => {
     const feats = [
       {
@@ -581,6 +609,58 @@ describe('dedication and skill filters', () => {
     expect(result.get('quick-draw')).toBe(4);
     expect(result.get('twin-parry')).toBe(6);
     expect(result.has('assisting-shot')).toBe(false);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels continues across paragraph breaks in Additional Feats sections', async () => {
+    const feats = [
+      {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+        slug: 'dual-weapon-warrior-dedication',
+        system: {
+          ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p><strong>Additional Feats:</strong> 4th @UUID[Compendium.pf2e.feats-srd.Item.Nn1aG3Bnq7sNQJ8n]{Quick Draw}, 6th @UUID[Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou]{Twin Parry}</p><p>12th @UUID[Compendium.pf2e.feats-srd.Item.GJIAecRq1bD2r8O0]{Twin Riposte}; 16th @UUID[Compendium.pf2e.feats-srd.Item.s7Y8k6dKXExample]{Improved Twin Riposte}</p><p><strong>Special:</strong> Something else</p>',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['dual-weapon-warrior-dedication']),
+    );
+
+    expect(result.get('quick-draw')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+    expect(result.get('twin-riposte')).toBe(12);
+    expect(result.get('improved-twin-riposte')).toBe(16);
+  });
+
+  test('collectAdditionalArchetypeFeatLevels does not stop when later paragraphs begin with bolded levels', async () => {
+    const feats = [
+      {
+        ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']),
+        slug: 'dual-weapon-warrior-dedication',
+        system: {
+          ...makeFeat('Dual-Weapon Warrior Dedication', 2, ['archetype', 'dedication']).system,
+          description: {
+            value: '<p><strong>Additional Feats:</strong> <strong>4th</strong> @UUID[Compendium.pf2e.feats-srd.Item.Nn1aG3Bnq7sNQJ8n]{Quick Draw}; <strong>6th</strong> @UUID[Compendium.pf2e.feats-srd.Item.Y8LHfkzGyOhPlUou]{Twin Parry}</p><p><strong>12th</strong> @UUID[Compendium.pf2e.feats-srd.Item.GJIAecRq1bD2r8O0]{Twin Riposte}; <strong>16th</strong> @UUID[Compendium.pf2e.feats-srd.Item.s7Y8k6dKXExample]{Improved Twin Riposte}; <strong>16th</strong> @UUID[Compendium.pf2e.feats-srd.Item.two-weapon-flurry]{Two-Weapon Flurry}; <strong>18th</strong> @UUID[Compendium.pf2e.feats-srd.Item.twinned-defense]{Twinned Defense}</p><p><strong>Special:</strong> Something else</p>',
+          },
+        },
+      },
+    ];
+
+    const result = await collectAdditionalArchetypeFeatLevels(
+      feats,
+      new Set(['dual-weapon-warrior-dedication']),
+    );
+
+    expect(result.get('quick-draw')).toBe(4);
+    expect(result.get('twin-parry')).toBe(6);
+    expect(result.get('twin-riposte')).toBe(12);
+    expect(result.get('improved-twin-riposte')).toBe(16);
+    expect(result.get('two-weapon-flurry')).toBe(16);
+    expect(result.get('twinned-defense')).toBe(18);
   });
 
   test('collectAdditionalArchetypeFeatLevels resolves listed feat names to actual feat slugs', async () => {
