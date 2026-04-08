@@ -84,11 +84,11 @@ export class ChampionHandler extends BaseClassHandler {
     const font = data.deity.font ?? [];
     const shield = await fromUuid(CHAMPION_DEVOTION_SPELLS.shieldsOfTheSpirit).catch(() => null);
     if (shield) focusSpells.push({ uuid: shield.uuid, name: shield.name, img: shield.img });
-    if (font.includes('heal')) {
+    if (font.includes('healing') || font.includes('heal')) {
       const loh = await fromUuid(CHAMPION_DEVOTION_SPELLS.layOnHands).catch(() => null);
       if (loh) focusSpells.push({ uuid: loh.uuid, name: loh.name, img: loh.img });
     }
-    if (font.includes('harm')) {
+    if (font.includes('harmful') || font.includes('harm')) {
       const tov = await fromUuid(CHAMPION_DEVOTION_SPELLS.touchOfTheVoid).catch(() => null);
       if (tov) focusSpells.push({ uuid: tov.uuid, name: tov.name, img: tov.img });
     }

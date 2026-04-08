@@ -9,6 +9,10 @@ const RANK_WITH_EITHER_PATTERN = new RegExp(
   `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+(.+?)\\s+as\\s+well\\s+as\\s+either\\s+(.+)$`,
   'i',
 );
+const ANY_SKILL_PATTERN = new RegExp(
+  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+at\\s+least\\s+one\\s+skill\\b`,
+  'i',
+);
 
 const ABILITY_NAMES = {
   strength: 'str',
@@ -59,6 +63,7 @@ const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\
 const MULTIPLE_ANCESTRY_FEATS_PATTERN = /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
 const SUBCLASS_SPELL_PATTERN = /^(?:a\s+)?(bloodline|mystery|patron)\s+spell$/i;
 const SENSE_PATTERN = /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
+const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -75,6 +80,9 @@ export function parsePrerequisite(text) {
   const trimmed = text.trim();
   const baseText = stripTrailingParenthetical(trimmed);
 
+  const rankMatch = tryParseRankRequirement(baseText, trimmed);
+  if (rankMatch) return rankMatch;
+
   if (ACTION_CAPABILITY_PATTERN.test(baseText)) {
     return { type: 'unknown', text: trimmed };
   }
@@ -86,9 +94,6 @@ export function parsePrerequisite(text) {
   if (looksLikeWeaponNameProficiency(baseText)) {
     return { type: 'unknown', text: trimmed };
   }
-
-  const rankMatch = tryParseRankRequirement(baseText, trimmed);
-  if (rankMatch) return rankMatch;
 
   const abilityMatch = tryParseAbilityRequirement(baseText, trimmed);
   if (abilityMatch) return abilityMatch;
@@ -104,6 +109,9 @@ export function parsePrerequisite(text) {
 
   const spellcastingMatch = tryParseSpellcastingRequirement(baseText, trimmed);
   if (spellcastingMatch) return spellcastingMatch;
+
+  const divineFontMatch = tryParseDivineFontRequirement(baseText, trimmed);
+  if (divineFontMatch) return divineFontMatch;
 
   const equipmentMatch = tryParseEquipmentRequirement(baseText, trimmed);
   if (equipmentMatch) return equipmentMatch;
@@ -162,6 +170,18 @@ export function parsePrerequisiteNode(text) {
 
 function tryParseRankRequirement(text, fullText = text) {
   if (RANK_WITH_EITHER_PATTERN.test(text)) return null;
+
+  if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(text)) return null;
+  if (looksLikeWeaponNameProficiency(text)) return null;
+
+  const anySkillMatch = text.match(ANY_SKILL_PATTERN);
+  if (anySkillMatch) {
+    const rankName = anySkillMatch[1].toLowerCase();
+    const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
+    if (minRank >= 0) {
+      return { type: 'anySkill', minRank, text: fullText };
+    }
+  }
 
   const normalizedText = text.split(/[;,]/, 1)[0].trim();
   const match = normalizedText.match(RANK_PATTERN);
@@ -359,8 +379,29 @@ function tryParseSenseRequirement(text, fullText = text) {
   return { type: 'sense', sense, text: fullText };
 }
 
+function tryParseDivineFontRequirement(text, fullText = text) {
+  const match = text.match(DIVINE_FONT_PATTERN);
+  if (!match) return null;
+
+  const font = normalizeDivineFont(match[1]);
+  if (!font) return null;
+
+  return {
+    type: 'divineFont',
+    font,
+    text: fullText,
+  };
+}
+
 function slugifySense(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '-');
+}
+
+function normalizeDivineFont(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (['heal', 'healing'].includes(normalized)) return 'healing';
+  if (['harm', 'harming', 'harmful'].includes(normalized)) return 'harmful';
+  return null;
 }
 
 function tryParseEquipmentRequirement(text, fullText = text) {

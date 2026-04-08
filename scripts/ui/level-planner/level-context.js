@@ -1,8 +1,8 @@
-import { PROFICIENCY_RANK_NAMES, SKILLS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
+import { PROFICIENCY_RANK_NAMES, SKILLS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
+import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
 import { parseChoiceSets } from '../character-wizard/choice-sets.js';
 
 const MANUAL_SPELL_FEATS = new Set([
@@ -298,25 +298,30 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   const rules = source?.system?.rules ?? [];
   if (!Array.isArray(rules) || rules.length === 0) return [];
 
-  const choiceSets = [];
-  for (const rule of rules) {
-    if (rule?.key !== 'ChoiceSet' || !isDeityChoiceRule(rule)) continue;
-    const flag = getChoiceSetFlag(rule);
-    if (!flag) continue;
-    choiceSets.push({
-      flag,
-      prompt: localizeRulePrompt(rule),
-      choiceType: 'item',
-      options: await buildDeityChoiceOptions(planner, feat, flag),
-    });
+  if (sourceHasDeityAssociatedSkill(source)) {
+    const deitySkill = await resolvePlannerDeitySkill(planner, feat?.choices?.deity ?? null);
+    syncFeatDynamicSkillRules(feat, true, deitySkill);
   }
 
-  if (hasSkillFallbackText(source?.system?.description?.value ?? '')) {
-    const fallbackSets = await buildPlannerSkillFallbackChoiceSets(planner, feat, source);
-    choiceSets.push(...fallbackSets);
-  }
+  const wizard = createPlannerChoiceWizard(planner);
+  const choiceSets = await parseChoiceSets(wizard, rules, feat.choices ?? {}, source);
+  const fallbackSets = hasSkillFallbackText(source?.system?.description?.value ?? '')
+    ? await buildPlannerSkillFallbackChoiceSets(planner, feat, source)
+    : [];
+  const dedicationFallbackSets = choiceSets.length === 0
+    ? await buildPlannerDedicationChoiceSetFallbacks(planner, feat, source)
+    : [];
 
-  return choiceSets.filter((entry) => entry.options.length > 0);
+  return [...choiceSets, ...fallbackSets, ...dedicationFallbackSets]
+    .map((entry) => ({
+      ...entry,
+      options: (entry.options ?? []).map((option) => ({
+        ...option,
+        selected: String(option?.value ?? '') === String(feat?.choices?.[entry.flag] ?? ''),
+      })),
+      choiceType: entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
+    }))
+    .filter((entry) => entry.options.length > 0);
 }
 
 export async function buildFeatGrantPreview(planner, feat) {
@@ -402,18 +407,14 @@ async function collectGrantPreviewEntries({
 }
 
 function createPlannerChoiceWizard(planner) {
-  return {
+  const wizard = {
     actor: planner.actor,
+    _compendiumCache: planner._compendiumCache ?? (planner._compendiumCache = {}),
     data: {
       deity: planner.actor?.items?.find?.((item) => item.type === 'deity') ?? null,
     },
     _getCachedDocument: (uuid) => fromUuid(uuid).catch(() => null),
-    _loadCompendium: async (key) => {
-      const pack = game.packs.get(key);
-      if (!pack) return [];
-      const docs = await pack.getDocuments().catch(() => []);
-      return docs.map((doc) => normalizeChoiceCandidate(doc, key));
-    },
+    _loadCompendium: async (key) => loadCompendium(wizard, key),
     _loadDeities: async () => loadDeities(planner),
     async _getClassTrainedSkills() {
       const classItem = planner.actor?.class;
@@ -425,24 +426,7 @@ function createPlannerChoiceWizard(planner) {
         .filter(Boolean);
     },
   };
-}
-
-function normalizeChoiceCandidate(doc, sourcePack) {
-  return {
-    uuid: doc.uuid ?? doc.sourceId ?? null,
-    name: doc.name ?? '',
-    img: doc.img ?? null,
-    type: doc.type ?? null,
-    category: (typeof doc.system?.category === 'object' && doc.system?.category !== null ? doc.system.category.value : doc.system?.category) ?? doc.category ?? null,
-    traits: doc.system?.traits?.value ?? [],
-    otherTags: doc.system?.traits?.otherTags ?? [],
-    rarity: doc.system?.traits?.rarity ?? 'common',
-    level: doc.system?.level?.value ?? 0,
-    slug: doc.slug ?? null,
-    sourcePack,
-    range: doc.system?.range ?? null,
-    isRanged: !!doc.system?.range?.value,
-  };
+  return wizard;
 }
 
 function extractGrantPreselectedChoices(rule) {
@@ -572,6 +556,79 @@ function sourceHasDeityAssociatedSkill(entry) {
     .trim()
     .toLowerCase();
   return /\byour deity'?s associated skill\b/.test(description);
+}
+
+async function buildPlannerDedicationChoiceSetFallbacks(planner, feat, source) {
+  const rules = Array.isArray(source?.system?.rules) ? source.system.rules : [];
+  const choiceRules = rules.filter((rule) => rule?.key === 'ChoiceSet' && rule?.choices && typeof rule.choices === 'object');
+  if (choiceRules.length === 0) return [];
+
+  const archetypeSlug = getPlannerDedicationArchetypeSlug(feat, source);
+  const subclassTag = SUBCLASS_TAGS[archetypeSlug];
+  if (!subclassTag) return [];
+
+  const wizard = createPlannerChoiceWizard(planner);
+  const classFeatures = await loadCompendiumCategory(wizard, 'classFeatures');
+  const feats = await loadCompendiumCategory(wizard, 'feats');
+  const candidates = [...classFeatures, ...feats];
+
+  return choiceRules
+    .filter((rule) => JSON.stringify(rule?.choices?.filter ?? []).toLowerCase().includes(`item:tag:${subclassTag}`))
+    .map((rule) => {
+      const filters = rule?.choices?.filter ?? [];
+      const excludeClassArchetype = JSON.stringify(filters).toLowerCase().includes('item:tag:class-archetype');
+      const options = candidates
+        .filter((entry) => matchesTagFamily(entry?.otherTags ?? [], subclassTag))
+        .filter((entry) => !excludeClassArchetype || !matchesTagFamily(entry?.otherTags ?? [], 'class-archetype'))
+        .map((entry) => ({
+          value: entry.uuid ?? entry.slug,
+          label: entry.name,
+          uuid: entry.uuid ?? null,
+          img: entry.img ?? null,
+          traits: entry.traits ?? [],
+          rarity: entry.rarity ?? 'common',
+          type: entry.type ?? null,
+          category: entry.category ?? null,
+          range: entry.range ?? null,
+          isRanged: !!entry.isRanged,
+        }))
+        .sort((a, b) => String(a.label).localeCompare(String(b.label)));
+
+      if (options.length === 0) return null;
+
+      const prompt = String(rule?.prompt ?? '').trim();
+      return {
+        flag: String(rule?.flag ?? ''),
+        prompt: game.i18n?.has?.(prompt) ? game.i18n.localize(prompt) : prompt,
+        options,
+      };
+    })
+    .filter((entry) => entry?.flag && entry.options.length > 0);
+}
+
+function getPlannerDedicationArchetypeSlug(feat, source) {
+  const genericTraits = new Set(['archetype', 'dedication', 'class', 'multiclass', 'general', 'skill', 'mythic']);
+  const traits = [
+    ...(Array.isArray(feat?.traits) ? feat.traits : []),
+    ...(source?.system?.traits?.value ?? []),
+    ...(feat?.system?.traits?.value ?? []),
+  ]
+    .map((trait) => String(trait).toLowerCase())
+    .filter((trait) => trait && !genericTraits.has(trait));
+
+  if (traits.length > 0) return traits[0];
+
+  const slug = String(feat?.slug ?? source?.slug ?? '').toLowerCase();
+  if (slug.endsWith('-dedication')) return slug.replace(/-dedication$/u, '');
+  return '';
+}
+
+function matchesTagFamily(tags, expected) {
+  const normalizedExpected = String(expected ?? '').toLowerCase();
+  return (tags ?? []).some((tag) => {
+    const normalizedTag = String(tag ?? '').toLowerCase();
+    return normalizedTag === normalizedExpected || normalizedTag.startsWith(`${normalizedExpected}-`);
+  });
 }
 
 function hasSkillFallbackText(html) {

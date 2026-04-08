@@ -142,6 +142,20 @@ export async function buildSpellContext(wizard) {
   const focusSpells = await resolveFocusSpells(wizard);
   const isDevotionChoice = wizard.classHandler.isFocusSpellChoice();
 
+  // Separate focus spells into cantrips and spells
+  // Need to load each spell to check its traits
+  const focusCantrips = [];
+  const focusNonCantrips = [];
+
+  for (const spellEntry of focusSpells) {
+    const spell = await fromUuid(spellEntry.uuid).catch(() => null);
+    if (spell?.system?.traits?.value?.includes('cantrip')) {
+      focusCantrips.push(spellEntry);
+    } else {
+      focusNonCantrips.push(spellEntry);
+    }
+  }
+
   return {
     spellSubStep: wizard.spellSubStep,
     cantrips,
@@ -151,6 +165,8 @@ export async function buildSpellContext(wizard) {
     grantedCantrips: grantedSpells.cantrips,
     grantedRank1s: grantedSpells.rank1s,
     focusSpells,
+    focusCantrips,
+    focusNonCantrips,
     isDevotionChoice,
     traitOptions,
     maxCantrips,
@@ -158,6 +174,7 @@ export async function buildSpellContext(wizard) {
     cantripsFull,
     rank1Full,
     tradition,
+    className: wizard.data.class?.name ?? 'Class',
     showSpellRarityFilters: !restrictToCommonSpellOptions,
     ...await wizard.classHandler.getSpellContext(wizard.data, classDef),
   };

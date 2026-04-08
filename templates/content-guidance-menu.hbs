@@ -32,35 +32,124 @@
           data-action="search-guidance">
       </header>
 
-      <div class="guidance-list">
-        {{#each items}}
-        <div class="guidance-item {{#if this.isRecommended}}guidance-item--recommended{{/if}} {{#if this.isDisallowed}}guidance-item--disallowed{{/if}}">
-          {{#if this.img}}<img src="{{this.img}}" alt="" class="guidance-item__img">{{/if}}
-          <div class="guidance-item__info">
-            <span class="guidance-item__name">{{this.name}}</span>
-            {{#if (notEqual this.rarity "common")}}
-            <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
-            {{/if}}
-            {{#if this.level}}
-            <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
-            {{/if}}
+      {{#if rarityBulkGroups.length}}
+      <section class="guidance-bulk">
+        <div class="guidance-bulk__title">{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BULK_RARITY"}}</div>
+        {{#each rarityBulkGroups}}
+        <div class="guidance-bulk__row">
+          <span class="tag tag--rarity-{{this.scopeValue}}">{{this.label}}</span>
+          <div class="guidance-bulk__actions">
+            {{#each this.actions}}
+            <button
+              type="button"
+              class="compendium-manager__button compendium-manager__button--small guidance-bulk__button {{this.className}}"
+              data-action="bulk-guidance"
+              data-scope-type="{{../scopeType}}"
+              data-scope-value="{{../scopeValue}}"
+              data-status="{{this.status}}">
+              {{this.label}}
+            </button>
+            {{/each}}
           </div>
-          <button
-            type="button"
-            class="guidance-item__toggle"
-            data-action="cycle-guidance"
-            data-uuid="{{this.uuid}}"
-            data-tooltip="{{#if this.isRecommended}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.RECOMMENDED"}}{{else if this.isDisallowed}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DISALLOWED"}}{{else}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DEFAULT"}}{{/if}}">
-            {{#if this.isRecommended}}
-            <i class="fa-solid fa-star" style="color: #c4a747;"></i>
-            {{else if this.isDisallowed}}
-            <i class="fa-solid fa-ban" style="color: #aa3333;"></i>
-            {{else}}
-            <i class="fa-regular fa-circle" style="opacity: 0.4;"></i>
-            {{/if}}
-          </button>
         </div>
         {{/each}}
+      </section>
+      {{/if}}
+
+      <div class="guidance-list">
+        {{#if groupedItems}}
+          {{#each groupedItems}}
+          <div class="wizard-browser__group-label guidance-group__header">
+            <span>{{this.label}}</span>
+            <div class="guidance-bulk__actions">
+              {{#each this.bulkActions}}
+              <button
+                type="button"
+                class="compendium-manager__button compendium-manager__button--small guidance-bulk__button {{this.className}}"
+                data-action="bulk-guidance"
+                data-scope-type="{{../bulkScopeType}}"
+                data-scope-value="{{../bulkScopeValue}}"
+                data-status="{{this.status}}">
+                {{this.label}}
+              </button>
+              {{/each}}
+            </div>
+          </div>
+            {{#each this.items}}
+            <div class="guidance-item {{#if this.isRecommended}}guidance-item--recommended{{/if}} {{#if this.isDisallowed}}guidance-item--disallowed{{/if}}">
+              {{#if this.img}}<img src="{{this.img}}" alt="" class="guidance-item__img">{{/if}}
+              <div class="guidance-item__info">
+                {{#if this.openable}}
+                <button type="button" class="guidance-item__name guidance-item__name--link" data-action="viewGuidanceItem" data-uuid="{{this.uuid}}">{{this.name}}</button>
+                {{else}}
+                <span class="guidance-item__name">{{this.name}}</span>
+                {{/if}}
+                {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                {{#if (notEqual this.rarity "common")}}
+                <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+                {{/if}}
+                {{#if this.level}}
+                <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
+                {{/if}}
+              </div>
+              <button
+                type="button"
+                class="guidance-item__toggle"
+                data-action="cycle-guidance"
+                data-uuid="{{this.uuid}}">
+                {{#if this.isRecommended}}
+                <i class="fa-solid fa-star" style="color: #c4a747;"></i>
+                {{else if this.isNotRecommended}}
+                <i class="fa-solid fa-triangle-exclamation" style="color: #8a6d3b;"></i>
+                {{else if this.isDisallowed}}
+                <i class="fa-solid fa-ban" style="color: #aa3333;"></i>
+                {{else}}
+                <i class="fa-regular fa-circle" style="opacity: 0.4;"></i>
+                {{/if}}
+              </button>
+            </div>
+            {{/each}}
+          {{/each}}
+        {{else}}
+          {{#each items}}
+          <div class="guidance-item {{#if this.isRecommended}}guidance-item--recommended{{/if}} {{#if this.isDisallowed}}guidance-item--disallowed{{/if}}">
+            {{#if this.img}}<img src="{{this.img}}" alt="" class="guidance-item__img">{{/if}}
+            <div class="guidance-item__info">
+              {{#if this.openable}}
+              <button type="button" class="guidance-item__name guidance-item__name--link" data-action="viewGuidanceItem" data-uuid="{{this.uuid}}">{{this.name}}</button>
+              {{else}}
+              <span class="guidance-item__name">{{this.name}}</span>
+              {{/if}}
+              {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+              {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+              {{#if this.level}}
+              <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
+              {{/if}}
+            </div>
+            <button
+              type="button"
+              class="guidance-item__toggle"
+              data-action="cycle-guidance"
+              data-uuid="{{this.uuid}}">
+              {{#if this.isRecommended}}
+              <i class="fa-solid fa-star" style="color: #c4a747;"></i>
+              {{else if this.isNotRecommended}}
+              <i class="fa-solid fa-triangle-exclamation" style="color: #8a6d3b;"></i>
+              {{else if this.isDisallowed}}
+              <i class="fa-solid fa-ban" style="color: #aa3333;"></i>
+              {{else}}
+              <i class="fa-regular fa-circle" style="opacity: 0.4;"></i>
+              {{/if}}
+            </button>
+          </div>
+          {{/each}}
+        {{/if}}
       </div>
     </section>
   </div>

@@ -1,6 +1,7 @@
 import { parseAllPrerequisiteNodes } from './parsers.js';
 import {
   matchSkill,
+  matchAnySkill,
   matchLore,
   matchLanguage,
   matchAbility,
@@ -14,6 +15,7 @@ import {
   matchSpellcastingState,
   matchClassIdentity,
   matchSubclassSpell,
+  matchDivineFont,
   matchSense,
   matchEquipmentState,
   matchUnknown,
@@ -59,6 +61,8 @@ function evaluateLeaf(parsed, buildState) {
   switch (parsed.type) {
     case 'skill':
       return wrapLeafResult(matchSkill(parsed, buildState));
+    case 'anySkill':
+      return wrapLeafResult(matchAnySkill(parsed, buildState));
     case 'lore':
       return wrapLeafResult(matchLore(parsed, buildState));
     case 'language':
@@ -85,6 +89,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchClassIdentity(parsed, buildState));
     case 'subclassSpell':
       return wrapLeafResult(matchSubclassSpell(parsed, buildState));
+    case 'divineFont':
+      return wrapLeafResult(matchDivineFont(parsed, buildState));
     case 'sense':
       return wrapLeafResult(matchSense(parsed, buildState));
     case 'equipmentState':

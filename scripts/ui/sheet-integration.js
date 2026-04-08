@@ -20,6 +20,16 @@ function isWithoutClass(actor) {
   return !actor.class;
 }
 
+function canOpenCreationWizard(actor) {
+  return actor?.type === 'character';
+}
+
+function getCreationButtonTitle(actor) {
+  return isWithoutClass(actor)
+    ? localize('CREATION.BUTTON')
+    : localize('CREATION.EDIT_BUTTON');
+}
+
 function onRenderCharacterSheet(sheet, html) {
   if (!game.settings.get(MODULE_ID, 'showPlanButton')) return;
 
@@ -33,8 +43,8 @@ function onRenderCharacterSheet(sheet, html) {
   const windowHeader = appElement.find('.window-header');
   const closeBtn = windowHeader.find('button.close, a.close, .header-button.close, [data-action="close"]').first();
 
-  if (isWithoutClass(actor)) {
-    const createTitle = localize('CREATION.BUTTON');
+  if (canOpenCreationWizard(actor)) {
+    const createTitle = getCreationButtonTitle(actor);
     const createBtn = $(`
       <a class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}" data-tooltip="${createTitle}" role="button">
         <i class="fas fa-wand-magic-sparkles"></i>
@@ -165,3 +175,5 @@ export function normalizePreparationGroupRank(groupId) {
   if (/^\d+$/.test(normalized)) return Number(normalized);
   return null;
 }
+
+export { canOpenCreationWizard, getCreationButtonTitle };

@@ -92,6 +92,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   bindRarityToggles(el, {
     toggleSelector: '[data-action="toggleRarity"]',
     itemSelector: '.wizard-item[data-rarity]',
+    onChange: (root) => wizard._filterItems(root, null),
   });
 
   el.querySelector('[data-action="toggleAlternateBoosts"]')?.addEventListener('change', (e) => {
@@ -110,6 +111,20 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="toggleLanguage"]').forEach((btn) => {
     btn.addEventListener('click', () => wizard._toggleLanguage(btn.dataset.language));
+  });
+
+  el.querySelectorAll('[data-action="toggleBackgroundSkillFilter"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('selected');
+      wizard._toggleBackgroundSkillFilter(btn.dataset.skill);
+    });
+  });
+
+  el.querySelectorAll('[data-action="toggleBackgroundAttributeFilter"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('selected');
+      wizard._toggleBackgroundAttributeFilter(btn.dataset.attribute);
+    });
   });
 
   el.querySelectorAll('[data-action="selectSanctification"]').forEach((btn) => {
@@ -307,6 +322,12 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="browseFeat"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       wizard._openFeatPicker(btn.dataset.slot);
+    });
+  });
+
+  el.querySelectorAll('[data-action="browseFeatChoice"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._openFeatChoicePicker(btn.dataset.slot, btn.dataset.flag);
     });
   });
 

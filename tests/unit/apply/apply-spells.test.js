@@ -1,5 +1,6 @@
 import { applySpells } from '../../../scripts/apply/apply-spells.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { MAGUS } from '../../../scripts/classes/magus.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 
 describe('applySpells', () => {
@@ -8,6 +9,7 @@ describe('applySpells', () => {
   beforeAll(() => {
     ClassRegistry.clear();
     ClassRegistry.register(SORCERER);
+    ClassRegistry.register(MAGUS);
   });
 
   beforeEach(() => {
@@ -147,6 +149,71 @@ describe('applySpells', () => {
     expect(added).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Normal Spell', rank: 1 }),
       expect.objectContaining({ name: 'Custom Spell', rank: 1 }),
+    ]));
+  });
+
+  test('magus keeps only bounded top-rank slots on the main entry and creates a studious entry', async () => {
+    const magusActor = {
+      items: [
+        {
+          id: 'magus-primary-entry',
+          type: 'spellcastingEntry',
+          name: 'Magus Spells',
+          system: {
+            tradition: { value: 'arcane' },
+            prepared: { value: 'prepared' },
+            ability: { value: 'cha' },
+          },
+        },
+      ],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: doc.type === 'spellcastingEntry' ? `created-entry-${index}` : `created-item-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    const plan = {
+      classSlug: 'magus',
+      levels: {
+        7: {},
+      },
+    };
+
+    await applySpells(magusActor, plan, 7);
+
+    expect(magusActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Magus Studious Spells',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            magusStudiousEntry: true,
+          },
+        },
+      }),
+    ]);
+
+    expect(magusActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'magus-primary-entry',
+        'system.slots.slot1.max': 0,
+        'system.slots.slot2.max': 0,
+        'system.slots.slot3.max': 2,
+        'system.slots.slot4.max': 2,
+      }),
+      expect.objectContaining({
+        _id: 'created-entry-0',
+        'system.slots.slot2.max': 2,
+        'system.slots.slot3.max': 0,
+        'system.slots.slot4.max': 0,
+      }),
     ]));
   });
 });

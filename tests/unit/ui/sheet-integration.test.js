@@ -1,4 +1,4 @@
-import { normalizePreparationGroupRank } from '../../../scripts/ui/sheet-integration.js';
+import { canOpenCreationWizard, getCreationButtonTitle, normalizePreparationGroupRank } from '../../../scripts/ui/sheet-integration.js';
 
 describe('normalizePreparationGroupRank', () => {
   test('maps cantrip group ids to rank 0', () => {
@@ -14,5 +14,17 @@ describe('normalizePreparationGroupRank', () => {
   test('returns null for unsupported group ids', () => {
     expect(normalizePreparationGroupRank('focus')).toBeNull();
     expect(normalizePreparationGroupRank(null)).toBeNull();
+  });
+});
+
+describe('creation wizard sheet access', () => {
+  test('allows opening the creation wizard for any character', () => {
+    expect(canOpenCreationWizard(createMockActor())).toBe(true);
+    expect(canOpenCreationWizard({ type: 'npc' })).toBe(false);
+  });
+
+  test('uses an edit label after a class exists', () => {
+    expect(getCreationButtonTitle(createMockActor())).toBe('PF2E_LEVELER.CREATION.EDIT_BUTTON');
+    expect(getCreationButtonTitle(createMockActor({ class: null }))).toBe('PF2E_LEVELER.CREATION.BUTTON');
   });
 });

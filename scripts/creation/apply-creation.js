@@ -527,7 +527,7 @@ async function createCreationMessage(actor, data) {
     const handler = getClassHandler(data.class?.slug);
     const fontStep = handler.getExtraSteps().find((s) => s.id === 'divineFont');
     const fontLabel = fontStep?.label ?? 'Divine Font';
-    classChoices.push({ label: fontLabel, value: capitalize(data.divineFont) });
+    classChoices.push({ label: fontLabel, value: formatDivineFontValue(data.divineFont) });
   }
   if (classChoices.length) {
     sections.push(buildChatRowsSection(localize('CREATION.CHAT.CHOICES'), classChoices));
@@ -595,6 +595,12 @@ async function createCreationMessage(actor, data) {
     if (user.isGM || actor.testUserPermission(user, 'OWNER')) whisper.push(user.id);
   }
   await ChatMessage.create({ content, speaker: { alias: actor.name }, whisper });
+}
+
+function formatDivineFontValue(value) {
+  if (value === 'healing') return 'Healing';
+  if (value === 'harmful') return 'Harmful';
+  return capitalize(value);
 }
 
 async function getSelectedSubclassChoiceLabels(subclass) {

@@ -3,6 +3,7 @@ import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { getPlan, savePlan } from '../../../scripts/plan/plan-store.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
+import { computeBuildState } from '../../../scripts/plan/build-state.js';
 
 jest.mock('../../../scripts/plan/plan-store.js', () => ({
   getPlan: jest.fn(() => null),
@@ -488,19 +489,148 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     try {
       const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
-      expect(context.archetypeFeatChoiceSets).toEqual([
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
         expect.objectContaining({
           flag: 'deity',
           prompt: 'Select a deity.',
           options: expect.arrayContaining([
-            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.abadar', selected: true, img: 'abadar.webp' }),
-            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.sarenrae', selected: false, img: 'sarenrae.webp' }),
+            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.abadar', selected: true, img: 'abadar.webp', label: 'Abadar' }),
+            expect.objectContaining({ value: 'Compendium.pf2e.deities.Item.sarenrae', selected: false, img: 'sarenrae.webp', label: 'Sarenrae' }),
           ]),
         }),
-      ]);
+      ]));
     } finally {
       global.fromUuid = originalFromUuid;
     }
+  });
+
+  it('shows dedication choice sets for planned archetype feats like druid dedication', async () => {
+    const originalFromUuid = global.fromUuid;
+    const originalPacks = game.packs;
+    const originalHas = game.i18n.has;
+    const originalLocalize = game.i18n.localize;
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'oracle';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      slug: 'druid-dedication',
+      name: 'Druid Dedication',
+      level: 2,
+      traits: ['archetype', 'multiclass', 'dedication', 'druid'],
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          name: 'Druid Dedication',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'druidicOrder',
+                prompt: 'PF2E.SpecificRule.Druid.DruidicOrder.Prompt',
+                choices: {
+                  filter: ['item:tag:druid-order', { not: 'item:tag:class-archetype' }],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+    game.packs = new Map([
+      ['pf2e.classfeatures', {
+        metadata: { label: 'Class Features', packageName: 'pf2e' },
+        title: 'Class Features',
+        collection: 'pf2e.classfeatures',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.classfeatures.Item.animal-order',
+            name: 'Animal Order',
+            img: 'animal.webp',
+            type: 'feat',
+            slug: 'animal-order',
+            system: {
+              traits: { value: [], otherTags: ['druid-order-animal'], rarity: 'common' },
+              level: { value: 1 },
+              description: { value: '' },
+            },
+          },
+          {
+            uuid: 'Compendium.pf2e.classfeatures.Item.leaf-order',
+            name: 'Leaf Order',
+            img: 'leaf.webp',
+            type: 'feat',
+            slug: 'leaf-order',
+            system: {
+              traits: { value: [], otherTags: ['druid-order-leaf'], rarity: 'common' },
+              level: { value: 1 },
+              description: { value: '' },
+            },
+          },
+        ]),
+      }],
+      ['pf2e.feats-srd', {
+        metadata: { label: 'Feats', packageName: 'pf2e' },
+        title: 'Feats',
+        collection: 'pf2e.feats-srd',
+        getDocuments: jest.fn(async () => []),
+      }],
+    ]);
+    game.i18n.has = jest.fn((key) => key === 'PF2E.SpecificRule.Druid.DruidicOrder.Prompt');
+    game.i18n.localize = jest.fn((key) => (key === 'PF2E.SpecificRule.Druid.DruidicOrder.Prompt' ? 'Select a druidic order.' : key));
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'druidicOrder',
+          prompt: 'Select a druidic order.',
+          choiceType: 'item',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'Compendium.pf2e.classfeatures.Item.animal-order', label: 'Animal Order', img: 'animal.webp' }),
+            expect.objectContaining({ value: 'Compendium.pf2e.classfeatures.Item.leaf-order', label: 'Leaf Order', img: 'leaf.webp' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+      game.packs = originalPacks;
+      game.i18n.has = originalHas;
+      game.i18n.localize = originalLocalize;
+    }
+  });
+
+  it('unlocks archetype feat picker dedication filtering once a class dedication is planned', () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'oracle';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      slug: 'druid-dedication',
+      name: 'Druid Dedication',
+      level: 2,
+      traits: ['archetype', 'multiclass', 'dedication', 'druid'],
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 4);
+    const preset = planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
+
+    expect(buildState.classArchetypeDedications.has('druid-dedication')).toBe(true);
+    expect(buildState.classArchetypeTraits.has('druid')).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.showDedications).toBe(true);
   });
 
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {

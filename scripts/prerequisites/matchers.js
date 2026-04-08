@@ -6,6 +6,14 @@ export function matchSkill(parsed, buildState) {
   };
 }
 
+export function matchAnySkill(parsed, buildState) {
+  const skills = Object.values(buildState.skills ?? {});
+  return {
+    met: skills.some((rank) => Number(rank ?? 0) >= parsed.minRank),
+    text: parsed.text,
+  };
+}
+
 export function matchLore(parsed, buildState) {
   const currentRank = buildState.lores?.[parsed.loreSlug] ?? 0;
   return {
@@ -201,6 +209,14 @@ export function matchSubclassSpell(parsed, buildState) {
   };
 }
 
+export function matchDivineFont(parsed, buildState) {
+  const currentFont = normalizeDivineFont(buildState.divineFont);
+  return {
+    met: currentFont === parsed.font,
+    text: parsed.text,
+  };
+}
+
 export function matchEquipmentState(parsed, buildState) {
   const equipment = buildState.equipment ?? {};
 
@@ -270,4 +286,11 @@ function normalizeText(value) {
   return String(value ?? '')
     .toLowerCase()
     .trim();
+}
+
+function normalizeDivineFont(value) {
+  const normalized = normalizeText(value);
+  if (['heal', 'healing'].includes(normalized)) return 'healing';
+  if (['harm', 'harming', 'harmful'].includes(normalized)) return 'harmful';
+  return '';
 }

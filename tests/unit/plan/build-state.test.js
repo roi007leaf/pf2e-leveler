@@ -47,6 +47,30 @@ describe('computeBuildState', () => {
     expect(state.attributes.str).toBe(4);
   });
 
+  test('preserves imported pending partial boosts from actor base modifiers', () => {
+    mockActor.system.details.level.value = 5;
+    mockActor.system.abilities.str.mod = 4;
+    mockActor.abilities = {
+      str: { base: 4.5 },
+      dex: { base: 0 },
+      con: { base: 0 },
+      int: { base: 0 },
+      wis: { base: 0 },
+      cha: { base: 0 },
+    };
+
+    setLevelBoosts(plan, 5, ['str', 'dex', 'con', 'int']);
+    setLevelBoosts(plan, 10, ['str', 'dex', 'con', 'int']);
+
+    const level5State = computeBuildState(mockActor, plan, 5);
+    expect(level5State.attributes.str).toBe(4);
+    expect(level5State.rawAttributes.str).toBe(4.5);
+
+    const level10State = computeBuildState(mockActor, plan, 10);
+    expect(level10State.attributes.str).toBe(5);
+    expect(level10State.rawAttributes.str).toBe(5);
+  });
+
   test('does not reapply past planned boosts that are already reflected on the actor', () => {
     mockActor.system.details.level.value = 14;
     mockActor.system.abilities.dex.mod = 5;
@@ -248,6 +272,24 @@ describe('computeBuildState', () => {
     expect(state.spellcasting.hasSpellSlots).toBe(true);
   });
 
+  test('detects healing divine font from owned spellcasting entry', () => {
+    mockActor.items = [
+      {
+        type: 'spellcastingEntry',
+        name: 'Divine Font (Healing)',
+        system: {
+          tradition: { value: 'divine' },
+          slots: {
+            slot1: { max: 4, value: 4 },
+          },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.divineFont).toBe('healing');
+  });
+
   test('collects spell traits from owned spell items', () => {
     mockActor.items = [
       {
@@ -431,5 +473,26 @@ describe('computeBuildState', () => {
 
     const state = computeBuildState(actor, plan, 2);
     expect(state.skills.deception).toBe(1);
+  });
+
+  test('tracks planned class archetype dedications from stored planner feat traits', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+              name: 'Druid Dedication',
+              slug: 'druid-dedication',
+              traits: ['archetype', 'multiclass', 'dedication', 'druid'],
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+    expect(state.classArchetypeDedications.has('druid-dedication')).toBe(true);
+    expect(state.classArchetypeTraits.has('druid')).toBe(true);
   });
 });

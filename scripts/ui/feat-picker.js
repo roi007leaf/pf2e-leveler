@@ -61,6 +61,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._updateListTimer = null;
     this._domListeners = null;
     this.preset = options.preset ?? null;
+    this.customTitle = options.title ?? null;
+    this.allowedFeatUuids = new Set();
+    this._minLevelLocked = false;
+    this._maxLevelLocked = false;
     this._applyPreset(this.preset);
   }
 
@@ -78,6 +82,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   get title() {
+    if (typeof this.customTitle === 'string' && this.customTitle.trim().length > 0) {
+      return this.customTitle.trim();
+    }
     const typeNames = {
       class: 'Class Feats',
       skill: 'Skill Feats',
@@ -121,6 +128,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       levelOptions: this._getLevelOptions(),
       category: this.category,
       targetLevel: this.targetLevel,
+      minLevelLocked: this._minLevelLocked,
+      maxLevelLocked: this._maxLevelLocked,
       hideFailedPrereqs: this.hideFailedPrereqs,
       rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
         labels: this._getRarityLabels(),
@@ -174,6 +183,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const maxLevel = Number(this.maxLevel);
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) <= maxLevel);
     }
+    if (this.allowedFeatUuids.size > 0) {
+      feats = feats.filter((feat) => this.allowedFeatUuids.has(this._getFeatUuid(feat)));
+    }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
     if (this._showSkillFilter && this.selectedSkills.size > 0) feats = filterBySkill(feats, [...this.selectedSkills], this.skillLogic);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
@@ -197,7 +209,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const feats = [...(this.buildState?.feats ?? new Set())].sort();
     const classSlug = this.buildState?.class?.slug ?? this.actor?.class?.slug ?? '';
     const level = this.buildState?.level ?? this.targetLevel ?? '';
-    return `${classSlug}|${level}|${feats.join(',')}`;
+    const divineFont = this.buildState?.divineFont ?? '';
+    return `${classSlug}|${level}|${divineFont}|${feats.join(',')}`;
   }
 
   _enrichWithPrerequisites(feats) {
@@ -1012,6 +1025,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!preset || typeof preset !== 'object') return;
     if (Array.isArray(preset.selectedFeatTypes)) this.selectedFeatTypes = new Set(preset.selectedFeatTypes);
     if (Array.isArray(preset.lockedFeatTypes)) this.lockedFeatTypes = new Set(preset.lockedFeatTypes);
+    if (Array.isArray(preset.allowedFeatUuids)) this.allowedFeatUuids = new Set(preset.allowedFeatUuids.filter((uuid) => typeof uuid === 'string' && uuid.length > 0));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
@@ -1021,5 +1035,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (typeof preset.showSkillFeats === 'boolean') this.showSkillFeats = preset.showSkillFeats;
     if (preset.minLevel != null) this.minLevel = String(preset.minLevel);
     if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
+    if (preset.lockMinLevel === true) this._minLevelLocked = true;
+    if (preset.lockMaxLevel === true) this._maxLevelLocked = true;
   }
 }

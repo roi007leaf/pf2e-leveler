@@ -215,7 +215,7 @@ describe('_getPendingChoices', () => {
   it('skips divine font pending choice when one is already selected', async () => {
     const wizard = createWizard({
       class: { uuid: 'Compendium.pf2e.classes.Item.cleric', name: 'Cleric', slug: 'cleric' },
-      divineFont: 'heal',
+      divineFont: 'healing',
     });
 
     global.fromUuid = jest.fn((uuid) => {
@@ -273,7 +273,7 @@ describe('_getPendingChoices', () => {
       uuid: 'deity-uuid',
       name: 'Optional Sanctifier',
       img: 'icons/svg/item-bag.svg',
-      font: ['heal'],
+      font: ['healing'],
       sanctification: {
         modal: 'can',
         what: ['holy'],
@@ -283,7 +283,7 @@ describe('_getPendingChoices', () => {
     const { setDeity } = jest.requireActual('../../../scripts/creation/creation-model.js');
     setDeity(wizard.data, deity);
 
-    expect(wizard.data.divineFont).toBe('heal');
+    expect(wizard.data.divineFont).toBe('healing');
     expect(wizard.data.sanctification).toBeNull();
   });
 

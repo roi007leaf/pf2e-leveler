@@ -13,7 +13,7 @@ describe('CharacterWizard cleric extra steps', () => {
     wizard.data.class = { slug: 'cleric' };
     wizard.data.deity = {
       name: 'Sarenrae',
-      font: ['heal', 'harm'],
+      font: ['healing', 'harmful'],
       sanctification: {},
     };
     wizard.currentStep = 6;
@@ -22,8 +22,8 @@ describe('CharacterWizard cleric extra steps', () => {
 
     expect(context.stepTitle).toBe('Divine Font');
     expect(context.divineFontOptions).toEqual([
-      expect.objectContaining({ value: 'heal', label: 'Heal', selected: false }),
-      expect.objectContaining({ value: 'harm', label: 'Harm', selected: false }),
+      expect.objectContaining({ value: 'healing', label: 'Healing', selected: false }),
+      expect.objectContaining({ value: 'harmful', label: 'Harmful', selected: false }),
     ]);
   });
 
@@ -45,7 +45,7 @@ describe('CharacterWizard cleric extra steps', () => {
           name: 'Nethys',
           img: 'nethys.png',
           system: {
-            font: ['heal', 'harm'],
+            font: ['healing', 'harmful'],
             sanctification: {},
             domains: {
               primary: ['creation', 'dragon', 'fate', 'time'],

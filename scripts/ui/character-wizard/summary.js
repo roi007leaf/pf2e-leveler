@@ -69,5 +69,7 @@ function formatSanctificationValue(value) {
 
 function formatCapitalizedValue(value) {
   if (!value) return null;
+  if (value === 'healing') return 'Healing';
+  if (value === 'harmful') return 'Harmful';
   return value.charAt(0).toUpperCase() + value.slice(1);
 }

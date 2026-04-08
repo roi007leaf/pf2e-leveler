@@ -15,10 +15,12 @@ export async function buildLanguageContext(wizard) {
   wizard._cachedMaxLanguages = maxAdditional;
 
   const langMap = getLanguageMap();
+  const rarityMap = getLanguageRarityMap();
 
   const granted = grantedSlugs.map((slug) => ({
     slug,
     label: langMap[slug] ?? slug.charAt(0).toUpperCase() + slug.slice(1),
+    rarity: rarityMap[slug] ?? 'common',
     granted: true,
     selected: false,
     source: featGrants.slugs.includes(slug) ? 'feat' : 'ancestry',
@@ -30,6 +32,7 @@ export async function buildLanguageContext(wizard) {
     .map((slug) => ({
       slug,
       label: langMap[slug],
+      rarity: rarityMap[slug] ?? 'common',
       suggested: suggestedSlugs.has(slug),
       selected: wizard.data.languages.includes(slug),
     }))
@@ -119,6 +122,42 @@ export function getLanguageMap() {
     if (Object.keys(map).length > 0) return map;
   }
   return {};
+}
+
+export function getLanguageRarityMap() {
+  const map = {};
+  const languageSettings = globalThis.game?.pf2e?.settings?.campaign?.languages ?? null;
+  if (languageSettings) {
+    const common = languageSettings.common instanceof Set
+      ? languageSettings.common
+      : new Set(languageSettings.common ?? []);
+    const uncommon = languageSettings.uncommon instanceof Set
+      ? languageSettings.uncommon
+      : new Set(languageSettings.uncommon ?? []);
+    const rare = languageSettings.rare instanceof Set
+      ? languageSettings.rare
+      : new Set(languageSettings.rare ?? []);
+    const secret = languageSettings.secret instanceof Set
+      ? languageSettings.secret
+      : new Set(languageSettings.secret ?? []);
+
+    for (const slug of common) map[slug] = 'common';
+    for (const slug of uncommon) map[slug] = 'uncommon';
+    for (const slug of rare) map[slug] = 'rare';
+    for (const slug of secret) map[slug] = 'secret';
+    if (languageSettings.commonLanguage) {
+      map.common = 'common';
+      map[languageSettings.commonLanguage] ??= 'common';
+    }
+  }
+
+  const configLangs = globalThis.CONFIG?.PF2E?.languages;
+  if (!configLangs || typeof configLangs !== 'object') return map;
+
+  for (const [key, value] of Object.entries(configLangs)) {
+    map[key] ??= String(value?.rarity ?? value?.traits?.rarity ?? 'common').toLowerCase();
+  }
+  return map;
 }
 
 export async function getBackgroundLores(wizard) {

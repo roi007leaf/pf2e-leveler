@@ -33,6 +33,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.allSpells = [];
     this.filteredSpells = [];
     this.selectedSpellUuids = new Set();
+    this.selectedSpells = options.selectedSpells ?? [];
+    this.maxSelect = options.maxSelect ?? null;
     this.selectedRanks = new Set();
     this.selectedTraditions = new Set();
     this.lockedTraditions = new Set(tradition && tradition !== 'any' ? [tradition.toLowerCase()] : []);
@@ -127,6 +129,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedTraitChips: buildChipOptions(this._allTraitOptions, this.selectedTraits).filter((option) => option.selected),
       rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
         labels: this._getRarityLabels(),
+        lockedValues: this._getLockedRarities(),
       }),
       traitLogic: this.traitLogic,
       rank: this.rank,
@@ -135,6 +138,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
+      selectedSpells: this.selectedSpells,
+      maxSelect: this.maxSelect,
+      remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
     };
   }
 
@@ -206,8 +212,15 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const toggle = e.target.closest?.('[data-action="toggleRarityChip"]');
       if (toggle) {
         const rarity = String(toggle.dataset.rarity ?? '').trim().toLowerCase();
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
-        this._scheduleListUpdate();
+        const lockedRarities = this._getLockedRarities();
+        if (!lockedRarities.includes(rarity)) {
+          this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique'], lockedRarities);
+          for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
+            const chipRarity = String(chip.dataset.rarity ?? '').trim().toLowerCase();
+            chip.classList.toggle('selected', this.selectedRarities.has(chipRarity));
+          }
+          this._scheduleListUpdate();
+        }
       }
     }, { signal });
 
@@ -316,8 +329,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const rarity = String(target.dataset.rarity ?? '').trim().toLowerCase();
-        if (!rarity) return;
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
+        const lockedRarities = this._getLockedRarities();
+        if (!rarity || lockedRarities.includes(rarity)) return;
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique'], lockedRarities);
+        for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
+          const chipRarity = String(chip.dataset.rarity ?? '').trim().toLowerCase();
+          chip.classList.toggle('selected', this.selectedRarities.has(chipRarity));
+        }
         this._scheduleListUpdate();
         return;
       }
@@ -375,6 +393,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedTraitChips: buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected),
       rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
         labels: this._getRarityLabels(),
+        lockedValues: this._getLockedRarities(),
       }),
       traitLogic: this.traitLogic,
       rank: this.rank,
@@ -383,6 +402,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
+      selectedSpells: this.selectedSpells,
+      maxSelect: this.maxSelect,
+      remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
     });
 
     const temp = document.createElement('div');
@@ -417,6 +439,10 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     spells = applyTraitFilter(spells, this.selectedTraits, (spell) => spell.system?.traits?.value ?? [], this.traitLogic);
     if (this.searchText) spells = spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
+    if (this.multiSelect) {
+      const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
+      spells = spells.filter((spell) => !this.selectedSpellUuids.has(spell.uuid) && !preSelectedUuids.has(spell.uuid));
+    }
     return spells;
   }
 
@@ -462,8 +488,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _toggleSelectedSpell(uuid) {
     if (!uuid) return;
-    if (this.selectedSpellUuids.has(uuid)) this.selectedSpellUuids.delete(uuid);
-    else this.selectedSpellUuids.add(uuid);
+    if (this.selectedSpellUuids.has(uuid)) {
+      this.selectedSpellUuids.delete(uuid);
+    } else {
+      if (this.maxSelect != null && this.selectedSpellUuids.size >= this.maxSelect) return;
+      this.selectedSpellUuids.add(uuid);
+    }
   }
 
   _toggleSelectAllVisible() {
@@ -472,8 +502,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const allVisibleSelected = visibleUuids.every((uuid) => this.selectedSpellUuids.has(uuid));
     for (const uuid of visibleUuids) {
-      if (allVisibleSelected) this.selectedSpellUuids.delete(uuid);
-      else this.selectedSpellUuids.add(uuid);
+      if (allVisibleSelected) {
+        this.selectedSpellUuids.delete(uuid);
+      } else {
+        if (this.maxSelect != null && this.selectedSpellUuids.size >= this.maxSelect) break;
+        this.selectedSpellUuids.add(uuid);
+      }
     }
   }
 
@@ -490,6 +524,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const el = this._getRootElement();
     if (!el || !this.multiSelect) return;
 
+    const count = this.selectedSpellUuids.size;
+    const atMax = this.maxSelect != null && count >= this.maxSelect;
+
     for (const option of el.querySelectorAll('.spell-option')) {
       const uuid = option.dataset.uuid;
       const selected = this.selectedSpellUuids.has(uuid);
@@ -497,18 +534,20 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const button = option.querySelector('[data-action="selectSpell"]');
       if (button) {
         button.classList.toggle('active', selected);
+        button.disabled = !selected && atMax;
         button.textContent = selected
           ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
           : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
       }
     }
 
-    const count = this.selectedSpellUuids.size;
     const visibleCount = this._getVisibleSpellUuids().length;
     const allVisibleSelected = this._areAllVisibleSelected();
     const countEl = el.querySelector('.spell-picker__selected-count');
     if (countEl) {
-      countEl.textContent = game.i18n.format('PF2E_LEVELER.SPELLS.SELECTED_COUNT', { count });
+      countEl.textContent = this.maxSelect != null
+        ? `${count} / ${this.maxSelect}`
+        : game.i18n.format('PF2E_LEVELER.SPELLS.SELECTED_COUNT', { count });
     }
 
     const selectAllButton = el.querySelector('[data-action="toggleSelectAll"]');
@@ -704,6 +743,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
+  _getLockedRarities() {
+    const allowed = getAllowedRaritiesForCurrentUser();
+    return ['common', 'uncommon', 'rare', 'unique'].filter((r) => !allowed.has(r));
+  }
+
   _allSelected(selected, available) {
     return Array.isArray(available) && available.length > 0 && available.every((value) => selected.has(value));
   }
@@ -801,9 +845,9 @@ function getSpellMatchKeys(spell) {
 function getSpellRank(system) {
   return Number(
     system?.location?.heightenedLevel
-      ?? system?.heightenedLevel
-      ?? system?.level?.value
-      ?? 0,
+    ?? system?.heightenedLevel
+    ?? system?.level?.value
+    ?? 0,
   );
 }
 
@@ -837,11 +881,11 @@ async function loadSpells() {
       .filter((doc) => doc.type === 'spell')
       .filter((spell) => isRarityAllowedForCurrentUser(spell.system?.traits?.rarity ?? 'common'))
       .map((spell) => {
-      spell.sourcePack = key;
-      spell.sourcePackage = sourcePackage || key;
-      spell.sourcePackageLabel = sourcePackageLabel || key;
-      return spell;
-    }));
+        spell.sourcePack = key;
+        spell.sourcePackage = sourcePackage || key;
+        spell.sourcePackageLabel = sourcePackageLabel || key;
+        return spell;
+      }));
   }
 
   cachedSpells = dedupeSpellDocuments(allDocs);

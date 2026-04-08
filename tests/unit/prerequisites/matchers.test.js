@@ -1,5 +1,6 @@
 import {
   matchSkill,
+  matchAnySkill,
   matchLore,
   matchLanguage,
   matchAbility,
@@ -13,6 +14,7 @@ import {
   matchSpellcastingState,
   matchClassIdentity,
   matchSubclassSpell,
+  matchDivineFont,
   matchEquipmentState,
   matchUnknown,
 } from '../../../scripts/prerequisites/matchers.js';
@@ -38,6 +40,24 @@ describe('matchSkill', () => {
     const result = matchSkill(
       { type: 'skill', skill: 'arcana', minRank: 1, text: 'trained in Arcana' },
       { skills: { arcana: 0 } },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchAnySkill', () => {
+  test('met when any skill rank is sufficient', () => {
+    const result = matchAnySkill(
+      { type: 'anySkill', minRank: 1, text: 'trained in at least one skill' },
+      { skills: { athletics: 0, crafting: 1, stealth: 0 } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when no skill rank is sufficient', () => {
+    const result = matchAnySkill(
+      { type: 'anySkill', minRank: 1, text: 'trained in at least one skill' },
+      { skills: { athletics: 0, crafting: 0, stealth: 0 } },
     );
     expect(result.met).toBe(false);
   });
@@ -186,6 +206,24 @@ describe('matchClassFeature', () => {
     const result = matchClassFeature(
       { type: 'classFeature', slug: 'rage', text: 'Rage class feature' },
       { classFeatures: new Set(['spellstrike']) },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchDivineFont', () => {
+  test('met when healing font is selected', () => {
+    const result = matchDivineFont(
+      { type: 'divineFont', font: 'healing', text: 'healing font' },
+      { divineFont: 'healing' },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when the opposite font is selected', () => {
+    const result = matchDivineFont(
+      { type: 'divineFont', font: 'healing', text: 'healing font' },
+      { divineFont: 'harmful' },
     );
     expect(result.met).toBe(false);
   });

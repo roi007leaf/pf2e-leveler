@@ -7,6 +7,7 @@ import { debug, warn } from '../utils/logger.js';
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
 const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
 export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -16,7 +17,7 @@ export async function applySpells(actor, plan, level) {
   if (!slots) return [];
 
   const entries = await ensureSpellcastingEntries(actor, classDef);
-  await updateSpellSlots(actor, entries, slots, classDef);
+  await updateSpellSlots(actor, entries, slots, classDef, level);
 
   const levelData = plan.levels[level];
   const addedSpells = await addPlannedSpells(actor, entries, levelData);
@@ -95,6 +96,15 @@ async function ensureSpellcastingEntries(actor, classDef) {
       prepared: sc.type,
       ability,
     });
+    if (classDef.slug === 'magus') {
+      entries.studious = await findOrCreateEntry(actor, {
+        name: 'Magus Studious Spells',
+        tradition,
+        prepared: sc.type,
+        ability,
+        flagKey: MAGUS_STUDIOUS_ENTRY_FLAG,
+      });
+    }
   }
 
   return entries;
@@ -120,6 +130,12 @@ async function findOrCreateEntry(actor, config) {
   const existing = actor.items.find(
     (i) =>
       i.type === 'spellcastingEntry' &&
+      (config.flagKey
+        ? (
+            i.flags?.['pf2e-leveler']?.[config.flagKey] === true
+            || String(i.name ?? '').toLowerCase().includes('studious')
+          )
+        : true) &&
       i.system.tradition?.value === config.tradition &&
       i.system.prepared?.value === config.prepared,
   );
@@ -139,6 +155,15 @@ function buildEntryData(config) {
   return {
     name: config.name,
     type: 'spellcastingEntry',
+    ...(config.flagKey
+      ? {
+          flags: {
+            'pf2e-leveler': {
+              [config.flagKey]: true,
+            },
+          },
+        }
+      : {}),
     system: {
       tradition: { value: config.tradition },
       prepared: { value: config.prepared },
@@ -148,7 +173,7 @@ function buildEntryData(config) {
   };
 }
 
-async function updateSpellSlots(actor, entries, slots, classDef) {
+async function updateSpellSlots(actor, entries, slots, classDef, level) {
   const sc = classDef.spellcasting;
   const updates = [];
 
@@ -160,7 +185,12 @@ async function updateSpellSlots(actor, entries, slots, classDef) {
       updates.push(buildSlotUpdate(entries.apparition, slots, 1));
     }
   } else if (entries.primary) {
-    updates.push(buildSlotUpdate(entries.primary, slots, 0));
+    if (classDef.slug === 'magus') {
+      updates.push(buildBoundedPrimarySlotUpdate(entries.primary, slots));
+      if (entries.studious) updates.push(buildMagusStudiousSlotUpdate(entries.studious, getMagusStudiousRankForLevel(level)));
+    } else {
+      updates.push(buildSlotUpdate(entries.primary, slots, 0));
+    }
   }
 
   const validUpdates = updates.filter(Boolean);
@@ -183,6 +213,46 @@ function buildSlotUpdate(entry, slots, slotIndex) {
   }
 
   return hasChanges ? update : null;
+}
+
+function buildBoundedPrimarySlotUpdate(entry, slots) {
+  const update = { _id: entry.id };
+  update['system.slots.slot0.max'] = Number(slots.cantrips ?? 0);
+  update['system.slots.slot0.value'] = Number(slots.cantrips ?? 0);
+  for (let rank = 1; rank <= 10; rank += 1) {
+    update[`system.slots.slot${rank}.max`] = 0;
+    update[`system.slots.slot${rank}.value`] = 0;
+  }
+
+  for (const [rank, counts] of Object.entries(slots)) {
+    if (rank === 'cantrips') continue;
+    const newMax = Array.isArray(counts) ? counts[0] : counts;
+    update[`system.slots.slot${rank}.max`] = newMax;
+    update[`system.slots.slot${rank}.value`] = newMax;
+  }
+
+  return update;
+}
+
+function buildMagusStudiousSlotUpdate(entry, studiousRank) {
+  const update = { _id: entry.id };
+  for (let rank = 1; rank <= 10; rank += 1) {
+    update[`system.slots.slot${rank}.max`] = 0;
+    update[`system.slots.slot${rank}.value`] = 0;
+  }
+  if (studiousRank > 0) {
+    update[`system.slots.slot${studiousRank}.max`] = 2;
+    update[`system.slots.slot${studiousRank}.value`] = 2;
+  }
+  return update;
+}
+
+function getMagusStudiousRankForLevel(level) {
+  const numericLevel = Number(level ?? 0);
+  if (numericLevel >= 13) return 4;
+  if (numericLevel >= 11) return 3;
+  if (numericLevel >= 7) return 2;
+  return 0;
 }
 
 async function addPlannedSpells(actor, entries, levelData) {

@@ -31,6 +31,10 @@ export function isRecommended(uuid) {
   return getGuidanceForUuid(uuid) === 'recommended';
 }
 
+export function isNotRecommended(uuid) {
+  return getGuidanceForUuid(uuid) === 'not-recommended';
+}
+
 export function isDisallowed(uuid) {
   return getGuidanceForUuid(uuid) === 'disallowed';
 }
@@ -45,6 +49,7 @@ export function annotateGuidanceBySlug(items, prefix) {
     const key = `${prefix}:${item.slug}`;
     const status = guidance[key] ?? null;
     item.isRecommended = status === 'recommended';
+    item.isNotRecommended = status === 'not-recommended';
     item.isDisallowed = status === 'disallowed';
   }
   return items;
@@ -55,6 +60,7 @@ export function annotateGuidance(items) {
   for (const item of items) {
     const status = guidance[item.uuid] ?? null;
     item.isRecommended = status === 'recommended';
+    item.isNotRecommended = status === 'not-recommended';
     item.isDisallowed = status === 'disallowed';
   }
   return items;

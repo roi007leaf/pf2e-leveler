@@ -42,13 +42,13 @@
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.LEVEL_RANGE"}}</div>
         <div class="picker__toggle-list">
-          <select data-action="filterMinLevel" class="picker__select">
+          <select data-action="filterMinLevel" class="picker__select" {{#if minLevelLocked}}disabled{{/if}}>
             <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
             {{#each levelOptions}}
             <option value="{{this.value}}" {{#if (eq ../minLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MIN_LEVEL" level=this.label}}</option>
             {{/each}}
           </select>
-          <select data-action="filterMaxLevel" class="picker__select">
+          <select data-action="filterMaxLevel" class="picker__select" {{#if maxLevelLocked}}disabled{{/if}}>
             <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
             {{#each levelOptions}}
             <option value="{{this.value}}" {{#if (eq ../maxLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}</option>

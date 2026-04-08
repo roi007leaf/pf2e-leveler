@@ -33,6 +33,8 @@ export async function loadCompendium(wizard, key) {
     isRanged: isRangedWeaponData(d.system),
     damageTypes: extractDamageTypes(d),
     isMagical: (d.system?.traits?.value ?? []).includes('magical'),
+    trainedSkills: d.system?.trainedSkills?.value ?? [],
+    boosts: normalizeBoostEntries(d.system?.boosts ?? {}),
     font: d.system?.font ?? [],
     sanctification: d.system?.sanctification ?? {},
     domains: d.system?.domains ?? { primary: [], alternate: [] },
@@ -101,6 +103,8 @@ export async function loadBackgrounds(wizard) {
       rarity: d.rarity ?? 'common',
       description: d.description ?? '',
       traits: d.traits ?? [],
+      trainedSkills: d.trainedSkills ?? [],
+      boosts: d.boosts ?? [],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
@@ -181,6 +185,16 @@ function normalizeRangeValue(range) {
   if (typeof range?.max === 'number' && range.max > 0) return String(range.max);
   if (typeof range?.max === 'string' && range.max.trim().length > 0) return range.max.trim();
   return null;
+}
+
+function normalizeBoostEntries(boosts) {
+  return Object.values(boosts ?? {})
+    .flatMap((entry) => {
+      if (Array.isArray(entry?.value)) return entry.value;
+      if (typeof entry?.selected === 'string') return [entry.selected];
+      return [];
+    })
+    .filter((value) => typeof value === 'string' && value.length > 0);
 }
 
 function isRangedWeaponData(system) {

@@ -304,19 +304,20 @@ export function getAllBoosts(data) {
 }
 
 export function setDeity(data, item) {
+  const normalizedFont = normalizeDivineFontList(item?.font ?? []);
   data.deity = item
     ? {
       uuid: item.uuid,
       name: item.name,
       img: item.img,
-      font: item.font ?? [],
+      font: normalizedFont,
       sanctification: item.sanctification ?? {},
       domains: item.domains ?? { primary: [], alternate: [] },
       skill: item.skill ?? null,
     }
     : null;
   // Auto-set sanctification / divine font if deity only allows one option
-  const font = item?.font ?? [];
+  const font = normalizedFont;
   const sanctWhat = item?.sanctification?.what ?? [];
   const sanctModal = item?.sanctification?.modal ?? 'can';
   data.divineFont = font.length === 1 ? font[0] : null;
@@ -334,8 +335,21 @@ export function setSanctification(data, value) {
 }
 
 export function setDivineFont(data, value) {
-  data.divineFont = value;
+  data.divineFont = normalizeDivineFont(value);
   return data;
+}
+
+function normalizeDivineFontList(fonts) {
+  return (Array.isArray(fonts) ? fonts : [])
+    .map((font) => normalizeDivineFont(font))
+    .filter(Boolean);
+}
+
+function normalizeDivineFont(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (['healing', 'heal'].includes(normalized)) return 'healing';
+  if (['harmful', 'harming', 'harm'].includes(normalized)) return 'harmful';
+  return normalized || null;
 }
 
 export function setSkills(data, skills) {

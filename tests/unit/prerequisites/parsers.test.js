@@ -15,6 +15,12 @@ describe('parsePrerequisite', () => {
     expect(result.minRank).toBe(2);
   });
 
+  test('parses generic any-skill requirement', () => {
+    const result = parsePrerequisite('trained in at least one skill');
+    expect(result.type).toBe('anySkill');
+    expect(result.minRank).toBe(1);
+  });
+
   test('parses master rank requirement', () => {
     const result = parsePrerequisite('master in Deception');
     expect(result.type).toBe('skill');
@@ -295,9 +301,10 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
-  test('treats action-capability skill prerequisites as unknown instead of feat slugs', () => {
+  test('parses action-capability any-skill prerequisites as generic any-skill requirements', () => {
     const result = parsePrerequisite('trained in at least one skill to Decipher Writing');
-    expect(result.type).toBe('unknown');
+    expect(result.type).toBe('anySkill');
+    expect(result.minRank).toBe(1);
   });
 
   test('treats weapon-type proficiency prerequisites as unknown instead of fake proficiency keys', () => {
@@ -371,6 +378,15 @@ describe('parsePrerequisiteNode', () => {
       kind: 'leaf',
       type: 'skill',
       skill: 'athletics',
+    }));
+  });
+
+  test('parses generic any-skill requirement as a leaf node', () => {
+    const result = parsePrerequisiteNode('trained in at least one skill');
+    expect(result).toEqual(expect.objectContaining({
+      kind: 'leaf',
+      type: 'anySkill',
+      minRank: 1,
     }));
   });
 

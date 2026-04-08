@@ -41,6 +41,15 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].met).toBe(true);
   });
 
+  test('feat with met generic any-skill prerequisite', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'trained in at least one skill' }] } },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
   test('feat with unmet skill prerequisite', () => {
     const feat = {
       system: { prerequisites: { value: [{ value: 'expert in Stealth' }] } },
@@ -285,6 +294,22 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, {
       ...buildState,
       spellcasting: { hasAny: true, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: true, focusPointsMax: 1 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets healing font prerequisite when healing font is selected', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'healing font' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      divineFont: 'healing',
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -653,7 +678,7 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].met).toBeNull();
   });
 
-  test('treats action-capability skill prerequisites as unverified instead of unmet', () => {
+  test('meets action-capability any-skill prerequisites when any skill is trained', () => {
     const feat = {
       system: {
         prerequisites: {
@@ -664,7 +689,7 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, buildState);
     expect(result.met).toBe(true);
     expect(result.results).toHaveLength(1);
-    expect(result.results[0].met).toBeNull();
+    expect(result.results[0].met).toBe(true);
   });
 
   test('treats weapon-type proficiency prerequisites as unverified instead of unmet', () => {

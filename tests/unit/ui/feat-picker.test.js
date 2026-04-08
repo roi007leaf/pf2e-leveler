@@ -279,6 +279,58 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(context.maxLevel).toBe('7');
   });
 
+  test('restricts custom feat picker results to allowed feat uuids from a preset', () => {
+    const allowedFeat = createFeat({
+      name: 'Allowed Feat',
+      uuid: 'Compendium.test.feats.Item.allowed',
+      slug: 'allowed-feat',
+    });
+    allowedFeat.system.traits.value = ['general'];
+
+    const blockedFeat = createFeat({
+      name: 'Blocked Feat',
+      uuid: 'Compendium.test.feats.Item.blocked',
+      slug: 'blocked-feat',
+    });
+    blockedFeat.system.traits.value = ['general'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn(), {
+      preset: {
+        allowedFeatUuids: ['Compendium.test.feats.Item.allowed'],
+      },
+    });
+    picker.allFeats = [allowedFeat, blockedFeat];
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Allowed Feat']);
+  });
+
+  test('disables level filters when the preset locks them', async () => {
+    const picker = new FeatPicker(createActor(), 'custom', 3, createBuildState({ level: 3 }), jest.fn(), {
+      preset: {
+        minLevel: 1,
+        maxLevel: 1,
+        lockMinLevel: true,
+        lockMaxLevel: true,
+      },
+    });
+    picker.allFeats = [];
+
+    const context = await picker._prepareContext();
+
+    expect(context.minLevel).toBe('1');
+    expect(context.maxLevel).toBe('1');
+    expect(context.minLevelLocked).toBe(true);
+    expect(context.maxLevelLocked).toBe(true);
+  });
+
+  test('uses a custom picker title when provided', () => {
+    const picker = new FeatPicker(createActor(), 'custom', 3, createBuildState({ level: 3 }), jest.fn(), {
+      title: 'General Training | Select a 1st-level general feat.',
+    });
+
+    expect(picker.title).toBe('General Training | Select a 1st-level general feat.');
+  });
+
   test('level range options are capped at the picker target level', async () => {
     const picker = new FeatPicker(createActor(), 'custom', 4, createBuildState({ level: 4 }), jest.fn());
     picker.allFeats = [];

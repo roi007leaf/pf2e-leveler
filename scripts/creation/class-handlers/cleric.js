@@ -2,8 +2,8 @@ import { CasterBaseHandler } from './caster-base.js';
 import { applyItem } from '../apply-creation.js';
 
 const FONT_SPELL_UUIDS = {
-  heal: 'Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs',
-  harm: 'Compendium.pf2e.spells-srd.Item.wdA52JJnsuQWeyqz',
+  healing: 'Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs',
+  harmful: 'Compendium.pf2e.spells-srd.Item.wdA52JJnsuQWeyqz',
 };
 
 /**
@@ -70,7 +70,7 @@ export class ClericHandler extends CasterBaseHandler {
       return {
         divineFontOptions: font.map((v) => ({
           value: v,
-          label: v.charAt(0).toUpperCase() + v.slice(1),
+          label: formatDivineFontLabel(v),
           selected: data.divineFont === v,
         })),
         stepTitle: 'Divine Font',
@@ -100,7 +100,7 @@ export class ClericHandler extends CasterBaseHandler {
     );
 
     if (!fontEntry) {
-      const label = data.divineFont.charAt(0).toUpperCase() + data.divineFont.slice(1);
+      const label = formatDivineFontLabel(data.divineFont);
       const created = await actor.createEmbeddedDocuments('Item', [{
         name: `Divine Font (${label})`,
         type: 'spellcastingEntry',
@@ -119,4 +119,10 @@ export class ClericHandler extends CasterBaseHandler {
     spellData.system.location = { value: fontEntry.id };
     await actor.createEmbeddedDocuments('Item', [spellData]);
   }
+}
+
+function formatDivineFontLabel(value) {
+  if (value === 'healing') return 'Healing';
+  if (value === 'harmful') return 'Harmful';
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
 }

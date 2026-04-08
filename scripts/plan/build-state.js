@@ -47,8 +47,10 @@ export function computeBuildState(actor, plan, atLevel) {
     equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
     deity: computeDeityState(actor),
+    divineFont: computeDivineFontState(actor),
     spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
+    classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
     senses: computeSenses(actor),
   };
@@ -102,6 +104,19 @@ function computeDeityState(actor) {
     name: value.name ?? value.value ?? null,
     domains: collectDeityDomains(value),
   };
+}
+
+function computeDivineFontState(actor) {
+  for (const item of getOwnedItems(actor)) {
+    if (item?.type !== 'spellcastingEntry') continue;
+
+    const normalizedName = String(item?.name ?? '').trim().toLowerCase();
+    if (!normalizedName.includes('divine font')) continue;
+    if (/\bhealing\b/.test(normalizedName) || /\bheal\b/.test(normalizedName)) return 'healing';
+    if (/\bharmful\b/.test(normalizedName) || /\bharming\b/.test(normalizedName) || /\bharm\b/.test(normalizedName)) return 'harmful';
+  }
+
+  return null;
 }
 
 function computeSpellcastingState(actor, plan, atLevel, classDef) {
@@ -167,7 +182,7 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
 function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
   const attrs = {};
   for (const attr of ATTRIBUTES) {
-    attrs[attr] = actor?.system?.abilities?.[attr]?.mod ?? 0;
+    attrs[attr] = getActorAbilityModifier(actor, attr, { raw }) ?? 0;
   }
 
   const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
@@ -191,6 +206,19 @@ function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
   }
 
   return attrs;
+}
+
+function getActorAbilityModifier(actor, attr, { raw = false } = {}) {
+  const actorAbilities = actor?.abilities?.[attr] ?? null;
+  const systemAbility = actor?.system?.abilities?.[attr] ?? null;
+  const base = actorAbilities?.base;
+
+  if (Number.isFinite(base)) return Number(base);
+
+  const mod = systemAbility?.mod;
+  if (Number.isFinite(mod)) return Number(mod);
+
+  return 0;
 }
 
 function computeSkills(actor, plan, atLevel, classDef) {
@@ -546,6 +574,26 @@ function computeClassArchetypeDedications(actor, plan, atLevel) {
   return dedications;
 }
 
+function computeClassArchetypeTraits(actor, plan, atLevel) {
+  const traits = new Set();
+
+  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  for (const feat of existingFeats) {
+    if (!isClassArchetypeDedication(feat)) continue;
+    const archetypeTrait = getClassArchetypeTrait(feat);
+    if (archetypeTrait) traits.add(archetypeTrait);
+  }
+
+  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  for (const feat of plannedFeats) {
+    if (!isClassArchetypeDedication(feat)) continue;
+    const archetypeTrait = getClassArchetypeTrait(feat);
+    if (archetypeTrait) traits.add(archetypeTrait);
+  }
+
+  return traits;
+}
+
 function getFeatAliases(feat) {
   const aliases = new Set();
 
@@ -572,8 +620,29 @@ function getPrimaryFeatAlias(feat) {
 }
 
 function isClassArchetypeDedication(feat) {
-  const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-  return traits.includes('dedication') && traits.includes('archetype') && traits.includes('class');
+  const traits = [
+    ...(Array.isArray(feat?.traits) ? feat.traits : []),
+    ...(feat?.system?.traits?.value ?? []),
+  ].map((trait) => String(trait).toLowerCase());
+  const isClassLikeArchetype = traits.includes('class') || traits.includes('multiclass');
+  return traits.includes('dedication') && traits.includes('archetype') && isClassLikeArchetype;
+}
+
+function getClassArchetypeTrait(feat) {
+  const genericTraits = new Set(['archetype', 'dedication', 'class', 'multiclass', 'general', 'skill', 'mythic']);
+  const traits = [
+    ...(Array.isArray(feat?.traits) ? feat.traits : []),
+    ...(feat?.system?.traits?.value ?? []),
+  ]
+    .map((trait) => String(trait).toLowerCase())
+    .filter((trait) => trait && !genericTraits.has(trait));
+
+  if (traits.length > 0) return traits[0];
+
+  const slug = String(feat?.slug ?? '').toLowerCase();
+  if (slug.endsWith('-dedication')) return slug.replace(/-dedication$/u, '');
+
+  return '';
 }
 
 function getOwnedItems(actor) {

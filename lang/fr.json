@@ -185,6 +185,7 @@
       "SELECT_ALL": "Tout selectionner",
       "DESELECT_ALL": "Tout deselectionner",
       "SELECTED_COUNT": "{count} selectionnes",
+      "ALREADY_SELECTED": "Deja selectionnés",
       "FOCUS": "Sorts de focalisation",
       "NEW_FOCUS": "Nouveau !",
       "SORT_RANK_DESC": "Rang (du plus eleve au plus faible)",

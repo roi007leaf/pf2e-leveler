@@ -839,6 +839,38 @@
   padding: 4px 0;
 }
 
+.pf2e-leveler .guidance-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+
+.pf2e-leveler .guidance-bulk__title {
+  font-size: var(--leveler-font-sm, 0.82rem);
+  font-weight: 700;
+  color: var(--leveler-text-muted);
+}
+
+.pf2e-leveler .guidance-bulk__row,
+.pf2e-leveler .guidance-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.pf2e-leveler .guidance-bulk__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pf2e-leveler .guidance-bulk__button {
+  min-width: 0;
+}
+
 .pf2e-leveler .guidance-item {
   display: flex;
   align-items: center;

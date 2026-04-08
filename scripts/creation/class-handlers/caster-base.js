@@ -4,6 +4,8 @@ import { resolveSubclassSpells } from '../../data/subclass-spells.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { capitalize } from '../../utils/pf2e-api.js';
 
+const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
+
 /**
  * Shared base for classes with spellcasting.
  * Handles granted spells (from data file + curriculum) and focus spells.
@@ -178,20 +180,15 @@ export class CasterBaseHandler extends BaseClassHandler {
 
     if (!entry) return;
 
-    if (classDef?.spellcasting?.slots?.[1]) {
-      const level1Slots = classDef.spellcasting.slots[1];
-      const slotUpdate = { _id: entry.id };
-      for (const [rank, counts] of Object.entries(level1Slots)) {
-        const max = Array.isArray(counts) ? counts[0] + counts[1] : counts;
-        if (rank === 'cantrips') {
-          slotUpdate['system.slots.slot0.max'] = max;
-          slotUpdate['system.slots.slot0.value'] = max;
-        } else {
-          slotUpdate[`system.slots.slot${rank}.max`] = max;
-          slotUpdate[`system.slots.slot${rank}.value`] = max;
-        }
-      }
+    const actorLevel = Number(actor.system?.details?.level?.value ?? 1);
+    const currentSlots = classDef?.spellcasting?.slots?.[actorLevel] ?? classDef?.spellcasting?.slots?.[1] ?? null;
+    if (currentSlots) {
+      const slotUpdate = this._buildPrimarySlotUpdate(entry, currentSlots, classDef);
       await actor.updateEmbeddedDocuments('Item', [slotUpdate]);
+    }
+
+    if (classDef?.slug === 'magus') {
+      await this._ensureMagusStudiousEntry(actor, data, classDef, actorLevel);
     }
 
     for (const spellEntry of allSpells) {
@@ -273,4 +270,96 @@ export class CasterBaseHandler extends BaseClassHandler {
       }
     }
   }
+
+  _buildPrimarySlotUpdate(entry, slots, classDef) {
+    const update = { _id: entry.id };
+    const shouldClearMissingRanks = classDef?.slug === 'magus';
+
+    if (shouldClearMissingRanks) {
+      update['system.slots.slot0.max'] = Number(slots.cantrips ?? 0);
+      update['system.slots.slot0.value'] = Number(slots.cantrips ?? 0);
+      for (let rank = 1; rank <= 10; rank += 1) {
+        update[`system.slots.slot${rank}.max`] = 0;
+        update[`system.slots.slot${rank}.value`] = 0;
+      }
+    }
+
+    for (const [rank, counts] of Object.entries(slots)) {
+      const max = Array.isArray(counts)
+        ? (classDef?.slug === 'magus' ? counts[0] : counts[0] + counts[1])
+        : counts;
+      if (rank === 'cantrips') {
+        update['system.slots.slot0.max'] = max;
+        update['system.slots.slot0.value'] = max;
+      } else {
+        update[`system.slots.slot${rank}.max`] = max;
+        update[`system.slots.slot${rank}.value`] = max;
+      }
+    }
+
+    return update;
+  }
+
+  async _ensureMagusStudiousEntry(actor, data, classDef, actorLevel) {
+    const studiousRank = getMagusStudiousRank(actorLevel);
+    const existing = actor.items?.find((item) => this._isMagusStudiousEntry(item)) ?? null;
+
+    if (!studiousRank) {
+      if (existing?.id) {
+        const clearUpdate = { _id: existing.id };
+        for (let rank = 1; rank <= 10; rank += 1) {
+          clearUpdate[`system.slots.slot${rank}.max`] = 0;
+          clearUpdate[`system.slots.slot${rank}.value`] = 0;
+        }
+        await actor.updateEmbeddedDocuments('Item', [clearUpdate]);
+      }
+      return;
+    }
+
+    const tradition = this._resolveTradition(classDef.spellcasting.tradition, data.subclass);
+    const ability = classDef.keyAbility.length === 1 ? classDef.keyAbility[0] : 'cha';
+    let entry = existing;
+
+    if (!entry) {
+      const created = await actor.createEmbeddedDocuments('Item', [{
+        name: 'Magus Studious Spells',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            [MAGUS_STUDIOUS_ENTRY_FLAG]: true,
+          },
+        },
+        system: {
+          tradition: { value: tradition },
+          prepared: { value: classDef.spellcasting.type },
+          ability: { value: ability },
+          proficiency: { value: 1 },
+        },
+      }]);
+      entry = created[0];
+    }
+
+    const update = { _id: entry.id };
+    for (let rank = 1; rank <= 10; rank += 1) {
+      update[`system.slots.slot${rank}.max`] = 0;
+      update[`system.slots.slot${rank}.value`] = 0;
+    }
+    update[`system.slots.slot${studiousRank}.max`] = 2;
+    update[`system.slots.slot${studiousRank}.value`] = 2;
+    await actor.updateEmbeddedDocuments('Item', [update]);
+  }
+
+  _isMagusStudiousEntry(item) {
+    if (item?.type !== 'spellcastingEntry') return false;
+    if (item.flags?.['pf2e-leveler']?.[MAGUS_STUDIOUS_ENTRY_FLAG] === true) return true;
+    return String(item?.name ?? '').toLowerCase().includes('studious');
+  }
+}
+
+function getMagusStudiousRank(level) {
+  const numericLevel = Number(level ?? 0);
+  if (numericLevel >= 13) return 4;
+  if (numericLevel >= 11) return 3;
+  if (numericLevel >= 7) return 2;
+  return 0;
 }

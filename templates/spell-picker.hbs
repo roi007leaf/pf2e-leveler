@@ -1,6 +1,19 @@
 <div class="pf2e-leveler spell-picker">
   <div class="picker__browser">
     <aside class="picker__sidebar">
+      {{#if selectedSpells.length}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ALREADY_SELECTED"}} ({{selectedSpells.length}})</div>
+        <div class="spell-picker__selected-sidebar">
+          {{#each selectedSpells}}
+          <div class="spell-picker__selected-sidebar-item" data-action="viewSpell" data-uuid="{{this.uuid}}" style="cursor: pointer;">
+            <img src="{{this.img}}" alt="" class="spell-picker__selected-sidebar-img">
+            <span class="spell-picker__selected-sidebar-name">{{this.name}}</span>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
         <input type="text" class="picker__search"
@@ -35,9 +48,10 @@
           {{#each rarityOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
             data-action="toggleRarityChip"
-            data-rarity="{{this.value}}">
+            data-rarity="{{this.value}}"
+            {{#if this.locked}}data-tooltip="{{localize "PF2E_LEVELER.UI.LOCKED_FILTER_HINT"}}"{{/if}}>
             {{this.label}}
           </button>
           {{/each}}

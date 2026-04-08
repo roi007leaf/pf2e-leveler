@@ -4,11 +4,30 @@
 
 ### Feat Picker
 
+### Suggested Character Options
+
+- **Openable entries, grouping, and bulk guidance tools** - Compendium-backed options in the Suggested Character Options menu can now be opened directly from the list, heritages are grouped by ancestry, and the menu now supports `Suggested`, `Not Recommended`, and `Disallowed` states. Added bulk actions by rarity for rarity-based categories and by ancestry group for heritages, and `Clear Tab` now only clears the active category
+- **Language rarity now matches PF2e campaign settings** - Language rarity badges and guidance grouping now use the same PF2e campaign language rarity buckets as the system selector, including `common`, `uncommon`, `rare`, and `secret`
+
+### Level Planner
+
+- **Planned dedications now unlock archetype follow-up browsing correctly** - Planning a dedication feat now updates later archetype feat pickers correctly, keeping the picker on `archetype OR dedication` instead of remaining locked to `dedication`
+- **Dedication choice sets appear in the planner** - Dedications with subclass or order `ChoiceSet`s, such as `Druid Dedication`, now surface those follow-up selections in the planner using the same shared choice-set parsing used by the creation wizard
+
+### Spellcasting
+
+- **Magus uses a separate Studious Spells entry** - Magus spellcasting now keeps bounded caster slots on the main `Magus Spells` entry and creates or updates a separate `Magus Studious Spells` entry for the extra studious slots
+
 - **Skill filter now available in all feat pickers** — A chip-based skill filter (with AND/OR toggle) now appears in any feat picker whose pool contains feats with skill traits or skill prerequisites. Previously the filter only appeared in the dedicated Skill Feats picker. Now class feat, general feat, ancestry feat, archetype feat, and custom plan pickers all show the filter when relevant
 - **Skill filter shows when feat type "Skill" is selected** — In pickers with a feat-type filter, the skill filter appears automatically when the Skill type chip is active, and hides when it's deselected
 - **Skill filter supports multi-select with AND/OR logic** — Multiple skills can be filtered simultaneously; OR mode shows feats matching any selected skill, AND mode shows feats requiring all of them
 
 ### Character Wizard
+
+- **Feat-grant choice sets can launch locked feat pickers** - Granted feat choices such as `General Training` now open the feat picker with locked filtering based on the rule instead of dumping large inline feat lists. The picker title also reflects the source grant and prompt
+- **Background and language browsing improvements** - Backgrounds now expose skill and attribute filter metadata for browser filtering, and languages display their PF2e rarity in the wizard
+- **Cleric divine font naming and prerequisite alignment** - Divine Font handling now uses the system's `healing` / `harmful` terminology while preserving compatibility with older stored `heal` / `harm` values, and prerequisites like `healing font` are matched correctly during planning and creation
+- **Reopening Character Creation now recovers older level 1 plans** - Characters created before creation-plan persistence was preserved can now reopen Character Creation without falling back to a blank wizard. When no saved creation snapshot exists, the wizard rebuilds a best-effort level 1 plan from the actor's ancestry, heritage, background, class, deity, and recoverable level 1 feat selections, then saves that recovered snapshot for future edits
 
 - **Wizard schools no longer falsely grant skill proficiencies** — The subclass skill parser was scanning the full description text for any mention of a skill name, causing items like "Pathfinder **Society**'s School of Spells" to incorrectly show Society as auto-trained. The HTML fallback now only matches explicit "trained in [skill]" phrasing
 - **Duplicate auto-trained skills now grant an extra free skill choice** — When a subclass (e.g. Rogue Thief granting Thievery) and a background (e.g. Street Urchin granting Thievery) both auto-train the same skill, the duplicate now correctly increments the free skill choice count. Previously only class-vs-background duplicates were detected; subclass and deity skill grants are now included in the check

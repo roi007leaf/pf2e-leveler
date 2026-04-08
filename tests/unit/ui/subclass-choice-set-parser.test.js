@@ -186,6 +186,46 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('matches subclass family tags when the filter uses a shared prefix tag', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    game.packs.set('pf2e.classfeatures', {
+      getDocuments: jest.fn(async () => [
+        createDoc({
+          uuid: 'Compendium.pf2e.classfeatures.Item.animal-order',
+          name: 'Animal Order',
+          otherTags: ['druid-order-animal'],
+        }),
+        createDoc({
+          uuid: 'Compendium.pf2e.classfeatures.Item.leaf-order',
+          name: 'Leaf Order',
+          otherTags: ['druid-order-leaf'],
+        }),
+      ]),
+    });
+
+    const sets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'druidicOrder',
+        prompt: 'Select a druidic order.',
+        choices: {
+          filter: [
+            'item:tag:druid-order',
+          ],
+        },
+      }]);
+
+    expect(sets).toEqual([
+      expect.objectContaining({
+        flag: 'druidicOrder',
+        options: expect.arrayContaining([
+          expect.objectContaining({ label: 'Animal Order', uuid: 'Compendium.pf2e.classfeatures.Item.animal-order' }),
+          expect.objectContaining({ label: 'Leaf Order', uuid: 'Compendium.pf2e.classfeatures.Item.leaf-order' }),
+        ]),
+      }),
+    ]);
+  });
+
   it('supports exclusion filters so blocked options stay hidden', async () => {
     const wizard = new CharacterWizard(createMockActor());
 
@@ -3037,6 +3077,32 @@ describe('CharacterWizard subclass choice-set parsing', () => {
           },
         };
       }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.reactive-shield') {
+        return {
+          uuid,
+          name: 'Reactive Shield',
+          type: 'feat',
+          img: 'reactive-shield.png',
+          system: {
+            level: { value: 1 },
+            traits: { value: ['fighter'], rarity: 'common' },
+            description: { value: '<p>Raise your shield faster.</p>' },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.power-attack') {
+        return {
+          uuid,
+          name: 'Power Attack',
+          type: 'feat',
+          img: 'power-attack.png',
+          system: {
+            level: { value: 1 },
+            traits: { value: ['fighter'], rarity: 'common' },
+            description: { value: '<p>Make a big swing.</p>' },
+          },
+        };
+      }
       return null;
     });
 
@@ -3045,6 +3111,8 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     expect(context.featChoiceSections[0].choiceSets[0]).toEqual(expect.objectContaining({
       hasSelection: true,
+      isFeatChoice: true,
+      selectedOption: expect.objectContaining({ label: 'Reactive Shield' }),
     }));
     expect(context.featChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: 'Reactive Shield', selected: true }),

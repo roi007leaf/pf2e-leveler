@@ -91,8 +91,10 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
   return hydratedChoiceSets.map((cs) => ({
     ...cs,
     isItemChoice: cs.options.some((opt) => !!extractChoiceUuid(opt) || !!opt?.img || !!opt?.description),
+    isFeatChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'feat'),
     isWeaponChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
     options: hydrateChoiceSetOptions(cs, skillState, currentChoices),
+    selectedOption: findMatchingChoiceOption(cs.options, currentChoices?.[cs.flag] ?? null),
     hasSelection: !!currentChoices[cs.flag] && currentChoices[cs.flag] !== '[object Object]',
   }));
 }
@@ -1166,6 +1168,7 @@ async function enrichChoiceOption(wizard, choice) {
     isRanged: isRangedWeaponItem(item),
     description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
     summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
+    level: Number(item.system?.level?.value ?? choice?.level ?? choiceValue?.level ?? 0) || 0,
   };
 }
 
@@ -1393,7 +1396,11 @@ function matchesChoiceSetFilterString(item, filter) {
 
   switch (field) {
     case 'tag':
-      return (item.otherTags ?? []).includes(value);
+      return (item.otherTags ?? []).some((tag) => {
+        const normalizedTag = String(tag ?? '').toLowerCase();
+        const normalizedValue = String(value ?? '').toLowerCase();
+        return normalizedTag === normalizedValue || normalizedTag.startsWith(`${normalizedValue}-`);
+      });
     case 'trait':
       return (item.traits ?? []).includes(value);
     case 'type':

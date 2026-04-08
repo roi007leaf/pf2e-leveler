@@ -148,7 +148,7 @@
 }
 
 .pf2e-leveler .picker__source-chip::before {
-  content: "";
+  content: '';
   width: 10px;
   height: 10px;
   border-radius: 999px;
@@ -182,7 +182,7 @@
 }
 
 .pf2e-leveler .picker__source-chip.locked::after {
-  content: "\f023";
+  content: '\f023';
   font: var(--fa-font-solid);
   font-size: 0.75rem;
   opacity: 0.75;
@@ -191,7 +191,10 @@
 .pf2e-leveler .picker__source-chip i.fa-xmark {
   font-size: 0.72rem;
   opacity: 0.72;
-  transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .pf2e-leveler .picker__source-chip:not(.selected) i.fa-xmark {
@@ -208,32 +211,32 @@
   opacity: 0.4;
 }
 
-.pf2e-leveler .picker__source-chip[data-rarity="uncommon"].selected {
+.pf2e-leveler .picker__source-chip[data-rarity='uncommon'].selected {
   background: rgba(200, 120, 0, 0.18);
   border-color: rgba(200, 120, 0, 0.85);
   color: #c87800;
 }
-.pf2e-leveler .picker__source-chip[data-rarity="uncommon"].selected::before {
+.pf2e-leveler .picker__source-chip[data-rarity='uncommon'].selected::before {
   background: #c87800;
   border-color: #c87800;
 }
 
-.pf2e-leveler .picker__source-chip[data-rarity="rare"].selected {
+.pf2e-leveler .picker__source-chip[data-rarity='rare'].selected {
   background: rgba(50, 100, 200, 0.18);
   border-color: rgba(50, 100, 200, 0.85);
   color: #5090e0;
 }
-.pf2e-leveler .picker__source-chip[data-rarity="rare"].selected::before {
+.pf2e-leveler .picker__source-chip[data-rarity='rare'].selected::before {
   background: #5090e0;
   border-color: #5090e0;
 }
 
-.pf2e-leveler .picker__source-chip[data-rarity="unique"].selected {
+.pf2e-leveler .picker__source-chip[data-rarity='unique'].selected {
   background: rgba(120, 50, 180, 0.18);
   border-color: rgba(120, 50, 180, 0.85);
   color: #9060d0;
 }
-.pf2e-leveler .picker__source-chip[data-rarity="unique"].selected::before {
+.pf2e-leveler .picker__source-chip[data-rarity='unique'].selected::before {
   background: #9060d0;
   border-color: #9060d0;
 }
@@ -565,6 +568,46 @@
 
 .pf2e-leveler .spell-picker__bulk-btn {
   white-space: nowrap;
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: var(--leveler-radius-sm);
+  background: var(--leveler-bg-accent, rgba(255, 255, 255, 0.04));
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-item:hover {
+  background: rgba(198, 161, 91, 0.15);
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-item:hover .spell-picker__selected-sidebar-name {
+  color: var(--leveler-text-bright);
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-img {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-name {
+  font-size: var(--leveler-font-sm);
+  color: var(--leveler-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 900px) {

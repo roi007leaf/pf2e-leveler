@@ -41,6 +41,36 @@ describe('CharacterWizard skills step grants', () => {
 
       return null;
     });
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        languages: {
+          common: { label: 'Common' },
+          draconic: { label: 'Draconic' },
+          wildsong: { label: 'Wildsong' },
+        },
+      },
+    };
+    global.game = {
+      ...(global.game ?? {}),
+      pf2e: {
+        ...(global.game?.pf2e ?? {}),
+        settings: {
+          ...(global.game?.pf2e?.settings ?? {}),
+          campaign: {
+            ...(global.game?.pf2e?.settings?.campaign ?? {}),
+            languages: {
+              commonLanguage: 'taldane',
+              common: new Set(['draconic']),
+              uncommon: new Set(),
+              rare: new Set(['draconic']),
+              secret: new Set(['wildsong']),
+            },
+          },
+        },
+      },
+    };
   });
 
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
@@ -169,6 +199,55 @@ describe('CharacterWizard skills step grants', () => {
 
     expect(await wizard._getAdditionalSkillCount()).toBe(4);
     expect(await wizard._getAdditionalLanguageCount()).toBe(1);
+  });
+
+  it('includes language rarity in language context entries', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-uuid') {
+        return {
+          system: {
+            languages: { value: ['common'] },
+            additionalLanguages: { value: ['draconic'], count: 1 },
+          },
+        };
+      }
+      return null;
+    });
+
+    const context = await wizard._buildLanguageContext();
+
+    expect(context.grantedLanguages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'common', rarity: 'common' }),
+    ]));
+    expect(context.choosableLanguages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'draconic', rarity: 'rare' }),
+    ]));
+  });
+
+  it('reads secret language rarity from PF2E campaign language settings', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-uuid') {
+        return {
+          system: {
+            languages: { value: ['common'] },
+            additionalLanguages: { value: ['wildsong'], count: 1 },
+          },
+        };
+      }
+      return null;
+    });
+
+    const context = await wizard._buildLanguageContext();
+
+    expect(context.choosableLanguages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'wildsong', rarity: 'secret' }),
+    ]));
   });
 
   it('adds an extra selectable skill when background and class auto-train the same skill', async () => {

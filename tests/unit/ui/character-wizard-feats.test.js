@@ -1,5 +1,6 @@
 import { CharacterWizard, buildCompendiumSourceOptions, filterStepContextByCompendiumSource } from '../../../scripts/ui/character-wizard/index.js';
-import { loadHeritages, loadRawHeritages } from '../../../scripts/ui/character-wizard/loaders.js';
+import { loadBackgrounds, loadHeritages, loadRawHeritages } from '../../../scripts/ui/character-wizard/loaders.js';
+import { saveCreationData } from '../../../scripts/creation/creation-store.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -16,6 +17,82 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 }));
 
 describe('CharacterWizard feat step ancestry filtering', () => {
+  it('rebuilds missing creation data from an existing actor', async () => {
+    const actor = createMockActor({
+      ancestry: {
+        uuid: 'Compendium.test.ancestries.Item.human',
+        name: 'Human',
+        slug: 'human',
+        img: 'human.png',
+      },
+      heritage: {
+        uuid: 'Compendium.test.heritages.Item.versatile',
+        name: 'Versatile Heritage',
+        slug: 'versatile-heritage',
+        img: 'heritage.png',
+      },
+      background: {
+        uuid: 'Compendium.test.backgrounds.Item.acolyte',
+        name: 'Acolyte',
+        slug: 'acolyte',
+        img: 'background.png',
+      },
+      class: {
+        uuid: 'Compendium.test.classes.Item.fighter',
+        name: 'Fighter',
+        slug: 'fighter',
+        img: 'fighter.png',
+      },
+      items: [
+        {
+          type: 'feat',
+          uuid: 'Actor.test.Item.natural-ambition',
+          sourceId: 'Compendium.test.feats.Item.natural-ambition',
+          name: 'Natural Ambition',
+          slug: 'natural-ambition',
+          img: 'feat-a.png',
+          system: { location: 'ancestry-1', rules: [], description: { value: '' } },
+        },
+        {
+          type: 'feat',
+          uuid: 'Actor.test.Item.reactive-shield',
+          sourceId: 'Compendium.test.feats.Item.reactive-shield',
+          name: 'Reactive Shield',
+          slug: 'reactive-shield',
+          img: 'feat-b.png',
+          system: { location: 'class-1', rules: [], description: { value: '' } },
+        },
+      ],
+    });
+
+    global.fromUuid = jest.fn((uuid) => Promise.resolve({
+      uuid,
+      type: 'feat',
+      name: uuid.endsWith('natural-ambition') ? 'Natural Ambition' : 'Reactive Shield',
+      slug: uuid.endsWith('natural-ambition') ? 'natural-ambition' : 'reactive-shield',
+      img: 'resolved.png',
+      system: {
+        rules: [],
+        description: { value: '' },
+      },
+    }));
+
+    const wizard = new CharacterWizard(actor);
+    await wizard._recoverCreationDataFromActor();
+
+    expect(wizard.data.ancestry).toEqual(expect.objectContaining({ slug: 'human', name: 'Human' }));
+    expect(wizard.data.background).toEqual(expect.objectContaining({ slug: 'acolyte', name: 'Acolyte' }));
+    expect(wizard.data.class).toEqual(expect.objectContaining({ slug: 'fighter', name: 'Fighter' }));
+    expect(wizard.data.ancestryFeat).toEqual(expect.objectContaining({ slug: 'natural-ambition', name: 'Natural Ambition' }));
+    expect(wizard.data.classFeat).toEqual(expect.objectContaining({ slug: 'reactive-shield', name: 'Reactive Shield' }));
+    expect(saveCreationData).toHaveBeenCalledWith(actor, expect.objectContaining({
+      ancestry: expect.objectContaining({ slug: 'human' }),
+      class: expect.objectContaining({ slug: 'fighter' }),
+      ancestryFeat: expect.objectContaining({ slug: 'natural-ambition' }),
+      classFeat: expect.objectContaining({ slug: 'reactive-shield' }),
+    }));
+  });
+
   it('requires a second ancestry feat at level 1 when ancestry paragon is enabled', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return true;
@@ -100,6 +177,37 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         uuid: 'background-1',
         name: 'Acolyte',
         type: 'background',
+      }),
+    ]);
+  });
+
+  it('loads background browser entries with trained skills and boosts for filtering', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._compendiumCache.backgrounds = [
+      {
+        uuid: 'background-1',
+        name: 'Warrior',
+        type: 'background',
+        sourcePack: 'pf2e.backgrounds',
+        sourceLabel: 'Backgrounds',
+        sourcePackage: 'pf2e',
+        sourcePackageLabel: 'PF2E',
+        slug: 'warrior',
+        rarity: 'common',
+        description: '',
+        traits: [],
+        trainedSkills: ['athletics'],
+        boosts: ['str', 'con'],
+      },
+    ];
+
+    const items = await loadBackgrounds(wizard);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        uuid: 'background-1',
+        trainedSkills: ['athletics'],
+        boosts: ['str', 'con'],
       }),
     ]);
   });

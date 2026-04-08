@@ -108,6 +108,32 @@
         </div>
         {{/if}}
 
+        {{#if browserStep.backgroundSkillFilters}}
+        <div class="wizard-browser-filter">
+          <div class="wizard-browser-filter__label">Skills</div>
+          <div class="wizard-source-filters__chips">
+            {{#each browserStep.backgroundSkillFilters}}
+            <button type="button" class="wizard-source-filter {{#if this.selected}}selected{{/if}}" data-action="toggleBackgroundSkillFilter" data-skill="{{this.value}}">
+              {{this.label}}
+            </button>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if browserStep.backgroundAttributeFilters}}
+        <div class="wizard-browser-filter">
+          <div class="wizard-browser-filter__label">Attributes</div>
+          <div class="wizard-source-filters__chips">
+            {{#each browserStep.backgroundAttributeFilters}}
+            <button type="button" class="wizard-source-filter {{#if this.selected}}selected{{/if}}" data-action="toggleBackgroundAttributeFilter" data-attribute="{{this.value}}">
+              {{this.label}}
+            </button>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
         {{#if hasCompendiumSourceFilter}}
         <div class="wizard-browser-filter">
           <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
@@ -146,12 +172,13 @@
         <div class="wizard-browser__group-label">{{this.label}}</div>
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each this.items}}
-          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <div class="wizard-item__traits">
                 {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
                 {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                 {{#if ../../browserStep.showTraits}}
                   {{#each this.traits}}
@@ -173,12 +200,13 @@
         {{else}}
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each browserStep.items}}
-          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <div class="wizard-item__traits">
                 {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
                 {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                 {{#if ../browserStep.showTraits}}
                   {{#each this.traits}}
@@ -321,6 +349,43 @@
         {{this.prompt}}
       </div>
       {{#if this.isItemChoice}}
+      {{#if this.isFeatChoice}}
+      <div class="wizard-choice-filters">
+        <button type="button"
+          class="wizard-item__select"
+          data-action="browseFeatChoice"
+          data-slot="{{../../slot}}"
+          data-flag="{{this.flag}}">
+          Browse Feats
+        </button>
+      </div>
+      {{#if this.selectedOption}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        <div class="wizard-item wizard-item--taken">
+          {{#if this.selectedOption.img}}
+          <img src="{{this.selectedOption.img}}" alt="" class="wizard-item__img">
+          {{/if}}
+          <div class="wizard-item__info">
+            <span class="wizard-item__name {{#unless this.selectedOption.uuid}}wizard-item__name--static{{/unless}}" {{#if this.selectedOption.uuid}}data-action="viewItem" data-uuid="{{this.selectedOption.uuid}}"{{/if}}>{{this.selectedOption.label}}</span>
+            {{#if this.selectedOption.summary}}
+            <div class="wizard-item__desc">{{this.selectedOption.summary}}</div>
+            {{/if}}
+            <div class="wizard-item__traits">
+              {{#each this.selectedOption.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.selectedOption.rarity "common")}}
+              <span class="tag tag--rarity-{{this.selectedOption.rarity}} tag--tiny">{{this.selectedOption.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+        </div>
+      </div>
+      {{else}}
+      <p class="wizard-hint">Use the feat picker to choose an option for this grant.</p>
+      {{/if}}
+      {{else}}
       {{#if this.isWeaponChoice}}
       <div class="wizard-choice-filters">
         <input type="text" class="picker__search wizard-choice-filters__search" placeholder="Filter weapons..." data-action="searchChoiceSetItems">
@@ -366,6 +431,7 @@
         </div>
         {{/each}}
       </div>
+      {{/if}}
       {{else}}
       <div class="skill-btn-grid">
         {{#each this.options}}
@@ -921,6 +987,7 @@
         {{#each grantedLanguages}}
         <button type="button" class="skill-btn selected" disabled>
           <span class="skill-btn__name">{{this.label}}</span>
+          {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
           <span class="skill-btn__rank rank-text-trained">{{#if (eq this.source "feat")}}{{localize "PF2E_LEVELER.CREATION.STEPS.FEATS"}}{{else}}{{localize "PF2E_LEVELER.CREATION.STEPS.ANCESTRY"}}{{/if}}</span>
         </button>
         {{/each}}
@@ -941,6 +1008,8 @@
           data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}">
           <span class="skill-btn__name">{{this.label}}</span>
           {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+          {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+          {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
           {{#if this.suggested}}<span class="skill-btn__rank tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
           {{#unless this.suggested}}<span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>{{/unless}}
         </button>
@@ -978,6 +1047,7 @@
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+            {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
             {{#if this.futureSkillChoices.length}}
             <span class="skill-btn__hint">
               {{#each this.futureSkillChoices}}
@@ -1205,14 +1275,32 @@
         {{/if}}
 
         {{#if focusSpells.length}}
+        {{#if focusCantrips.length}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
-            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS"}} ({{focusSpells.length}})
+            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS_CANTRIPS"}} ({{focusCantrips.length}})
+          </div>
+          <p class="wizard-hint" style="margin: 4px 0;">These focus cantrips will be added automatically.</p>
+          <div class="wizard-spell-chips">
+            {{#each focusCantrips}}
+            <span class="wizard-spell-chip wizard-spell-chip--granted">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="tag tag--success tag--tiny">{{../className}}</span>
+            </span>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+        {{#if focusNonCantrips.length}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS"}} ({{focusNonCantrips.length}})
           </div>
           {{#if isDevotionChoice}}
           <p class="wizard-hint" style="margin: 4px 0;">Choose one focus spell.</p>
           <div class="skill-btn-grid">
-            {{#each focusSpells}}
+            {{#each focusNonCantrips}}
             <button type="button"
               class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
               data-action="selectDevotionSpell" data-uuid="{{this.uuid}}">
@@ -1224,16 +1312,17 @@
           {{else}}
           <p class="wizard-hint" style="margin: 4px 0;">These focus spells will be added automatically.</p>
           <div class="wizard-spell-chips">
-            {{#each focusSpells}}
+            {{#each focusNonCantrips}}
             <span class="wizard-spell-chip wizard-spell-chip--granted">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <span class="tag tag--success tag--tiny">{{localize "PF2E_LEVELER.SPELLS.FOCUS"}}</span>
+              <span class="tag tag--success tag--tiny">{{../className}}</span>
             </span>
             {{/each}}
           </div>
           {{/if}}
         </div>
+        {{/if}}
         {{/if}}
       </div>
 

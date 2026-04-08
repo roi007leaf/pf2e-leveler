@@ -1,12 +1,14 @@
 import { CasterBaseHandler } from '../../../scripts/creation/class-handlers/caster-base.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
+import { MAGUS } from '../../../scripts/classes/magus.js';
 
 describe('CasterBaseHandler._applySpellcasting', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     ClassRegistry.clear();
     ClassRegistry.register(DRUID);
+    ClassRegistry.register(MAGUS);
     global.foundry = {
       utils: {
         deepClone: (value) => JSON.parse(JSON.stringify(value)),
@@ -64,5 +66,56 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     const createdSpells = createdDocs.filter((doc) => doc.type === 'spell');
     expect(createdSpells.map((doc) => doc.name)).toEqual(['tangle-vine', 'heal-animal']);
     expect(actor.createEmbeddedDocuments).toHaveBeenCalledTimes(3);
+  });
+
+  it('creates a separate studious spellcasting entry for magus at level 7+', async () => {
+    const createdDocs = [];
+    const actor = {
+      items: [],
+      system: {
+        details: { level: { value: 7 } },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => {
+        createdDocs.push(...docs);
+        return docs.map((doc, index) => ({ id: doc.type === 'spellcastingEntry' ? `entry-${index}` : `spell-${index}`, ...doc }));
+      }),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+
+    const handler = new CasterBaseHandler();
+    await handler._applySpellcasting(actor, {
+      class: { slug: 'magus', name: 'Magus' },
+      subclass: null,
+      spells: {
+        cantrips: [],
+        rank1: [],
+      },
+    });
+
+    expect(createdDocs.filter((doc) => doc.type === 'spellcastingEntry')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Magus Spells' }),
+      expect.objectContaining({
+        name: 'Magus Studious Spells',
+        flags: {
+          'pf2e-leveler': {
+            magusStudiousEntry: true,
+          },
+        },
+      }),
+    ]));
+
+    expect(actor.updateEmbeddedDocuments).toHaveBeenNthCalledWith(1, 'Item', [
+      expect.objectContaining({
+        _id: 'entry-0',
+        'system.slots.slot3.max': 2,
+        'system.slots.slot4.max': 2,
+      }),
+    ]);
+    expect(actor.updateEmbeddedDocuments).toHaveBeenNthCalledWith(2, 'Item', [
+      expect.objectContaining({
+        _id: 'entry-0',
+        'system.slots.slot2.max': 2,
+      }),
+    ]);
   });
 });

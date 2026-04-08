@@ -1,4 +1,4 @@
-export function bindRarityToggles(root, { toggleSelector, itemSelector }) {
+export function bindRarityToggles(root, { toggleSelector, itemSelector, onChange = null }) {
   const toggles = [...(root?.querySelectorAll?.(toggleSelector) ?? [])];
   if (toggles.length === 0) return;
 
@@ -12,6 +12,8 @@ export function bindRarityToggles(root, { toggleSelector, itemSelector }) {
       const rarity = item.dataset.rarity || 'common';
       item.style.display = hiddenRarities.has(rarity) ? 'none' : '';
     });
+
+    if (typeof onChange === 'function') onChange(root, hiddenRarities);
   };
 
   toggles.forEach((toggle) => toggle.addEventListener('change', apply));
