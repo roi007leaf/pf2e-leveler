@@ -72,6 +72,7 @@ import {
   parseSpellUuidsFromDescription,
   parseVesselSpell,
 } from './loaders.js';
+import { annotateGuidance, annotateGuidanceBySlug, sortRecommendedFirst } from '../../access/content-guidance.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
@@ -984,7 +985,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         return {};
       }
       case 'boosts': return await this._buildBoostContext();
-      case 'languages': return await this._buildLanguageContext();
+      case 'languages': {
+        const langCtx = await this._buildLanguageContext();
+        annotateGuidanceBySlug(langCtx.choosableLanguages, 'language');
+        langCtx.choosableLanguages.sort((a, b) => {
+          if (a.isRecommended && !b.isRecommended) return -1;
+          if (!a.isRecommended && b.isRecommended) return 1;
+          if (a.suggested !== b.suggested) return a.suggested ? -1 : 1;
+          return a.label.localeCompare(b.label);
+        });
+        return langCtx;
+      }
       case 'skills': {
         const maxSkills = await this._getAdditionalSkillCount();
         this._cachedMaxSkills = maxSkills;
@@ -1004,7 +1015,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         );
         const allLores = dedupeLores([...bgLores, ...subclassLores, ...featLores, ...apparitionLores]);
         setLores(this.data, allLores.map((l) => l.name));
-        return { skills: await this._buildSkillContext(), maxSkills, selectedCount, skillsNote: this._getSkillsNote(), lores: allLores };
+        const skills = await this._buildSkillContext();
+        annotateGuidanceBySlug(skills, 'skill');
+        return { skills, maxSkills, selectedCount, skillsNote: this._getSkillsNote(), lores: allLores };
       }
       case 'feats': return await this._buildFeatContext();
       case 'spells': return await this._buildSpellContext();
@@ -1753,11 +1766,12 @@ function buildBrowserStepContext(stepId, data, stepContext) {
   const config = BROWSER_STEP_CONFIG[stepId];
   if (!config) return null;
 
-  return {
+  const items = sortRecommendedFirst(annotateGuidance(Array.isArray(stepContext?.items) ? stepContext.items : []));
+  const context = {
     stepId,
     title: localize(config.titleKey),
     resultsLabel: localize(config.resultsKey),
-    items: Array.isArray(stepContext?.items) ? stepContext.items : [],
+    items,
     selected: config.selectedKey ? data[config.selectedKey] ?? null : null,
     clearAction: config.clearAction,
     showSearch: config.showSearch !== false,
@@ -1765,6 +1779,19 @@ function buildBrowserStepContext(stepId, data, stepContext) {
     showTraits: config.showTraits === true,
     selectAction: config.selectAction ?? 'selectItem',
   };
+
+  if (stepId === 'heritage' && items.length > 0) {
+    const ancestry = items.filter((h) => !!h.ancestrySlug);
+    const versatile = items.filter((h) => !h.ancestrySlug);
+    if (versatile.length > 0 && ancestry.length > 0) {
+      context.groups = [
+        { label: localize('CREATION.HERITAGE_GROUP_ANCESTRY'), items: ancestry },
+        { label: localize('CREATION.HERITAGE_GROUP_VERSATILE'), items: versatile },
+      ];
+    }
+  }
+
+  return context;
 }
 
 const BROWSER_STEP_CONFIG = {

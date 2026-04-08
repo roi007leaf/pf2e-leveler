@@ -1,0 +1,80 @@
+<section class="compendium-manager">
+  <header class="compendium-manager__hero">
+    <div>
+      <h2 class="compendium-manager__title">{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.NAME"}}</h2>
+      <p class="compendium-manager__intro">{{intro}}</p>
+    </div>
+  </header>
+
+  <div class="compendium-manager__tabs" role="tablist">
+    {{#each categories}}
+    <button
+      type="button"
+      class="compendium-manager__tab {{#if this.active}}is-active{{/if}}"
+      data-action="select-category"
+      data-category="{{this.key}}">
+      <span class="compendium-manager__tabLabel">{{this.label}}</span>
+      {{#if this.markedCount}}
+      <span class="tag tag--info">{{this.markedCount}}</span>
+      {{/if}}
+    </button>
+    {{/each}}
+  </div>
+
+  <div class="compendium-manager__panelWrap">
+    <section class="compendium-manager__panel">
+      <header class="compendium-manager__panelHeader">
+        <input
+          type="text"
+          class="compendium-manager__packSearch"
+          placeholder="{{searchPlaceholder}}"
+          value="{{searchText}}"
+          data-action="search-guidance">
+      </header>
+
+      <div class="guidance-list">
+        {{#each items}}
+        <div class="guidance-item {{#if this.isRecommended}}guidance-item--recommended{{/if}} {{#if this.isDisallowed}}guidance-item--disallowed{{/if}}">
+          {{#if this.img}}<img src="{{this.img}}" alt="" class="guidance-item__img">{{/if}}
+          <div class="guidance-item__info">
+            <span class="guidance-item__name">{{this.name}}</span>
+            {{#if (notEqual this.rarity "common")}}
+            <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+            {{/if}}
+            {{#if this.level}}
+            <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
+            {{/if}}
+          </div>
+          <button
+            type="button"
+            class="guidance-item__toggle"
+            data-action="cycle-guidance"
+            data-uuid="{{this.uuid}}"
+            data-tooltip="{{#if this.isRecommended}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.RECOMMENDED"}}{{else if this.isDisallowed}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DISALLOWED"}}{{else}}{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DEFAULT"}}{{/if}}">
+            {{#if this.isRecommended}}
+            <i class="fa-solid fa-star" style="color: #c4a747;"></i>
+            {{else if this.isDisallowed}}
+            <i class="fa-solid fa-ban" style="color: #aa3333;"></i>
+            {{else}}
+            <i class="fa-regular fa-circle" style="opacity: 0.4;"></i>
+            {{/if}}
+          </button>
+        </div>
+        {{/each}}
+      </div>
+    </section>
+  </div>
+
+  <footer class="compendium-manager__footer">
+    <span class="compendium-manager__countLabel">{{countLabel}}</span>
+    <button type="button" class="compendium-manager__button compendium-manager__button--ghost" data-action="clear-all-guidance">
+      {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.CLEAR_ALL"}}
+    </button>
+    <button type="button" class="compendium-manager__button compendium-manager__button--ghost" data-action="close-guidance">
+      {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CANCEL"}}
+    </button>
+    <button type="button" class="compendium-manager__button compendium-manager__button--primary" data-action="save-guidance">
+      {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVE"}}
+    </button>
+  </footer>
+</section>

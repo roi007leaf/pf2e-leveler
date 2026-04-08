@@ -427,6 +427,45 @@ describe('parsePrerequisiteNode', () => {
     expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }));
   });
 
+  test('parses "trained in Arcana, Nature, Occultism, or Religion" as any-of-skills node', () => {
+    const result = parsePrerequisiteNode('trained in Arcana, Nature, Occultism, or Religion');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(4);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }));
+    expect(result.children[2]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }));
+    expect(result.children[3]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+  });
+
+  test('parses "expert in Athletics or Acrobatics" as any-of-skills node', () => {
+    const result = parsePrerequisiteNode('expert in Athletics or Acrobatics');
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'athletics', minRank: 2 }));
+    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'acrobatics', minRank: 2 }));
+  });
+
+  test('does not expand rank-with-alternatives when subjects contain parenthetical', () => {
+    const result = parsePrerequisiteNode('trained in Religion (or another skill associated with your deity)');
+    expect(result.kind).toBe('leaf');
+    expect(result.type).toBe('skill');
+    expect(result.skill).toBe('religion');
+  });
+
+  test('parses "bloodline spell" as subclass spell prerequisite', () => {
+    const result = parsePrerequisiteNode('bloodline spell');
+    expect(result.kind).toBe('leaf');
+    expect(result.type).toBe('subclassSpell');
+    expect(result.subclassType).toBe('bloodline');
+  });
+
+  test('parses "a mystery spell" as subclass spell prerequisite', () => {
+    const result = parsePrerequisiteNode('a mystery spell');
+    expect(result.kind).toBe('leaf');
+    expect(result.type).toBe('subclassSpell');
+    expect(result.subclassType).toBe('mystery');
+  });
+
   test('does not split unsupported companion prohibition text into fake or alternatives', () => {
     const result = parsePrerequisiteNode("you don't have an animal companion, construct companion, or other companion that functions similarly");
     expect(result.kind).toBe('leaf');

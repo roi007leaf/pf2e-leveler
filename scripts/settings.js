@@ -1,6 +1,8 @@
 import { MODULE_ID } from './constants.js';
 import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from './ui/compendium-settings-menu.js';
+import { ContentGuidanceMenu } from './ui/content-guidance-menu.js';
 import { invalidateCache } from './feats/feat-cache.js';
+import { invalidateGuidanceCache } from './access/content-guidance.js';
 
 export function registerSettings() {
   game.settings.register(MODULE_ID, 'showPlanButton', {
@@ -193,6 +195,24 @@ export function registerSettings() {
     type: String,
     default: '',
     requiresReload: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, 'contentGuidanceMenu', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.NAME'),
+    label: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.LABEL'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.HINT'),
+    icon: 'fas fa-star',
+    type: ContentGuidanceMenu,
+    restricted: true,
+  });
+
+  game.settings.register(MODULE_ID, 'gmContentGuidance', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.NAME'),
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {},
+    onChange: () => invalidateGuidanceCache(),
   });
 }
 

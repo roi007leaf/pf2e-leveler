@@ -57,6 +57,18 @@
   border: 1px solid rgba(120, 50, 180, 0.4);
 }
 
+.pf2e-leveler .tag--recommended {
+  background: rgba(196, 167, 71, 0.2);
+  color: #c4a747;
+  border: 1px solid rgba(196, 167, 71, 0.4);
+}
+
+.pf2e-leveler .tag--disallowed {
+  background: rgba(170, 51, 51, 0.2);
+  color: #aa3333;
+  border: 1px solid rgba(170, 51, 51, 0.3);
+}
+
 .pf2e-leveler .feat-slot {
   display: flex;
   align-items: center;
@@ -814,4 +826,75 @@
   .pf2e-leveler .compendium-assignment {
     grid-template-columns: 1fr;
   }
+}
+
+/* Content Guidance Menu */
+.pf2e-leveler .guidance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0;
+}
+
+.pf2e-leveler .guidance-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--leveler-surface, rgba(255, 255, 255, 0.03));
+}
+
+.pf2e-leveler .guidance-item--recommended {
+  background: rgba(196, 167, 71, 0.08);
+}
+
+.pf2e-leveler .guidance-item--disallowed {
+  background: rgba(170, 51, 51, 0.08);
+  opacity: 0.7;
+}
+
+.pf2e-leveler .guidance-item__img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.pf2e-leveler .guidance-item__info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pf2e-leveler .guidance-item__name {
+  font-size: var(--leveler-font-sm, 0.82rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf2e-leveler .guidance-item__toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.pf2e-leveler .guidance-item__toggle:hover {
+  opacity: 0.8;
+}
+
+.pf2e-leveler .compendium-manager__countLabel {
+  flex: 1;
+  font-size: var(--leveler-font-sm, 0.82rem);
+  color: var(--leveler-text-muted);
 }

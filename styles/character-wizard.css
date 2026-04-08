@@ -414,6 +414,19 @@
   color: var(--leveler-accent-light);
 }
 
+.pf2e-leveler .wizard-browser__group-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--leveler-accent-light);
+  padding: 10px 0 4px;
+}
+
+.pf2e-leveler .wizard-browser__group-label:first-child {
+  padding-top: 0;
+}
+
 .pf2e-leveler .wizard-browser__count {
   color: var(--leveler-text-muted);
   font-size: var(--leveler-font-sm);
@@ -614,6 +627,14 @@
   border-color: rgba(198, 161, 91, 0.7);
   color: #f3d89f;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.pf2e-leveler .wizard-item--disallowed {
+  opacity: 0.45;
+}
+
+.pf2e-leveler .wizard-item--disallowed .wizard-item__select {
+  pointer-events: none;
 }
 
 .pf2e-leveler .wizard-item-grid {

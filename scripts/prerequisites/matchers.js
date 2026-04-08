@@ -177,6 +177,18 @@ export function matchClassIdentity(parsed, buildState) {
   };
 }
 
+export function matchSubclassSpell(parsed, buildState) {
+  const subclassType = normalizeText(buildState.class?.subclassType);
+  const expectedType = normalizeText(parsed.subclassType);
+  if (!expectedType || subclassType !== expectedType) {
+    return { met: false, text: parsed.text };
+  }
+  return {
+    met: !!buildState.spellcasting?.focusPool,
+    text: parsed.text,
+  };
+}
+
 export function matchEquipmentState(parsed, buildState) {
   const equipment = buildState.equipment ?? {};
 

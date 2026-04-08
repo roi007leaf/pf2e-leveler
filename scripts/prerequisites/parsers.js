@@ -57,6 +57,7 @@ const ALIGNMENT_PATTERN = /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neut
 const CURSE_STATE_PATTERN = /\bcursed\b/i;
 const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\s+trick\b/i;
 const MULTIPLE_ANCESTRY_FEATS_PATTERN = /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
+const SUBCLASS_SPELL_PATTERN = /^(?:a\s+)?(bloodline|mystery|patron)\s+spell$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -123,6 +124,9 @@ export function parsePrerequisiteNode(text) {
 
   const rankEitherNode = tryParseRankWithEitherNode(normalized);
   if (rankEitherNode) return rankEitherNode;
+
+  const rankAlternativesNode = tryParseRankWithAlternativeSubjects(normalized);
+  if (rankAlternativesNode) return rankAlternativesNode;
 
   const languageNode = tryParseLanguageNode(normalized);
   if (languageNode) return languageNode;
@@ -270,6 +274,15 @@ function tryParseDeityRequirement(text, fullText = text) {
 }
 
 function tryParseSpellcastingRequirement(text, fullText = text) {
+  const subclassSpellMatch = text.match(SUBCLASS_SPELL_PATTERN);
+  if (subclassSpellMatch) {
+    return {
+      type: 'subclassSpell',
+      subclassType: subclassSpellMatch[1].toLowerCase(),
+      text: fullText,
+    };
+  }
+
   if (FOCUS_POOL_PATTERN.test(text)) {
     return {
       type: 'spellcastingState',
@@ -480,6 +493,30 @@ function tryParseRankWithEitherNode(text) {
         children: alternativeSubjects.map((subject) => parsePrerequisiteNode(`${rankName} in ${subject}`)),
       },
     ],
+  };
+}
+
+function tryParseRankWithAlternativeSubjects(text) {
+  const match = String(text ?? '').trim().match(RANK_PATTERN);
+  if (!match) return null;
+
+  const rankName = match[1];
+  const subjectsText = match[2].trim();
+
+  if (subjectsText.includes('(')) return null;
+  if (RANK_PATTERN.test(subjectsText)) return null;
+
+  const hasComma = subjectsText.includes(',');
+  const hasOr = /\bor\b/i.test(subjectsText);
+  if (!hasComma && !hasOr) return null;
+
+  const subjects = splitCommaOrList(subjectsText);
+  if (subjects.length < 2) return null;
+
+  return {
+    kind: 'any',
+    text: String(text ?? '').trim(),
+    children: subjects.map((subject) => parsePrerequisiteNode(`${rankName} in ${subject}`)),
   };
 }
 

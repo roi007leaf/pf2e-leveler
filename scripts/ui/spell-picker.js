@@ -349,7 +349,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _matchesTradition(spell) {
     if (this.tradition === 'any') return true;
     const traits = spell.system.traits?.value ?? [];
-    if (traits.includes('ritual')) return true;
+    if (traits.includes('ritual') || spell.system?.ritual != null) return true;
     const traditions = spell.system.traits?.traditions ?? spell.system.traditions?.value ?? [];
     if (traditions.includes(this.tradition)) return true;
     return traits.includes(this.tradition);
@@ -403,6 +403,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     spells = applyRarityFilter(spells, this.selectedRarities, (spell) => spell.system?.traits?.rarity ?? 'common');
     if (this.selectedTraditions.size > 0 && !this._allSelected(this.selectedTraditions, this._traditionValues)) {
       spells = spells.filter((spell) => {
+        const traits = spell.system?.traits?.value ?? [];
+        if (traits.includes('ritual') || spell.system?.ritual != null) return true;
         const traditions = getSpellTraditions(spell.system ?? {});
         return traditions.some((tradition) => this.selectedTraditions.has(tradition));
       });
@@ -414,8 +416,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       spells = spells.filter((spell) => this.selectedCategories.has(normalizeSpellCategory(spell)));
     }
     spells = applyTraitFilter(spells, this.selectedTraits, (spell) => spell.system?.traits?.value ?? [], this.traitLogic);
-    if (!this.searchText) return spells;
-    return spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
+    if (this.searchText) spells = spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
+    return spells;
   }
 
   _sortSpells(spells) {

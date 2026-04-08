@@ -1,5 +1,37 @@
 # Changelog
 
+## 2.1.0
+
+### GM Content Guidance
+
+- **Suggested & disallowed character options** — GMs can now mark ancestries, heritages, backgrounds, classes, skills, and languages as "Suggested" or "Disallowed" via a new settings menu (Module Settings → Configure Suggestions). Suggested items display a gold star badge and sort to the top of their list. Disallowed items are dimmed with a red "Disallowed" badge and their Select button is disabled
+- **Guidance persists per-world** — Marks are stored as a world-scoped setting keyed by item UUID (or `skill:`/`language:` prefix for skills and languages). Changing marks invalidates the cache automatically
+- **Disallowed items remain visible** — Disallowed options are shown dimmed with a "Disallowed" badge and their Select button is disabled, rather than being hidden. Items filtered by rarity restrictions are re-injected into the list so players can see they exist but can't select them
+
+### Character Wizard
+
+- **Heritage step groups ancestry and versatile heritages** — The heritage browser now separates ancestry-specific heritages from versatile heritages with labeled section headers ("Ancestry Heritages" / "Versatile Heritages"), making it easier to find the right heritage
+- **Heritage ChoiceSets now resolve correctly** — Feats like "Elf Atavism" that have a ChoiceSet with `itemType: "heritage"` were showing feats instead of heritages because the compendium loader had no case for heritage items. Added heritage support to `getChoiceSetPackKeys`, `normalizeChoiceCandidate` (ancestry slug), and `matchesChoiceSetFilterString` (`item:ancestry:` filter)
+
+### Prerequisite Matching
+
+- **Comma-separated skill prerequisites now parse correctly** — Prerequisites like "trained in Arcana, Nature, Occultism, or Religion" were incorrectly parsed: only the first skill was recognized, and the last one (after "or") was treated as a feat name. All skills in comma/or lists are now parsed as an any-of-skills node
+- **"Bloodline spell" / "mystery spell" / "patron spell" prerequisites** — Added a new `subclassSpell` prerequisite type that checks whether the character has the matching subclass type (e.g. sorcerer bloodline) and a focus pool. Previously these fell through to feat matching and always failed
+
+### Item Picker
+
+- **Ammunition category now appears** — PF2e stores ammunition as `type: "ammo"` (not `type: "consumable"` with a category). Added `"ammo"` to the equipment type set so ammunition items are loaded from compendiums, and updated the category normalizer to recognize `type === "ammo"`
+- **Item count shows rendered vs total when capped** — The results count now shows "200 / 5000" when the initial 200-item render limit is active, instead of showing the full unfiltered count
+
+### Spell Picker
+
+- **Ritual spells appear in tradition-locked pickers** — Fixed `_filterSpells()` to pass ritual spells through the tradition filter, matching the behavior already in `_matchesTradition()`. Also added `system.ritual` property detection as a fallback for identifying rituals
+
+### Bug Fixes
+
+- **`system.category` string vs object handling** — Fixed `normalizeItemCategory` and `normalizeChoiceCandidate` to correctly read `system.category` when PF2e stores it as a plain string instead of `{ value: "..." }`. This was causing ammunition and other category-dependent items to be miscategorized
+- **Item picker preserves Document references** — `loadItems()` was spreading FoundryVTT Documents with `...doc`, which loses prototype getters like `system`. Changed to preserve original Document references (matching how `loadSpells` already works)
+
 ## 2.0.1
 
 ### Spell Picker

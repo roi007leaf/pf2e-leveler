@@ -433,7 +433,7 @@ function normalizeChoiceCandidate(doc, sourcePack) {
     name: doc.name ?? '',
     img: doc.img ?? null,
     type: doc.type ?? null,
-    category: doc.system?.category?.value ?? doc.category ?? null,
+    category: (typeof doc.system?.category === 'object' && doc.system?.category !== null ? doc.system.category.value : doc.system?.category) ?? doc.category ?? null,
     traits: doc.system?.traits?.value ?? [],
     otherTags: doc.system?.traits?.otherTags ?? [],
     rarity: doc.system?.traits?.rarity ?? 'common',

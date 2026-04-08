@@ -25,6 +25,8 @@ describe('picker utils', () => {
     expect(normalizeItemCategory({ type: 'armor' })).toBe('armor');
     expect(normalizeItemCategory({ type: 'consumable' })).toBe('consumable');
     expect(normalizeItemCategory({ type: 'backpack' })).toBe('container');
+    expect(normalizeItemCategory({ type: 'ammo' })).toBe('ammunition');
+    expect(normalizeItemCategory({ type: 'consumable', system: { category: 'ammunition' } })).toBe('ammunition');
     expect(normalizeItemCategory({ type: 'equipment', system: { category: { value: 'ammunition' } } })).toBe('ammunition');
   });
 });

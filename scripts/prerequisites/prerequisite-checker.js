@@ -13,6 +13,7 @@ import {
   matchDeityState,
   matchSpellcastingState,
   matchClassIdentity,
+  matchSubclassSpell,
   matchEquipmentState,
   matchUnknown,
 } from './matchers.js';
@@ -81,6 +82,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchSpellcastingState(parsed, buildState));
     case 'classIdentity':
       return wrapLeafResult(matchClassIdentity(parsed, buildState));
+    case 'subclassSpell':
+      return wrapLeafResult(matchSubclassSpell(parsed, buildState));
     case 'equipmentState':
       return wrapLeafResult(matchEquipmentState(parsed, buildState));
     case 'unknown':

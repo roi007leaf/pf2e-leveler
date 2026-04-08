@@ -76,12 +76,15 @@ export function buildChipOptions(availableValues, selectedValues, { lockedValues
 
 export function normalizeItemCategory(item) {
   const type = String(item?.type ?? '').toLowerCase();
-  const category = String(item?.system?.category?.value ?? item?.category ?? '').toLowerCase();
+  const rawCategory = item?.system?.category;
+  const category = String(
+    (typeof rawCategory === 'object' && rawCategory !== null ? rawCategory.value : rawCategory) ?? item?.category ?? '',
+  ).toLowerCase();
 
   if (type === 'weapon' || category === 'weapon') return 'weapon';
   if (type === 'shield' || category === 'shield') return 'shield';
   if (type === 'armor' || category === 'armor') return 'armor';
-  if (category === 'ammunition' || type === 'ammunition') return 'ammunition';
+  if (type === 'ammo' || category === 'ammunition' || category === 'ammo') return 'ammunition';
   if (type === 'consumable' || category === 'consumable') return 'consumable';
   if (type === 'backpack' || category === 'container') return 'container';
   if (['equipment', 'treasure', 'kit'].includes(type) || category === 'equipment') return 'equipment';
@@ -90,7 +93,7 @@ export function normalizeItemCategory(item) {
 
 export function normalizeSpellCategory(spell) {
   const traits = (spell?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-  if (traits.includes('ritual')) return 'ritual';
+  if (traits.includes('ritual') || spell?.system?.ritual != null) return 'ritual';
   if (traits.includes('focus')) return 'focus';
   if (traits.includes('cantrip')) return 'cantrip';
   return 'spell';

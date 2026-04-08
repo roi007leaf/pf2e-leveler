@@ -64,7 +64,7 @@ export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   },
 };
 
-const EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'equipment', 'consumable', 'treasure', 'backpack', 'shield', 'kit']);
+const EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'equipment', 'consumable', 'ammo', 'treasure', 'backpack', 'shield', 'kit']);
 
 export function getCompendiumCategoryKeys() {
   return Object.keys(COMPENDIUM_CATEGORY_DEFINITIONS);

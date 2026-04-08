@@ -206,6 +206,8 @@
       "LOADING": "Loading character builder data...",
       "BUTTON": "Create Character",
       "SEARCH": "Search...",
+      "HERITAGE_GROUP_ANCESTRY": "Ancestry Heritages",
+      "HERITAGE_GROUP_VERSATILE": "Versatile Heritages",
       "CHANGE": "Change",
       "BACK": "Back",
       "NEXT": "Next",
@@ -559,7 +561,24 @@
         "SPELLS": "Spells",
         "EQUIPMENT": "Items and Equipment",
         "ACTIONS": "Actions",
-        "DEITIES": "Deities"
+        "DEITIES": "Deities",
+        "SKILLS": "Skills",
+        "LANGUAGES": "Languages"
+      },
+      "CONTENT_GUIDANCE": {
+        "NAME": "Suggested Character Options",
+        "LABEL": "Configure Suggestions",
+        "HINT": "Mark character options as suggested or disallowed for players. Suggested items appear with a star badge and sort to the top. Disallowed items are hidden from players.",
+        "SAVED": "Content guidance saved.",
+        "INTRO": "Mark items as suggested or disallowed. Suggested items get a star badge and sort to the top in pickers. Disallowed items are hidden from non-GM users.",
+        "SEARCH": "Search items...",
+        "RECOMMENDED": "Suggested",
+        "DISALLOWED": "Disallowed",
+        "DEFAULT": "Default",
+        "BADGE_SUGGESTED": "Suggested",
+        "BADGE_DISALLOWED": "Disallowed",
+        "CLEAR_ALL": "Clear All",
+        "COUNT": "{count} marked"
       }
     }
   }

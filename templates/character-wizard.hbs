@@ -141,13 +141,45 @@
           <div class="wizard-browser__count">{{browserStep.items.length}}</div>
         </div>
 
+        {{#if browserStep.groups}}
+        {{#each browserStep.groups}}
+        <div class="wizard-browser__group-label">{{this.label}}</div>
         <div class="wizard-item-grid wizard-item-grid--browser">
-          {{#each browserStep.items}}
-          <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+          {{#each this.items}}
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <div class="wizard-item__traits">
+                {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                {{#if ../../browserStep.showTraits}}
+                  {{#each this.traits}}
+                  <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+                  {{/each}}
+                {{/if}}
+                {{#if (notEqual this.rarity "common")}}
+                <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+                {{/if}}
+              </div>
+            </div>
+            <button type="button" class="wizard-item__select" data-action="{{../../browserStep.selectAction}}" data-uuid="{{this.uuid}}" {{#if this.isDisallowed}}disabled{{/if}}>
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+            </button>
+          </div>
+          {{/each}}
+        </div>
+        {{/each}}
+        {{else}}
+        <div class="wizard-item-grid wizard-item-grid--browser">
+          {{#each browserStep.items}}
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
+            <img src="{{this.img}}" alt="" class="wizard-item__img">
+            <div class="wizard-item__info">
+              <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <div class="wizard-item__traits">
+                {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                 {{#if ../browserStep.showTraits}}
                   {{#each this.traits}}
                   <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
@@ -166,6 +198,7 @@
               class="wizard-item__select"
               data-action="{{../browserStep.selectAction}}"
               data-uuid="{{this.uuid}}"
+              {{#if this.isDisallowed}}disabled{{/if}}
               {{#if (eq ../browserStep.stepId "subclass")}}
               data-tradition="{{this.tradition}}"
               data-spelluuids='{{json this.spellUuids}}'
@@ -179,6 +212,7 @@
           </div>
           {{/each}}
         </div>
+        {{/if}}
       </section>
     </div>
     {{else}}
@@ -903,9 +937,10 @@
       <div class="skill-btn-grid">
         {{#each choosableLanguages}}
         <button type="button"
-          class="skill-btn {{#if this.selected}}selected{{/if}}"
+          class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
           data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}">
           <span class="skill-btn__name">{{this.label}}</span>
+          {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
           {{#if this.suggested}}<span class="skill-btn__rank tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
           {{#unless this.suggested}}<span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>{{/unless}}
         </button>
@@ -938,10 +973,11 @@
         </button>
         {{else}}
         <button type="button"
-          class="skill-btn {{#if this.selected}}selected{{/if}}"
+          class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
           data-action="toggleSkill" data-skill="{{this.slug}}">
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
+            {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
             {{#if this.futureSkillChoices.length}}
             <span class="skill-btn__hint">
               {{#each this.futureSkillChoices}}

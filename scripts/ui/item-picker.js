@@ -436,13 +436,12 @@ export async function loadItems() {
     const docs = await pack.getDocuments().catch(() => []);
     const sourcePackage = pack.metadata?.packageName ?? pack.metadata?.package ?? '';
     const sourcePackageLabel = game.modules?.get?.(sourcePackage)?.title ?? sourcePackage ?? key;
-    items.push(...docs.map((doc) => ({
-      ...doc,
-      uuid: doc.uuid,
-      sourcePack: key,
-      sourcePackage: sourcePackage || key,
-      sourcePackageLabel: sourcePackageLabel || key,
-    })));
+    items.push(...docs.map((doc) => {
+      doc.sourcePack = key;
+      doc.sourcePackage = sourcePackage || key;
+      doc.sourcePackageLabel = sourcePackageLabel || key;
+      return doc;
+    }));
   }
   _itemCache = items;
   return items;

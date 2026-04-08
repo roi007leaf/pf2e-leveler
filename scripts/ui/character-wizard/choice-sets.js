@@ -1330,6 +1330,7 @@ function getChoiceSetPackKeys(itemType, filters) {
   if (normalizedType === 'action') addCategoryKeys(keys, 'actions');
   if (normalizedType === 'weapon' || normalizedType === 'armor' || normalizedType === 'equipment') addCategoryKeys(keys, 'equipment');
   if (normalizedType === 'ancestry') addCategoryKeys(keys, 'ancestries');
+  if (normalizedType === 'heritage') addCategoryKeys(keys, 'heritages');
   if (normalizedType === 'deity') addCategoryKeys(keys, 'deities');
 
   const flattenedFilters = JSON.stringify(filters ?? []);
@@ -1338,7 +1339,8 @@ function getChoiceSetPackKeys(itemType, filters) {
   if (flattenedFilters.includes('item:type:spell')) addCategoryKeys(keys, 'spells');
   if (flattenedFilters.includes('item:type:action')) addCategoryKeys(keys, 'actions');
   if (flattenedFilters.includes('item:type:weapon') || flattenedFilters.includes('item:type:armor')) addCategoryKeys(keys, 'equipment');
-  if (flattenedFilters.includes('item:type:ancestry')) addCategoryKeys(keys, 'ancestries');
+  if (flattenedFilters.includes('item:type:ancestry') || flattenedFilters.includes('item:ancestry:')) addCategoryKeys(keys, 'ancestries');
+  if (flattenedFilters.includes('item:type:heritage') || flattenedFilters.includes('item:ancestry:')) addCategoryKeys(keys, 'heritages');
   if (flattenedFilters.includes('item:tag:') || flattenedFilters.includes('item:trait:')) {
     addCategoryKeys(keys, 'classFeatures');
     addCategoryKeys(keys, 'feats');
@@ -1404,6 +1406,8 @@ function matchesChoiceSetFilterString(item, filter) {
       return String(item.category ?? '').toLowerCase() === value.toLowerCase();
     case 'rarity':
       return String(item.rarity ?? 'common').toLowerCase() === value.toLowerCase();
+    case 'ancestry':
+      return String(item.ancestrySlug ?? '').toLowerCase() === value.toLowerCase();
     default:
       return true;
   }
@@ -1434,6 +1438,7 @@ function normalizeChoiceCandidate(item) {
     rarity: rawSystem?.traits?.rarity ?? 'common',
     level: rawSystem?.level?.value ?? 0,
     category: typeof rawSystem?.category === 'string' ? rawSystem.category : (rawSystem?.category?.value ?? null),
+    ancestrySlug: rawSystem?.ancestry?.slug ?? null,
     usage: rawSystem?.usage?.value ?? null,
     range: normalizeRangeValue(rawSystem?.range ?? null),
     isRanged: isRangedWeaponData(rawSystem),

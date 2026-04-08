@@ -12,6 +12,7 @@ import {
   matchDeityState,
   matchSpellcastingState,
   matchClassIdentity,
+  matchSubclassSpell,
   matchEquipmentState,
   matchUnknown,
 } from '../../../scripts/prerequisites/matchers.js';
@@ -441,6 +442,32 @@ describe('matchEquipmentState', () => {
       { equipment: { weaponTraits: new Set(['sweep']) } },
     );
     expect(result.met).toBe(true);
+  });
+});
+
+describe('matchSubclassSpell', () => {
+  test('met when character has matching subclass type and focus pool', () => {
+    const result = matchSubclassSpell(
+      { type: 'subclassSpell', subclassType: 'bloodline', text: 'bloodline spell' },
+      { class: { subclassType: 'bloodline' }, spellcasting: { focusPool: true } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when subclass type does not match', () => {
+    const result = matchSubclassSpell(
+      { type: 'subclassSpell', subclassType: 'bloodline', text: 'bloodline spell' },
+      { class: { subclassType: 'mystery' }, spellcasting: { focusPool: true } },
+    );
+    expect(result.met).toBe(false);
+  });
+
+  test('not met when character has no focus pool', () => {
+    const result = matchSubclassSpell(
+      { type: 'subclassSpell', subclassType: 'bloodline', text: 'bloodline spell' },
+      { class: { subclassType: 'bloodline' }, spellcasting: { focusPool: false } },
+    );
+    expect(result.met).toBe(false);
   });
 });
 
