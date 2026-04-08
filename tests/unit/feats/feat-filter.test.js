@@ -1101,11 +1101,9 @@ describe('filterBySearch', () => {
     expect(result[0].name).toBe('Quick Bomber');
   });
 
-  test('also filters by traits', () => {
+  test('does not match feat traits when searching', () => {
     const result = filterBySearch(feats, 'archetype');
-    expect(result).toEqual([
-      expect.objectContaining({ name: 'Fighter Dedication' }),
-    ]);
+    expect(result).toEqual([]);
   });
 
   test('returns all for empty search', () => {

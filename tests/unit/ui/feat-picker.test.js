@@ -612,4 +612,26 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect([...picker.selectedTraits]).toEqual(['attack']);
     expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Attack Feat']);
   });
+
+  test('search filters by feat title instead of matching trait text', () => {
+    const matchingName = createFeat({
+      name: 'Skill Training',
+      uuid: 'skill-training',
+      slug: 'skill-training',
+    });
+    matchingName.system.traits.value = ['general'];
+
+    const traitOnly = createFeat({
+      name: 'Unrelated Feat',
+      uuid: 'unrelated-feat',
+      slug: 'unrelated-feat',
+    });
+    traitOnly.system.traits.value = ['skill'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn());
+    picker.allFeats = [matchingName, traitOnly];
+    picker.searchText = 'skill';
+
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Skill Training']);
+  });
 });

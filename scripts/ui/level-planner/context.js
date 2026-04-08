@@ -3,6 +3,8 @@ import { getGradualBoostGroupLevels } from '../../classes/progression.js';
 import { computeBuildState, computeSkillPickerState } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
+import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
+import { getLanguageRarityMap, getLanguageMap } from '../character-wizard/skills-languages.js';
 
 export function buildAttributeContext(planner, levelData, choices) {
   const selectedBoosts = levelData.abilityBoosts ?? [];
@@ -99,11 +101,13 @@ export function buildIntBonusLanguageContext(planner, levelData, level) {
   for (const slug of priorPlanned) current.add(slug);
 
   const allLanguages = getAvailableLanguages();
-  return allLanguages.map((entry) => ({
+  const entries = allLanguages.map((entry) => ({
     ...entry,
     selected: selected.has(entry.slug),
     disabled: current.has(entry.slug) && !selected.has(entry.slug),
   })).filter((entry) => !entry.disabled || entry.selected);
+
+  return annotateGuidanceBySlug(entries, 'language');
 }
 
 export function getPlannedLanguagesBeforeLevel(planner, level) {
@@ -116,18 +120,14 @@ export function getPlannedLanguagesBeforeLevel(planner, level) {
 }
 
 export function getAvailableLanguages() {
-  const configLangs = globalThis.CONFIG?.PF2E?.languages;
-  if (Array.isArray(configLangs)) {
-    return configLangs.map((slug) => ({
-      slug,
-      label: localizeLanguageLabel(slug),
-    }));
-  }
+  const langMap = getLanguageMap();
+  const rarityMap = getLanguageRarityMap();
 
-  return Object.entries(configLangs ?? {})
+  return Object.entries(langMap)
     .map(([slug, label]) => ({
       slug,
-      label: localizeLanguageLabel(typeof label === 'string' ? label : slug),
+      label,
+      rarity: rarityMap[slug] ?? 'common',
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -2,7 +2,6 @@ import { extractFeatSkillRules, LevelPlanner } from '../../../scripts/ui/level-p
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { createPlan, setLevelBoosts, setLevelSkillIncrease } from '../../../scripts/plan/plan-model.js';
-
 jest.mock('../../../scripts/plan/plan-store.js', () => ({
   getPlan: jest.fn(() => null),
   savePlan: jest.fn(),
@@ -58,9 +57,69 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     });
     expect(planner._buildIntBonusSkillContext(planner.plan.levels[5], 5)).toBeTruthy();
     expect(planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5)).toEqual([
-      expect.objectContaining({ slug: 'draconic', label: 'Draconic', selected: false }),
-      expect.objectContaining({ slug: 'elven', label: 'Elven', selected: false }),
+      expect.objectContaining({ slug: 'draconic', label: 'Draconic', rarity: 'common', selected: false }),
+      expect.objectContaining({ slug: 'elven', label: 'Elven', rarity: 'common', selected: false }),
     ]);
+  });
+
+  it('includes language rarity and GM guidance in planner intelligence language choices', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.languages = { value: ['common'] };
+    global.game = {
+      ...global.game,
+      i18n: {
+        has: jest.fn((key) => key.startsWith('PF2E.Actor.Creature.Language.')),
+        localize: jest.fn((key) => ({
+          'PF2E.Actor.Creature.Language.common': 'Common',
+          'PF2E.Actor.Creature.Language.draconic': 'Draconic',
+          'PF2E.Actor.Creature.Language.elven': 'Elven',
+        }[key] ?? key)),
+      },
+      pf2e: {
+        settings: {
+          campaign: {
+            languages: {
+              common: new Set(['common', 'elven']),
+              uncommon: new Set(['draconic']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+    };
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'PF2E.Actor.Creature.Language.common',
+          draconic: 'PF2E.Actor.Creature.Language.draconic',
+          elven: 'PF2E.Actor.Creature.Language.elven',
+        },
+      },
+    };
+
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      'pf2e-leveler': {
+        ...(global._testSettings?.['pf2e-leveler'] ?? {}),
+        gmContentGuidance: {
+          'language:draconic': 'recommended',
+          'language:elven': 'not-recommended',
+        },
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    setLevelBoosts(planner.plan, 5, ['str', 'dex', 'con', 'int']);
+
+    const languages = planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5);
+
+    expect(languages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'draconic', rarity: 'uncommon', isRecommended: true }),
+      expect.objectContaining({ slug: 'elven', rarity: 'common', isNotRecommended: true }),
+    ]));
   });
 
   it('marks imported past boosts as applied instead of previewing a new increase', () => {

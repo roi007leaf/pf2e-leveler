@@ -149,10 +149,20 @@
             <div class="skill-btn-grid">
               {{#each intBonusLanguageOptions}}
               <button type="button"
-                class="skill-btn {{#if this.selected}}selected{{/if}}"
+                class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="toggleIntBonusLanguage" data-language="{{this.slug}}"
                 {{#if this.disabled}}disabled{{/if}}>
-                <span class="skill-btn__name">{{this.label}}</span>
+                <span class="skill-btn__content">
+                  <span class="skill-btn__name">{{this.label}}</span>
+                  <span class="skill-btn__tags">
+                    {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+                    {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if (notEqual this.rarity "common")}}
+                    <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+                    {{/if}}
+                  </span>
+                </span>
               </button>
               {{/each}}
             </div>

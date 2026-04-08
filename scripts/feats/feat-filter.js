@@ -74,11 +74,7 @@ function checkNotDuplicate(feat, seen) {
 export function filterBySearch(feats, searchText) {
   if (!searchText) return feats;
   const lower = searchText.toLowerCase();
-  return feats.filter((feat) => {
-    const name = feat.name.toLowerCase();
-    const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).join(' ');
-    return name.includes(lower) || traits.includes(lower);
-  });
+  return feats.filter((feat) => feat.name.toLowerCase().includes(lower));
 }
 
 export function filterByRarity(feats, hideUncommon) {
