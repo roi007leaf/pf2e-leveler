@@ -265,6 +265,36 @@ describe('computeBuildState', () => {
   test('ancestry and heritage from actor', () => {
     const state = computeBuildState(mockActor, plan, 1);
     expect(state.ancestrySlug).toBe('human');
+    expect(state.heritageSlug).toBe('versatile-heritage');
+  });
+
+  test('collects heritage aliases from heritage slug and name', () => {
+    mockActor.heritage = {
+      slug: 'charhide-goblin',
+      name: 'Charhide Goblin',
+    };
+    mockActor.items = [
+      {
+        type: 'heritage',
+        slug: 'charhide-goblin',
+        name: 'Charhide Goblin',
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 1);
+    expect(state.heritageAliases).toEqual(expect.any(Set));
+    expect(state.heritageAliases.has('charhide-goblin')).toBe(true);
+  });
+
+  test('includes ancestry name as ancestry trait when ancestry slug is missing', () => {
+    mockActor.ancestry = {
+      slug: null,
+      name: 'Intelligent Weapon',
+    };
+    mockActor.system.details.ancestry = { trait: null };
+
+    const state = computeBuildState(mockActor, plan, 1);
+    expect(state.ancestryTraits.has('intelligent-weapon')).toBe(true);
   });
 
   test('includes focus-pool in feats when actor has focus pool', () => {

@@ -36,6 +36,7 @@ export function computeBuildState(actor, plan, atLevel) {
     class: computeClassState(classDef, plan.classSlug),
     ancestrySlug: actor?.ancestry?.slug ?? null,
     heritageSlug: actor?.heritage?.slug ?? null,
+    heritageAliases: computeHeritageAliases(actor),
     ancestryTraits: computeAncestryTraits(actor, plan, atLevel),
     backgroundSlug: actor?.background?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
@@ -100,8 +101,13 @@ function computeAncestryTraits(actor, plan, atLevel) {
 
   addAncestryTraitAliases(traits, actor?.system?.details?.ancestry?.trait ?? null);
 
-  for (const slug of [actor?.ancestry?.slug ?? null, actor?.heritage?.slug ?? null]) {
-    addAncestryTraitAliases(traits, slug);
+  for (const value of [
+    actor?.ancestry?.slug ?? null,
+    actor?.ancestry?.name ?? null,
+    actor?.heritage?.slug ?? null,
+    actor?.heritage?.name ?? null,
+  ]) {
+    addAncestryTraitAliases(traits, value);
   }
 
   const mixedAncestrySelection = actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG]
@@ -143,6 +149,24 @@ function computeDeityState(actor) {
     name: value.name ?? value.value ?? null,
     domains: collectDeityDomains(value),
   };
+}
+
+function computeHeritageAliases(actor) {
+  const aliases = new Set();
+  const heritage = actor?.heritage ?? null;
+  const heritageDoc = getOwnedItems(actor).find((item) => item?.type === 'heritage') ?? null;
+
+  for (const candidate of [
+    heritage?.slug,
+    heritage?.name,
+    heritageDoc?.slug,
+    heritageDoc?.name,
+  ]) {
+    const normalized = normalizeEquipmentValue(candidate);
+    if (normalized) aliases.add(slugify(normalized));
+  }
+
+  return aliases;
 }
 
 function computeDivineFontState(actor) {
@@ -259,7 +283,7 @@ function collectPlannedDedicationTraditions(actor, plan, atLevel) {
 function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
   const attrs = {};
   for (const attr of ATTRIBUTES) {
-    attrs[attr] = getActorAbilityModifier(actor, attr, { raw }) ?? 0;
+    attrs[attr] = getActorAbilityModifier(actor, attr) ?? 0;
   }
 
   const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
@@ -285,7 +309,7 @@ function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
   return attrs;
 }
 
-function getActorAbilityModifier(actor, attr, { raw = false } = {}) {
+function getActorAbilityModifier(actor, attr) {
   const actorAbilities = actor?.abilities?.[attr] ?? null;
   const systemAbility = actor?.system?.abilities?.[attr] ?? null;
   const base = actorAbilities?.base;
@@ -954,7 +978,7 @@ function normalizeLanguageSlug(value) {
 }
 
 function addAncestryTraitAliases(target, slug) {
-  const normalized = normalizeEquipmentValue(slug);
+  const normalized = slugify(normalizeEquipmentValue(slug) ?? '');
   if (!normalized) return;
   const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
   for (const alias of aliases) target.add(alias);

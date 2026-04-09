@@ -402,6 +402,26 @@ describe('filterFeatsByCategory', () => {
       expect.objectContaining({ name: 'Elven Lore' }),
     ]));
   });
+
+  test('ancestry feat filtering supports custom ancestry traits derived from ancestry names when no slug exists', () => {
+    const feats = [
+      makeFeat('Hidden Mind', 1, ['intelligent-weapon', 'fortune']),
+      makeFeat('Elven Lore', 1, ['elf']),
+    ];
+
+    const result = getFeatsForSelection(feats, 'ancestry', { ancestry: { slug: null, name: 'Intelligent Weapon' }, heritage: null }, 1, {
+      buildState: {
+        ancestryTraits: new Set(['intelligent-weapon']),
+      },
+    });
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Hidden Mind' }),
+    ]));
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Elven Lore' }),
+    ]));
+  });
 });
 
 describe('dedication and skill filters', () => {

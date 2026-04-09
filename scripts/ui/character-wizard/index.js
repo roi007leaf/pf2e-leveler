@@ -7,7 +7,7 @@ import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
 import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
-import { isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
+import { isAncestralParagonEnabled, slugify } from '../../utils/pf2e-api.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { createMixedAncestryHeritage, getMixedAncestrySelectedValue, isMixedAncestryHeritageUuid } from '../../heritages/mixed-ancestry.js';
 import {
@@ -721,8 +721,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _buildCreationFeatBuildState() {
     const classSlug = String(this.data.class?.slug ?? '').toLowerCase();
-    const ancestrySlug = this.data.ancestry?.slug ?? null;
-    const heritageSlug = this.data.heritage?.slug ?? null;
+    const ancestrySlug = this.data.ancestry?.slug ?? this.data.ancestry?.name ?? null;
+    const heritageSlug = this.data.heritage?.slug ?? this.data.heritage?.name ?? null;
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
     const mixedAncestryTraits = await getMixedAncestryFeatTraits(this);
     const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
@@ -2059,7 +2059,8 @@ function collectAncestryFeatTraits(ancestrySlug, heritageSlug) {
 
   for (const slug of [ancestrySlug, heritageSlug]) {
     if (!slug) continue;
-    const normalized = String(slug).toLowerCase();
+    const normalized = slugify(String(slug).toLowerCase());
+    if (!normalized) continue;
     const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
     for (const alias of aliases) traits.add(alias);
   }

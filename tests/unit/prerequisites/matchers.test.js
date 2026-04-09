@@ -9,6 +9,7 @@ import {
   matchFeat,
   matchClassFeature,
   matchBackground,
+  matchHeritage,
   matchProficiency,
   matchClassHp,
   matchDeityState,
@@ -261,6 +262,24 @@ describe('matchBackground', () => {
     const result = matchBackground(
       { type: 'background', slug: 'bright-lion', text: 'Bright Lion Background' },
       { backgroundSlug: 'scholar' },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchHeritage', () => {
+  test('met when heritage aliases contain the required heritage', () => {
+    const result = matchHeritage(
+      { type: 'heritage', slug: 'charhide-goblin', text: 'Charhide Goblin Heritage' },
+      { heritageSlug: 'charhide-goblin', heritageAliases: new Set(['charhide-goblin', 'charhide-goblin-heritage']) },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when heritage does not match', () => {
+    const result = matchHeritage(
+      { type: 'heritage', slug: 'charhide-goblin', text: 'Charhide Goblin Heritage' },
+      { heritageSlug: 'snow-goblin', heritageAliases: new Set(['snow-goblin']) },
     );
     expect(result.met).toBe(false);
   });

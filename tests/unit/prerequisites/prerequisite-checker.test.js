@@ -5,6 +5,8 @@ describe('checkPrerequisites', () => {
     level: 5,
     class: { slug: 'alchemist', hp: 8 },
     backgroundSlug: 'bright-lion',
+    heritageSlug: 'charhide-goblin',
+    heritageAliases: new Set(['charhide-goblin', 'charhide-goblin-heritage']),
     deity: null,
     spellcasting: { hasAny: false, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(), focusPool: false, focusPointsMax: 0 },
     attributes: { str: 2, dex: 1, con: 1, int: 3, wis: 0, cha: 0 },
@@ -557,6 +559,19 @@ describe('checkPrerequisites', () => {
       system: {
         prerequisites: {
           value: [{ value: 'Bright Lion Background' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets heritage prerequisite when matching heritage is selected', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Charhide Goblin Heritage' }],
         },
       },
     };

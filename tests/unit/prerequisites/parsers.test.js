@@ -236,6 +236,12 @@ describe('parsePrerequisite', () => {
     expect(result.slug).toBe('bright-lion');
   });
 
+  test('parses heritage prerequisite', () => {
+    const result = parsePrerequisite('Charhide Goblin Heritage');
+    expect(result.type).toBe('heritage');
+    expect(result.slug).toBe('charhide-goblin');
+  });
+
   test('parses requirements with trailing parenthetical clarifier', () => {
     const result = parsePrerequisite('trained in Religion (or another skill associated with your deity)');
     expect(result.type).toBe('skill');

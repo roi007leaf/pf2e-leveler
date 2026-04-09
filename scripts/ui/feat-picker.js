@@ -262,10 +262,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
 
       const slug = feat.slug ?? null;
-      const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
-      const isArchetypeAdditionalFeat = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
-        && featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
-      feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
+        feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
     }
   }

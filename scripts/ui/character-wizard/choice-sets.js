@@ -856,12 +856,12 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
   );
   const currentSelected = normalizeSkillIdentity(currentChoices?.[flag] ?? null);
 
-  return (options ?? [])
-    .filter((option) => {
-      const optionKeys = getSkillOptionKeys(option);
-      if (optionKeys.includes(currentSelected)) return true;
-      if (!matchesSkillOptionPredicate(option?.predicate, skillState)) return false;
-      if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+  const decorated = (options ?? [])
+      .filter((option) => {
+        const optionKeys = getSkillOptionKeys(option);
+        if (optionKeys.includes(currentSelected)) return true;
+        if (!matchesSkillOptionPredicate(option?.predicate, skillState)) return false;
+        if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
       return true;
     })
     .map((option) => {
@@ -881,10 +881,26 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
         selected: currentChoices?.[flag] === option.value,
         selectedInSkills: !!effectiveState.selected,
         autoTrained: !!effectiveState.autoTrained,
-        autoTrainedSource: effectiveState.source ?? null,
-        disabled: !!effectiveState.selected || !!effectiveState.autoTrained,
-      };
-    });
+          autoTrainedSource: effectiveState.source ?? null,
+          disabled: !!effectiveState.selected || !!effectiveState.autoTrained,
+        };
+      });
+
+  if (currentSelected || decorated.some((option) => option.disabled !== true)) return decorated;
+
+  const fallbackOptions = (resolveConfigChoiceOptions('skills') ?? []).filter((option) => {
+    const optionKeys = getSkillOptionKeys(option);
+    if (optionKeys.some((key) => normalizedBlockedSkills.has(key))) return false;
+    if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+    const matchedState = optionKeys
+      .map((key) => findMatchingSkillState(skillState, key))
+      .find(Boolean) ?? null;
+    return !matchedState?.selected && !matchedState?.autoTrained;
+  });
+
+  return fallbackOptions.length > 0
+    ? decorateSkillChoiceOptions(fallbackOptions, skillState, currentChoices, { flag, blockedSkills, blockedSourceName })
+    : decorated;
 }
 
 function matchesSkillOptionPredicate(predicate, skillState) {
@@ -981,14 +997,6 @@ function createSkillStateMap(skillContext) {
     }
   }
   return skillState;
-}
-
-function findOptionSkillState(skillState, option, value, label) {
-  const optionKeys = getSkillOptionKeys({ ...option, value, label });
-
-  return optionKeys
-    .map((key) => findMatchingSkillState(skillState, key))
-    .find(Boolean) ?? null;
 }
 
 function resolveConfigChoiceOptions(configPath) {

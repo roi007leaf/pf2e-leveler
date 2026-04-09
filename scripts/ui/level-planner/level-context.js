@@ -607,17 +607,6 @@ function resolveGrantRuleUuid(uuid, choices) {
   return resolved.includes('{item|') ? null : resolved;
 }
 
-async function buildDeityChoiceOptions(planner, feat, flag) {
-  const selected = String(feat?.choices?.[flag] ?? '');
-  const deities = await loadDeities(planner);
-  return deities.map((item) => ({
-    value: item.uuid,
-    label: item.name,
-    img: item.img ?? null,
-    selected: item.uuid === selected,
-  }));
-}
-
 async function buildPlannerSkillFallbackChoiceSets(planner, feat, source) {
   const grantedSkills = await getGrantedPlannerSkillSlugs(planner, feat, source);
   if (grantedSkills.length === 0) return [];
@@ -667,27 +656,6 @@ function buildPlannerSkillFallbackOptions(planner, feat, flag, blockedSkills) {
       disabled,
     };
   }).filter((entry) => !entry.disabled || entry.selected);
-}
-
-function isDeityChoiceRule(rule) {
-  const prompt = localizeRulePrompt(rule).trim().toLowerCase();
-  const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
-  return String(rule?.flag ?? '').toLowerCase() === 'deity'
-    || filterText.includes('item:type:deity')
-    || filterText.includes('item:category:deity')
-    || prompt === 'select a deity.'
-    || prompt === 'select a deity';
-}
-
-function localizeRulePrompt(rule) {
-  const prompt = String(rule?.prompt ?? '');
-  return game.i18n?.has?.(prompt) ? game.i18n.localize(prompt) : prompt;
-}
-
-function getChoiceSetFlag(rule) {
-  if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
-  if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
-  return null;
 }
 
 async function getGrantedPlannerSkillSlugs(planner, feat, source) {

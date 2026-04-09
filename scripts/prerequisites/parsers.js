@@ -43,6 +43,7 @@ const SPELLCASTING_TRADITION_PATTERN = /^ability to cast\s+(arcane|divine|occult
 const SUBCLASS_TRADITION_PATTERN = /(bloodline|mystery|patron|order|conscious mind)\s+that\s+grants?\s+(arcane|divine|occult|primal)\s+spells?/i;
 const CLASS_FEATURE_PATTERN = /^(.+?)\s+class feature$/i;
 const BACKGROUND_PATTERN = /^(.+?)\s+background$/i;
+const HERITAGE_PATTERN = /^(.+?)\s+heritage$/i;
 const LANGUAGE_LIST_PATTERN = /^(.+?)\s+languages?$/i;
 const WIELD_SHIELD_PATTERN = /^wielding a shield$/i;
 const WEARING_ARMOR_PATTERN = /^wearing\s+(.+?)\s+armor$/i;
@@ -131,6 +132,9 @@ export function parsePrerequisite(text) {
 
   const backgroundMatch = tryParseBackgroundRequirement(baseText, trimmed);
   if (backgroundMatch) return backgroundMatch;
+
+  const heritageMatch = tryParseHeritageRequirement(baseText, trimmed);
+  if (heritageMatch) return heritageMatch;
 
   const languageMatch = tryParseLanguageRequirement(baseText, trimmed);
   if (languageMatch) return languageMatch;
@@ -530,6 +534,20 @@ function tryParseBackgroundRequirement(text, fullText = text) {
 
   return {
     type: 'background',
+    slug,
+    text: fullText,
+  };
+}
+
+function tryParseHeritageRequirement(text, fullText = text) {
+  const match = text.match(HERITAGE_PATTERN);
+  if (!match) return null;
+
+  const slug = slugify(match[1]);
+  if (!slug) return null;
+
+  return {
+    type: 'heritage',
     slug,
     text: fullText,
   };

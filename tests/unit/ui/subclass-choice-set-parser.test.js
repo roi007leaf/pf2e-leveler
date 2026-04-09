@@ -2478,6 +2478,67 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('widens explicit authored skill choice arrays when every listed skill is already trained', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.Skill.Acrobatics',
+          arc: 'PF2E.Skill.Arcana',
+          ath: 'PF2E.Skill.Athletics',
+          cra: 'PF2E.Skill.Crafting',
+          nat: 'PF2E.Skill.Nature',
+          occ: 'PF2E.Skill.Occultism',
+          rel: 'PF2E.Skill.Religion',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'wizard', uuid: 'class-uuid', name: 'Wizard' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Scholar' };
+
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana', 'nature']);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-uuid') {
+        return {
+          system: {
+            trainedSkills: { value: ['occultism', 'religion'], lore: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const parsedChoiceSets = await wizard._parseChoiceSets([
+        {
+          key: 'ChoiceSet',
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          choices: [
+            { label: 'PF2E.Skill.Arcana', value: 'arcana' },
+            { label: 'PF2E.Skill.Nature', value: 'nature' },
+            { label: 'PF2E.Skill.Occultism', value: 'occultism' },
+            { label: 'PF2E.Skill.Religion', value: 'religion' },
+          ],
+        },
+      ]);
+      const choiceSets = await hydrateChoiceSets(wizard, parsedChoiceSets, {});
+
+      expect(choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'acr', label: 'PF2E.Skill.Acrobatics', disabled: false }),
+        expect.objectContaining({ value: 'ath', label: 'PF2E.Skill.Athletics', disabled: false }),
+        expect.objectContaining({ value: 'cra', label: 'PF2E.Skill.Crafting', disabled: false }),
+      ]));
+      expect(choiceSets[0].options.some((entry) => ['arcana', 'nature', 'occultism', 'religion'].includes(String(entry.value)))).toBe(false);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('parses shorthand config-driven skill choice sets into skill options', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;

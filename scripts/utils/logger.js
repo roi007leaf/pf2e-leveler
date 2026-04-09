@@ -1,5 +1,3 @@
-import { MODULE_ID } from '../constants.js';
-
 const PREFIX = 'PF2e Leveler |';
 
 export function debug(...args) {

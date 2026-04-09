@@ -79,6 +79,20 @@ export function matchBackground(parsed, buildState) {
   };
 }
 
+export function matchHeritage(parsed, buildState) {
+  const aliases = buildState.heritageAliases instanceof Set
+    ? buildState.heritageAliases
+    : new Set(
+      [buildState.heritageSlug]
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase()),
+    );
+  return {
+    met: aliases.has(String(parsed.slug ?? '').trim().toLowerCase()),
+    text: parsed.text,
+  };
+}
+
 export function matchProficiency(parsed, buildState) {
   const proficiencies = buildState.proficiencies ?? {};
   const normalizedKey = normalizeProficiencyKey(parsed.key);

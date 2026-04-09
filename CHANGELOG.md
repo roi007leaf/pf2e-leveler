@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.10
+
+### Prerequisites
+
+- **Heritage prerequisites now match the selected heritage correctly** - Prerequisites such as `Charhide Goblin Heritage` now resolve against the actor's selected heritage instead of falling through as generic feat requirements
+
+### Ancestry Feats
+
+- **Custom ancestries without slugs now surface their ancestry feats correctly** - When an ancestry item is missing a usable slug, Leveler now derives the ancestry trait from the ancestry name so ancestry feats keyed only by that ancestry trait, such as `intelligent-weapon`, still appear
+
 ## 2.1.9
 
 ### Level Planner
