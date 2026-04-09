@@ -31,6 +31,7 @@ export function createCreationData() {
     },
     languages: [],
     lores: [],
+    selectedLoreSkills: [],
     skills: [],
     ancestryFeat: null,
     ancestryParagonFeat: null,
@@ -376,6 +377,11 @@ export function setLanguages(data, languages) {
 
 export function setLores(data, lores) {
   data.lores = lores;
+  return data;
+}
+
+export function setSelectedLoreSkills(data, lores) {
+  data.selectedLoreSkills = lores;
   return data;
 }
 

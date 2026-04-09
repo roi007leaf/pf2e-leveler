@@ -201,7 +201,7 @@ async function applyLanguages(actor, data) {
 }
 
 async function applyLores(actor, data) {
-  const lores = data.lores ?? [];
+  const lores = [...new Set([...(data.lores ?? []), ...(data.selectedLoreSkills ?? [])])];
   if (lores.length === 0) return;
 
   const existingLores = actor.items?.filter((i) => i.type === 'lore').map((i) => i.name) ?? [];

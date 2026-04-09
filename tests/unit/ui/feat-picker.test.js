@@ -531,6 +531,33 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Allowed Feat']);
   });
 
+  test('marks required allowed feats with a subclass limitation badge', () => {
+    const feat = {
+      uuid: 'Compendium.test.feats.Item.allowed',
+      slug: 'battle-harbinger-dedication',
+      name: 'Battle Harbinger Dedication',
+      img: 'icons/svg/mystery-man.svg',
+      system: {
+        level: { value: 2 },
+        maxTakable: 1,
+        traits: { value: ['archetype', 'dedication', 'class'], rarity: 'common' },
+        prerequisites: { value: [] },
+      },
+    };
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn(), {
+      preset: {
+        allowedFeatUuids: ['Compendium.test.feats.Item.allowed'],
+        requiredFeatLimitation: true,
+      },
+    });
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters().map((entry) => picker._toTemplateFeat(entry));
+
+    expect(result.hasSelectionLimitationBadge).toBe(true);
+  });
+
   test('disables level filters when the preset locks them', async () => {
     const picker = new FeatPicker(createActor(), 'custom', 3, createBuildState({ level: 3 }), jest.fn(), {
       preset: {
@@ -680,5 +707,34 @@ describe('FeatPicker prerequisite enforcement', () => {
 
     expect(result).toBeDefined();
     expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('free archetype picker can ignore dedication lock when the preset requests it', () => {
+    const feat = createFeat({
+      name: 'Pirate Dedication',
+      uuid: 'pirate-dedication',
+      slug: 'pirate-dedication',
+    });
+    feat.system.traits.value = ['archetype', 'dedication'];
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState({
+      level: 4,
+      archetypeDedications: new Set(['medic-dedication']),
+      canTakeNewArchetypeDedication: false,
+    }), jest.fn(), {
+      preset: {
+        ignoreDedicationLock: true,
+        selectedTraits: ['archetype', 'dedication'],
+        lockedTraits: ['archetype', 'dedication'],
+        traitLogic: 'or',
+      },
+    });
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.selectionBlocked).toBe(false);
+    expect(result.prereqResults.some((entry) => String(entry.text ?? '').includes('Complete your current dedication'))).toBe(false);
   });
 });

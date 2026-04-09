@@ -4,6 +4,7 @@ import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
+import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
 import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
 import { debug } from '../../utils/logger.js';
@@ -198,7 +199,9 @@ function buildCustomSkillIncreaseGroups(customSkillIncreases) {
 }
 
 function buildCustomAvailableSkills(planner, levelData, level) {
-  const currentSkills = computeBuildState(planner.actor, planner.plan, level).skills ?? {};
+  const currentState = computeBuildState(planner.actor, planner.plan, level);
+  const currentSkills = currentState.skills ?? {};
+  const currentLores = currentState.lores ?? {};
   const maxRank = level >= 15 ? 4 : level >= 7 ? 3 : 2;
   const currentIncrease = levelData?.skillIncreases?.[0];
 
@@ -214,7 +217,27 @@ function buildCustomAvailableSkills(planner, levelData, level) {
     };
   }).filter((entry) => !entry.disabled);
 
-  return annotateGuidanceBySlug(entries, 'skill');
+  const loreEntries = Object.entries(currentLores).map(([slug, rank]) => {
+    const nextRank = Number(rank ?? 0) + 1;
+    return {
+      slug,
+      label: localizeSkillSlug(slug),
+      nextRankName: PROFICIENCY_RANK_NAMES[Math.min(nextRank, 4)],
+      disabled: nextRank > maxRank,
+      selected: currentIncrease?.skill === slug,
+    };
+  }).filter((entry) => !entry.disabled);
+
+  return annotateGuidanceBySlug([...entries, ...loreEntries], 'skill');
+}
+
+export function buildLoreSkillIncreaseEntry(name, currentRank = 0) {
+  const normalized = normalizeLoreSkillName(name);
+  return {
+    skill: slugifyLoreSkillName(normalized),
+    label: normalized,
+    toRank: currentRank >= 1 ? currentRank + 1 : 1,
+  };
 }
 
 function buildCustomSpellGroups(customSpells) {
@@ -872,6 +895,7 @@ function syncFeatDynamicSkillRules(feat, shouldAdd, deitySkill) {
 }
 
 function localizeSkillSlug(slug) {
+  if (!SKILLS.includes(slug)) return humanizeSkillLikeLabel(slug);
   const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);

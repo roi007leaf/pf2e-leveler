@@ -469,6 +469,74 @@ describe('CharacterWizard skills step grants', () => {
     }
   });
 
+  it('locks the selected granted feat-choice skill as Feat Choices instead of showing later hints', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          religion: 'Religion',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', uuid: 'class-uuid', name: 'Cleric' };
+    wizard.data.grantedFeatSections = [
+      {
+        slot: '__cleric-domain-initiate__',
+        featName: 'Domain Initiate',
+        sourceName: 'Cleric -> Domain Initiate',
+        choiceSets: [
+          {
+            flag: 'domainSkill',
+            prompt: 'Select a skill.',
+            options: [
+              { value: 'nature', label: 'Nature' },
+              { value: 'religion', label: 'Religion' },
+            ],
+          },
+        ],
+      },
+    ];
+    wizard.data.grantedFeatChoices = {
+      '__cleric-domain-initiate__': {
+        domainSkill: 'nature',
+      },
+    };
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context.find((entry) => entry.slug === 'nature')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Feat Choices',
+      futureSkillChoices: [],
+    }));
+    expect(context.find((entry) => entry.slug === 'religion')).toEqual(expect.objectContaining({
+      autoTrained: false,
+      futureSkillChoices: [],
+    }));
+
+    global.CONFIG = originalConfig;
+  });
+
   it('adds a placeholder lore for patron deity backgrounds', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'background-pilgrim-uuid') {
@@ -510,5 +578,19 @@ describe('CharacterWizard skills step grants', () => {
         expect.objectContaining({ slug: 'acrobatics', selected: false }),
       ]),
     );
+  });
+
+  it('includes selected lore skills in the skills step count and context', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+    wizard.data.selectedLoreSkills = ['Underworld Lore'];
+
+    const context = await wizard._getStepContext();
+
+    expect(context.selectedCount).toBe(1);
+    expect(context.selectedLoreSkills).toEqual([
+      expect.objectContaining({ name: 'Underworld Lore', label: 'Underworld Lore' }),
+    ]);
   });
 });

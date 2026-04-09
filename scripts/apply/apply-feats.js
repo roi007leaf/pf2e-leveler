@@ -1,7 +1,7 @@
 import { ANCESTRAL_PARAGON_FEAT_LEVELS } from '../classes/progression.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
-import { debug, warn } from '../utils/logger.js';
+import { warn } from '../utils/logger.js';
 
 const CATEGORY_TO_GROUP = {
   classFeats: 'class',
@@ -55,7 +55,6 @@ export async function applyFeats(actor, plan, level) {
   if (itemsToCreate.length === 0) return [];
 
   const created = await actor.createEmbeddedDocuments('Item', itemsToCreate);
-  debug(`Applied ${created.length} feats at level ${level}`);
 
   await applyFocusSpellsFromFeats(actor, plan, itemsToCreate);
 
@@ -127,7 +126,6 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
       },
     }]);
     focusEntry = created[0];
-    debug('Created focus spellcasting entry from feat');
   }
 
   for (const spell of focusSpells) {
@@ -136,7 +134,6 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
     const spellData = foundry.utils.deepClone(spell.toObject());
     spellData.system.location = { value: focusEntry.id };
     await actor.createEmbeddedDocuments('Item', [spellData]);
-    debug(`Added focus spell from feat: ${spell.name}`);
   }
 
   const currentMax = actor.system?.resources?.focus?.max ?? 0;
@@ -145,7 +142,6 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
   const newValue = Math.max(currentValue, newMax);
   if (newMax > currentMax || newValue > currentValue) {
     await actor.update({ 'system.resources.focus.max': newMax, 'system.resources.focus.value': newValue });
-    debug(`Updated focus pool: ${currentMax}/${currentValue} -> ${newMax}/${newValue}`);
   }
 }
 

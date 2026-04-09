@@ -1,10 +1,14 @@
-import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../constants.js';
+import { PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS, MODULE_ID } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels } from '../classes/progression.js';
 import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { computeBuildState } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
+import {
+  doesFeatMatchRequiredSecondLevelClassFeat,
+  getRequiredSecondLevelClassFeatForActor,
+} from '../classes/class-archetype-requirements.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -61,7 +65,7 @@ function validateChoice(choice, levelData, level, plan, classDef, options, actor
     case 'abilityBoosts':
       return validateBoosts(levelData, choice.count, level, plan, actor);
     case 'classFeat':
-      return validateFeatSlot(levelData.classFeats, 'Class Feat');
+      return validateClassFeat(levelData.classFeats, level, actor);
     case 'skillFeat':
       return validateFeatSlot(levelData.skillFeats, 'Skill Feat');
     case 'generalFeat':
@@ -157,6 +161,24 @@ function validateFeatSlot(feats, label) {
     return { severity: 'error', message: `${label} not selected` };
   }
   return null;
+}
+
+function validateClassFeat(feats, level, actor) {
+  const slotIssue = validateFeatSlot(feats, 'Class Feat');
+  if (slotIssue) return slotIssue;
+  if (level !== 2) return null;
+  if (game.settings.get(MODULE_ID, 'enforceSubclassDedicationRequirement') !== true) return null;
+
+  const requirement = getRequiredSecondLevelClassFeatForActor(actor);
+  if (!requirement) return null;
+
+  const selectedFeat = feats?.[0] ?? null;
+  if (doesFeatMatchRequiredSecondLevelClassFeat(selectedFeat, requirement)) return null;
+
+  return {
+    severity: 'error',
+    message: `Must select ${requirement.name ?? requirement.text} as the 2nd-level class feat`,
+  };
 }
 
 function validateSpells(levelData, level, classDef, actor, plan) {

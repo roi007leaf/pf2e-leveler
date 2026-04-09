@@ -152,6 +152,10 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="addLoreSkillIncrease"]')?.addEventListener('click', () => {
+    planner._promptLoreSkillIncrease({ custom: false });
+  });
+
   el.querySelectorAll('[data-action="openSpellPicker"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const rank = Number(btn.dataset.rank);
@@ -234,6 +238,10 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="addCustomLoreSkillIncrease"]')?.addEventListener('click', () => {
+    planner._promptLoreSkillIncrease({ custom: true });
+  });
+
   el.querySelectorAll('[data-action="removeCustomSkillIncrease"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -295,7 +303,7 @@ export function getSelectableSkillRank(planner, slug) {
     }
   }
 
-  return buildState.skills[slug] ?? 0;
+  return buildState.skills[slug] ?? buildState.lores?.[slug] ?? 0;
 }
 
 async function syncPlannedFeatChoiceSkillRules(feat, flag, value) {

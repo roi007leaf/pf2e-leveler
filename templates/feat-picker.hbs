@@ -191,6 +191,12 @@
                 {{format "PF2E_LEVELER.FEAT_PICKER.ARCHETYPE_UNLOCK" level=this.additionalArchetypeUnlockLevel}}
               </span>
               {{/if}}
+              {{#if this.hasSelectionLimitationBadge}}
+              <span class="tag tag--warning" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.SUBCLASS_LIMITATION_HINT'}}">
+                <i class="fa-solid fa-lock"></i>
+                {{localize "PF2E_LEVELER.FEAT_PICKER.SUBCLASS_LIMITATION"}}
+              </span>
+              {{/if}}
             </div>
             {{#if this.prereqResults.length}}
             <div class="prereq-tags">

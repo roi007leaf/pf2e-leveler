@@ -51,6 +51,89 @@ describe('validateLevel', () => {
     expect(result.issues.some((i) => i.message.includes('Class Feat'))).toBe(true);
   });
 
+  test('enforces required 2nd-level class feat from linked class-archetype text', () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', { uuid: 'wrong', name: 'Wrong Feat', slug: 'wrong-feat' });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+    const actor = {
+      class: { slug: 'gunslinger' },
+      items: [
+        {
+          type: 'feat',
+          system: {
+            traits: { otherTags: ['gunslinger-way'] },
+            description: {
+              value: 'You must select <a data-uuid="Compendium.pf2e.feats-srd.Item.spellshot-dedication">Spellshot Dedication</a> as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    };
+
+    const result = validateLevel(plan, ALCHEMIST, 2, {}, actor);
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues.some((issue) => issue.message.includes('Spellshot Dedication'))).toBe(true);
+    game.settings.get = originalGet;
+  });
+
+  test('enforces required 2nd-level class feat from plain text class-archetype wording', () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', { uuid: 'feat-avenger-dedication', name: 'Avenger Dedication', slug: 'avenger-dedication' });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+    const actor = {
+      class: { slug: 'rogue' },
+      items: [
+        {
+          type: 'feat',
+          system: {
+            traits: { otherTags: ['rogue-racket'] },
+            description: {
+              value: 'You must select Avenger Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    };
+
+    const result = validateLevel(plan, ALCHEMIST, 2, {}, actor);
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+    game.settings.get = originalGet;
+  });
+
+  test('does not enforce required 2nd-level class feat when subclass dedication requirement setting is disabled', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', { uuid: 'wrong', name: 'Wrong Feat', slug: 'wrong-feat' });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+    const actor = {
+      class: { slug: 'cleric' },
+      items: [
+        {
+          type: 'classfeature',
+          system: {
+            traits: { otherTags: ['cleric-doctrine'] },
+            description: {
+              value: 'You must select Battle Harbinger Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    };
+
+    const result = validateLevel(plan, ALCHEMIST, 2, {}, actor);
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
   test('wrong number of boosts is incomplete', () => {
     const plan = createPlan('alchemist');
     setLevelBoosts(plan, 5, ['str', 'dex']);

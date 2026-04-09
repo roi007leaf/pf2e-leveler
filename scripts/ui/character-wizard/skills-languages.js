@@ -199,12 +199,15 @@ export async function buildSkillContext(wizard) {
   const subclassSkills = Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : [];
   const deitySkill = wizard.data.deity?.skill ?? null;
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
+  const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
+  const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
   return SKILLS.map((slug) => {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
     const fromDeity = deitySkill === slug;
-    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity;
+    const fromFeatChoices = featChoiceSkillSet.has(slug);
+    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity || fromFeatChoices;
     const source = fromClass
       ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
       : fromBg
@@ -213,7 +216,9 @@ export async function buildSkillContext(wizard) {
           ? wizard.data.subclass.name
           : fromDeity
             ? (wizard.data.deity?.name ?? 'Deity')
-            : null;
+            : fromFeatChoices
+              ? featChoicesSource
+              : null;
     return {
       slug,
       label: localizeSkillSlug(slug),
@@ -223,6 +228,20 @@ export async function buildSkillContext(wizard) {
       futureSkillChoices: futureSkillChoiceMap.get(slug) ?? [],
     };
   });
+}
+
+export function buildSelectedLoreSkillContext(wizard) {
+  const selectedLoreSkills = Array.isArray(wizard.data.selectedLoreSkills) ? wizard.data.selectedLoreSkills : [];
+  return selectedLoreSkills
+    .map((name) => normalizeLoreSkillName(name))
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      slug: slugifyLoreSkillName(name),
+      label: name,
+      selected: true,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 const SKILL_ID_ALIASES = {
@@ -254,7 +273,8 @@ export async function getBackgroundTrainedSkills(wizard) {
 function localizeSkillSlug(slug) {
   const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
-  return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
+  if (game.i18n?.has?.(label)) return game.i18n.localize(label);
+  return humanizeSkillLikeLabel(slug);
 }
 
 function extractLoreLabels(html) {
@@ -310,34 +330,41 @@ function buildFutureSkillChoiceMap(wizard) {
       ? {
         sourceLabel: wizard.data.ancestryFeat.name ?? 'Ancestry Feat',
         choiceSets: wizard.data.ancestryFeat.choiceSets ?? [],
+        choices: wizard.data.ancestryFeat.choices ?? {},
       }
       : null,
     wizard.data.ancestryParagonFeat
       ? {
         sourceLabel: wizard.data.ancestryParagonFeat.name ?? 'Ancestry Feat',
         choiceSets: wizard.data.ancestryParagonFeat.choiceSets ?? [],
+        choices: wizard.data.ancestryParagonFeat.choices ?? {},
       }
       : null,
     wizard.data.classFeat
       ? {
         sourceLabel: wizard.data.classFeat.name ?? 'Class Feat',
         choiceSets: wizard.data.classFeat.choiceSets ?? [],
+        choices: wizard.data.classFeat.choices ?? {},
       }
       : null,
     wizard.data.skillFeat
       ? {
         sourceLabel: wizard.data.skillFeat.name ?? 'Skill Feat',
         choiceSets: wizard.data.skillFeat.choiceSets ?? [],
+        choices: wizard.data.skillFeat.choices ?? {},
       }
       : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
       choiceSets: section.choiceSets ?? [],
+      choices: wizard.data.grantedFeatChoices?.[section.slot] ?? {},
     }))),
   ].filter(Boolean);
 
   for (const section of sections) {
     for (const choiceSet of section.choiceSets) {
+      const selectedSlug = resolveSkillSlugFromValue(choiceSet, section.choices?.[choiceSet.flag]);
+      if (selectedSlug) continue;
       const skillSlugs = (choiceSet?.options ?? [])
         .map((option) => resolveSkillSlug(option))
         .filter((slug) => typeof slug === 'string' && slug.length > 0);
@@ -355,6 +382,63 @@ function buildFutureSkillChoiceMap(wizard) {
   }
 
   return map;
+}
+
+function buildResolvedSkillChoiceSet(wizard) {
+  const selected = new Set();
+  const sections = [
+    wizard.data.ancestryFeat
+      ? {
+        choiceSets: wizard.data.ancestryFeat.choiceSets ?? [],
+        choices: wizard.data.ancestryFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.ancestryParagonFeat
+      ? {
+        choiceSets: wizard.data.ancestryParagonFeat.choiceSets ?? [],
+        choices: wizard.data.ancestryParagonFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.classFeat
+      ? {
+        choiceSets: wizard.data.classFeat.choiceSets ?? [],
+        choices: wizard.data.classFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.skillFeat
+      ? {
+        choiceSets: wizard.data.skillFeat.choiceSets ?? [],
+        choices: wizard.data.skillFeat.choices ?? {},
+      }
+      : null,
+    ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
+      choiceSets: section.choiceSets ?? [],
+      choices: wizard.data.grantedFeatChoices?.[section.slot] ?? {},
+    }))),
+  ].filter(Boolean);
+
+  for (const section of sections) {
+    for (const choiceSet of section.choiceSets) {
+      const selectedSlug = resolveSkillSlugFromValue(choiceSet, section.choices?.[choiceSet.flag]);
+      if (selectedSlug) selected.add(selectedSlug);
+    }
+  }
+
+  return selected;
+}
+
+function resolveSkillSlugFromValue(choiceSet, selectedValue) {
+  if (!selectedValue) return null;
+
+  const direct = resolveSkillSlug({ value: selectedValue, label: selectedValue, slug: selectedValue, name: selectedValue });
+  if (direct) return direct;
+
+  const matchedOption = (choiceSet?.options ?? []).find((option) => {
+    const candidates = [option?.value, option?.slug, option?.name, option?.label, option?.uuid];
+    return candidates.some((candidate) => candidate === selectedValue);
+  });
+
+  return matchedOption ? resolveSkillSlug(matchedOption) : null;
 }
 
 function resolveSkillSlug(option) {
@@ -405,4 +489,27 @@ function normalizeSkillIdentity(value) {
     .toLowerCase()
     .replace(/^pf2e\.skill/i, '')
     .replace(/[^a-z0-9]+/g, '');
+}
+
+export function normalizeLoreSkillName(value) {
+  const trimmed = String(value ?? '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  const withLore = /\blore\b/i.test(trimmed) ? trimmed : `${trimmed} Lore`;
+  return withLore.replace(/\b\p{L}/gu, (char) => char.toUpperCase());
+}
+
+export function slugifyLoreSkillName(value) {
+  const normalized = normalizeLoreSkillName(value);
+  return normalized
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function humanizeSkillLikeLabel(value) {
+  return String(value ?? '')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

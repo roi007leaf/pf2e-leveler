@@ -4,6 +4,7 @@ import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { getPlan, savePlan } from '../../../scripts/plan/plan-store.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
+import { loadFeats } from '../../../scripts/feats/feat-cache.js';
 
 jest.mock('../../../scripts/plan/plan-store.js', () => ({
   getPlan: jest.fn(() => null),
@@ -17,6 +18,10 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
   localize: jest.fn((key) => key),
 }));
 
+jest.mock('../../../scripts/feats/feat-cache.js', () => ({
+  loadFeats: jest.fn(async () => []),
+}));
+
 describe('LevelPlanner bootstrap from existing actor', () => {
   beforeAll(() => {
     ClassRegistry.clear();
@@ -25,6 +30,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
   beforeEach(() => {
     getPlan.mockReturnValue(null);
+    loadFeats.mockResolvedValue([]);
   });
 
   it('seeds obvious boosts and feats into a new plan for higher-level characters', () => {
@@ -169,6 +175,229 @@ describe('LevelPlanner bootstrap from existing actor', () => {
       expect.objectContaining({ slug: 'natural-ambition', uuid: 'Compendium.pf2e.feats-srd.Item.natural-ambition' }),
     ]);
     expect(planner.plan.levels[5].abilityBoosts).toEqual(['str', 'dex', 'con', 'int']);
+  });
+
+  it('locks level 2 class feat picker to the required class-archetype dedication', async () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    loadFeats.mockResolvedValue([
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.spellshot-dedication',
+        slug: 'spellshot-dedication',
+        name: 'Spellshot Dedication',
+        system: { level: { value: 2 }, traits: { value: ['archetype', 'dedication', 'class'] } },
+      },
+    ]);
+
+    const actor = createMockActor({
+      class: { slug: 'gunslinger' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'feat',
+          system: {
+            traits: { otherTags: ['gunslinger-way'] },
+            description: {
+              value: 'You must select Spellshot Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'gunslinger' },
+    });
+
+    expect(preset.allowedFeatUuids).toEqual(['Compendium.pf2e.feats-srd.Item.spellshot-dedication']);
+    game.settings.get = originalGet;
+  });
+
+  it('resolves required 2nd-level class feat uuids from classfeature subclass items', async () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    loadFeats.mockResolvedValue([
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication',
+        slug: 'battle-harbinger-dedication',
+        name: 'Battle Harbinger Dedication',
+        system: { level: { value: 2 }, traits: { value: ['archetype', 'dedication', 'class'] } },
+      },
+    ]);
+
+    const actor = createMockActor({
+      class: { slug: 'cleric' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'classfeature',
+          system: {
+            traits: { otherTags: ['cleric-doctrine'] },
+            description: {
+              value: 'You must select Battle Harbinger Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'cleric' },
+    });
+
+    expect(preset.allowedFeatUuids).toEqual(['Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication']);
+    game.settings.get = originalGet;
+  });
+
+  it('resolves required 2nd-level class feat uuids from subclass family tags', async () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    loadFeats.mockResolvedValue([
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication',
+        slug: 'battle-harbinger-dedication',
+        name: 'Battle Harbinger Dedication',
+        system: { level: { value: 2 }, traits: { value: ['archetype', 'dedication', 'class'] } },
+      },
+    ]);
+
+    const actor = createMockActor({
+      class: { slug: 'cleric' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'classfeature',
+          system: {
+            traits: { otherTags: ['cleric-doctrine-battle-creed'] },
+            description: {
+              value: 'You must select Battle Harbinger Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'cleric' },
+    });
+
+    expect(preset.allowedFeatUuids).toEqual(['Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication']);
+    game.settings.get = originalGet;
+  });
+
+  it('resolves required 2nd-level class feat uuids from alternate subclass text fields', async () => {
+    const originalGet = game.settings.get;
+    game.settings.get = jest.fn((module, key) => (
+      key === 'enforceSubclassDedicationRequirement' ? true : originalGet(module, key)
+    ));
+    loadFeats.mockResolvedValue([
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication',
+        slug: 'battle-harbinger-dedication',
+        name: 'Battle Harbinger Dedication',
+        system: { level: { value: 2 }, traits: { value: ['archetype', 'dedication', 'class'] } },
+      },
+    ]);
+
+    const actor = createMockActor({
+      class: { slug: 'cleric' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'feat',
+          system: {
+            traits: { otherTags: ['class-archetype', 'cleric-doctrine'] },
+            description: { value: '' },
+            details: {
+              summary: {
+                value: 'You must select Battle Harbinger Dedication as your 2nd-level class feat.',
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'cleric' },
+    });
+
+    expect(preset.allowedFeatUuids).toEqual(['Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication']);
+    game.settings.get = originalGet;
+  });
+
+  it('does not restrict level 2 class feat picker when subclass dedication requirement setting is disabled', async () => {
+    loadFeats.mockResolvedValue([
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.battle-harbinger-dedication',
+        slug: 'battle-harbinger-dedication',
+        name: 'Battle Harbinger Dedication',
+        system: { level: { value: 2 }, traits: { value: ['archetype', 'dedication', 'class'] } },
+      },
+    ]);
+
+    const actor = createMockActor({
+      class: { slug: 'cleric' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'classfeature',
+          system: {
+            traits: { otherTags: ['cleric-doctrine'] },
+            description: {
+              value: 'You must select Battle Harbinger Dedication as your 2nd-level class feat.',
+            },
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'cleric' },
+    });
+
+    expect(preset.allowedFeatUuids).toEqual([]);
+  });
+
+  it('class feat picker includes archetype feats without class-trait locking', async () => {
+    const actor = createMockActor({
+      class: { slug: 'magus' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('classFeats', 2, {
+      class: { slug: 'magus' },
+    });
+
+    expect(preset.selectedFeatTypes).toEqual(['class', 'archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['class', 'archetype']);
+    expect(preset.selectedTraits).toBeUndefined();
+    expect(preset.lockedTraits).toBeUndefined();
   });
 
   it('seeds boosts when actor build boost data is stored as selected slot objects', () => {
@@ -609,7 +838,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
-  it('unlocks archetype feat picker dedication filtering once a class dedication is planned', () => {
+  it('unlocks archetype feat picker dedication filtering once a class dedication is planned', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'oracle';
 
@@ -625,7 +854,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }];
 
     const buildState = computeBuildState(planner.actor, planner.plan, 4);
-    const preset = planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
 
     expect(buildState.classArchetypeDedications.has('druid-dedication')).toBe(true);
     expect(buildState.classArchetypeTraits.has('druid')).toBe(true);
@@ -634,7 +863,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.showDedications).toBe(false);
   });
 
-  it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', () => {
+  it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'magus';
 
@@ -650,7 +879,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }];
 
     const buildState = computeBuildState(planner.actor, planner.plan, 4);
-    const preset = planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
 
     expect(buildState.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
     expect(preset.selectedTraits).toEqual(['archetype']);
@@ -658,7 +887,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.showDedications).toBe(false);
   });
 
-  it('reopens dedication feats once the current dedication is completed', () => {
+  it('reopens dedication feats once the current dedication is completed', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'magus';
 
@@ -692,12 +921,54 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }];
 
     const buildState = computeBuildState(planner.actor, planner.plan, 8);
-    const preset = planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
 
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.showDedications).toBe(true);
+  });
+
+  it('can ignore the free archetype dedication lock via setting', async () => {
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      'pf2e-leveler': {
+        ...(global._testSettings?.['pf2e-leveler'] ?? {}),
+        ignoreFreeArchetypeDedicationLock: true,
+      },
+    };
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+      slug: 'medic-dedication',
+      name: 'Medic Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication', 'medic'],
+      choices: {},
+    }];
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+      slug: 'treat-condition',
+      name: 'Treat Condition',
+      level: 4,
+      traits: ['archetype', 'skill'],
+      system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 8);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
+
+    expect(buildState.canTakeNewArchetypeDedication).toBe(false);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.showDedications).toBe(true);
+    expect(preset.ignoreDedicationLock).toBe(true);
   });
 
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {

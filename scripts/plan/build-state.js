@@ -42,7 +42,7 @@ export function computeBuildState(actor, plan, atLevel) {
     rawAttributes: computeAttributes(actor, plan, atLevel, { raw: true }),
     skills: computeSkills(actor, plan, atLevel, classDef),
     languages: computeLanguages(actor),
-    lores: computeLoreSkills(actor),
+    lores: computeLoreSkills(actor, plan, atLevel),
     proficiencies: computeProficiencies(actor, classDef, atLevel),
     weaponProficiencies: computeWeaponProficiencies(actor),
     equipment: computeEquipmentState(actor),
@@ -361,7 +361,7 @@ function applyPlannedSkillRankRules(skills, plan, atLevel) {
   return skills;
 }
 
-function computeLoreSkills(actor) {
+function computeLoreSkills(actor, plan, atLevel) {
   const lores = {};
 
   for (const item of getOwnedItems(actor)) {
@@ -379,6 +379,18 @@ function computeLoreSkills(actor) {
 
     if (!Number.isFinite(rank)) continue;
     lores[slug] = Math.max(lores[slug] ?? 0, rank);
+  }
+
+  for (let level = 1; level <= atLevel; level++) {
+    const levelData = plan.levels?.[level];
+    if (!levelData) continue;
+    for (const inc of [...(levelData.skillIncreases ?? []), ...(levelData.customSkillIncreases ?? [])]) {
+      const skill = String(inc?.skill ?? '').trim().toLowerCase();
+      if (!skill || SKILLS.includes(skill)) continue;
+      const rank = Number(inc?.toRank ?? 0);
+      if (!Number.isFinite(rank) || rank <= 0) continue;
+      lores[skill] = Math.max(lores[skill] ?? 0, rank);
+    }
   }
 
   return lores;

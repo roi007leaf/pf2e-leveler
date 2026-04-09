@@ -1,5 +1,4 @@
 import { MODULE_ID, PLAN_FLAG } from '../constants.js';
-import { debug } from '../utils/logger.js';
 
 const pendingLevelChanges = new Map();
 
@@ -35,14 +34,11 @@ function onUpdateActor(actor, updateData, _options, userId) {
   }
 
   if (levelsToApply.length === 0) {
-    debug(`No plan data for levels ${oldLevel + 1}-${newLevel}`);
     return;
   }
 
   const autoApply = game.settings.get(MODULE_ID, 'autoApplyOnLevelUp');
   if (!autoApply) return;
-
-  debug(`Level change detected for ${actor.name}: ${oldLevel} -> ${newLevel}`);
 
   import('../apply/apply-manager.js').then(({ promptApplyPlan }) => {
     promptApplyPlan(actor, plan, newLevel, oldLevel);

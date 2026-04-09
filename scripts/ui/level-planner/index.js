@@ -6,6 +6,7 @@ import {
   getLevelData,
   setLevelBoosts,
   setLevelFeat,
+  setLevelSkillIncrease,
   toggleLevelIntBonusSkill,
   toggleLevelIntBonusLanguage,
   addLevelSpell,
@@ -32,6 +33,11 @@ import { localize } from '../../utils/i18n.js';
 import { debug } from '../../utils/logger.js';
 import { FeatPicker } from '../feat-picker.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
+import { loadFeats } from '../../feats/feat-cache.js';
+import {
+  doesFeatMatchRequiredSecondLevelClassFeat,
+  getRequiredSecondLevelClassFeatForActor,
+} from '../../classes/class-archetype-requirements.js';
 import {
   buildAttributeContext,
   buildIntBonusLanguageContext,
@@ -45,6 +51,7 @@ import {
 import {
   annotateFeat,
   buildABPContext,
+  buildLoreSkillIncreaseEntry,
   buildLevelContext,
   extractFeat,
   getClassFeaturesForLevel,
@@ -787,6 +794,37 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return buildSkillContext(this, levelData, level);
   }
 
+  async _promptLoreSkillIncrease({ custom = false } = {}) {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return;
+
+    const value = await dialogClass.prompt({
+      window: { title: game.i18n?.localize?.('PF2E_LEVELER.CREATION.LORE_SKILLS') ?? 'Lore Skills' },
+      content: `
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.NAME') ?? 'Name'}</label>
+          <input type="text" name="lore-name" autofocus />
+        </div>
+      `,
+      ok: {
+        label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
+        callback: (html) => html.querySelector?.('input[name="lore-name"]')?.value ?? '',
+      },
+    });
+
+    const seed = buildLoreSkillIncreaseEntry(value, 0);
+    const currentRank = computeBuildState(this.actor, this.plan, this.selectedLevel).lores?.[seed.skill] ?? 0;
+    const entry = buildLoreSkillIncreaseEntry(value, currentRank);
+    if (!entry.label) return;
+
+    if (custom) {
+      addLevelCustomSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
+    } else {
+      setLevelSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
+    }
+    this._savePlanAndRender();
+  }
+
   async _buildSpellContext(classDef, level) {
     return buildSpellContext(this, classDef, level);
   }
@@ -1150,7 +1188,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._savePlanAndRender();
   }
 
-  _openFeatPicker(category, level) {
+  async _openFeatPicker(category, level) {
     const categoryMap = {
       classFeats: 'class',
       skillFeats: 'skill',
@@ -1163,7 +1201,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const buildState = computeBuildState(this.actor, this.plan, level);
     const pickerCategory = categoryMap[category] ?? 'class';
-    const preset = this._buildFeatPickerPreset(category, level, buildState);
+    const preset = await this._buildFeatPickerPreset(category, level, buildState);
 
     const picker = new FeatPicker(
       this.actor,
@@ -1240,20 +1278,34 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     picker.render(true);
   }
 
-  _buildFeatPickerPreset(category, level, buildState) {
+  async _buildFeatPickerPreset(category, level, buildState) {
     const classSlug = String(buildState?.class?.slug ?? this.actor?.class?.slug ?? '').toLowerCase();
     switch (category) {
-      case 'classFeats':
+      case 'classFeats': {
+        const enforceSubclassDedicationRequirement = game.settings.get(MODULE_ID, 'enforceSubclassDedicationRequirement') === true;
+        const requiredSecondLevelFeat = level === 2 && enforceSubclassDedicationRequirement
+          ? getRequiredSecondLevelClassFeatForActor(this.actor, classSlug)
+          : null;
+        const allowedFeatUuids = requiredSecondLevelFeat
+          ? await this._resolveRequiredSecondLevelClassFeatUuids(requiredSecondLevelFeat)
+          : [];
+        debug('Level planner class feat preset', {
+          actor: this.actor?.name ?? null,
+          level,
+          classSlug,
+          enforceSubclassDedicationRequirement,
+          requiredSecondLevelFeat,
+          allowedFeatUuids,
+        });
         return {
-          selectedFeatTypes: ['class'],
-          lockedFeatTypes: ['class'],
-          extraVisibleFeatTypes: ['archetype'],
-          selectedTraits: [classSlug].filter(Boolean),
-          lockedTraits: [classSlug].filter(Boolean),
-          traitLogic: 'or',
+          selectedFeatTypes: ['class', 'archetype'],
+          lockedFeatTypes: ['class', 'archetype'],
           showDedications: true,
+          allowedFeatUuids,
+          requiredFeatLimitation: !!requiredSecondLevelFeat,
           maxLevel: level,
         };
+      }
       case 'skillFeats':
         return {
           selectedFeatTypes: ['skill'],
@@ -1277,9 +1329,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'archetypeFeats': {
         const hasDedication = (buildState?.archetypeDedications?.size ?? 0) > 0;
         const dedicationLocked = buildState?.canTakeNewArchetypeDedication === false;
+        const ignoreFreeArchetypeDedicationLock = game.settings.get(MODULE_ID, 'ignoreFreeArchetypeDedicationLock') === true;
         const selectedTraits = !hasDedication
           ? ['dedication']
-          : dedicationLocked
+          : (dedicationLocked && !ignoreFreeArchetypeDedicationLock)
             ? ['archetype']
             : ['archetype', 'dedication'];
         return {
@@ -1288,7 +1341,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           selectedTraits,
           lockedTraits: selectedTraits,
           traitLogic: 'or',
-          showDedications: !hasDedication || !dedicationLocked,
+          showDedications: !hasDedication || !dedicationLocked || ignoreFreeArchetypeDedicationLock,
+          ignoreDedicationLock: ignoreFreeArchetypeDedicationLock,
           maxLevel: level,
         };
       }
@@ -1301,6 +1355,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       default:
         return { maxLevel: level };
     }
+  }
+
+  async _resolveRequiredSecondLevelClassFeatUuids(requirement) {
+    if (!requirement) return [];
+    if (requirement.uuid) return [requirement.uuid];
+
+    const allFeats = await loadFeats();
+    return allFeats
+      .filter((feat) => doesFeatMatchRequiredSecondLevelClassFeat(feat, requirement))
+      .map((feat) => feat.uuid)
+      .filter((uuid) => typeof uuid === 'string' && uuid.length > 0);
   }
 
   _toggleCustomPlan(level = this.selectedLevel) {
@@ -1316,7 +1381,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _addCustomSkillIncrease(skill) {
     if (!skill) return;
-    const currentRank = computeBuildState(this.actor, this.plan, this.selectedLevel).skills?.[skill] ?? 0;
+    const state = computeBuildState(this.actor, this.plan, this.selectedLevel);
+    const currentRank = state.skills?.[skill] ?? state.lores?.[skill] ?? 0;
     addLevelCustomSkillIncrease(this.plan, this.selectedLevel, {
       skill,
       toRank: currentRank + 1,

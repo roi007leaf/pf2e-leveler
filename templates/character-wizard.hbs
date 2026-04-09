@@ -1087,8 +1087,10 @@
         {{#each skills}}
         {{#if this.autoTrained}}
         <button type="button"
-          class="skill-btn selected" disabled>
-          <span class="skill-btn__name">{{this.label}}</span>
+          class="skill-btn skill-btn--stacked selected" disabled>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+          </span>
           <span class="skill-btn__rank rank-text-trained">{{this.source}}</span>
         </button>
         {{else}}
@@ -1116,15 +1118,35 @@
         {{/each}}
       </div>
 
-      {{#if lores.length}}
       <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
         <i class="section-header__icon fa-solid fa-book-open"></i>
         {{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}
       </div>
+      {{#if selectedLoreSkills.length}}
+      <div class="skill-btn-grid">
+        {{#each selectedLoreSkills}}
+        <button type="button" class="skill-btn selected" data-action="toggleLoreSkill" data-lore="{{this.name}}">
+          <span class="skill-btn__name">{{this.label}}</span>
+          <span class="skill-btn__rank rank-text-trained">{{localize "PF2E_LEVELER.SKILLS.TRAINED"}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+      <button type="button" class="spell-add-btn" data-action="addLoreSkill" style="margin-top: var(--leveler-spacing-sm);">
+        <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD"}}
+      </button>
+
+      {{#if lores.length}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-book-open"></i>
+        {{localize "PF2E_LEVELER.CREATION.GRANTED_LORES"}}
+      </div>
       <div class="skill-btn-grid">
         {{#each lores}}
-        <button type="button" class="skill-btn selected" disabled>
-          <span class="skill-btn__name">{{this.name}}</span>
+        <button type="button" class="skill-btn skill-btn--stacked selected" disabled>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.name}}</span>
+          </span>
           <span class="skill-btn__rank rank-text-trained">{{this.source}}</span>
         </button>
         {{/each}}

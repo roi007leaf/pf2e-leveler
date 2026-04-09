@@ -417,6 +417,32 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(skills.find((entry) => entry.slug === 'stealth')).toEqual(expect.objectContaining({ isDisallowed: true }));
   });
 
+  it('shows existing lore skills in the skill increase picker', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.items = [
+      {
+        type: 'lore',
+        name: 'Underworld Lore',
+        slug: 'underworld-lore',
+        system: {
+          proficient: { value: 1 },
+        },
+      },
+    ];
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+
+    const skills = planner._buildSkillContext(planner.plan.levels[3], 3);
+
+    expect(skills.find((entry) => entry.slug === 'underworld-lore')).toEqual(expect.objectContaining({
+      label: 'Underworld Lore',
+      rank: 1,
+      nextRankName: 'expert',
+    }));
+  });
+
   it('extracts skill rules through GrantItem chains', async () => {
     const grantedEffect = {
       uuid: 'Compendium.pf2e.feat-effects.Item.acrobat-effect',

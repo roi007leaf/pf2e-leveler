@@ -4,7 +4,7 @@ import { computeBuildState, computeSkillPickerState } from '../../plan/build-sta
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
-import { getLanguageRarityMap, getLanguageMap } from '../character-wizard/skills-languages.js';
+import { getLanguageRarityMap, getLanguageMap, humanizeSkillLikeLabel } from '../character-wizard/skills-languages.js';
 
 export function buildAttributeContext(planner, levelData, choices) {
   const selectedBoosts = levelData.abilityBoosts ?? [];
@@ -232,6 +232,7 @@ export function localizeLanguageLabel(label) {
 export function buildSkillContext(planner, levelData, level) {
   const maxRank = getMaxSkillRank(level);
   const classDef = ClassRegistry.get(planner.plan?.classSlug);
+  const stateBeforeLevel = computeBuildState(planner.actor, planner.plan, level - 1);
   const currentSkills = computeSkillPickerState(planner.actor, planner.plan, level, classDef, {
     includePlannedFeatRules: true,
     includeCurrentLevelSkillIncrease: false,
@@ -261,8 +262,39 @@ export function buildSkillContext(planner, levelData, level) {
     };
   });
 
+  const selectedLoreSlug = currentIncrease?.skill && !SKILLS.includes(currentIncrease.skill)
+    ? String(currentIncrease.skill).toLowerCase()
+    : null;
+  const loreRanks = { ...(stateBeforeLevel.lores ?? {}) };
+  const loreSlugs = new Set(Object.keys(loreRanks));
+  if (selectedLoreSlug) loreSlugs.add(selectedLoreSlug);
+  if (selectedLoreSlug) {
+    loreRanks[selectedLoreSlug] = Math.max(
+      loreRanks[selectedLoreSlug] ?? 0,
+      Number(currentIncrease?.toRank ?? ((loreRanks[selectedLoreSlug] ?? 0) + 1)),
+    );
+  }
+
+  const lores = [...loreSlugs].map((slug) => {
+    const rank = loreRanks[slug] ?? 0;
+    const nextRank = rank + 1;
+    return {
+      slug,
+      label: localizeSkillSlug(slug),
+      rank,
+      rankName: PROFICIENCY_RANK_NAMES[rank],
+      nextRankName: PROFICIENCY_RANK_NAMES[Math.min(nextRank, 4)],
+      maxed: nextRank > maxRank,
+      featGranted: false,
+      featSourceName: null,
+      disabled: nextRank > maxRank,
+      lockedByFeat: false,
+      selected: currentIncrease?.skill === slug,
+    };
+  });
+
   return annotateGuidanceBySlug(
-    skills.filter((s) => !s.maxed || s.selected || s.featGranted),
+    [...skills, ...lores].filter((s) => !s.maxed || s.selected || s.featGranted),
     'skill',
   ).map((entry) => ({
     ...entry,
@@ -273,7 +305,8 @@ export function buildSkillContext(planner, levelData, level) {
 function localizeSkillSlug(slug) {
   const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
-  return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug.charAt(0).toUpperCase() + slug.slice(1);
+  if (game.i18n?.has?.(label)) return game.i18n.localize(label);
+  return humanizeSkillLikeLabel(slug);
 }
 
 function findSkillGrantingFeatName(plan, skillSlug, atLevel) {

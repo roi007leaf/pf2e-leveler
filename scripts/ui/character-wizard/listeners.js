@@ -110,6 +110,14 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', () => wizard._toggleSkill(btn.dataset.skill));
   });
 
+  el.querySelectorAll('[data-action="toggleLoreSkill"]').forEach((btn) => {
+    btn.addEventListener('click', () => wizard._toggleLoreSkill(btn.dataset.lore));
+  });
+
+  el.querySelector('[data-action="addLoreSkill"]')?.addEventListener('click', () => {
+    wizard._promptLoreSkill();
+  });
+
   el.querySelectorAll('[data-action="toggleLanguage"]').forEach((btn) => {
     btn.addEventListener('click', () => wizard._toggleLanguage(btn.dataset.language));
   });

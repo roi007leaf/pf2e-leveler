@@ -390,6 +390,16 @@ describe('computeBuildState', () => {
     expect(state.lores['underworld-lore']).toBe(2);
   });
 
+  test('includes planned lore skill increases in lore ranks', () => {
+    const actor = createMockActor();
+    const plan = createPlan('alchemist');
+    plan.levels[3].skillIncreases = [{ skill: 'underworld-lore', toRank: 1 }];
+
+    const state = computeBuildState(actor, plan, 3);
+
+    expect(state.lores['underworld-lore']).toBe(1);
+  });
+
   test('collects known languages with Ancient Osiriani normalized to Osiriani', () => {
     mockActor.system.details.languages = {
       value: ['common', 'osiriani', 'sphinx'],

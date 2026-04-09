@@ -1,5 +1,3 @@
-import { debug } from '../utils/logger.js';
-
 export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
   const skillIncreases = [...(levelData?.skillIncreases ?? []), ...(levelData?.customSkillIncreases ?? [])];
@@ -12,7 +10,6 @@ export async function applySkillIncreases(actor, plan, level) {
   for (const inc of skillIncreases) {
     updates[`system.skills.${inc.skill}.rank`] = inc.toRank;
     applied.push(inc);
-    debug(`Applied skill increase: ${inc.skill} -> rank ${inc.toRank}`);
   }
 
   for (const skill of intBonusSkills) {
@@ -21,7 +18,6 @@ export async function applySkillIncreases(actor, plan, level) {
       updates[`system.skills.${skill}.rank`] = 1;
     }
     applied.push({ skill, toRank: 1, intBonus: true });
-    debug(`Applied Intelligence bonus skill training: ${skill}`);
   }
 
   if (Object.keys(updates).length > 0) {

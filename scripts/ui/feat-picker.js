@@ -71,6 +71,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.allowedFeatUuids = new Set();
     this._minLevelLocked = false;
     this._maxLevelLocked = false;
+    this._ignoreDedicationLock = false;
+    this._requiredFeatLimitation = false;
     this._applyPreset(this.preset);
   }
 
@@ -118,6 +120,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         includeSkillFeats: this.category === 'general',
         buildState: this.buildState,
         additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
+        ignoreDedicationLock: this._ignoreDedicationLock,
       });
       // Computed once — allFeats is fixed for the lifetime of this picker instance
       this._showSkillFilter = this._featsHaveSkillRelevance();
@@ -244,6 +247,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const featSlug = feat.slug ?? null;
       const existingDedications = this.buildState?.archetypeDedications ?? new Set();
       if (this.category !== 'custom'
+        && !this._ignoreDedicationLock
         && traits.includes('dedication')
         && this.buildState?.canTakeNewArchetypeDedication === false
         && (!featSlug || !existingDedications.has(featSlug))) {
@@ -883,12 +887,16 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _toTemplateFeat(feat) {
     const additionalArchetypeUnlockLevel = this._getAdditionalArchetypeUnlockLevel(feat);
+    const featUuid = this._getFeatUuid(feat);
     return {
       ...feat,
-      uuid: this._getFeatUuid(feat),
+      uuid: featUuid,
       additionalArchetypeUnlockLevel,
       isAdditionalArchetypeFeat: additionalArchetypeUnlockLevel != null,
-      _levelerSelected: this.selectedFeatUuids.has(this._getFeatUuid(feat)),
+      hasSelectionLimitationBadge: this._requiredFeatLimitation
+        && this.allowedFeatUuids.size > 0
+        && this.allowedFeatUuids.has(featUuid),
+      _levelerSelected: this.selectedFeatUuids.has(featUuid),
     };
   }
 
@@ -1073,9 +1081,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (typeof preset.showDedications === 'boolean') this.showDedications = preset.showDedications;
     if (typeof preset.lockDedications === 'boolean') this._dedicationsLocked = preset.lockDedications;
     if (typeof preset.showSkillFeats === 'boolean') this.showSkillFeats = preset.showSkillFeats;
+    if (typeof preset.requiredFeatLimitation === 'boolean') this._requiredFeatLimitation = preset.requiredFeatLimitation;
     if (preset.minLevel != null) this.minLevel = String(preset.minLevel);
     if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
     if (preset.lockMinLevel === true) this._minLevelLocked = true;
     if (preset.lockMaxLevel === true) this._maxLevelLocked = true;
+    if (typeof preset.ignoreDedicationLock === 'boolean') this._ignoreDedicationLock = preset.ignoreDedicationLock;
   }
 }

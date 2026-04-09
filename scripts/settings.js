@@ -42,6 +42,24 @@ export function registerSettings() {
     default: true,
   });
 
+  game.settings.register(MODULE_ID, 'ignoreFreeArchetypeDedicationLock', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
+  game.settings.register(MODULE_ID, 'enforceSubclassDedicationRequirement', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   game.settings.register(MODULE_ID, 'hideUncommonFeats', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_UNCOMMON.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.HIDE_UNCOMMON.HINT'),

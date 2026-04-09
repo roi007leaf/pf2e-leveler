@@ -122,7 +122,7 @@ export function filterByArchetypeRestrictions(feats, actor, buildState) {
   const classSlug = String(buildState?.classSlug ?? actor?.class?.slug ?? '').toLowerCase();
   const existingClassArchetypeDedications = buildState?.classArchetypeDedications ?? new Set();
   const existingArchetypeDedications = buildState?.archetypeDedications ?? new Set();
-  const canTakeNewDedication = buildState?.canTakeNewArchetypeDedication !== false;
+  const canTakeNewDedication = buildState?.canTakeNewArchetypeDedication !== false || buildState?.ignoreDedicationLock === true;
 
   return feats.filter((feat) => {
     const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
@@ -196,7 +196,10 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
   }
 
   if (actor && (category === 'class' || category === 'archetype')) {
-    result = filterByArchetypeRestrictions(result, actor, options.buildState);
+    const buildState = options.ignoreDedicationLock
+      ? { ...(options.buildState ?? {}), ignoreDedicationLock: true }
+      : options.buildState;
+    result = filterByArchetypeRestrictions(result, actor, buildState);
   }
 
   return sortFeats(result, options.sortMethod ?? 'LEVEL_DESC');
