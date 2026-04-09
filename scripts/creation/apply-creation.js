@@ -19,7 +19,10 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.heritage) await applyItem(actor, data.heritage, 'heritage', getStoredChoiceSelections(data, data.heritage.uuid));
   if (data.background) await applyItem(actor, data.background, 'background', getStoredChoiceSelections(data, data.background.uuid));
   if (data.class) await applyItem(actor, data.class, 'class', getStoredChoiceSelections(data, data.class.uuid));
-  if (data.subclass) await applyItem(actor, data.subclass, 'subclass', getStoredChoiceSelections(data, data.subclass.uuid));
+  const handler = getClassHandler(data.class?.slug);
+  if (data.subclass && handler.shouldApplySubclassItem(data) !== false) {
+    await applyItem(actor, data.subclass, 'subclass', getStoredChoiceSelections(data, data.subclass.uuid));
+  }
   reportProgress(0.28, 'Waiting for the PF2E system to finish initializing items...');
   await waitForSystem();
 
@@ -51,7 +54,6 @@ export async function applyCreation(actor, data, onProgress = null) {
   await applyEquipment(actor, data);
 
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
-  const handler = getClassHandler(data.class?.slug);
   reportProgress(0.86, 'Finalizing class-specific features...');
   await handler.applyExtras(actor, data);
 

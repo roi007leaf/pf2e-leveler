@@ -93,6 +93,16 @@ function normalizeActorBoostEntries(value) {
   if (!value || typeof value !== 'object') return [];
 
   const flattened = [];
+  const directKeys = Object.entries(value)
+    .filter(([key, entry]) => normalizeAbilityBoostKey(key) && (
+      entry === true
+      || entry === 1
+      || entry === 'true'
+      || entry === 'selected'
+    ))
+    .map(([key]) => key);
+  flattened.push(...directKeys);
+
   for (const entry of Object.values(value)) {
     if (typeof entry === 'string') {
       flattened.push(entry);
@@ -112,6 +122,14 @@ function normalizeActorBoostEntries(value) {
       continue;
     }
     if (typeof entry.value === 'string') flattened.push(entry.value);
+    if (entry && typeof entry === 'object') {
+      for (const [key, nested] of Object.entries(entry)) {
+        if (!normalizeAbilityBoostKey(key)) continue;
+        if (nested === true || nested === 1 || nested === 'true' || nested === 'selected') {
+          flattened.push(key);
+        }
+      }
+    }
   }
 
   return flattened.map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);

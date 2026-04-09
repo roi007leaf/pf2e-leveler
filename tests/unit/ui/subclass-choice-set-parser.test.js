@@ -2539,6 +2539,63 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('keeps a selected widened fallback skill visible after hydration instead of reverting to the blocked authored list', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.Skill.Acrobatics',
+          arc: 'PF2E.Skill.Arcana',
+          ath: 'PF2E.Skill.Athletics',
+          cra: 'PF2E.Skill.Crafting',
+          nat: 'PF2E.Skill.Nature',
+          occ: 'PF2E.Skill.Occultism',
+          rel: 'PF2E.Skill.Religion',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'wizard', uuid: 'class-uuid', name: 'Wizard' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Scholar' };
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana', 'nature']);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-uuid') {
+        return {
+          system: {
+            trainedSkills: { value: ['occultism', 'religion'], lore: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const hydrated = await hydrateChoiceSets(wizard, [
+        {
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          options: [
+            { label: 'PF2E.Skill.Arcana', value: 'arcana' },
+            { label: 'PF2E.Skill.Nature', value: 'nature' },
+            { label: 'PF2E.Skill.Occultism', value: 'occultism' },
+            { label: 'PF2E.Skill.Religion', value: 'religion' },
+          ],
+          grantsSkillTraining: true,
+        },
+      ], { skill: 'ath' });
+
+      expect(hydrated[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'ath', selected: true, disabled: false }),
+      ]));
+      expect(hydrated[0].options.some((entry) => ['arcana', 'nature', 'occultism', 'religion'].includes(String(entry.value)))).toBe(false);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('parses shorthand config-driven skill choice sets into skill options', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
@@ -4117,11 +4174,31 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     expect(rows).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        label: 'Cleric -> Domain Initiate -> Domain Initiate',
+        label: 'Cleric -> Domain Initiate',
         prompt: "Select a deity's domain.",
         value: 'Earth',
       }),
     ]));
+  });
+
+  it('dedupes apply overlay prompt rows when the same choice appears through duplicate source chains', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._getApplyPromptRows = jest.fn(async () => ([
+      { label: 'Scholar', prompt: 'Select a skill.', value: 'Nature', pending: false, flag: 'skill' },
+      { label: 'Scholar', prompt: 'Select a skill.', value: 'Pending selection', pending: true, flag: 'skill' },
+      { label: 'Scholar -> Scholar', prompt: 'Select a skill.', value: 'Nature', pending: false, flag: 'skill' },
+    ]));
+
+    const context = await wizard._buildApplyOverlayContext();
+
+    expect(context.applyPromptRows).toEqual([
+      expect.objectContaining({
+        label: 'Scholar',
+        prompt: 'Select a skill.',
+        value: 'Nature',
+        pending: false,
+      }),
+    ]);
   });
 
   it('maps sanctification prompts when the raw prompt key only contains sanctification text', async () => {

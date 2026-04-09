@@ -9,6 +9,10 @@ const CURRICULUM_ENTRY_FLAG = 'curriculumEntry';
  * Curriculum entry: 1 cantrip slot + 1 rank-1 slot (separate from the main spellbook entry).
  */
 export class WizardHandler extends CasterBaseHandler {
+  shouldApplySubclassItem() {
+    return false;
+  }
+
   getExtraSteps() {
     return [
       { id: 'thesis', label: 'Arcane Thesis', visible: () => true },

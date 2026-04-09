@@ -13,7 +13,7 @@ async function resolveDocument(wizard, uuid) {
 
 export async function buildApplyOverlayContext(wizard) {
   const promptRows = await wizard._getApplyPromptRows();
-  const dedupedPromptRows = promptRows.filter((row, index, rows) => rows.findIndex((candidate) => candidate.label === row.label && candidate.value === row.value && (candidate.prompt ?? '') === (row.prompt ?? '')) === index);
+  const dedupedPromptRows = dedupePromptRows(promptRows);
   const activeApplyPrompt = matchActivePromptRow(wizard, dedupedPromptRows);
 
   return { applySelectionRows: [], applyPromptRows: dedupedPromptRows, activeApplyPrompt };
@@ -46,19 +46,43 @@ export function getPromptMatchTexts(row) {
 
 export async function getApplyPromptRows(wizard) {
   const promptRows = [];
-  const seen = new Set();
   const scannedItems = new Set();
   const scannedChoiceSources = new Set();
+  const promptFlagIndex = new Map();
+  const exactRows = new Set();
 
   const addRow = async (source, rule, optionSource = null) => {
     const prompt = getRulePrompt(rule);
     if (!prompt) return;
     const value = await resolvePromptSelectionLabel(wizard, rule, optionSource);
     const rowValue = value || 'Pending selection';
-    const key = `${source}:${prompt}:${rowValue}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    promptRows.push({ label: source, prompt, value: rowValue, pending: !value });
+    const normalizedSource = normalizeSourceLabel(source);
+    const flag = getRuleSelectionFlag(rule) ?? '';
+    const exactKey = `${normalizedSource}:${prompt}:${flag}:${rowValue}`;
+    if (exactRows.has(exactKey)) return;
+
+    const promptKey = `${normalizedSource}:${prompt}:${flag}`;
+    const existingIndex = promptFlagIndex.get(promptKey);
+    if (existingIndex != null) {
+      const existing = promptRows[existingIndex];
+      if (existing.pending && value) {
+        exactRows.delete(`${existing.label}:${existing.prompt}:${existing.flag ?? ''}:${existing.value}`);
+        promptRows[existingIndex] = {
+          ...existing,
+          label: normalizedSource,
+          value: rowValue,
+          pending: false,
+          flag,
+        };
+        exactRows.add(exactKey);
+        return;
+      }
+      if (!existing.pending && !value) return;
+    }
+
+    exactRows.add(exactKey);
+    promptFlagIndex.set(promptKey, promptRows.length);
+    promptRows.push({ label: normalizedSource, prompt, value: rowValue, pending: !value, flag });
   };
 
   const resolveSelectedChoiceItem = async (rule, optionSource = null) => {
@@ -169,6 +193,59 @@ export async function getApplyPromptRows(wizard) {
   }
 
   return promptRows;
+}
+
+function dedupePromptRows(rows) {
+  const deduped = [];
+  const seen = new Map();
+  const promptFlagIndex = new Map();
+
+  for (const row of rows ?? []) {
+    const label = normalizeSourceLabel(row.label);
+    const prompt = String(row.prompt ?? '');
+    const flag = String(row.flag ?? '');
+    const value = String(row.value ?? '');
+    const pending = row.pending === true || value === 'Pending selection';
+    const promptKey = `${label}:${prompt}:${flag}`;
+    const exactKey = `${label}:${prompt}:${flag}:${value}`;
+
+    if (seen.has(exactKey)) continue;
+    const existingIndex = promptFlagIndex.get(promptKey);
+    if (existingIndex != null) {
+      const existing = deduped[existingIndex];
+      const existingPending = existing.pending === true || String(existing.value ?? '') === 'Pending selection';
+      if (!existingPending && pending) continue;
+      if (existingPending && !pending) {
+        seen.delete(`${existing.label}:${existing.prompt}:${String(existing.flag ?? '')}:${String(existing.value ?? '')}`);
+        deduped[existingIndex] = { ...row, label };
+        seen.set(exactKey, existingIndex);
+        continue;
+      }
+    }
+
+    seen.set(exactKey, deduped.length);
+    promptFlagIndex.set(promptKey, deduped.length);
+    deduped.push({ ...row, label });
+  }
+
+  return deduped;
+}
+
+function normalizeSourceLabel(source) {
+  const parts = String(source ?? '')
+    .split('->')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  if (parts.length <= 1) return parts[0] ?? '';
+
+  const normalized = [];
+  for (const part of parts) {
+    if (normalized.length > 0 && normalized.at(-1).toLowerCase() === part.toLowerCase()) continue;
+    normalized.push(part);
+  }
+
+  return normalized.join(' -> ');
 }
 
 export async function resolvePromptSelectionLabel(wizard, rule, optionSource = null) {

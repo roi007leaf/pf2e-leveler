@@ -90,7 +90,18 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (this.allSpells.length === 0) {
       const all = await loadSpells();
-      this.allSpells = all.filter((s) => {
+      const directAllowed = this.allowedUuids.size > 0
+        ? await Promise.all([...this.allowedUuids].map(async (uuid) => {
+          try {
+            return await fromUuid(uuid);
+          } catch {
+            return null;
+          }
+        }))
+        : [];
+      const merged = dedupeSpellsByUuid([...all, ...directAllowed.filter(Boolean)]);
+
+      this.allSpells = merged.filter((s) => {
         if (this.allowedUuids.size > 0 && !this.allowedUuids.has(s.uuid)) return false;
         if (!this._matchesTradition(s)) return false;
         if (this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(s, ownedIdentityKeys)) return false;
@@ -813,6 +824,20 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     items[next].classList.add('highlighted');
     items[next].scrollIntoView({ block: 'nearest' });
   }
+}
+
+function dedupeSpellsByUuid(spells) {
+  const seen = new Set();
+  const results = [];
+
+  for (const spell of spells ?? []) {
+    const uuid = String(spell?.uuid ?? '');
+    if (!uuid || seen.has(uuid)) continue;
+    seen.add(uuid);
+    results.push(spell);
+  }
+
+  return results;
 }
 
 function getOwnedSpells(actor) {

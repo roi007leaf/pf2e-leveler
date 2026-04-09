@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.11
+
+### Character Wizard
+
+- **Spell-choice pickers now honor direct allowed spell UUIDs** - Feat and ancestry spell choices such as `Arcane Tattoos` now load their specifically allowed spells even when those spells are not present in the currently configured spell compendium category results
+- **Wizard school subclass items no longer get applied twice** - Wizard schools and similar subclass entries now avoid duplicate application during creation, preventing duplicate school items on the actor
+- **Fallback trained-skill feat choices now stay resolved after selection** - When a blocked skill-choice prompt widens to other trainable skills, the selected fallback skill now remains visible instead of snapping back to the original disabled authored list
+
+### Level Planner
+
+- **Class-feat pickers still include archetype feats but no longer hard-lock them on** - The level planner class-feat picker now keeps `class` selected while allowing `archetype` to be deselected when you want to browse only class feats
+- **Gradual ability boosts reopen correctly from actor history** - Reopening a level with an already-applied gradual boost now reconstructs the correct pre/post display, no longer marks the level incomplete incorrectly, and allows the same attribute to be reselected after clearing it
+
 ## 2.1.10
 
 ### Prerequisites

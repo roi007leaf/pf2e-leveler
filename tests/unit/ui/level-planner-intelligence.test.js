@@ -813,4 +813,70 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       disabled: false,
     }));
   });
+
+  it('reconstructs gradual boost history when actor boost storage uses direct ability keys', () => {
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+        build: {
+          attributes: {
+            boosts: {
+              1: [],
+              2: { wisdom: true },
+              5: [],
+              10: [],
+              15: [],
+              20: [],
+            },
+            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            flaws: { ancestry: [] },
+          },
+        },
+        abilities: {
+          str: { mod: 0 },
+          dex: { mod: 1 },
+          con: { mod: 1 },
+          int: { mod: 4 },
+          wis: { mod: 3 },
+          cha: { mod: 1 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 2;
+    setLevelBoosts(planner.plan, 2, ['wis']);
+
+    const choices = [{ type: 'abilityBoosts', count: 1 }];
+    const attributes = planner._buildAttributeContext(planner.plan.levels[2], choices);
+    const wisdom = attributes.find((entry) => entry.key === 'wis');
+
+    expect(wisdom).toEqual(expect.objectContaining({
+      selected: true,
+      applied: true,
+      mod: 2,
+      newMod: 3,
+      disabled: false,
+    }));
+  });
 });

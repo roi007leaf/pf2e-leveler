@@ -7,6 +7,7 @@ jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
     applyExtras: jest.fn(async () => {}),
     resolveFocusSpells: jest.fn(async () => []),
     getExtraSteps: jest.fn(() => []),
+    shouldApplySubclassItem: jest.fn(() => true),
   })),
 }));
 
@@ -30,6 +31,8 @@ jest.mock('../../../scripts/utils/logger.js', () => ({
   info: jest.fn(),
   warn: jest.fn(),
 }));
+
+const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
 
 describe('getAdditionalSelectedItems', () => {
   it('does not manually add handler-owned class selections', () => {
@@ -611,5 +614,74 @@ describe('applyCreation ancestry paragon', () => {
       expect.objectContaining({ name: 'Druid', type: 'class' }),
       expect.objectContaining({ name: 'Untamed Order', type: 'feat' }),
     ]));
+  });
+
+  it('does not separately apply wizard school subclass items during creation', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const createdDocs = [];
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    getClassHandler.mockReturnValue({
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid.includes('school') ? 'School of Unified Magical Theory' : 'Wizard',
+      toObject: () => ({
+        name: uuid.includes('school') ? 'School of Unified Magical Theory' : 'Wizard',
+        type: uuid.includes('school') ? 'feat' : 'class',
+        system: {
+          level: { value: 1 },
+          rules: [],
+          description: { value: '' },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-wizard', name: 'Wizard', slug: 'wizard', choices: {} },
+      subclass: {
+        uuid: 'subclass-unified-school',
+        name: 'School of Unified Magical Theory',
+        slug: 'school-of-unified-magical-theory',
+        curriculum: {},
+        choices: {},
+      },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+    });
+
+    expect(createdDocs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Wizard', type: 'class' }),
+    ]));
+    expect(createdDocs.some((doc) => doc.name === 'School of Unified Magical Theory' && doc.type === 'feat')).toBe(false);
   });
 });

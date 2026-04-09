@@ -1299,7 +1299,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         });
         return {
           selectedFeatTypes: ['class', 'archetype'],
-          lockedFeatTypes: ['class', 'archetype'],
+          lockedFeatTypes: ['class'],
           showDedications: true,
           allowedFeatUuids,
           requiredFeatLimitation: !!requiredSecondLevelFeat,

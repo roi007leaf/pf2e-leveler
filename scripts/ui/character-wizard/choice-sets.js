@@ -886,16 +886,17 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
         };
       });
 
-  if (currentSelected || decorated.some((option) => option.disabled !== true)) return decorated;
+  if (decorated.some((option) => option.selected) || decorated.some((option) => option.disabled !== true)) return decorated;
 
   const fallbackOptions = (resolveConfigChoiceOptions('skills') ?? []).filter((option) => {
     const optionKeys = getSkillOptionKeys(option);
-    if (optionKeys.some((key) => normalizedBlockedSkills.has(key))) return false;
-    if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+    const selectedHere = optionKeys.some((key) => key === currentSelected);
+    if (!selectedHere && optionKeys.some((key) => normalizedBlockedSkills.has(key))) return false;
+    if (!selectedHere && optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
     const matchedState = optionKeys
       .map((key) => findMatchingSkillState(skillState, key))
       .find(Boolean) ?? null;
-    return !matchedState?.selected && !matchedState?.autoTrained;
+    return selectedHere || (!matchedState?.selected && !matchedState?.autoTrained);
   });
 
   return fallbackOptions.length > 0

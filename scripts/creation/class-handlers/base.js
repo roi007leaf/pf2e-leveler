@@ -39,5 +39,7 @@ export class BaseClassHandler {
 
   async getKeyAbilityOptions(_data, classDef) { return classDef?.keyAbility ?? []; }
 
+  shouldApplySubclassItem(_data) { return true; }
+
   async applyExtras(_actor, _data) {}
 }

@@ -215,6 +215,8 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     });
 
     expect(preset.allowedFeatUuids).toEqual(['Compendium.pf2e.feats-srd.Item.spellshot-dedication']);
+    expect(preset.selectedFeatTypes).toEqual(['class', 'archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['class']);
     game.settings.get = originalGet;
   });
 
@@ -395,7 +397,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     });
 
     expect(preset.selectedFeatTypes).toEqual(['class', 'archetype']);
-    expect(preset.lockedFeatTypes).toEqual(['class', 'archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['class']);
     expect(preset.selectedTraits).toBeUndefined();
     expect(preset.lockedTraits).toBeUndefined();
   });
