@@ -148,6 +148,31 @@ describe('SpellPicker', () => {
     ]);
   });
 
+  test('includes directly allowed cantrip UUIDs even when opened in any-rank mode', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => []),
+      };
+    });
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid !== 'Compendium.custom.spells.Item.electric-arc') return null;
+      return makeSpell('Compendium.custom.spells.Item.electric-arc', 'Electric Arc', 0, ['arcane'], ['cantrip']);
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), {
+      allowedUuids: ['Compendium.custom.spells.Item.electric-arc'],
+      excludedSelections: [],
+    });
+    const context = await picker._prepareContext();
+
+    expect(context.spells).toEqual([
+      expect.objectContaining({ uuid: 'Compendium.custom.spells.Item.electric-arc', name: 'Electric Arc' }),
+    ]);
+  });
+
   test('supports multi-select confirmation for preparation-style picking', async () => {
     const actor = createMockActor({ items: [] });
     const onSelect = jest.fn();

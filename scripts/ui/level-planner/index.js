@@ -387,7 +387,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       changed = true;
     }
 
-    if (this._backfillMissingBoostsFromActor(plan)) {
+    if (this._backfillMissingBoostsFromActor(plan, options)) {
       changed = true;
     }
 
@@ -474,13 +474,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  _backfillMissingBoostsFromActor(plan) {
+  _backfillMissingBoostsFromActor(plan, options = this._getVariantOptions()) {
     const actorBoosts = this.actor?.system?.build?.attributes?.boosts ?? {};
+    const classDef = ClassRegistry.get(plan?.classSlug ?? this.plan?.classSlug);
     let changed = false;
 
     for (const [levelKey, boosts] of Object.entries(actorBoosts)) {
       const level = Number(levelKey);
       if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > MAX_LEVEL) continue;
+      if (classDef) {
+        const boostChoice = getChoicesForLevel(classDef, level, options).find((choice) => choice.type === 'abilityBoosts');
+        if (options.gradualBoosts && boostChoice?.count === 1) continue;
+      }
 
       const plannedBoosts = plan?.levels?.[level]?.abilityBoosts;
       if (!Array.isArray(plannedBoosts) || plannedBoosts.length > 0) continue;

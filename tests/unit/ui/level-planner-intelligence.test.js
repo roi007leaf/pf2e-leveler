@@ -879,4 +879,63 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       disabled: false,
     }));
   });
+
+  it('does not backfill cleared gradual boosts from actor history on reopen', () => {
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+        build: {
+          attributes: {
+            boosts: {
+              1: [],
+              2: ['dex'],
+              5: [],
+              10: [],
+              15: [],
+              20: [],
+            },
+            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            flaws: { ancestry: [] },
+          },
+        },
+        abilities: {
+          str: { mod: 0 },
+          dex: { mod: 3 },
+          con: { mod: 1 },
+          int: { mod: 0 },
+          wis: { mod: 0 },
+          cha: { mod: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].abilityBoosts = [];
+
+    const changed = planner._backfillMissingBoostsFromActor(planner.plan, planner._getVariantOptions());
+
+    expect(changed).toBe(false);
+    expect(planner.plan.levels[2].abilityBoosts).toEqual([]);
+  });
 });

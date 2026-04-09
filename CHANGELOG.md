@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.12
+
+### Character Wizard
+
+- **Arcane Tattoos and similar direct spell-choice cantrips no longer open an empty picker** - Directly allowed spell UUID choices now remain visible even when the spell picker is opened in the generic `Any Spellbook` flow, so cantrip-only feat choices like `Arcane Tattoos` load correctly
+
+### Level Planner
+
+- **Gradual ability boost rows no longer re-break after reopen** - Already-applied gradual boost levels no longer get incorrectly repopulated from actor history after clearing or reopening, which fixes the red incomplete state and allows the same attribute to be selected again cleanly
+
 ## 2.1.11
 
 ### Character Wizard

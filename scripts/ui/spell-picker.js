@@ -108,12 +108,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const isCantrip = s.system.traits?.value?.includes('cantrip');
         const spellRank = getSpellRank(s.system ?? {});
         if (this.isCantrip) return isCantrip;
-        if (isCantrip) return false;
         if (this.rank === -1) {
           if (ownedSelections.has(`${s.uuid}:${spellRank}`) || this.excludedUuids.has(s.uuid)) return false;
+          if (this.allowedUuids.size > 0) return true;
+          if (isCantrip) return false;
           if (this.maxRank != null) return spellRank >= 1 && spellRank <= this.maxRank;
           return spellRank >= 1;
         }
+        if (isCantrip) return false;
         if (ownedSelections.has(`${s.uuid}:${this.rank}`) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
         if (this.exactRank) return spellRank === this.rank;
         return spellRank <= this.rank;
