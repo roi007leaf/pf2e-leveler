@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.1.8
+
+### Character Wizard
+
+- **Mixed Ancestry now has its own step** - Selecting `Mixed Ancestry` as a heritage now opens a dedicated `Mixed Ancestry` step right after Heritage instead of incorrectly surfacing the second ancestry choice under Feat Choices
+- **Mixed Ancestry browser cards now show ancestry names correctly** - Fixed the ancestry browser on the Mixed Ancestry step so entries display their proper ancestry names instead of only showing trait tags
+- **Mixed Ancestry source filtering now works** - The synthetic `Mixed Ancestry` heritage now survives step source filtering and appears correctly under versatile heritages
+- **Wizard browser sorting no longer crashes on synthetic entries** - Fixed a `localeCompare` render crash when browser-backed steps included synthetic or partially-hydrated entries without a `name`
+- **Ancestry feat spell choices now use the spell picker** - Ancestry feats such as `Otherworldly Magic` can now open a real spell picker, store the selected spell correctly, and apply it to the actor during creation
+- **Subclass grant items now apply correctly** - Order and similar subclass items are now applied and grant-scanned properly during creation, so features like `Untamed Order` can contribute granted feat content such as `Untamed Form`
+- **Long content-source chip lists no longer shove step content down** - The source chip panel on wizard steps now has a capped height with its own scroll area
+
+### Level Planner
+
+- **Archetype dedication completion is now tracked correctly** - The planner now follows the PF2e dedication rule more closely: before taking a dedication it shows dedication feats, after taking one it focuses on archetype follow-up feats, and once you have two other archetype feats from that dedication it reopens dedication feat browsing again
+- **Additional archetype feats still respect their own prerequisites** - Feats unlocked by a dedication chain, such as `Holistic Care`, now become visible when relevant without becoming freely selectable if their normal prerequisites are still unmet
+- **Custom / All Feats browsing still bypasses dedication locking** - The special dedication lock now stays in the normal archetype browsing flows and no longer blocks the unrestricted custom feat picker
+- **Planned subclass choices now satisfy later prerequisites** - Earlier planned choices like `Order Explorer (Wave Order)` now count for later feat prerequisite checks
+- **Druid and similar dedication overlap skill choices now appear correctly** - The planner now recovers text-based granted skills, selected order skills, and fallback overlap wording so dedications like `Druid Dedication` correctly surface replacement skill choices when you were already trained
+- **Druid dedication choice flow is cleaner** - The planner now avoids duplicate order choice sections, shows the order choice before any replacement skill prompts, and lets you open an order item sheet by clicking its name or image
+- **Planned spellbook sections are now split correctly** - Base spellbook picks and spellcasting-dedication picks now use separate planner sections instead of sharing one combined pool
+- **Spellcasting dedications only grant picks on the levels that actually grant them** - Initial dedication cantrips only appear on the level where you take the dedication, and later slot picks only appear when `Basic`, `Expert`, or `Master Spellcasting` actually grants a new slot
+- **Main spellbook pickers no longer inherit dedication traditions** - Regular spellbook pickers now stay locked to the main class tradition, while dedication spell sections use their own tradition separately
+- **Empty dedication cantrip rows are hidden** - Dedication spell sections no longer render a useless `0/0` cantrip subsection
+- **Planned spellcasting dedications now create spell entries when applied** - Dedication spellcasting support now creates the appropriate separate spellcasting entry from planned feats as well as embedded actor feats
+
+### Feat Picker
+
+- **Archetype follow-up feats now unlock transitively** - If a dedication has no clean `Additional Feats` block, prerequisite-based archetype unlock inference now follows the chain through earlier archetype feats so later follow-ups like `Holistic Care` can surface properly
+- **Archetype follow-up feats still respect normal prerequisites** - Dedication-unlocked visibility no longer makes unmet prerequisites selectable in normal archetype browsing
+- **Feat search now matches titles only** - Picker search no longer matches on trait text, which makes searches like `skill training` much easier to use
+
+### Spellcasting
+
+- **Wizard curriculum spells are duplicated into the main spellbook** - School or curriculum spells can now still be prepared in normal wizard spell slots instead of only existing on the separate curriculum entry
+- **Cantrip Expansion now grants planner cantrip picks correctly** - The level planner now tracks the feat's bonus cantrip picks as dedicated cantrip-only selections
+- **Spellcasting archetypes now create their own entries** - Dedication spellcasting benefits such as `Druid Dedication` now create separate archetype spellcasting entries instead of disappearing into the main class entry
+
+### Prerequisites
+
+- **Weapon-family proficiency prerequisites now alias correctly** - Prerequisites like `trained in at least one crossbow` now recognize broader proficiencies such as simple weapon training when PF2e rules say they should qualify
+
+### Suggested Character Options
+
+- **Planner skill and language guidance now renders fully** - Suggested, not recommended, disallowed, rarity, and GM guidance now appear correctly in planner skill and bonus-language choices, and disallowed planner bonus languages are no longer selectable
+
 ## 2.1.7
 
 ### Character Wizard
@@ -20,7 +66,8 @@
 
 ### Fixed
 
-- Improved archetype dedication feat discovery for archetypes like `Acrobat` that list follow-up feats in journal pages instead of a dedicated `Additional Feats` block.
+- Improved archetype journal parsing for dedications whose follow-up feats are listed directly on the journal page instead of under an `Additional Feats` block, including Acrobat and similar archetypes.
+- Fixed skill feat browsing so unlocked archetype skill feats such as `Graceful Leaper` are not hidden by duplicate-name entries from other packs.
 - Fixed skill feat browsing so dedication-unlocked archetype skill feats such as `Graceful Leaper` appear correctly in the skill feat picker.
 
 ## 2.1.5

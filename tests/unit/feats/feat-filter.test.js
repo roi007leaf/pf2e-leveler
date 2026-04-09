@@ -255,6 +255,42 @@ describe('filterFeatsByCategory', () => {
     ]);
   });
 
+  test('prerequisite-derived dedication fallback follows chained archetype feats beyond the direct dedication prerequisite', async () => {
+    const dedication = {
+      ...makeFeat('Medic Dedication', 2, ['archetype', 'dedication']),
+      slug: 'medic-dedication',
+      system: {
+        ...makeFeat('Medic Dedication', 2, ['archetype', 'dedication']).system,
+        description: { value: '<p>No additional feats listed here.</p>' },
+      },
+    };
+    const treatCondition = makeFeat('Treat Condition', 4, ['archetype', 'skill']);
+    treatCondition.system.prerequisites.value = [{ value: 'Medic Dedication' }];
+    const holisticCare = makeFeat('Holistic Care', 6, ['archetype', 'skill']);
+    holisticCare.system.prerequisites.value = [{ value: 'trained in Diplomacy, Treat Condition' }];
+
+    const additionalLevels = await collectAdditionalArchetypeFeatLevels(
+      [dedication, treatCondition, holisticCare],
+      new Set(['medic-dedication']),
+    );
+
+    expect(additionalLevels.get('treat-condition')).toBe(4);
+    expect(additionalLevels.get('holistic-care')).toBe(6);
+
+    const result = filterFeatsByCategory(
+      [dedication, treatCondition, holisticCare],
+      'skill',
+      '',
+      6,
+      { additionalArchetypeFeatLevels: additionalLevels },
+    );
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Treat Condition' }),
+      expect.objectContaining({ name: 'Holistic Care' }),
+    ]));
+  });
+
   test('duplicate non-matching feat names do not hide a later matching skill feat entry', async () => {
     const dedication = {
       ...makeFeat('Acrobat Dedication', 2, ['archetype', 'dedication']),
@@ -341,6 +377,26 @@ describe('filterFeatsByCategory', () => {
     expect(result).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Dwarven Lore' }),
       expect.objectContaining({ name: 'Natural Ambition' }),
+    ]));
+    expect(result).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Elven Lore' }),
+    ]));
+  });
+
+  test('ancestry feat filtering matches ancestry traits even when they differ from the ancestry slug', () => {
+    const feats = [
+      makeFeat('Animal Elocutionist', 1, ['animal']),
+      makeFeat('Elven Lore', 1, ['elf']),
+    ];
+
+    const result = getFeatsForSelection(feats, 'ancestry', { ancestry: { slug: 'awakened-animal' }, heritage: null }, 1, {
+      buildState: {
+        ancestryTraits: new Set(['awakened-animal', 'animal']),
+      },
+    });
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Animal Elocutionist' }),
     ]));
     expect(result).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Elven Lore' }),

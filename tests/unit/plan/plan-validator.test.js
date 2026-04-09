@@ -1,7 +1,9 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { PLAN_STATUS } from '../../../scripts/constants.js';
+import { DRUID } from '../../../scripts/classes/druid.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { WIZARD } from '../../../scripts/classes/wizard.js';
 import { validatePlan, validateLevel } from '../../../scripts/plan/plan-validator.js';
 import * as buildState from '../../../scripts/plan/build-state.js';
 import {
@@ -15,7 +17,9 @@ import {
 beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
+  ClassRegistry.register(DRUID);
   ClassRegistry.register(SORCERER);
+  ClassRegistry.register(WIZARD);
 });
 
 describe('validateLevel', () => {
@@ -128,6 +132,80 @@ describe('validateLevel', () => {
 
     const result = validateLevel(plan, ALCHEMIST, 9, { gradualBoosts: true }, {});
 
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('spellbook casters with cantrip expansion require two extra cantrip selections', () => {
+    const plan = createPlan('wizard');
+    setLevelFeat(plan, 3, 'generalFeats', {
+      uuid: 'feat-cantrip-expansion',
+      name: 'Cantrip Expansion',
+      slug: 'cantrip-expansion',
+    });
+    setLevelSkillIncrease(plan, 3, { skill: 'arcana', toRank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-a', name: 'Magic Missile', rank: 1 });
+    addLevelSpell(plan, 3, { uuid: 'spell-b', name: 'Runic Weapon', rank: 1 });
+    addLevelSpell(plan, 3, { uuid: 'spell-c', name: 'Shield', rank: 0, isCantrip: true });
+    addLevelSpell(plan, 3, { uuid: 'spell-d', name: 'Mystic Armor', rank: 1 });
+
+    const result = validateLevel(plan, WIZARD, 3, {}, { items: [] });
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues.some((issue) => issue.message.includes('spellbook cantrip'))).toBe(true);
+  });
+
+  test('spellbook cantrip expansion passes when two extra cantrips are selected', () => {
+    const plan = createPlan('wizard');
+    setLevelFeat(plan, 3, 'generalFeats', {
+      uuid: 'feat-cantrip-expansion',
+      name: 'Cantrip Expansion',
+      slug: 'cantrip-expansion',
+    });
+    setLevelSkillIncrease(plan, 3, { skill: 'arcana', toRank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-a', name: 'Magic Missile', rank: 1 });
+    addLevelSpell(plan, 3, { uuid: 'spell-b', name: 'Runic Weapon', rank: 1 });
+    addLevelSpell(plan, 3, { uuid: 'spell-c', name: 'Shield', rank: 0, isCantrip: true });
+    addLevelSpell(plan, 3, { uuid: 'spell-d', name: 'Message', rank: 0, isCantrip: true });
+
+    const result = validateLevel(plan, WIZARD, 3, {}, { items: [] });
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('spellcasting dedications validate their own cantrip and rank picks separately from the main spellbook', () => {
+    const plan = createPlan('wizard');
+    setLevelFeat(plan, 2, 'classFeats', { uuid: 'wizard-feat', name: 'Reach Spell', slug: 'reach-spell' });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'skill-feat', name: 'Trick Magic Item', slug: 'trick-magic-item' });
+    setLevelFeat(plan, 2, 'archetypeFeats', {
+      uuid: 'feat-druid',
+      name: 'Druid Dedication',
+      slug: 'druid-dedication',
+      traits: ['archetype', 'dedication', 'druid', 'multiclass'],
+    });
+    addLevelSpell(plan, 2, { uuid: 'wizard-spell-a', name: 'Magic Missile', rank: 1, entryType: 'primary' });
+    addLevelSpell(plan, 2, { uuid: 'wizard-spell-b', name: 'Runic Weapon', rank: 1, entryType: 'primary' });
+    addLevelSpell(plan, 2, { uuid: 'druid-cantrip-a', name: 'Electric Arc', rank: 0, isCantrip: true, entryType: 'archetype:druid' });
+    addLevelSpell(plan, 2, { uuid: 'druid-cantrip-b', name: 'Guidance', rank: 0, isCantrip: true, entryType: 'archetype:druid' });
+
+    let result = validateLevel(plan, WIZARD, 2, {}, { items: [] });
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+
+    setLevelFeat(plan, 4, 'classFeats', { uuid: 'class-feat-4', name: 'Widen Spell', slug: 'widen-spell' });
+    setLevelFeat(plan, 4, 'skillFeats', { uuid: 'skill-feat-4', name: 'Assurance', slug: 'assurance' });
+    setLevelFeat(plan, 4, 'archetypeFeats', {
+      uuid: 'feat-basic-druid',
+      name: 'Basic Druid Spellcasting',
+      slug: 'basic-druid-spellcasting',
+      traits: ['archetype', 'druid'],
+    });
+    addLevelSpell(plan, 4, { uuid: 'wizard-spell-c', name: 'See Invisibility', rank: 2, entryType: 'primary' });
+    addLevelSpell(plan, 4, { uuid: 'wizard-spell-d', name: 'Invisibility', rank: 2, entryType: 'primary' });
+
+    result = validateLevel(plan, WIZARD, 4, {}, { items: [] });
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+
+    addLevelSpell(plan, 4, { uuid: 'druid-rank-1', name: 'Runic Body', rank: 1, entryType: 'archetype:druid' });
+    result = validateLevel(plan, WIZARD, 4, {}, { items: [] });
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
   });
 });

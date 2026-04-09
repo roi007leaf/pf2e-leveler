@@ -8,22 +8,25 @@ import { getLanguageRarityMap, getLanguageMap } from '../character-wizard/skills
 
 export function buildAttributeContext(planner, levelData, choices) {
   const selectedBoosts = levelData.abilityBoosts ?? [];
-  const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   const maxBoosts = choices?.find((c) => c.type === 'abilityBoosts')?.count ?? 4;
   const boostsRemaining = maxBoosts - selectedBoosts.length;
   const variantOptions = planner._getVariantOptions?.() ?? {};
   const usedBoostsInSet = getUsedBoostsInSet(planner, planner.selectedLevel, variantOptions.gradualBoosts);
   const actorLevel = Number(planner.actor?.system?.details?.level?.value ?? 1);
   const alreadyAppliedLevel = planner.selectedLevel <= actorLevel;
+  const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
+  const displayedRawAttributes = alreadyAppliedLevel && variantOptions.gradualBoosts
+    ? buildAppliedLevelAttributeBaseline(planner, actorLevel)
+    : (buildState.rawAttributes ?? {});
 
   return ATTRIBUTES.map((key) => {
-    const mod = buildState.attributes[key] ?? 0;
-    const rawMod = buildState.rawAttributes?.[key] ?? mod;
+    const rawMod = displayedRawAttributes[key] ?? buildState.rawAttributes?.[key] ?? buildState.attributes[key] ?? 0;
+    const mod = Math.trunc(rawMod);
     const isPartial = mod >= 4;
     const hasPendingPartial = rawMod % 1 !== 0;
     const selected = selectedBoosts.includes(key);
     const newMod = selected
-      ? (alreadyAppliedLevel ? mod : mod + 1)
+      ? (alreadyAppliedLevel && !variantOptions.gradualBoosts ? mod : mod + 1)
       : mod;
     const partialLabel = !isPartial
       ? ''
@@ -44,6 +47,87 @@ export function buildAttributeContext(planner, levelData, choices) {
       disabled: !selected && (boostsRemaining <= 0 || usedBoostsInSet.has(key)),
     };
   });
+}
+
+function buildAppliedLevelAttributeBaseline(planner, actorLevel) {
+  const raw = Object.fromEntries(ATTRIBUTES.map((key) => [key, getActorAbilityModifier(planner.actor, key)]));
+
+  for (let level = actorLevel; level >= planner.selectedLevel; level--) {
+    for (const boost of getAppliedBoostsForLevel(planner, level)) {
+      if (!ATTRIBUTES.includes(boost)) continue;
+      raw[boost] = reverseApplyAbilityBoost(raw[boost] ?? 0);
+    }
+  }
+
+  return raw;
+}
+
+function getAppliedBoostsForLevel(planner, level) {
+  const actorBoosts = planner.actor?.system?.build?.attributes?.boosts?.[level];
+  const normalizedActorBoosts = normalizeActorBoostEntries(actorBoosts);
+  if (normalizedActorBoosts.length > 0) return normalizedActorBoosts;
+  return (planner.plan?.levels?.[level]?.abilityBoosts ?? []).map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+}
+
+function reverseApplyAbilityBoost(rawModifier) {
+  const value = Number(rawModifier ?? 0);
+  if (!Number.isFinite(value)) return 0;
+  return value > 4 ? value - 0.5 : value - 1;
+}
+
+function getActorAbilityModifier(actor, attr) {
+  const actorAbilities = actor?.abilities?.[attr] ?? null;
+  const systemAbility = actor?.system?.abilities?.[attr] ?? null;
+  const base = actorAbilities?.base;
+
+  if (Number.isFinite(base)) return Number(base);
+  const mod = systemAbility?.mod;
+  if (Number.isFinite(mod)) return Number(mod);
+  return 0;
+}
+
+function normalizeActorBoostEntries(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+  }
+  if (!value || typeof value !== 'object') return [];
+
+  const flattened = [];
+  for (const entry of Object.values(value)) {
+    if (typeof entry === 'string') {
+      flattened.push(entry);
+      continue;
+    }
+    if (Array.isArray(entry)) {
+      flattened.push(...entry);
+      continue;
+    }
+    if (!entry || typeof entry !== 'object') continue;
+    if (typeof entry.selected === 'string') {
+      flattened.push(entry.selected);
+      continue;
+    }
+    if (Array.isArray(entry.selected)) {
+      flattened.push(...entry.selected);
+      continue;
+    }
+    if (typeof entry.value === 'string') flattened.push(entry.value);
+  }
+
+  return flattened.map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+}
+
+function normalizeAbilityBoostKey(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  const aliases = {
+    strength: 'str',
+    dexterity: 'dex',
+    constitution: 'con',
+    intelligence: 'int',
+    wisdom: 'wis',
+    charisma: 'cha',
+  };
+  return aliases[normalized] ?? normalized;
 }
 
 function getUsedBoostsInSet(planner, level, gradualBoosts) {

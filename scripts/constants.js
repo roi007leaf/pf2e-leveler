@@ -1,6 +1,8 @@
 export const MODULE_ID = 'pf2e-leveler';
 
 export const PLAN_FLAG = 'plan';
+export const MIXED_ANCESTRY_UUID = 'pf2e-leveler.synthetic.heritage.mixed-ancestry';
+export const MIXED_ANCESTRY_CHOICE_FLAG = 'mixedAncestry';
 
 export const PROFICIENCY_RANKS = {
   UNTRAINED: 0,

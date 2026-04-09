@@ -1,5 +1,6 @@
 import { getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
 import { applyCreation } from '../../../scripts/creation/apply-creation.js';
+import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
   getClassHandler: jest.fn(() => ({
@@ -186,6 +187,38 @@ describe('getAdditionalSelectedItems', () => {
       },
     ]);
   });
+
+  it('manually adds selected ancestry feat spell choice results when the stored selection uses the option UUID', () => {
+    const items = getAdditionalSelectedItems({
+      ancestryFeat: {
+        name: 'Otherworldly Magic',
+        choiceSets: [
+          {
+            flag: 'otherworldlyMagic',
+            options: [
+              {
+                value: 'electric-arc',
+                label: 'Electric Arc',
+                uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+                type: 'spell',
+              },
+            ],
+          },
+        ],
+        choices: {
+          otherworldlyMagic: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+        },
+      },
+    });
+
+    expect(items).toEqual([
+      {
+        uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+        name: 'Electric Arc',
+        _type: 'spell',
+      },
+    ]);
+  });
 });
 
 describe('getAdditionalSelectedSkills', () => {
@@ -265,6 +298,75 @@ describe('applyCreation ancestry paragon', () => {
       expect.objectContaining({
         name: 'Paragon Feat',
         system: expect.objectContaining({ location: 'xdy_ancestryparagon-1' }),
+      }),
+    ]);
+  });
+
+  it('applies synthetic Mixed Ancestry heritage with the selected ancestry stored on the actor', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({
+      items: [],
+      ancestry: { img: 'human.png' },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async () => null);
+    game.packs = new Map([
+      ['pf2e.ancestries', {
+        getDocuments: jest.fn(async () => [
+          {
+            slug: 'elf',
+            name: 'Elf',
+            system: { vision: 'lowLightVision' },
+          },
+        ]),
+      }],
+    ]);
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: { uuid: MIXED_ANCESTRY_UUID, name: 'Mixed Ancestry', img: 'human.png' },
+      background: null,
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {
+        [MIXED_ANCESTRY_UUID]: {
+          [MIXED_ANCESTRY_CHOICE_FLAG]: 'elf',
+        },
+      },
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Mixed Ancestry',
+        type: 'heritage',
+        system: expect.objectContaining({
+          slug: 'mixed-ancestry',
+          vision: 'lowLightVision',
+        }),
+        flags: expect.objectContaining({
+          [MODULE_ID]: expect.objectContaining({
+            mixedAncestrySelection: 'elf',
+          }),
+          pf2e: expect.objectContaining({
+            rulesSelections: expect.objectContaining({
+              [MIXED_ANCESTRY_CHOICE_FLAG]: 'elf',
+            }),
+          }),
+        }),
       }),
     ]);
   });
@@ -451,5 +553,63 @@ describe('applyCreation ancestry paragon', () => {
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('@UUID[skill-feat-uuid]{Steady Balance}'),
     }));
+  });
+
+  it('applies the selected subclass item during creation so PF2E can process its granted rules', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const createdDocs = [];
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid.includes('untamed-order') ? 'Untamed Order' : 'Druid',
+      toObject: () => ({
+        name: uuid.includes('untamed-order') ? 'Untamed Order' : 'Druid',
+        type: uuid.includes('untamed-order') ? 'feat' : 'class',
+        system: {
+          level: { value: 1 },
+          rules: uuid.includes('untamed-order')
+            ? [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.untamed-form' }]
+            : [],
+          description: { value: '' },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-druid', name: 'Druid', slug: 'druid', choices: {} },
+      subclass: { uuid: 'subclass-untamed-order', name: 'Untamed Order', slug: 'untamed-order', choices: {} },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+    });
+
+    expect(createdDocs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Druid', type: 'class' }),
+      expect.objectContaining({ name: 'Untamed Order', type: 'feat' }),
+    ]));
   });
 });

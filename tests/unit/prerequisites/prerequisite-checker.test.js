@@ -152,6 +152,21 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('matches feat prerequisites against a feat and its selected choice alias', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Order Explorer (Wave Order)' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['order-explorer', 'wave-order']),
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('met level prerequisite', () => {
     const feat = {
       system: { prerequisites: { value: [{ value: '4th level' }] } },

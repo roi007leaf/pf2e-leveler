@@ -240,18 +240,29 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feat.prerequisitesFailed = feat.hasFailedPrerequisites;
       feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
 
+      const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+      const featSlug = feat.slug ?? null;
+      const existingDedications = this.buildState?.archetypeDedications ?? new Set();
+      if (this.category !== 'custom'
+        && traits.includes('dedication')
+        && this.buildState?.canTakeNewArchetypeDedication === false
+        && (!featSlug || !existingDedications.has(featSlug))) {
+        const dedicationLockResult = {
+          text: game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.ARCHETYPE_DEDICATION_LOCK'),
+          met: false,
+        };
+        feat.prereqResults = showPrereqs ? [...feat.prereqResults, dedicationLockResult] : feat.prereqResults;
+        feat.hasFailedPrerequisites = true;
+        feat.prerequisitesFailed = true;
+        feat.selectionBlocked = enforcePrereqs;
+      }
+
       const slug = feat.slug ?? null;
       const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
       const isArchetypeAdditionalFeat = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
         && featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
       feat.alreadyTaken = !!slug && ownedSlugs.has(slug) && feat.system.maxTakable === 1;
       feat.takenAtLevel = feat.alreadyTaken && slug ? (takenLevelMap.get(slug) ?? null) : null;
-
-      if (isArchetypeAdditionalFeat) {
-        feat.hasFailedPrerequisites = false;
-        feat.prerequisitesFailed = false;
-        feat.selectionBlocked = false;
-      }
     }
   }
 

@@ -1,4 +1,6 @@
-import { buildSpellContext, buildSpellSlotDisplay } from '../../../scripts/ui/level-planner/spells.js';
+import { buildSpellContext, buildSpellSlotDisplay, shouldExcludeOwnedSpellIdentityForPlanner } from '../../../scripts/ui/level-planner/spells.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { DRUID } from '../../../scripts/classes/druid.js';
 
 jest.mock('../../../scripts/plan/build-state.js', () => ({
   computeBuildState: jest.fn(() => ({ feats: new Set() })),
@@ -6,6 +8,19 @@ jest.mock('../../../scripts/plan/build-state.js', () => ({
 
 jest.mock('../../../scripts/plan/plan-model.js', () => ({
   getLevelData: jest.fn(() => ({ spells: [] })),
+  getAllPlannedFeats: jest.fn((plan, upToLevel = 20) => {
+    const feats = [];
+    const featKeys = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+    for (let level = 1; level <= upToLevel; level++) {
+      const levelData = plan?.levels?.[level];
+      if (!levelData) continue;
+      for (const key of featKeys) {
+        feats.push(...(levelData[key] ?? []));
+      }
+    }
+    return feats;
+  }),
+  getPlanApparitions: jest.fn(() => []),
 }));
 
 jest.mock('../../../scripts/data/subclass-spells.js', () => ({
@@ -15,6 +30,12 @@ jest.mock('../../../scripts/data/subclass-spells.js', () => ({
 
 const { resolveSubclassSpells } = jest.requireMock('../../../scripts/data/subclass-spells.js');
 const { getLevelData } = jest.requireMock('../../../scripts/plan/plan-model.js');
+
+beforeAll(() => {
+  if (!ClassRegistry.get('druid')) {
+    ClassRegistry.register(DRUID);
+  }
+});
 
 describe('level planner spell context', () => {
   test('wizard uses spellbook selections instead of spontaneous slot picks', async () => {
@@ -232,5 +253,113 @@ describe('level planner spell context', () => {
     const context = await buildSpellContext(planner, classDef, 3);
 
     expect(context.showCustomSpellRankReminder).toBe(true);
+  });
+
+  test('spellbook casters track cantrip expansion as two extra cantrip picks', async () => {
+    getLevelData.mockReturnValueOnce({
+      spells: [
+        { uuid: 'spell-rank-1', name: 'Magic Missile', rank: 1, baseRank: 1 },
+        { uuid: 'spell-rank-2', name: 'See Invisibility', rank: 2, baseRank: 2 },
+        { uuid: 'spell-cantrip', name: 'Shield', rank: 0, isCantrip: true },
+      ],
+    });
+
+    const planner = {
+      actor: { items: [] },
+      plan: {
+        classSlug: 'wizard',
+        levels: {
+          3: {
+            generalFeats: [{ uuid: 'feat-cantrip-expansion', name: 'Cantrip Expansion', slug: 'cantrip-expansion' }],
+          },
+        },
+      },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const classDef = {
+      slug: 'wizard',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'prepared',
+        slots: {
+          2: { cantrips: 5, 1: 3 },
+          3: { cantrips: 5, 1: 3, 2: 2 },
+        },
+      },
+    };
+
+    const context = await buildSpellContext(planner, classDef, 3);
+
+    expect(context.hasSpellbook).toBe(true);
+    expect(context.spellbookSelectionCount).toBe(2);
+    expect(context.spellbookCantripSelectionCount).toBe(2);
+    expect(context.spellbookTotalSelectionCount).toBe(4);
+    expect(context.plannedSpellbookSelectionCount).toBe(2);
+    expect(context.plannedSpellbookCantripCount).toBe(1);
+  });
+
+  test('prepared spellbook classes exclude already known spells by identity in planner picks', () => {
+    expect(shouldExcludeOwnedSpellIdentityForPlanner({
+      slug: 'wizard',
+      spellcasting: { type: 'prepared' },
+    })).toBe(true);
+
+    expect(shouldExcludeOwnedSpellIdentityForPlanner({
+      slug: 'witch',
+      spellcasting: { type: 'prepared' },
+    })).toBe(true);
+
+    expect(shouldExcludeOwnedSpellIdentityForPlanner({
+      slug: 'sorcerer',
+      spellcasting: { type: 'spontaneous' },
+    })).toBe(false);
+  });
+
+  test('spellbook planner builds a separate dedication spell section for multiclass spellcasting', async () => {
+    getLevelData.mockReturnValueOnce({
+      spells: [
+        { uuid: 'druid-cantrip', name: 'Electric Arc', rank: 0, isCantrip: true, entryType: 'archetype:druid' },
+      ],
+    });
+
+    const planner = {
+      actor: { items: [] },
+      plan: {
+        classSlug: 'wizard',
+        levels: {
+          2: {
+            archetypeFeats: [{ uuid: 'feat-druid', name: 'Druid Dedication', slug: 'druid-dedication', traits: ['archetype', 'dedication', 'druid', 'multiclass'] }],
+          },
+          4: {
+            archetypeFeats: [{ uuid: 'feat-basic-druid', name: 'Basic Druid Spellcasting', slug: 'basic-druid-spellcasting', traits: ['archetype', 'druid'] }],
+          },
+        },
+      },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const classDef = {
+      slug: 'wizard',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'prepared',
+        slots: {
+          4: { cantrips: 5, 1: 3, 2: 2 },
+        },
+      },
+    };
+
+    const context = await buildSpellContext(planner, classDef, 4);
+
+    expect(context.dedicationSpellSections).toEqual([
+      expect.objectContaining({
+        entryType: 'archetype:druid',
+        tradition: 'primal',
+        cantripSelectionCount: 0,
+        plannedCantripCount: 1,
+        rankRows: expect.arrayContaining([
+          expect.objectContaining({ rank: 1 }),
+        ]),
+      }),
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
+import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { slugify } from '../utils/pf2e-api.js';
@@ -51,6 +51,9 @@ export function computeBuildState(actor, plan, atLevel) {
     divineFont: computeDivineFontState(actor),
     spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
     archetypeDedications: computeArchetypeDedications(actor, plan, atLevel),
+    archetypeDedicationProgress: computeArchetypeDedicationProgress(actor, plan, atLevel),
+    incompleteArchetypeDedications: computeIncompleteArchetypeDedications(actor, plan, atLevel),
+    canTakeNewArchetypeDedication: canTakeNewArchetypeDedication(actor, plan, atLevel),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
     classFeatures: computeClassFeatures(classDef, atLevel),
@@ -95,8 +98,17 @@ function computeClassState(classDef, classSlug) {
 function computeAncestryTraits(actor, plan, atLevel) {
   const traits = new Set();
 
+  addAncestryTraitAliases(traits, actor?.system?.details?.ancestry?.trait ?? null);
+
   for (const slug of [actor?.ancestry?.slug ?? null, actor?.heritage?.slug ?? null]) {
     addAncestryTraitAliases(traits, slug);
+  }
+
+  const mixedAncestrySelection = actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG]
+    ?? actor?.heritage?.flags?.['pf2e-leveler']?.mixedAncestrySelection
+    ?? null;
+  if (actor?.heritage?.uuid === MIXED_ANCESTRY_UUID || actor?.heritage?.slug === 'mixed-ancestry') {
+    addAncestryTraitAliases(traits, mixedAncestrySelection);
   }
 
   for (const item of getOwnedItems(actor)) {
@@ -162,6 +174,10 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
     traditions.add(classTradition);
   }
 
+  for (const tradition of collectPlannedDedicationTraditions(actor, plan, atLevel)) {
+    traditions.add(tradition);
+  }
+
   for (const spell of spells) {
     const spellSlug = slugify(spell?.slug ?? spell?.name ?? '');
     if (spellSlug) spellNames.add(spellSlug);
@@ -204,6 +220,40 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
     focusPool: focusMax > 0,
     focusPointsMax: focusMax,
   };
+}
+
+function collectPlannedDedicationTraditions(actor, plan, atLevel) {
+  const traditions = new Set();
+  const feats = getAllPlannedFeats(plan, atLevel);
+  const actorFeatSlugs = new Set(
+    getOwnedItems(actor)
+      .filter((item) => item?.type === 'feat')
+      .map((item) => String(item?.slug ?? '').trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  for (const feat of feats) {
+    const slug = String(feat?.slug ?? '').trim().toLowerCase();
+    const name = String(feat?.name ?? '').trim().toLowerCase();
+    const traits = (feat?.traits ?? feat?.system?.traits?.value ?? []).map((trait) => String(trait).trim().toLowerCase());
+    const combined = `${slug} ${name} ${traits.join(' ')}`;
+    const isDedication = traits.includes('dedication') || combined.includes('dedication');
+    if (!isDedication) continue;
+
+    const classSlug = ClassRegistry.getAll()
+      .find((candidate) => candidate?.spellcasting && combined.includes(String(candidate.slug).toLowerCase()))
+      ?.slug ?? null;
+    if (!classSlug) continue;
+    if (actorFeatSlugs.has(slug)) continue;
+
+    const dedicationClass = ClassRegistry.get(classSlug);
+    const tradition = dedicationClass?.spellcasting?.tradition ?? null;
+    if (typeof tradition === 'string' && tradition.length > 0 && !['bloodline', 'patron'].includes(tradition)) {
+      traditions.add(tradition);
+    }
+  }
+
+  return traditions;
 }
 
 function computeAttributes(actor, plan, atLevel, { raw = false } = {}) {
@@ -637,6 +687,80 @@ function computeClassArchetypeTraits(actor, plan, atLevel) {
   return traits;
 }
 
+function computeArchetypeDedicationProgress(actor, plan, atLevel) {
+  const progress = new Map();
+  const selectedFeats = [
+    ...(actor?.items?.filter?.((i) => i.type === 'feat') ?? []),
+    ...getAllPlannedFeats(plan, atLevel),
+  ];
+  const dedications = selectedFeats.filter((feat) => isArchetypeDedication(feat));
+
+  for (const dedication of dedications) {
+    const dedicationSlug = getPrimaryFeatAlias(dedication);
+    if (!dedicationSlug || progress.has(dedicationSlug)) continue;
+
+    const matched = new Set();
+    const relatedTraits = getArchetypeAssociationTraits(dedication);
+    const relatedPhrases = new Set(getArchetypeAssociationPhrases(dedication));
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+
+      for (const feat of selectedFeats) {
+        const featSlug = getPrimaryFeatAlias(feat);
+        const featTraits = [
+          ...(Array.isArray(feat?.traits) ? feat.traits : []),
+          ...(feat?.system?.traits?.value ?? []),
+        ].map((trait) => String(trait).toLowerCase());
+        const isArchetypeFeat = featTraits.includes('archetype');
+        if (!featSlug || featSlug === dedicationSlug || matched.has(featSlug) || isArchetypeDedication(feat) || !isArchetypeFeat) continue;
+
+        const featArchetypeTraits = getArchetypeAssociationTraits(feat);
+        const prereqText = getArchetypePrerequisiteText(feat);
+        const matchesByTrait = featArchetypeTraits.size > 0 && [...featArchetypeTraits].some((trait) => relatedTraits.has(trait));
+        const matchesByPrereq = prereqText.length > 0 && [...relatedPhrases].some((phrase) => prereqText.includes(phrase));
+        if (!matchesByTrait && !matchesByPrereq) continue;
+
+        matched.add(featSlug);
+        for (const trait of featArchetypeTraits) relatedTraits.add(trait);
+        for (const phrase of getArchetypeAssociationPhrases(feat)) relatedPhrases.add(phrase);
+        changed = true;
+      }
+    }
+
+    if (dedications.length === 1 && matched.size < 2) {
+      for (const feat of selectedFeats) {
+        const featSlug = getPrimaryFeatAlias(feat);
+        if (!featSlug || featSlug === dedicationSlug || matched.has(featSlug) || isArchetypeDedication(feat)) continue;
+        const featTraits = [
+          ...(Array.isArray(feat?.traits) ? feat.traits : []),
+          ...(feat?.system?.traits?.value ?? []),
+        ].map((trait) => String(trait).toLowerCase());
+        if (!featTraits.includes('archetype')) continue;
+        matched.add(featSlug);
+      }
+    }
+
+    progress.set(dedicationSlug, matched.size);
+  }
+
+  return progress;
+}
+
+function computeIncompleteArchetypeDedications(actor, plan, atLevel) {
+  const progress = computeArchetypeDedicationProgress(actor, plan, atLevel);
+  return new Set(
+    [...progress.entries()]
+      .filter(([, count]) => count < 2)
+      .map(([slug]) => slug),
+  );
+}
+
+function canTakeNewArchetypeDedication(actor, plan, atLevel) {
+  return computeIncompleteArchetypeDedications(actor, plan, atLevel).size === 0;
+}
+
 function getFeatAliases(feat) {
   const aliases = new Set();
 
@@ -650,7 +774,23 @@ function getFeatAliases(feat) {
     if (baseName && baseName !== name) aliases.add(slugify(baseName));
   }
 
+  for (const selected of Object.values(feat?.choices ?? {})) {
+    addFeatChoiceAlias(aliases, selected);
+  }
+
+  for (const selected of Object.values(feat?.flags?.pf2e?.rulesSelections ?? {})) {
+    addFeatChoiceAlias(aliases, selected);
+  }
+
   return aliases;
+}
+
+function addFeatChoiceAlias(target, selected) {
+  if (typeof selected !== 'string' || selected.length === 0 || selected === '[object Object]') return;
+  if (selected.startsWith('Compendium.')) return;
+
+  const normalized = slugify(selected);
+  if (normalized) target.add(normalized);
 }
 
 function getPrimaryFeatAlias(feat) {
@@ -668,6 +808,51 @@ function isArchetypeDedication(feat) {
     ...(feat?.system?.traits?.value ?? []),
   ].map((trait) => String(trait).toLowerCase());
   return traits.includes('dedication') && traits.includes('archetype');
+}
+
+function getArchetypeAssociationTraits(feat) {
+  const genericTraits = new Set(['archetype', 'dedication', 'class', 'multiclass', 'general', 'skill', 'mythic']);
+  const traits = [
+    ...(Array.isArray(feat?.traits) ? feat.traits : []),
+    ...(feat?.system?.traits?.value ?? []),
+  ]
+    .map((trait) => String(trait).toLowerCase())
+    .filter((trait) => trait && !genericTraits.has(trait));
+
+  if (traits.length > 0) return new Set(traits);
+
+  const slug = String(feat?.slug ?? '').toLowerCase();
+  if (slug.endsWith('-dedication')) return new Set([slug.replace(/-dedication$/u, '')]);
+
+  return new Set();
+}
+
+function getArchetypeAssociationPhrases(feat) {
+  const phrases = new Set();
+  const name = String(feat?.name ?? '').trim().toLowerCase();
+  if (name) {
+    phrases.add(name);
+    phrases.add(name.replace(/\s+dedication$/u, '').trim());
+  }
+
+  const slug = String(feat?.slug ?? '').trim().toLowerCase();
+  if (slug) {
+    phrases.add(slug.replace(/-/g, ' '));
+    if (slug.endsWith('-dedication')) phrases.add(slug.replace(/-dedication$/u, '').replace(/-/g, ' '));
+  }
+
+  for (const trait of getArchetypeAssociationTraits(feat)) {
+    phrases.add(String(trait).toLowerCase().replace(/-/g, ' '));
+  }
+
+  return [...phrases].filter((phrase) => phrase.length > 0);
+}
+
+function getArchetypePrerequisiteText(feat) {
+  return (feat?.system?.prerequisites?.value ?? [])
+    .map((entry) => String(entry?.value ?? entry ?? '').trim().toLowerCase())
+    .filter(Boolean)
+    .join(' ; ');
 }
 
 function isClassArchetypeDedication(feat) {

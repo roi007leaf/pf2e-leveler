@@ -1,6 +1,7 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
-import { PROFICIENCY_RANKS } from '../../../scripts/constants.js';
+import { DRUID } from '../../../scripts/classes/druid.js';
+import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
@@ -13,6 +14,7 @@ import {
 beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
+  ClassRegistry.register(DRUID);
 });
 
 describe('computeBuildState', () => {
@@ -229,6 +231,22 @@ describe('computeBuildState', () => {
     expect(state.feats.has('efficient-alchemy')).toBe(true);
   });
 
+  test('collects planned feat choice aliases for prerequisite checks', () => {
+    plan.levels[2].classFeats = [{
+      uuid: 'feat-order-explorer',
+      slug: 'order-explorer',
+      name: 'Order Explorer',
+      choices: {
+        druidicOrder: 'wave-order',
+      },
+    }];
+
+    const state = computeBuildState(mockActor, plan, 6);
+
+    expect(state.feats.has('order-explorer')).toBe(true);
+    expect(state.feats.has('wave-order')).toBe(true);
+  });
+
   test('feats respect upToLevel', () => {
     setLevelFeat(plan, 1, 'classFeats', { uuid: 'x', name: 'X', slug: 'quick-bomber' });
     setLevelFeat(plan, 3, 'generalFeats', { uuid: 'y', name: 'Y', slug: 'toughness' });
@@ -270,6 +288,18 @@ describe('computeBuildState', () => {
 
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.spellcasting.hasSpellSlots).toBe(true);
+  });
+
+  test('includes planned spellcasting dedication traditions in spellcasting state', () => {
+    setLevelFeat(plan, 2, 'archetypeFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      name: 'Druid Dedication',
+      slug: 'druid-dedication',
+      traits: ['archetype', 'dedication', 'druid', 'multiclass'],
+    });
+
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.spellcasting.traditions.has('primal')).toBe(true);
   });
 
   test('detects healing divine font from owned spellcasting entry', () => {
@@ -380,6 +410,36 @@ describe('computeBuildState', () => {
     });
 
     const state = computeBuildState(mockActor, plan, 5);
+    expect(state.ancestryTraits.has('human')).toBe(true);
+    expect(state.ancestryTraits.has('kholo')).toBe(true);
+    expect(state.ancestryTraits.has('gnoll')).toBe(true);
+  });
+
+  test('includes the actor ancestry trait in build state ancestry traits', () => {
+    mockActor.ancestry.slug = 'awakened-animal';
+    mockActor.system.details.ancestry = { trait: 'animal' };
+
+    const state = computeBuildState(mockActor, plan, 5);
+
+    expect(state.ancestryTraits.has('awakened-animal')).toBe(true);
+    expect(state.ancestryTraits.has('animal')).toBe(true);
+  });
+
+  test('includes mixed ancestry secondary ancestry traits from the actor heritage selection', () => {
+    mockActor.heritage = {
+      uuid: MIXED_ANCESTRY_UUID,
+      slug: 'mixed-ancestry',
+      flags: {
+        pf2e: {
+          rulesSelections: {
+            [MIXED_ANCESTRY_CHOICE_FLAG]: 'kholo',
+          },
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 5);
+
     expect(state.ancestryTraits.has('human')).toBe(true);
     expect(state.ancestryTraits.has('kholo')).toBe(true);
     expect(state.ancestryTraits.has('gnoll')).toBe(true);
@@ -529,5 +589,162 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 4);
     expect(state.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
     expect(state.classArchetypeDedications.has('aldori-duelist-dedication')).toBe(false);
+  });
+
+  test('tracks incomplete dedication progress until two other archetype feats are taken', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+              name: 'Medic Dedication',
+              slug: 'medic-dedication',
+              traits: ['archetype', 'dedication', 'medic'],
+            },
+          ],
+        },
+        4: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+              name: 'Treat Condition',
+              slug: 'treat-condition',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+    expect(state.archetypeDedicationProgress.get('medic-dedication')).toBe(1);
+    expect(state.incompleteArchetypeDedications.has('medic-dedication')).toBe(true);
+    expect(state.canTakeNewArchetypeDedication).toBe(false);
+  });
+
+  test('completed dedication progress reopens taking another dedication', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+              name: 'Medic Dedication',
+              slug: 'medic-dedication',
+              traits: ['archetype', 'dedication', 'medic'],
+            },
+          ],
+        },
+        4: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+              name: 'Treat Condition',
+              slug: 'treat-condition',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+            },
+          ],
+        },
+        6: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.holistic-care',
+              name: 'Holistic Care',
+              slug: 'holistic-care',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'trained in Diplomacy, Treat Condition' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 6);
+    expect(state.archetypeDedicationProgress.get('medic-dedication')).toBe(2);
+    expect(state.incompleteArchetypeDedications.has('medic-dedication')).toBe(false);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+  });
+
+  test('does not count non-archetype feats toward dedication completion', () => {
+    const actor = {
+      ...mockActor,
+      items: [
+        {
+          type: 'feat',
+          uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+          name: 'Medic Dedication',
+          slug: 'medic-dedication',
+          system: { traits: { value: ['archetype', 'dedication', 'medic'] } },
+        },
+        {
+          type: 'feat',
+          uuid: 'Compendium.pf2e.feats-srd.Item.battle-medicine',
+          name: 'Battle Medicine',
+          slug: 'battle-medicine',
+          system: {
+            traits: { value: ['general', 'healing', 'skill'] },
+            prerequisites: { value: [{ value: 'trained in Medicine' }] },
+          },
+        },
+        {
+          type: 'feat',
+          uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+          name: 'Treat Condition',
+          slug: 'treat-condition',
+          system: {
+            traits: { value: ['archetype', 'skill'] },
+            prerequisites: { value: [{ value: 'Medic Dedication' }] },
+          },
+        },
+      ],
+    };
+
+    const state = computeBuildState(actor, createPlan('alchemist'), 6);
+    expect(state.archetypeDedicationProgress.get('medic-dedication')).toBe(1);
+    expect(state.canTakeNewArchetypeDedication).toBe(false);
+  });
+
+  test('single-dedication plans count selected archetype feats even without stored prerequisite metadata', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.some-dedication',
+              name: 'Some Dedication',
+              slug: 'some-dedication',
+              traits: ['archetype', 'dedication'],
+            },
+          ],
+        },
+        4: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.follow-up-1',
+              name: 'Follow-Up One',
+              slug: 'follow-up-one',
+              traits: ['archetype'],
+            },
+          ],
+        },
+        6: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.follow-up-2',
+              name: 'Follow-Up Two',
+              slug: 'follow-up-two',
+              traits: ['archetype'],
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 8);
+    expect(state.archetypeDedicationProgress.get('some-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
   });
 });

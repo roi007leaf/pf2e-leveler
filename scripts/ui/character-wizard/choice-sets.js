@@ -92,6 +92,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
     ...cs,
     isItemChoice: cs.options.some((opt) => !!extractChoiceUuid(opt) || !!opt?.img || !!opt?.description),
     isFeatChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'feat'),
+    isSpellChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'spell'),
     isWeaponChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
     options: hydrateChoiceSetOptions(cs, skillState, currentChoices),
     selectedOption: findMatchingChoiceOption(cs.options, currentChoices?.[cs.flag] ?? null),
@@ -126,6 +127,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
+    { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, skipDirectSection: true, choiceSource: wizard.data.subclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
@@ -553,10 +555,12 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
 async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourceItem) {
   if (!sourceItem) return [];
 
-  if (!hasSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return [];
+  const syntheticRules = [];
+
+  if (!hasSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return syntheticRules;
 
   const grantedSkills = await extractGrantedTrainedSkills(wizard, rules, currentChoices, sourceItem);
-  if (grantedSkills.length === 0) return [];
+  if (grantedSkills.length === 0) return syntheticRules;
 
   const skillContext = await buildSkillContext(wizard);
   const trainedSkills = new Set(
@@ -565,9 +569,11 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
       .map((entry) => entry.slug),
   );
   const overlaps = grantedSkills.filter((skill) => trainedSkills.has(skill));
-  if (overlaps.length === 0) return [];
+  if (overlaps.length === 0) return syntheticRules;
 
-  return overlaps.map((skill, index) => ({
+  return [
+    ...syntheticRules,
+    ...overlaps.map((skill, index) => ({
     key: 'ChoiceSet',
     flag: `levelerSkillFallback${index + 1}`,
     prompt: 'Select a skill.',
@@ -579,7 +585,28 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
       blockedSkills: grantedSkills.filter((entry) => entry !== skill),
       sourceName: sourceItem?.name ?? null,
     },
-  }));
+  }))];
+}
+
+export async function buildMixedAncestryChoiceOptions(wizard) {
+  const ancestries = await wizard._loadAncestries();
+  const primarySlug = String(wizard?.data?.ancestry?.slug ?? '').trim().toLowerCase();
+
+  return ancestries
+    .filter((entry) => entry?.type === 'ancestry')
+    .filter((entry) => String(entry?.slug ?? '').trim().toLowerCase() !== primarySlug)
+    .map((entry) => ({
+      value: entry.slug ?? entry.uuid,
+      name: entry.name,
+      label: entry.name,
+      uuid: entry.uuid,
+      img: entry.img ?? null,
+      slug: entry.slug ?? null,
+      traits: entry.traits ?? [],
+      rarity: entry.rarity ?? 'common',
+      type: 'ancestry',
+      description: entry.description ?? '',
+    }));
 }
 
 function hasSkillFallbackText(html) {
@@ -590,23 +617,51 @@ function hasSkillFallbackText(html) {
     .toLowerCase();
 
   if (!description) return false;
+  if (description.includes('skill of your choice') && description.includes('already trained')) return true;
 
   return [
     /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
-    /for each of these skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+    /for each of (?:these|those) skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+    /if you were already trained in both,?\s+you become trained in a skill of your choice\.?/,
   ].some((pattern) => pattern.test(description));
 }
 
-async function extractGrantedTrainedSkills(wizard, rules, currentChoices = {}, sourceItem = null) {
+export async function extractGrantedTrainedSkills(wizard, rules, currentChoices = {}, sourceItem = null) {
   const skills = new Set();
+  const scannedUuids = new Set();
 
-  for (const rule of (rules ?? [])) {
-    if (rule?.key !== 'ActiveEffectLike') continue;
-    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
-    if (!match) continue;
-    if (Number(rule?.value) < 1) continue;
-    if (!SKILLS.includes(match[1])) continue;
-    skills.add(match[1]);
+  const collectFromItem = async (item, itemRules = item?.system?.rules ?? []) => {
+    const itemUuid = item?.uuid ?? null;
+    if (itemUuid && scannedUuids.has(itemUuid)) return;
+    if (itemUuid) scannedUuids.add(itemUuid);
+
+    for (const rule of (itemRules ?? [])) {
+      if (rule?.key !== 'ActiveEffectLike') continue;
+      const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+      if (!match) continue;
+      if (Number(rule?.value) < 1) continue;
+      if (!SKILLS.includes(match[1])) continue;
+      skills.add(match[1]);
+    }
+
+    for (const selectedValue of Object.values(currentChoices ?? {})) {
+      if (typeof selectedValue !== 'string' || !selectedValue.startsWith('Compendium.')) continue;
+      const selectedItem = await resolveDocument(wizard, selectedValue);
+      if (selectedItem) await collectFromItem(selectedItem);
+    }
+
+    for (const rule of (itemRules ?? [])) {
+      if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+      const grantedUuid = resolveGrantRuleUuid(rule.uuid, currentChoices);
+      if (!grantedUuid) continue;
+      const grantedItem = await resolveDocument(wizard, grantedUuid);
+      if (grantedItem) await collectFromItem(grantedItem);
+    }
+  };
+
+  await collectFromItem(sourceItem, rules);
+  for (const skill of extractExplicitTrainedSkillsFromDescription(sourceItem?.system?.description?.value ?? '')) {
+    skills.add(skill);
   }
 
   const description = String(sourceItem?.system?.description?.value ?? '')
@@ -618,6 +673,44 @@ async function extractGrantedTrainedSkills(wizard, rules, currentChoices = {}, s
   if (/\byour deity'?s associated skill\b/.test(description)) {
     const deitySkill = await resolveAssociatedDeitySkill(wizard, rules, currentChoices);
     if (SKILLS.includes(deitySkill)) skills.add(deitySkill);
+  }
+
+  return [...skills];
+}
+
+function resolveGrantRuleUuid(uuid, choices) {
+  const raw = String(uuid ?? '').trim();
+  if (!raw) return null;
+  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+
+  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+    const value = choices?.[flag];
+    return typeof value === 'string' ? value : '';
+  });
+
+  return resolved.includes('{item|') ? null : resolved;
+}
+
+function extractExplicitTrainedSkillsFromDescription(html) {
+  const description = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!description) return [];
+
+  const matches = description.match(/\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+([^.!?]+)/gu) ?? [];
+  if (matches.length === 0) return [];
+
+  const skills = new Set();
+  for (const clause of matches) {
+    for (const skill of SKILLS) {
+      const raw = globalThis.CONFIG?.PF2E?.skills?.[skill];
+      const label = typeof raw === 'string' ? raw : (raw?.label ?? skill);
+      const localized = game.i18n?.has?.(label) ? game.i18n.localize(label) : label;
+      if (clause.includes(String(localized).toLowerCase())) skills.add(skill);
+    }
   }
 
   return [...skills];

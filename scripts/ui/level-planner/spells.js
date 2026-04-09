@@ -1,8 +1,11 @@
 import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
+import { ClassRegistry } from '../../classes/registry.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
+import { getAllPlannedFeats, getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
+import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { loadCompendiumCategory } from '../character-wizard/loaders.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../../data/subclass-spells.js';
+import { capitalize } from '../../utils/pf2e-api.js';
 
 function getCachedBuildState(planner, level) {
   planner._buildStateCache ??= new Map();
@@ -29,8 +32,9 @@ export async function buildSpellContext(planner, classDef, level) {
 
   const levelData = getLevelData(planner.plan, level) ?? {};
   const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
+  const primaryPlannedSpells = plannedSpells.filter((spell) => (spell.entryType ?? 'primary') === 'primary');
   const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
-  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells);
+  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, primaryPlannedSpells, grantedSpells);
   const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
   const highestRank = getHighestRank(currentSlots);
   const newRank = hasNewRank ? ordinalRank(highestRank) : null;
@@ -41,7 +45,18 @@ export async function buildSpellContext(planner, classDef, level) {
   const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
   const hasRankSpellSelections = isSpontaneous;
   const spellbookSelectionCount = hasSpellbook ? 2 : 0;
+  const spellbookCantripSelectionCount = hasSpellbook
+    ? getSpellbookBonusCantripSelectionCount(planner.plan, level)
+    : 0;
+  const spellbookTotalSelectionCount = spellbookSelectionCount + spellbookCantripSelectionCount;
+  const plannedSpellbookSelectionCount = hasSpellbook
+    ? primaryPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0)).length
+    : 0;
+  const plannedSpellbookCantripCount = hasSpellbook
+    ? primaryPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0).length
+    : 0;
   const showCustomSpellRankReminder = hasNewRank && !hasSpellbook;
+  const dedicationSpellSections = buildDedicationSpellSections(planner, level, plannedSpells);
 
   const focusSpellData = await getFocusSpellsForLevel(planner, level);
 
@@ -53,17 +68,209 @@ export async function buildSpellContext(planner, classDef, level) {
     hasRankSpellSelections,
     hasSpellbook,
     spellbookSelectionCount,
+    spellbookCantripSelectionCount,
+    spellbookTotalSelectionCount,
+    plannedSpellbookSelectionCount,
+    plannedSpellbookCantripCount,
     showCustomSpellRankReminder,
     spellSlots,
     hasNewRank,
     newRank,
-    plannedSpells: (isSpontaneous || hasSpellbook) ? plannedSpells : [],
+    plannedSpells: (isSpontaneous || hasSpellbook) ? primaryPlannedSpells : [],
+    dedicationSpellSections,
     highestRank,
     grantedSpells,
     showGrantedSpells: grantedSpells.length > 0,
     ...focusSpellData,
     ...apparitionContext,
   };
+}
+
+function buildDedicationSpellSections(planner, level, plannedSpells) {
+  const configs = collectDedicationSpellcastingConfigs(planner, level);
+  return configs.map((config) => {
+    const sectionSpells = plannedSpells.filter((spell) => spell.entryType === config.entryType);
+    const cantripSpells = sectionSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
+    const rankRows = config.slotRanks.map((rank) => {
+      const planned = sectionSpells.filter((spell) => Number(spell.displayRank ?? spell.rank ?? spell.baseRank ?? -1) === rank).length;
+      return {
+        rank,
+        label: ordinalRank(rank),
+        count: 1,
+        planned,
+        remaining: Math.max(0, 1 - planned),
+        isFull: planned >= 1,
+      };
+    });
+
+    return {
+      ...config,
+      plannedSpells: sectionSpells,
+      plannedCantripCount: cantripSpells.length,
+      remainingCantripSelections: Math.max(0, config.cantripSelectionCount - cantripSpells.length),
+      rankRows,
+    };
+  }).filter((section) =>
+    section.plannedSpells.length > 0
+    || section.cantripSelectionCount > 0
+    || section.rankRows.length > 0,
+  );
+}
+
+function collectDedicationSpellcastingConfigs(planner, level) {
+  const feats = collectPlannerSpellcastingFeats(planner, level);
+  if (feats.length === 0) return [];
+
+  const seen = new Set();
+  const configs = [];
+
+  for (const dedication of feats) {
+    const traits = (dedication.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    if (!traits.includes('dedication')) continue;
+
+    const classSlug = traits.find((trait) => {
+      const classDef = ClassRegistry.get(trait);
+      return !!classDef?.spellcasting;
+    });
+    if (!classSlug || seen.has(classSlug)) continue;
+
+    const classDef = ClassRegistry.get(classSlug);
+    if (!classDef?.spellcasting) continue;
+
+    const relatedFeats = feats.filter((feat) =>
+      (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes(classSlug),
+    );
+    const dedicationLevel = getFirstFeatSelectionLevel(relatedFeats.filter((feat) =>
+      (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('dedication'),
+    ));
+
+    configs.push({
+      entryType: `archetype:${classSlug}`,
+      name: `${capitalize(classSlug)} Dedication Spells`,
+      tradition: resolveDedicationTradition(planner, classDef, classSlug),
+      prepared: classDef.spellcasting.type,
+      cantripSelectionCount: dedicationLevel === level ? 2 : 0,
+      slotRanks: getNewDedicationSpellcastingSlotRanks(relatedFeats, level),
+    });
+    seen.add(classSlug);
+  }
+
+  return configs;
+}
+
+function collectPlannerSpellcastingFeats(planner, level) {
+  const actorFeats = (planner.actor.items?.filter?.((item) => item?.type === 'feat') ?? []).map(normalizeSpellcastingFeatRecord);
+  const actorSlugs = new Set(actorFeats.map((feat) => feat.slug).filter(Boolean));
+  const plannedFeats = getAllPlannedFeats(planner.plan, level)
+    .map((feat) => ({ ...feat, __plannedGroup: inferFeatPlanGroup(feat) }))
+    .map(normalizeSpellcastingFeatRecord)
+    .filter((feat) => feat.slug && !actorSlugs.has(feat.slug));
+
+  return [...actorFeats, ...plannedFeats];
+}
+
+function inferFeatPlanGroup(feat) {
+  const traits = (feat?.traits ?? feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+  if (traits.includes('archetype')) return 'archetypeFeats';
+  return null;
+}
+
+function normalizeSpellcastingFeatRecord(feat) {
+  const traits = new Set((feat?.system?.traits?.value ?? feat?.traits ?? []).map((trait) => String(trait).toLowerCase()));
+  const slug = typeof feat?.slug === 'string' ? feat.slug : '';
+  const name = typeof feat?.name === 'string' ? feat.name : '';
+  const nameAndSlug = `${name} ${slug}`.toLowerCase();
+
+  if (feat?.__plannedGroup === 'archetypeFeats') traits.add('archetype');
+  if (nameAndSlug.includes('dedication')) traits.add('dedication');
+
+  for (const classDef of ClassRegistry.getAll()) {
+    if (!classDef?.slug || !classDef?.spellcasting) continue;
+    if (nameAndSlug.includes(classDef.slug)) traits.add(classDef.slug);
+  }
+
+  return {
+    ...feat,
+    name,
+    slug,
+    system: {
+      ...(feat?.system ?? {}),
+      traits: {
+        ...(feat?.system?.traits ?? {}),
+        value: [...traits],
+      },
+    },
+  };
+}
+
+function getDedicationSpellcastingSlotRanks(feats, level) {
+  const namesAndSlugs = feats.map((feat) => `${String(feat?.name ?? '').toLowerCase()} ${String(feat?.slug ?? '').toLowerCase()}`);
+  const hasBasic = namesAndSlugs.some((value) => value.includes('basic') && value.includes('spellcasting'));
+  const hasExpert = namesAndSlugs.some((value) => value.includes('expert') && value.includes('spellcasting'));
+  const hasMaster = namesAndSlugs.some((value) => value.includes('master') && value.includes('spellcasting'));
+
+  const ranks = [];
+  if (hasBasic) {
+    if (level >= 4) ranks.push(1);
+    if (level >= 6) ranks.push(2);
+    if (level >= 8) ranks.push(3);
+  }
+  if (hasExpert) {
+    if (level >= 12) ranks.push(4);
+    if (level >= 14) ranks.push(5);
+    if (level >= 16) ranks.push(6);
+  }
+  if (hasMaster) {
+    if (level >= 18) ranks.push(7);
+    if (level >= 20) ranks.push(8);
+  }
+
+  return [...new Set(ranks)].sort((a, b) => a - b);
+}
+
+function getNewDedicationSpellcastingSlotRanks(feats, level) {
+  const current = new Set(getDedicationSpellcastingSlotRanks(feats, level));
+  const previous = new Set(getDedicationSpellcastingSlotRanks(feats, Math.max(0, level - 1)));
+  return [...current].filter((rank) => !previous.has(rank)).sort((a, b) => a - b);
+}
+
+function getFirstFeatSelectionLevel(feats) {
+  const levels = feats
+    .map((feat) => getSpellcastingFeatLevel(feat))
+    .filter((level) => Number.isFinite(level));
+  return levels.length > 0 ? Math.min(...levels) : null;
+}
+
+function getSpellcastingFeatLevel(feat) {
+  const directLevel = Number(feat?.level);
+  if (Number.isFinite(directLevel) && directLevel > 0) return directLevel;
+
+  const systemLevel = Number(feat?.system?.level?.taken ?? feat?.system?.level?.value);
+  if (Number.isFinite(systemLevel) && systemLevel > 0) return systemLevel;
+
+  return null;
+}
+
+export function getDedicationSelectionLimitsForPlanner(planner, level, entryType) {
+  const config = collectDedicationSpellcastingConfigs(planner, level)
+    .find((entry) => entry.entryType === entryType);
+
+  return {
+    cantripSelectionCount: config?.cantripSelectionCount ?? 0,
+    slotRanks: config?.slotRanks ?? [],
+  };
+}
+
+function resolveDedicationTradition(planner, classDef, _classSlug) {
+  const tradition = classDef?.spellcasting?.tradition ?? 'arcane';
+  if (!['bloodline', 'patron'].includes(tradition)) return tradition;
+  const entry = planner.actor.items?.find?.((item) => item.type === 'spellcastingEntry');
+  return entry?.system?.tradition?.value ?? 'arcane';
+}
+
+export function shouldExcludeOwnedSpellIdentityForPlanner(classDef) {
+  return SPELLBOOK_CLASSES.includes(classDef?.slug)
+    && classDef?.spellcasting?.type !== 'spontaneous';
 }
 
 function normalizePlannedSpellsForDisplay(plannedSpells) {

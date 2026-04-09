@@ -1,7 +1,7 @@
-import { MODULE_ID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
+import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { ClassRegistry } from '../../classes/registry.js';
-import { createCreationData, setAncestry, setHeritage, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setSkillFeat, setFeatChoice, addEquipment, setPermanentItem } from '../../creation/creation-model.js';
+import { createCreationData, setAncestry, setHeritage, setMixedAncestry, setBackground, setClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setSkillFeat, setFeatChoice, addEquipment, setPermanentItem } from '../../creation/creation-model.js';
 import { getCreationData, saveCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
@@ -9,6 +9,7 @@ import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
+import { createMixedAncestryHeritage, getMixedAncestrySelectedValue, isMixedAncestryHeritageUuid } from '../../heritages/mixed-ancestry.js';
 import {
   buildFeatChoicesContext,
   buildSubclassChoicesContext,
@@ -22,6 +23,7 @@ import {
   hydrateChoiceSets,
   parseChoiceSets,
   refreshGrantedFeatChoiceSections,
+  buildMixedAncestryChoiceOptions,
 } from './choice-sets.js';
 import {
   buildApplyOverlayContext,
@@ -80,7 +82,7 @@ import { annotateGuidance, annotateGuidanceBySlug, sortByGuidancePriority } from
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
 
-const STEPS = ['ancestry', 'heritage', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'skills', 'feats', 'featChoices', 'languages', 'spells', 'equipment', 'summary'];
+const STEPS = ['ancestry', 'heritage', 'mixedAncestry', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'skills', 'feats', 'featChoices', 'languages', 'spells', 'equipment', 'summary'];
 
 function equipmentTotalCp(equipment) {
   let cp = 0;
@@ -166,6 +168,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (s === 'subclass') return this._hasSubclass();
       if (s === 'subclassChoices') return this._hasSubclassChoices();
       if (s === 'featChoices') return this._hasFeatChoices();
+      if (s === 'mixedAncestry') return this._hasMixedAncestry();
       if (s === 'languages') return !!this.data.ancestry;
       if (s === 'spells') return this._needsSpellSelection();
       // Handler-managed steps (deity, sanctification, etc.)
@@ -178,6 +181,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _hasSubclass() {
     return !!SUBCLASS_TAGS[this.data.class?.slug];
+  }
+
+  _hasMixedAncestry() {
+    return isMixedAncestryHeritageUuid(this.data.heritage?.uuid) || this.data.heritage?.slug === 'mixed-ancestry';
   }
 
   _hasSubclassChoices() {
@@ -200,6 +207,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const extraSteps = this.classHandler.getExtraSteps();
     const extraLabels = {
       featChoices: localize('CREATION.FEAT_CHOICES'),
+      mixedAncestry: localize('CREATION.STEPS.MIXED_ANCESTRY'),
       ...Object.fromEntries(extraSteps.filter((s) => s.label).map((s) => [s.id, s.label])),
     };
     const steps = this.visibleSteps.map((id) => ({
@@ -295,6 +303,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._bootstrapPromise = Promise.resolve().then(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await this._recoverCreationDataFromActor();
+      await this._normalizeLegacyMixedAncestrySelection();
       this._isBooting = false;
       await this.render({ force: true, parts: ['wizard'] });
       setTimeout(() => this._preloadCompendiums(), 0);
@@ -324,10 +333,41 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _getCachedDocument(uuid) {
     if (!uuid) return null;
+    if (isMixedAncestryHeritageUuid(uuid)) {
+      const mixedAncestry = createMixedAncestryHeritage(this.data?.ancestry ?? null);
+      this._documentCache.set(uuid, mixedAncestry);
+      return mixedAncestry;
+    }
     if (this._documentCache.has(uuid)) return this._documentCache.get(uuid);
     const item = await fromUuid(uuid).catch(() => null);
     this._documentCache.set(uuid, item);
     return item;
+  }
+
+  async _resolveMixedAncestryRef(value) {
+    const selectedValue = getMixedAncestrySelectedValue(value);
+    if (!selectedValue) return null;
+
+    if (this.data?.mixedAncestry?.uuid === selectedValue || this.data?.mixedAncestry?.slug === selectedValue) {
+      return this.data.mixedAncestry;
+    }
+
+    if (selectedValue.startsWith('Compendium.')) {
+      const item = await this._getCachedDocument(selectedValue);
+      if (item) return { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null };
+    }
+
+    const match = (await this._loadAncestries()).find((entry) =>
+      String(entry?.slug ?? '').trim().toLowerCase() === String(selectedValue).trim().toLowerCase());
+    return match ? { uuid: match.uuid, name: match.name, img: match.img, slug: match.slug ?? null } : null;
+  }
+
+  async _normalizeLegacyMixedAncestrySelection() {
+    if (this.data?.mixedAncestry || !this._hasMixedAncestry()) return;
+    const legacyValue = getMixedAncestrySelectedValue(this.data?.grantedFeatChoices?.[MIXED_ANCESTRY_UUID]);
+    if (!legacyValue) return;
+    const mixedAncestryRef = await this._resolveMixedAncestryRef(legacyValue);
+    if (mixedAncestryRef) setMixedAncestry(this.data, mixedAncestryRef);
   }
 
   async _recoverCreationDataFromActor() {
@@ -342,6 +382,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (ancestry) setAncestry(recoveredData, ancestry);
     if (heritage) setHeritage(recoveredData, heritage);
+    if (heritage?.uuid === MIXED_ANCESTRY_UUID) {
+      const selectedMixedAncestry = this.actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG]
+        ?? this.actor?.heritage?.flags?.[MODULE_ID]?.mixedAncestrySelection
+        ?? null;
+      const mixedAncestryRef = await this._resolveMixedAncestryRef(selectedMixedAncestry);
+      if (mixedAncestryRef) {
+        setMixedAncestry(recoveredData, mixedAncestryRef);
+      }
+    }
     if (background) setBackground(recoveredData, background);
     if (classItem) setClass(recoveredData, classItem);
     if (deity) {
@@ -468,6 +517,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         break;
       case 'heritage':
         setHeritage(this.data, item);
+        break;
+      case 'mixedAncestry':
+        setMixedAncestry(this.data, item);
         break;
       case 'background':
         setBackground(this.data, item);
@@ -672,10 +724,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const ancestrySlug = this.data.ancestry?.slug ?? null;
     const heritageSlug = this.data.heritage?.slug ?? null;
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
+    const mixedAncestryTraits = await getMixedAncestryFeatTraits(this);
     const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
     const ancestryTraits = [...new Set([
       ...collectAncestryFeatTraits(ancestrySlug, heritageSlug),
       ...adoptedAncestryTraits,
+      ...mixedAncestryTraits,
       ...heritageGrantedTraits,
     ])];
 
@@ -792,6 +846,53 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
         this._saveAndRender();
       });
+      picker.render(true);
+    });
+  }
+
+  async _openSpellChoicePicker(slot, flag) {
+    const choiceContainer = slot === 'ancestry' ? this.data.ancestryFeat
+      : slot === 'ancestryParagon' ? this.data.ancestryParagonFeat
+        : slot === 'class' ? this.data.classFeat
+          : slot === 'skill' ? this.data.skillFeat
+            : (this.data.grantedFeatSections ?? []).find((section) => section.slot === slot);
+    if (!choiceContainer) return;
+
+    const currentChoices = slot === 'ancestry' ? (this.data.ancestryFeat?.choices ?? {})
+      : slot === 'ancestryParagon' ? (this.data.ancestryParagonFeat?.choices ?? {})
+        : slot === 'class' ? (this.data.classFeat?.choices ?? {})
+          : slot === 'skill' ? (this.data.skillFeat?.choices ?? {})
+            : (this.data.grantedFeatChoices?.[slot] ?? {});
+    const choiceSets = await this._hydrateChoiceSets(choiceContainer.choiceSets ?? [], currentChoices);
+    const choiceSet = choiceSets.find((entry) => entry.flag === flag);
+    if (!choiceSet?.isSpellChoice) return;
+
+    const allowedUuids = (choiceSet.options ?? [])
+      .map((option) => option?.uuid)
+      .filter((uuid) => typeof uuid === 'string' && uuid.startsWith('Compendium.'));
+    if (allowedUuids.length === 0) return;
+
+    const title = `${choiceContainer.featName ?? choiceContainer.name ?? 'Spell Choice'} | ${choiceSet.prompt}`;
+
+    import('../spell-picker.js').then(({ SpellPicker }) => {
+      const picker = new SpellPicker(
+        this.actor,
+        'any',
+        -1,
+        async (spell) => {
+          const selectedOption = findMatchingChoiceOption(choiceSet.options, spell.uuid ?? spell.sourceId ?? spell.slug ?? spell.name);
+          const selectedValue = extractChoiceValue(selectedOption) || spell.uuid || spell.sourceId || spell.slug || spell.name;
+          setFeatChoice(this.data, slot, flag, selectedValue);
+          await this._saveAndRender();
+        },
+        {
+          allowedUuids,
+          title,
+          exactRank: false,
+          multiSelect: false,
+          selectedSpells: choiceSet.selectedOption ? [choiceSet.selectedOption] : [],
+        },
+      );
       picker.render(true);
     });
   }
@@ -1205,6 +1306,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     switch (stepId) {
       case 'ancestry': return !!this.data.ancestry;
       case 'heritage': return !!this.data.heritage;
+      case 'mixedAncestry': return !this._hasMixedAncestry() || !!this.data.mixedAncestry;
       case 'background': return !!this.data.background;
       case 'class': return !!this.data.class;
       case 'subclass': return !this._hasSubclass() || !!this.data.subclass;
@@ -1268,6 +1370,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         items: (await this._loadHeritages())
           .filter((i) => i.type === 'heritage')
           .filter((i) => i.uuid !== this.data.heritage?.uuid),
+      };
+      case 'mixedAncestry': return {
+        items: (await buildMixedAncestryChoiceOptions(this))
+          .filter((i) => i.type === 'ancestry')
+          .filter((i) => i.uuid !== this.data.mixedAncestry?.uuid),
       };
       case 'background': return {
         items: (await this._loadBackgrounds())
@@ -1987,6 +2094,21 @@ async function getAdoptedAncestryFeatTraits(wizard) {
   return [...traits];
 }
 
+async function getMixedAncestryFeatTraits(wizard) {
+  const traits = new Set();
+  if (wizard.data.heritage?.uuid !== MIXED_ANCESTRY_UUID && wizard.data.heritage?.slug !== 'mixed-ancestry') return [];
+
+  const selectedValue = getMixedAncestrySelectedValue(wizard.data.mixedAncestry)
+    ?? getMixedAncestrySelectedValue(wizard.data.grantedFeatChoices?.[MIXED_ANCESTRY_UUID]);
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0) return [];
+  const selectedSlug = wizard.data.mixedAncestry?.slug
+    ?? await resolveAncestrySlugFromChoice(wizard, selectedValue);
+
+  if (!selectedSlug) return [];
+  for (const trait of collectAncestryFeatTraits(selectedSlug, null)) traits.add(trait);
+  return [...traits];
+}
+
 async function resolveAncestrySlugFromChoice(wizard, value) {
   if (typeof value !== 'string' || value.length === 0) return null;
   if (!value.startsWith('Compendium.')) return value.toLowerCase();
@@ -2055,7 +2177,10 @@ const SOURCE_FILTERABLE_KEYS = new Set([
 
 export function buildCompendiumSourceOptions(stepId, stepContext, storedSelection = []) {
   const configuredSources = getConfiguredStepCompendiumSources(stepId);
-  const sources = configuredSources.length > 0 ? configuredSources : collectCompendiumSources(stepContext);
+  const discoveredSources = collectCompendiumSources(stepContext);
+  const sources = configuredSources.length > 0
+    ? mergeCompendiumSources(configuredSources, discoveredSources)
+    : discoveredSources;
   if (sources.length === 0) return [];
 
   const allKeys = new Set(sources.map((source) => source.key));
@@ -2066,6 +2191,17 @@ export function buildCompendiumSourceOptions(stepId, stepContext, storedSelectio
     ...source,
     selected: selectedKeys.has(source.key),
   }));
+}
+
+function mergeCompendiumSources(...groups) {
+  const merged = new Map();
+  for (const group of groups) {
+    for (const source of (group ?? [])) {
+      if (!source?.key) continue;
+      if (!merged.has(source.key)) merged.set(source.key, source);
+    }
+  }
+  return [...merged.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function getConfiguredStepCompendiumSources(stepId) {
@@ -2153,6 +2289,7 @@ function isCompendiumSourcedRecord(value) {
 const STEP_SOURCE_CATEGORIES = {
   ancestry: ['ancestries'],
   heritage: ['heritages'],
+  mixedAncestry: ['ancestries'],
   background: ['backgrounds'],
   class: ['classes'],
   subclass: ['classFeatures'],
@@ -2178,11 +2315,11 @@ function buildBrowserStepContext(stepId, data, stepContext) {
     ...item,
     trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
     boostsText: Array.isArray(item?.boosts) ? item.boosts.join(',') : '',
-  })), (a, b) => a.name.localeCompare(b.name));
+  })), (a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? '')));
   const context = {
     stepId,
-    title: localize(config.titleKey),
-    resultsLabel: localize(config.resultsKey),
+    title: config.title ? config.title : localize(config.titleKey),
+    resultsLabel: config.resultsLabel ? config.resultsLabel : localize(config.resultsKey),
     items,
     selected: config.selectedKey ? data[config.selectedKey] ?? null : null,
     clearAction: config.clearAction,
@@ -2231,6 +2368,14 @@ const BROWSER_STEP_CONFIG = {
     resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.HERITAGES',
     selectedKey: 'heritage',
     clearAction: 'clearHeritage',
+    showRarityFilters: true,
+    showTraits: true,
+  },
+  mixedAncestry: {
+    titleKey: 'CREATION.STEPS.MIXED_ANCESTRY',
+    resultsKey: 'SETTINGS.COMPENDIUM_CATEGORIES.ANCESTRIES',
+    selectedKey: 'mixedAncestry',
+    clearAction: 'clearMixedAncestry',
     showRarityFilters: true,
     showTraits: true,
   },

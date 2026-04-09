@@ -3,8 +3,10 @@ import { getChoicesForLevel } from '../../classes/progression.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
-import { parseChoiceSets } from '../character-wizard/choice-sets.js';
+import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
+import { extractFeatSkillRules } from './index.js';
+import { debug } from '../../utils/logger.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -298,8 +300,10 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   if (!feat?.uuid) return [];
 
   const source = await fromUuid(feat.uuid).catch(() => null);
-  const rules = source?.system?.rules ?? [];
-  if (!Array.isArray(rules) || rules.length === 0) return [];
+  if (source) {
+    await backfillPlannerFeatSkillRules(feat, source);
+  }
+  const rules = Array.isArray(source?.system?.rules) ? source.system.rules : [];
 
   if (sourceHasDeityAssociatedSkill(source)) {
     const deitySkill = await resolvePlannerDeitySkill(planner, feat?.choices?.deity ?? null);
@@ -315,7 +319,21 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
     ? await buildPlannerDedicationChoiceSetFallbacks(planner, feat, source)
     : [];
 
-  return [...choiceSets, ...fallbackSets, ...dedicationFallbackSets]
+  const combined = dedupePlannerChoiceSets([...choiceSets, ...dedicationFallbackSets, ...fallbackSets]);
+  if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
+    debug('Planner druid dedication choice sets built', {
+      level: planner.selectedLevel,
+      choices: feat?.choices ?? {},
+      skillRules: feat?.skillRules ?? [],
+      dynamicSkillRules: feat?.dynamicSkillRules ?? [],
+      parsedChoiceSetFlags: (choiceSets ?? []).map((entry) => entry.flag),
+      fallbackChoiceSetFlags: (fallbackSets ?? []).map((entry) => entry.flag),
+      dedicationFallbackChoiceSetFlags: (dedicationFallbackSets ?? []).map((entry) => entry.flag),
+      returnedChoiceSetFlags: combined.map((entry) => entry.flag),
+    });
+  }
+
+  return combined
     .map((entry) => ({
       ...entry,
       options: (entry.options ?? []).map((option) => ({
@@ -325,6 +343,15 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
       choiceType: entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
     }))
     .filter((entry) => entry.options.length > 0);
+}
+
+async function backfillPlannerFeatSkillRules(feat, source) {
+  if (!feat || !source) return;
+  if (Array.isArray(feat.skillRules) && feat.skillRules.length > 0) return;
+
+  const resolvedRules = await extractFeatSkillRules(source).catch(() => []);
+  if (!Array.isArray(resolvedRules) || resolvedRules.length === 0) return;
+  feat.skillRules = resolvedRules;
 }
 
 export async function buildFeatGrantPreview(planner, feat) {
@@ -344,6 +371,7 @@ export async function buildFeatGrantPreview(planner, feat) {
     grantedItems,
     grantChoiceSets,
     seenGranted,
+    includeChoiceSets: false,
   });
 
   return {
@@ -360,19 +388,29 @@ async function collectGrantPreviewEntries({
   grantedItems,
   grantChoiceSets,
   seenGranted,
+  includeChoiceSets = true,
 }) {
   if (!item) return;
 
-  const choiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], storedChoices, item);
-  for (const choiceSet of choiceSets) {
-    const selectedValue = storedChoices?.[choiceSet.flag];
-    if (typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]') continue;
-    if (grantChoiceSets.some((entry) => entry.flag === choiceSet.flag)) continue;
-    grantChoiceSets.push({
-      ...choiceSet,
-      choiceType: choiceSet.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
-      sourceName: item.name,
-    });
+  if (includeChoiceSets) {
+    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], storedChoices, item);
+    const fallbackChoiceSets = hasSkillFallbackText(item?.system?.description?.value ?? '')
+      ? await buildPlannerGrantSkillFallbackChoiceSets(planner, item, storedChoices)
+      : [];
+    const dedicationChoiceSets = parsedChoiceSets.length === 0
+      ? await buildPlannerGrantDedicationChoiceSetFallbacks(planner, item, storedChoices)
+      : [];
+    const choiceSets = dedupePlannerChoiceSets([...parsedChoiceSets, ...fallbackChoiceSets, ...dedicationChoiceSets]);
+    for (const choiceSet of choiceSets) {
+      const selectedValue = storedChoices?.[choiceSet.flag];
+      if (typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]') continue;
+      if (grantChoiceSets.some((entry) => getChoiceSetSignature(entry) === getChoiceSetSignature(choiceSet))) continue;
+      grantChoiceSets.push({
+        ...choiceSet,
+        choiceType: choiceSet.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
+        sourceName: item.name,
+      });
+    }
   }
 
   for (const rule of item.system?.rules ?? []) {
@@ -405,6 +443,7 @@ async function collectGrantPreviewEntries({
       grantedItems,
       grantChoiceSets,
       seenGranted,
+      includeChoiceSets: true,
     });
   }
 }
@@ -430,6 +469,96 @@ function createPlannerChoiceWizard(planner) {
     },
   };
   return wizard;
+}
+
+function dedupePlannerChoiceSets(choiceSets) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const entry of choiceSets ?? []) {
+    const signature = getChoiceSetSignature(entry);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    deduped.push(entry);
+  }
+
+  return deduped;
+}
+
+function getChoiceSetSignature(entry) {
+  const flag = String(entry?.flag ?? '').trim().toLowerCase();
+  const prompt = String(entry?.prompt ?? '').trim().toLowerCase();
+  const options = (entry?.options ?? [])
+    .map((option) => String(option?.uuid ?? option?.value ?? option?.label ?? '').trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join('|');
+  return `${flag}::${prompt}::${options}`;
+}
+
+async function buildPlannerGrantSkillFallbackChoiceSets(planner, item, storedChoices) {
+  const wizard = createPlannerChoiceWizard(planner);
+  const rules = Array.isArray(item?.system?.rules) ? item.system.rules : [];
+  const skillContext = await buildPlannerChoiceSetSkillContext(planner);
+  const trainedSkills = new Set(
+    (skillContext ?? [])
+      .filter((entry) => entry?.selected || entry?.autoTrained)
+      .map((entry) => entry.slug),
+  );
+  const grantedSkills = await extractGrantedTrainedSkills(wizard, rules, storedChoices, item);
+  const overlaps = grantedSkills.filter((skill) => trainedSkills.has(skill));
+  if (overlaps.length === 0) return [];
+
+  return overlaps.map((skill, index) => ({
+    flag: `levelerSkillFallback${index + 1}`,
+    prompt: 'Select a skill.',
+    options: skillContext
+      .filter((entry) => entry.slug !== skill)
+      .filter((entry) => !grantedSkills.filter((value) => value !== skill).includes(entry.slug))
+      .map((entry) => ({
+        value: entry.slug,
+        label: entry.label,
+      })),
+    syntheticType: 'skill-training-fallback',
+    grantsSkillTraining: true,
+    blockedSkills: grantedSkills.filter((value) => value !== skill),
+    sourceName: item?.name ?? null,
+  })).filter((entry) => entry.options.length > 0);
+}
+
+async function buildPlannerGrantDedicationChoiceSetFallbacks(planner, item, storedChoices) {
+  const feat = {
+    uuid: item?.uuid,
+    slug: item?.slug ?? null,
+    name: item?.name ?? null,
+    traits: item?.system?.traits?.value ?? [],
+    choices: storedChoices ?? {},
+  };
+  return buildPlannerDedicationChoiceSetFallbacks(planner, feat, item);
+}
+
+async function buildPlannerChoiceSetSkillContext(planner) {
+  const actorSkills = planner.actor?.system?.skills ?? {};
+  const selectedSkills = new Set();
+  const autoTrainedSkills = new Set();
+
+  for (const [slug, entry] of Object.entries(actorSkills)) {
+    const rank = Number(entry?.rank ?? entry?.value ?? 0);
+    if (rank >= 1) autoTrainedSkills.add(slug);
+  }
+
+  for (const level of Object.keys(planner.plan?.levels ?? {})) {
+    const numericLevel = Number(level);
+    if (!Number.isFinite(numericLevel) || numericLevel > Number(planner.selectedLevel ?? 0)) continue;
+    for (const skill of planner.plan?.levels?.[level]?.bonusSkills ?? []) selectedSkills.add(skill);
+  }
+
+  return SKILLS.map((slug) => ({
+    slug,
+    label: localizeSkillSlug(slug),
+    selected: selectedSkills.has(slug),
+    autoTrained: autoTrainedSkills.has(slug),
+  }));
 }
 
 function extractGrantPreselectedChoices(rule) {
@@ -472,6 +601,15 @@ async function buildPlannerSkillFallbackChoiceSets(planner, feat, source) {
 
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   const overlaps = grantedSkills.filter((skill) => (buildState.skills?.[skill] ?? 0) >= 1);
+  if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
+    debug('Planner druid dedication fallback-skill evaluation', {
+      level: planner.selectedLevel,
+      choices: feat?.choices ?? {},
+      grantedSkills,
+      priorSkills: buildState.skills ?? {},
+      overlaps,
+    });
+  }
   if (overlaps.length === 0) return [];
 
   return overlaps.map((skill, index) => {
@@ -535,12 +673,85 @@ async function getGrantedPlannerSkillSlugs(planner, feat, source) {
       .map((rule) => rule?.skill)
       .filter((skill) => SKILLS.includes(skill)),
   );
+  const scannedUuids = new Set();
+
+  const collectFromItem = async (item) => {
+    const itemUuid = item?.uuid ?? null;
+    if (itemUuid && scannedUuids.has(itemUuid)) return;
+    if (itemUuid) scannedUuids.add(itemUuid);
+
+    for (const rule of item?.system?.rules ?? []) {
+      if (rule?.key !== 'ActiveEffectLike') continue;
+      const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+      if (!match) continue;
+      if (Number(rule?.value) < 1) continue;
+      if (!SKILLS.includes(match[1])) continue;
+      skills.add(match[1]);
+    }
+
+    for (const skill of extractExplicitTrainedSkillsFromDescription(item?.system?.description?.value ?? '')) {
+      skills.add(skill);
+    }
+
+    for (const selectedValue of Object.values(feat?.choices ?? {})) {
+      if (typeof selectedValue !== 'string' || !selectedValue.startsWith('Compendium.')) continue;
+      const selectedItem = await fromUuid(selectedValue).catch(() => null);
+      if (selectedItem) await collectFromItem(selectedItem);
+    }
+
+    for (const rule of item?.system?.rules ?? []) {
+      if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+      const grantedUuid = resolveGrantRuleUuid(rule.uuid, feat?.choices ?? {});
+      if (!grantedUuid) continue;
+      const grantedItem = await fromUuid(grantedUuid).catch(() => null);
+      if (grantedItem) await collectFromItem(grantedItem);
+    }
+  };
+
+  await collectFromItem(source);
 
   if (sourceHasDeityAssociatedSkill(source)) {
     const deityUuid = feat?.choices?.deity ?? null;
     const deitySkill = await resolvePlannerDeitySkill(planner, deityUuid);
     syncFeatDynamicSkillRules(feat, true, deitySkill);
     if (SKILLS.includes(deitySkill)) skills.add(deitySkill);
+  }
+
+  const result = [...skills];
+  if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
+    debug('Planner druid dedication granted skill slugs', {
+      level: planner.selectedLevel,
+      choices: feat?.choices ?? {},
+      sourceUuid: source?.uuid ?? null,
+      sourceName: source?.name ?? null,
+      skillRules: feat?.skillRules ?? [],
+      dynamicSkillRules: feat?.dynamicSkillRules ?? [],
+      grantedSkills: result,
+    });
+  }
+
+  return result;
+}
+
+function extractExplicitTrainedSkillsFromDescription(html) {
+  const description = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!description) return [];
+
+  const matches = description.match(/\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+([^.!?]+)/gu) ?? [];
+  const orderSkillMatches = description.match(/\b(?:order|school|patron|practice|muse|mystery|instinct|style|deity'?s?\s+associated)\s+skill\s+([^.!?]+)/gu) ?? [];
+  if (matches.length === 0 && orderSkillMatches.length === 0) return [];
+
+  const skills = new Set();
+  for (const clause of [...matches, ...orderSkillMatches]) {
+    for (const skill of SKILLS) {
+      const label = localizeSkillSlug(skill).toLowerCase();
+      if (clause.includes(label)) skills.add(skill);
+    }
   }
 
   return [...skills];
@@ -567,7 +778,7 @@ async function buildPlannerDedicationChoiceSetFallbacks(planner, feat, source) {
   if (choiceRules.length === 0) return [];
 
   const archetypeSlug = getPlannerDedicationArchetypeSlug(feat, source);
-  const subclassTag = SUBCLASS_TAGS[archetypeSlug];
+  const subclassTag = SUBCLASS_TAGS[archetypeSlug] ?? archetypeSlug;
   if (!subclassTag) return [];
 
   const wizard = createPlannerChoiceWizard(planner);
@@ -642,10 +853,12 @@ function hasSkillFallbackText(html) {
     .toLowerCase();
 
   if (!description) return false;
+  if (description.includes('skill of your choice') && description.includes('already trained')) return true;
 
   return [
     /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
-    /for each of these skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+    /for each of (?:these|those) skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+    /if you were already trained in both,?\s+you become trained in a skill of your choice\.?/,
   ].some((pattern) => pattern.test(description));
 }
 

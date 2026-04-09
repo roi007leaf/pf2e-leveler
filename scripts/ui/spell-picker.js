@@ -30,6 +30,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.excludedUuids = new Set(options.excludedUuids ?? []);
     this.excludedSelections = new Set((options.excludedSelections ?? []).map((entry) => `${entry.uuid}:${entry.rank}`));
     this.maxRank = Number.isInteger(options.maxRank) ? options.maxRank : null;
+    this.allowedUuids = new Set(options.allowedUuids ?? []);
     this.allSpells = [];
     this.filteredSpells = [];
     this.selectedSpellUuids = new Set();
@@ -51,6 +52,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._updateListTimer = null;
     this._domListeners = null;
     this.preset = options.preset ?? null;
+    this.customTitle = typeof options.title === 'string' && options.title.trim().length > 0
+      ? options.title.trim()
+      : null;
     this._applyPreset(this.preset);
   }
 
@@ -68,6 +72,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   get title() {
+    if (this.customTitle) return this.customTitle;
     if (this.isCantrip) return `${this.actor.name} - Cantrips`;
     if (this.rank === -1) return `${this.actor.name} - ${this._capitalize(this.tradition)} Spellbook`;
     const ordinal = this._ordinal(this.rank);
@@ -86,6 +91,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.allSpells.length === 0) {
       const all = await loadSpells();
       this.allSpells = all.filter((s) => {
+        if (this.allowedUuids.size > 0 && !this.allowedUuids.has(s.uuid)) return false;
         if (!this._matchesTradition(s)) return false;
         if (this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(s, ownedIdentityKeys)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');

@@ -121,6 +121,8 @@ export function filterByGeneralSkillFeats(feats, showSkillFeats) {
 export function filterByArchetypeRestrictions(feats, actor, buildState) {
   const classSlug = String(buildState?.classSlug ?? actor?.class?.slug ?? '').toLowerCase();
   const existingClassArchetypeDedications = buildState?.classArchetypeDedications ?? new Set();
+  const existingArchetypeDedications = buildState?.archetypeDedications ?? new Set();
+  const canTakeNewDedication = buildState?.canTakeNewArchetypeDedication !== false;
 
   return feats.filter((feat) => {
     const traits = (feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
@@ -131,6 +133,10 @@ export function filterByArchetypeRestrictions(feats, actor, buildState) {
     const featSlug = feat.slug ?? null;
 
     if (isDedication && classSlug && isMulticlassArchetype && featSlug === `${classSlug}-dedication`) return false;
+
+    if (featSlug && isDedication && !canTakeNewDedication && !existingArchetypeDedications.has(featSlug)) {
+      return false;
+    }
 
     if (featSlug && isDedication && isClassArchetype && existingClassArchetypeDedications.size > 0) {
       return existingClassArchetypeDedications.has(featSlug);
@@ -388,6 +394,9 @@ async function collectAdditionalFeatEntriesFromDedication(feat, documentResolver
   if (journalUuids.size === 0) {
     const fallbackJournalUuid = await findArchetypeJournalUuid(feat);
     if (fallbackJournalUuid) journalUuids.add(fallbackJournalUuid);
+  }
+  if (journalUuids.size === 0) {
+    return deriveDedicationEntriesFromPrerequisites(candidateFeats, feat);
   }
   const targetPageName = getArchetypeJournalLookupName(feat);
   for (const uuid of journalUuids) {
@@ -660,29 +669,46 @@ function deriveDedicationEntriesFromPrerequisites(feats, dedicationFeat) {
   if (!dedicationName && !dedicationSlug) return [];
 
   const entries = [];
-  for (const feat of feats ?? []) {
-    if (!feat || feat === dedicationFeat) continue;
-    const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-    if (!traits.includes('archetype')) continue;
+  const unlockedNames = new Set([dedicationName].filter(Boolean));
+  const unlockedSlugPhrases = new Set([dedicationSlug ? dedicationSlug.replace(/-/g, ' ') : null].filter(Boolean));
+  const seenEntrySlugs = new Set();
 
-    const prereqTexts = (feat.system?.prerequisites?.value ?? [])
-      .map((prereq) => normalizeAdditionalFeatName(prereq?.value))
-      .filter(Boolean);
+  let changed = true;
+  while (changed) {
+    changed = false;
 
-    const matchesDedication = prereqTexts.some((text) => text.includes(dedicationName))
-      || prereqTexts.some((text) => dedicationSlug && text.includes(dedicationSlug.replace(/-/g, ' ')));
-    if (!matchesDedication) continue;
+    for (const feat of feats ?? []) {
+      if (!feat || feat === dedicationFeat) continue;
+      const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+      if (!traits.includes('archetype')) continue;
 
-    const level = Number(feat.system?.level?.value ?? NaN);
-    const slug = getFeatFilterSlug(feat);
-    if (!Number.isFinite(level) || !slug) continue;
+      const level = Number(feat.system?.level?.value ?? NaN);
+      const slug = getFeatFilterSlug(feat);
+      if (!Number.isFinite(level) || !slug || seenEntrySlugs.has(slug)) continue;
 
-    entries.push({
-      level,
-      slug,
-      name: feat.name,
-      uuid: feat.uuid ?? feat.sourceId ?? feat.flags?.core?.sourceId ?? null,
-    });
+      const prereqTexts = (feat.system?.prerequisites?.value ?? [])
+        .map((prereq) => normalizeAdditionalFeatName(prereq?.value))
+        .filter(Boolean);
+
+      const matchesUnlocked = prereqTexts.some((text) =>
+        [...unlockedNames].some((name) => text.includes(name))
+        || [...unlockedSlugPhrases].some((phrase) => text.includes(phrase)),
+      );
+      if (!matchesUnlocked) continue;
+
+      seenEntrySlugs.add(slug);
+      entries.push({
+        level,
+        slug,
+        name: feat.name,
+        uuid: feat.uuid ?? feat.sourceId ?? feat.flags?.core?.sourceId ?? null,
+      });
+
+      const featName = normalizeAdditionalFeatName(feat.name);
+      if (featName) unlockedNames.add(featName);
+      unlockedSlugPhrases.add(slug.replace(/-/g, ' '));
+      changed = true;
+    }
   }
 
   return entries.sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));

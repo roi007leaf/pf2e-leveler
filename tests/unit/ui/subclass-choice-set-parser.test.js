@@ -1,6 +1,7 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
 import { hydrateChoiceSets } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { toggleKineticImpulse } from '../../../scripts/creation/creation-model.js';
+import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -653,7 +654,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         animalInstinct: 'grizzly-bear',
       },
     };
-    wizard.currentStep = 24;
+    wizard.currentStep = 25;
 
     const context = await wizard._getStepContext();
     expect(context.subclassSummaryLabel).toBe('Animal Instinct (Grizzly Bear)');
@@ -680,7 +681,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         wayOption: 'Compendium.pf2e.feats-srd.Item.pistolero-practice',
       },
     };
-    wizard.currentStep = 24;
+    wizard.currentStep = 25;
 
     const context = await wizard._getStepContext();
     expect(context.subclassSummaryLabel).toBe('Way of the Pistolero (Pistolero Practice)');
@@ -694,7 +695,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       choiceSets: [],
       choices: {},
     };
-    wizard.currentStep = 24;
+    wizard.currentStep = 25;
 
     const context = await wizard._getStepContext();
     expect(context.showSubclassSummary).toBe(false);
@@ -1219,6 +1220,33 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     } finally {
       global.CONFIG = originalConfig;
     }
+  });
+
+  it('does not build a feat choice section for synthetic Mixed Ancestry heritage', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Compendium.pf2e.ancestries.Item.human',
+      slug: 'human',
+      name: 'Human',
+      img: 'human.png',
+    };
+    wizard.data.heritage = {
+      uuid: MIXED_ANCESTRY_UUID,
+      slug: 'mixed-ancestry',
+      name: 'Mixed Ancestry',
+      img: 'human.png',
+    };
+    wizard._loadAncestries = jest.fn(async () => [
+      { uuid: 'Compendium.pf2e.ancestries.Item.human', slug: 'human', name: 'Human', type: 'ancestry', rarity: 'common', traits: ['human'] },
+      { uuid: 'Compendium.pf2e.ancestries.Item.elf', slug: 'elf', name: 'Elf', type: 'ancestry', rarity: 'common', traits: ['elf'] },
+      { uuid: 'Compendium.pf2e.ancestries.Item.kitsune', slug: 'kitsune', name: 'Kitsune', type: 'ancestry', rarity: 'uncommon', traits: ['kitsune'] },
+    ]);
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const context = await wizard._buildFeatChoicesContext();
+
+    const mixedSection = context.featChoiceSections.find((entry) => entry.slot === MIXED_ANCESTRY_UUID);
+    expect(mixedSection).toBeUndefined();
   });
 
   it('refreshes stale granted feat choice data from live item rules', async () => {
@@ -2801,6 +2829,106 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('marks direct ancestry feat spell choice sections as spell choices in feat choices context', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestryFeat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.otherworldly-magic',
+      name: 'Otherworldly Magic',
+      choiceSets: [
+        {
+          flag: 'otherworldlyMagic',
+          prompt: 'Choose an innate spell.',
+          options: [
+            {
+              value: 'electric-arc',
+              label: 'Electric Arc',
+              uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+              type: 'spell',
+            },
+          ],
+        },
+      ],
+      choices: {},
+    };
+
+    const context = await wizard._buildFeatChoicesContext();
+    expect(context.featChoiceSections).toEqual([
+      expect.objectContaining({
+        slot: 'ancestry',
+        featName: 'Otherworldly Magic',
+        choiceSets: [
+          expect.objectContaining({
+            flag: 'otherworldlyMagic',
+            isItemChoice: true,
+            isSpellChoice: true,
+            isFeatChoice: false,
+            selectedOption: null,
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  it('surfaces granted feat choice sections from the selected subclass item', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'druid', name: 'Druid' };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.untamed-order',
+      name: 'Untamed Order',
+      slug: 'untamed-order',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.untamed-order') {
+        return {
+          uuid,
+          name: 'Untamed Order',
+          type: 'feat',
+          system: {
+            rules: [
+              { key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.granted-order-feat' },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.granted-order-feat') {
+        return {
+          uuid,
+          name: 'Granted Order Feat',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'orderFollowup',
+                prompt: 'Choose a granted option.',
+                choices: [
+                  { value: 'alpha', label: 'Alpha' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        featName: 'Granted Order Feat',
+        sourceName: 'Untamed Order -> Granted Order Feat',
+        choiceSets: expect.arrayContaining([
+          expect.objectContaining({
+            flag: 'orderFollowup',
+          }),
+        ]),
+      }),
+    ]));
+  });
+
   it('includes promptless choice sets in the apply overlay prompt rows using a humanized flag fallback', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.apparitions = [
@@ -3724,6 +3852,68 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       expect(fallbackSets).toHaveLength(2);
       expect(fallbackSets.map((entry) => entry.flag)).toEqual(['levelerSkillFallback1', 'levelerSkillFallback2']);
       expect(fallbackSets.every((entry) => entry.grantsSkillTraining === true)).toBe(true);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('counts selected dedication choice items when determining fallback skill prompts', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          athletics: 'Athletics',
+          arcana: 'Arcana',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['nature', 'athletics'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      name: 'Druid Dedication',
+      choices: {
+        druidicOrder: 'Compendium.pf2e.classfeatures.Item.animal-order',
+      },
+      system: {
+        description: {
+          value: `
+            <p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>
+          `,
+        },
+        rules: [],
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.animal-order') {
+        return {
+          uuid,
+          name: 'Animal Order',
+          system: {
+            rules: [
+              { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.athletics.rank', value: 1 },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, feat.choices, feat);
+      const fallbackSets = sets.filter((entry) => entry.syntheticType === 'skill-training-fallback');
+
+      expect(fallbackSets).toHaveLength(2);
+      expect(fallbackSets.map((entry) => entry.flag)).toEqual(['levelerSkillFallback1', 'levelerSkillFallback2']);
     } finally {
       global.CONFIG = originalConfig;
       global.fromUuid = originalFromUuid;

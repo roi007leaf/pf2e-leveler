@@ -23,6 +23,7 @@ import {
   addLevelCustomEquipment,
   removeLevelCustomEquipment,
 } from '../../plan/plan-model.js';
+import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -54,6 +55,7 @@ import {
   buildSpellSlotDisplay,
   detectNewSpellRank,
   findFeatLevel,
+  getDedicationSelectionLimitsForPlanner,
   getActorSpellCounts,
   getFocusSpellsForLevel,
   getGrantedSpellsForLevel,
@@ -61,6 +63,7 @@ import {
   getSubclassSlug,
   ordinalRank,
   resolveSpellTradition,
+  shouldExcludeOwnedSpellIdentityForPlanner,
 } from './spells.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -102,6 +105,7 @@ function extractTextualFeatSkillRules(feat) {
 
   const rules = [];
   const conditionalUpgradePattern = /become trained in ([^.;]+?); if you were already trained, you become an expert instead\.?/gi;
+  const genericTrainedPattern = /\b(?:you\s+)?become trained in ([^.;]+?)(?:;|\.|,?\s+and\b|$)/gi;
 
   for (const match of description.matchAll(conditionalUpgradePattern)) {
     const skills = resolveSkillSlugsFromText(match[1]);
@@ -110,6 +114,32 @@ function extractTextualFeatSkillRules(feat) {
         skill,
         value: 1,
         valueIfAlreadyTrained: 2,
+        predicate: null,
+      });
+    }
+  }
+
+  for (const match of description.matchAll(genericTrainedPattern)) {
+    const clause = String(match[1] ?? '');
+    if (!clause || /order'?s?\s+associated\s+skill/i.test(clause)) {
+      const explicitPart = clause.replace(/\band\s+your\s+order'?s?\s+associated\s+skill\b/gi, '').trim();
+      if (!explicitPart) continue;
+      const skills = resolveSkillSlugsFromText(explicitPart);
+      for (const skill of skills) {
+        rules.push({
+          skill,
+          value: 1,
+          predicate: null,
+        });
+      }
+      continue;
+    }
+
+    const skills = resolveSkillSlugsFromText(clause);
+    for (const skill of skills) {
+      rules.push({
+        skill,
+        value: 1,
         predicate: null,
       });
     }
@@ -879,41 +909,116 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._savePlanAndRender();
   }
 
-  _openSpellPicker(rank) {
+  _openSpellPicker(rank, entryType = 'primary') {
     const classDef = ClassRegistry.get(this.plan.classSlug);
     if (!classDef?.spellcasting) return;
 
-    const tradition = this._resolveSpellTradition(classDef);
-    const entryType = classDef.spellcasting.type === 'dual' ? 'animist' : 'primary';
+    const availableTraditions = this._getAvailableSpellPickerTraditions(classDef, entryType);
+    const tradition = availableTraditions.length === 1 ? availableTraditions[0] : 'any';
+    const resolvedEntryType = entryType === 'primary' && classDef.spellcasting.type === 'dual' ? 'animist' : entryType;
     const pickerRank = rank;
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
-    const excludedUuids = (levelData.spells ?? []).map((spell) => spell.uuid);
-    const excludedSelections = (levelData.spells ?? []).map((spell) => ({ uuid: spell.uuid, rank: spell.rank }));
+    const sectionSpells = (levelData.spells ?? []).filter((spell) => (spell.entryType ?? 'primary') === resolvedEntryType);
+    const excludedUuids = sectionSpells.map((spell) => spell.uuid);
+    const excludedSelections = sectionSpells.map((spell) => ({ uuid: spell.uuid, rank: spell.rank }));
     const currentSlots = classDef.spellcasting.slots?.[this.selectedLevel] ?? {};
     const maxRank = rank === -1 ? this._getHighestRank(currentSlots) : null;
+    const currentRankSelections = sectionSpells.filter((spell) => !this._isPlannedCantripSpell(spell));
+    const currentCantripSelections = sectionSpells.filter((spell) => this._isPlannedCantripSpell(spell));
+    const maxSelect = this._getSpellPickerMaxSelections(resolvedEntryType, rank, currentRankSelections, currentCantripSelections);
+    const selectedSpells = rank === 0 ? currentCantripSelections : rank === -1 ? currentRankSelections : sectionSpells.filter((spell) => Number(spell.rank ?? spell.baseRank ?? -1) === rank);
+    const multiSelect = maxSelect != null;
+    if (maxSelect != null && maxSelect <= 0) return;
 
     import('../spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
         this.actor,
         tradition,
         pickerRank,
-        (spell) => {
+        async (spells) => {
+          const selected = Array.isArray(spells) ? spells : [spells];
           const isCantrip = rank === 0 && pickerRank === 0;
-          addLevelSpell(this.plan, this.selectedLevel, {
-            uuid: spell.uuid,
-            name: spell.name,
-            img: spell.img,
-            rank: isCantrip ? 0 : pickerRank,
-            baseRank: spell.system.level.value,
-            isCantrip,
-            entryType,
-          });
+          for (const spell of selected) {
+            addLevelSpell(this.plan, this.selectedLevel, {
+              uuid: spell.uuid,
+              name: spell.name,
+              img: spell.img,
+              rank: isCantrip ? 0 : pickerRank,
+              baseRank: spell.system.level.value,
+              isCantrip,
+              entryType: resolvedEntryType,
+              traits: [...(spell.system?.traits?.value ?? []), ...(spell.system?.traits?.traditions ?? [])],
+            });
+          }
           this._savePlanAndRender();
         },
-        { excludedUuids, excludedSelections, maxRank, preset: rank > 0 ? { selectedRanks: [rank] } : undefined },
+        {
+          excludedUuids,
+          excludedSelections,
+          excludeOwnedByIdentity: shouldExcludeOwnedSpellIdentityForPlanner(classDef),
+          maxRank,
+          multiSelect,
+          selectedSpells,
+          maxSelect,
+          preset: {
+            ...(rank > 0 ? { selectedRanks: [rank] } : {}),
+            ...(availableTraditions.length > 0 ? {
+              selectedTraditions: availableTraditions,
+              lockedTraditions: availableTraditions,
+            } : {}),
+          },
+        },
       );
       picker.render(true);
     });
+  }
+
+  _getAvailableSpellPickerTraditions(classDef, entryType = 'primary') {
+    if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
+      const classSlug = entryType.split(':')[1] ?? '';
+      const archetypeClass = ClassRegistry.get(classSlug);
+      const tradition = archetypeClass?.spellcasting?.tradition ?? null;
+      return tradition ? [tradition] : [];
+    }
+
+    const classTradition = this._resolveSpellTradition(classDef);
+    if (typeof classTradition === 'string' && classTradition.length > 0 && classTradition !== 'any') {
+      return [classTradition];
+    }
+    return [];
+  }
+
+  _isPlannedCantripSpell(spell) {
+    return spell?.isCantrip === true || spell?.rank === 0 || spell?.baseRank === 0;
+  }
+
+  _getRemainingSpellbookSelections(currentCount) {
+    return Math.max(0, 2 - Number(currentCount ?? 0));
+  }
+
+  _getRemainingSpellbookCantripSelections(currentCount) {
+    return Math.max(0, getSpellbookBonusCantripSelectionCount(this.plan, this.selectedLevel) - Number(currentCount ?? 0));
+  }
+
+  _getSpellPickerMaxSelections(entryType, rank, currentRankSelections, currentCantripSelections) {
+    if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
+      const limits = getDedicationSelectionLimitsForPlanner(this, this.selectedLevel, entryType);
+      if (rank === 0) return Math.max(0, Number(limits.cantripSelectionCount ?? 0) - currentCantripSelections.length);
+      if (rank > 0) {
+        const currentAtRank = currentRankSelections.filter((spell) => Number(spell.rank ?? spell.baseRank ?? -1) === rank).length;
+        return Math.max(0, 1 - currentAtRank);
+      }
+      return null;
+    }
+
+    if (rank === 0) {
+      return this._getRemainingSpellbookCantripSelections(currentCantripSelections.length);
+    }
+    if (rank === -1) {
+      return this._getRemainingSpellbookSelections(currentRankSelections.length);
+    }
+
+    return null;
   }
 
   _openCustomSpellPicker(rank = -1) {
@@ -1171,13 +1276,19 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         };
       case 'archetypeFeats': {
         const hasDedication = (buildState?.archetypeDedications?.size ?? 0) > 0;
+        const dedicationLocked = buildState?.canTakeNewArchetypeDedication === false;
+        const selectedTraits = !hasDedication
+          ? ['dedication']
+          : dedicationLocked
+            ? ['archetype']
+            : ['archetype', 'dedication'];
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
-          selectedTraits: hasDedication ? ['archetype', 'dedication'] : ['dedication'],
-          lockedTraits: hasDedication ? ['archetype', 'dedication'] : ['dedication'],
+          selectedTraits,
+          lockedTraits: selectedTraits,
           traitLogic: 'or',
-          showDedications: true,
+          showDedications: !hasDedication || !dedicationLocked,
           maxLevel: level,
         };
       }

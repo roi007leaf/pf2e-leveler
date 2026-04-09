@@ -16,7 +16,7 @@ describe('CharacterWizard cleric extra steps', () => {
       font: ['healing', 'harmful'],
       sanctification: {},
     };
-    wizard.currentStep = 6;
+    wizard.currentStep = 7;
 
     const context = await wizard._getStepContext();
 
@@ -35,7 +35,7 @@ describe('CharacterWizard cleric extra steps', () => {
     const wizard = new CharacterWizard(actor);
 
     wizard.classHandler = new ClericHandler();
-    wizard.currentStep = 4;
+    wizard.currentStep = 5;
     wizard._saveAndRender = jest.fn(async () => {});
 
     global.fromUuid = jest.fn(async (uuid) => {

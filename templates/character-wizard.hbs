@@ -386,6 +386,43 @@
       <p class="wizard-hint">Use the feat picker to choose an option for this grant.</p>
       {{/if}}
       {{else}}
+      {{#if this.isSpellChoice}}
+      <div class="wizard-choice-filters">
+        <button type="button"
+          class="wizard-item__select"
+          data-action="browseSpellChoice"
+          data-slot="{{../slot}}"
+          data-flag="{{this.flag}}">
+          {{localize "PF2E_LEVELER.UI.BROWSE"}}
+        </button>
+      </div>
+      {{#if this.selectedOption}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        <div class="wizard-item wizard-item--taken">
+          {{#if this.selectedOption.img}}
+          <img src="{{this.selectedOption.img}}" alt="" class="wizard-item__img">
+          {{/if}}
+          <div class="wizard-item__info">
+            <span class="wizard-item__name {{#unless this.selectedOption.uuid}}wizard-item__name--static{{/unless}}" {{#if this.selectedOption.uuid}}data-action="viewItem" data-uuid="{{this.selectedOption.uuid}}"{{/if}}>{{this.selectedOption.label}}</span>
+            {{#if this.selectedOption.summary}}
+            <div class="wizard-item__desc">{{this.selectedOption.summary}}</div>
+            {{/if}}
+            <div class="wizard-item__traits">
+              {{#each this.selectedOption.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.selectedOption.rarity "common")}}
+              <span class="tag tag--rarity-{{this.selectedOption.rarity}} tag--tiny">{{this.selectedOption.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+        </div>
+      </div>
+      {{else}}
+      <p class="wizard-hint">Use the spell picker to choose a spell for this grant.</p>
+      {{/if}}
+      {{else}}
       {{#if this.isWeaponChoice}}
       <div class="wizard-choice-filters">
         <input type="text" class="picker__search wizard-choice-filters__search" placeholder="Filter weapons..." data-action="searchChoiceSetItems">
@@ -431,6 +468,7 @@
         </div>
         {{/each}}
       </div>
+      {{/if}}
       {{/if}}
       {{else}}
       <div class="skill-btn-grid">

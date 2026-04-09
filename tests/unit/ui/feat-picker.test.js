@@ -138,7 +138,7 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
-  test('archetype additional feats stay selectable even if their native prerequisites would normally fail', () => {
+  test('archetype additional feats stay visible but respect their native prerequisites', () => {
     const feat = createFeat({
       name: 'Trap Finder',
       prereqText: 'master in Thievery',
@@ -158,9 +158,9 @@ describe('FeatPicker prerequisite enforcement', () => {
     const [result] = picker._applyFilters();
 
     expect(result).toBeDefined();
-    expect(result.hasFailedPrerequisites).toBe(false);
-    expect(result.prerequisitesFailed).toBe(false);
-    expect(result.selectionBlocked).toBe(false);
+    expect(result.hasFailedPrerequisites).toBe(true);
+    expect(result.prerequisitesFailed).toBe(true);
+    expect(result.selectionBlocked).toBe(true);
   });
 
   test('archetype additional feats remain visible under locked archetype trait filtering', () => {
@@ -322,7 +322,33 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._getTraitFilterValues(feat)).toEqual(expect.arrayContaining(['skill', 'acrobat']));
   });
 
-  test('archetype-unlocked skill feats stay selectable in the general picker when skill feats are enabled', () => {
+  test('dedication-unlocked archetype feats still respect unrelated failed prerequisites', () => {
+    const feat = createFeat({
+      name: 'Holistic Care',
+      prereqText: 'trained in Diplomacy, Treat Condition',
+      uuid: 'Compendium.pf2e.feats-srd.Item.holistic-care',
+      slug: 'holistic-care',
+    });
+    feat.system.traits.value = ['archetype', 'skill'];
+    feat.system.level.value = 6;
+
+    const picker = new FeatPicker(createActor(), 'skill', 6, createBuildState({
+      level: 6,
+      skills: { athletics: 0, religion: 0, diplomacy: 0 },
+      feats: new Set(['medic-dedication', 'treat-condition']),
+    }), jest.fn());
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['holistic-care', 6]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.hasFailedPrerequisites).toBe(true);
+    expect(result.selectionBlocked).toBe(true);
+    expect(result.prereqResults.some((entry) => entry.text.toLowerCase().includes('trained in diplomacy') && entry.met === false)).toBe(true);
+  });
+
+  test('archetype-unlocked skill feats stay visible in the general picker when skill feats are enabled', () => {
     const feat = createFeat({
       name: 'Trap Finder',
       prereqText: 'master in Thievery',
@@ -343,12 +369,12 @@ describe('FeatPicker prerequisite enforcement', () => {
     const [result] = picker._applyFilters();
 
     expect(result).toBeDefined();
-    expect(result.hasFailedPrerequisites).toBe(false);
-    expect(result.prerequisitesFailed).toBe(false);
-    expect(result.selectionBlocked).toBe(false);
+    expect(result.hasFailedPrerequisites).toBe(true);
+    expect(result.prerequisitesFailed).toBe(true);
+    expect(result.selectionBlocked).toBe(true);
   });
 
-  test('archetype additional feat matching also works through normalized name fallback keys', () => {
+  test('archetype additional feat matching through normalized fallback keys still respects prerequisites', () => {
     const feat = createFeat({
       name: 'Trap Finder',
       prereqText: 'master in Thievery',
@@ -368,7 +394,7 @@ describe('FeatPicker prerequisite enforcement', () => {
     const [result] = picker._applyFilters();
 
     expect(result).toBeDefined();
-    expect(result.selectionBlocked).toBe(false);
+    expect(result.selectionBlocked).toBe(true);
   });
 
   test('custom feat picker can filter by multiple feat types', () => {
@@ -633,5 +659,26 @@ describe('FeatPicker prerequisite enforcement', () => {
     picker.searchText = 'skill';
 
     expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Skill Training']);
+  });
+
+  test('new dedication feats are not blocked in the custom all-feats picker', () => {
+    const feat = createFeat({
+      name: 'Pirate Dedication',
+      uuid: 'pirate-dedication',
+      slug: 'pirate-dedication',
+    });
+    feat.system.traits.value = ['archetype', 'dedication'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 4, createBuildState({
+      level: 4,
+      archetypeDedications: new Set(['medic-dedication']),
+      canTakeNewArchetypeDedication: false,
+    }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.selectionBlocked).toBe(false);
   });
 });

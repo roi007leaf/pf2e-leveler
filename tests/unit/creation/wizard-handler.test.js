@@ -267,12 +267,22 @@ describe('WizardHandler._applyCurriculumEntry', () => {
 });
 
 describe('WizardHandler._applySpellcasting', () => {
-  it('keeps all curriculum spells out of the main wizard entry', async () => {
+  it('duplicates selected curriculum spells into the main wizard entry', async () => {
     global.foundry = {
       utils: {
         deepClone: (value) => JSON.parse(JSON.stringify(value)),
       },
     };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: {
+        'Compendium.pf2e.spells-srd.Item.Message': 'Message',
+        'Compendium.pf2e.spells-srd.Item.Command': 'Command',
+        'Compendium.pf2e.spells-srd.Item.Disguise Magic': 'Disguise Magic',
+      }[uuid] ?? 'Unknown Spell',
+      img: 'icons/spell.webp',
+    }));
 
     const superApply = jest.spyOn(CasterBaseHandler.prototype, '_applySpellcasting').mockResolvedValue();
 
@@ -314,8 +324,8 @@ describe('WizardHandler._applySpellcasting', () => {
 
     expect(superApply).toHaveBeenCalledTimes(1);
     const [, mainData] = superApply.mock.calls[0];
-    expect(mainData.spells.cantrips.map((spell) => spell.name)).toEqual(['Acid Splash']);
-    expect(mainData.spells.rank1.map((spell) => spell.name)).toEqual(['Magic Missile']);
+    expect(mainData.spells.cantrips.map((spell) => spell.name)).toEqual(['Acid Splash', 'Message']);
+    expect(mainData.spells.rank1.map((spell) => spell.name)).toEqual(['Magic Missile', 'Command', 'Disguise Magic']);
 
     superApply.mockRestore();
   });

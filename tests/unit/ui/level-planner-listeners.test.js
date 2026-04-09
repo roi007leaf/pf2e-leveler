@@ -1,6 +1,19 @@
 import { activateLevelPlannerListeners } from '../../../scripts/ui/level-planner/listeners.js';
+import { LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
+import { createPlan } from '../../../scripts/plan/plan-model.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
+
+async function flushAsyncListeners() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 describe('Level planner skill increase listeners', () => {
+  beforeAll(() => {
+    ClassRegistry.register(ALCHEMIST);
+  });
+
   it('uses same-level actor-owned skill rank rules when selecting a skill increase', () => {
     document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="society"></button>';
 
@@ -88,7 +101,7 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
-  it('stores planner feat follow-up choices on the selected feat', () => {
+  it('stores planner feat follow-up choices on the selected feat', async () => {
     document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="deity" data-value="Compendium.pf2e.deities.Item.abadar"></button>';
 
     const planner = {
@@ -112,6 +125,7 @@ describe('Level planner skill increase listeners', () => {
 
     activateLevelPlannerListeners(planner, document.body);
     document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
 
     expect(planner.plan.levels[2].archetypeFeats[0].choices).toEqual({
       deity: 'Compendium.pf2e.deities.Item.abadar',
@@ -119,7 +133,163 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
-  it('stores custom feat follow-up choices on the matching custom feat entry', () => {
+  it('adds selected choice-item skill rules onto the planned feat', async () => {
+    const originalFromUuid = global.fromUuid;
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="druidicOrder" data-value="Compendium.pf2e.classfeatures.Item.animal-order"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          2: {
+            archetypeFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+                name: 'Druid Dedication',
+                slug: 'druid-dedication',
+                dynamicSkillRules: [{ skill: 'nature', value: 1, source: 'base-choice' }],
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.animal-order') {
+        return {
+          uuid,
+          name: 'Animal Order',
+          system: {
+            description: {
+              value: '<p>Order Skill Athletics</p>',
+            },
+            rules: [
+              { key: 'ActiveEffectLike', path: 'system.skills.athletics.rank', value: 1 },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      activateLevelPlannerListeners(planner, document.body);
+      document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+      await flushAsyncListeners();
+
+      expect(planner.plan.levels[2].archetypeFeats[0].choices).toEqual({
+        druidicOrder: 'Compendium.pf2e.classfeatures.Item.animal-order',
+      });
+      expect(planner.plan.levels[2].archetypeFeats[0].dynamicSkillRules).toEqual(expect.arrayContaining([
+        expect.objectContaining({ skill: 'nature', source: 'base-choice' }),
+        expect.objectContaining({ skill: 'athletics', source: 'choice:druidicorder' }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('shows druid dedication replacement skill choices after selecting an order in the planner', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          intimidation: 'Intimidation',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="druidicOrder" data-value="Compendium.pf2e.classfeatures.Item.flame-order"></button>';
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          nature: { rank: 1 },
+          intimidation: { rank: 1 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+        name: 'Druid Dedication',
+        slug: 'druid-dedication',
+      },
+    ];
+    planner._savePlanAndRender = jest.fn();
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          name: 'Druid Dedication',
+          slug: 'druid-dedication',
+          system: {
+            description: {
+              value: "<p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'druidicOrder',
+                prompt: 'Select a druidic order.',
+                choices: { filter: ['item:tag:druid-order', { not: 'item:tag:class-archetype' }] },
+              },
+            ],
+            traits: { value: ['archetype', 'dedication', 'multiclass', 'druid'] },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.flame-order') {
+        return {
+          uuid,
+          name: 'Flame Order',
+          system: {
+            description: {
+              value: '<p>Order Skill Intimidation</p>',
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      activateLevelPlannerListeners(planner, document.body);
+      document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+      await flushAsyncListeners();
+
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const fallbackSets = context.archetypeFeatChoiceSets.filter((entry) => entry.flag.startsWith('levelerSkillFallback'));
+      expect(fallbackSets).toHaveLength(2);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('stores custom feat follow-up choices on the matching custom feat entry', async () => {
     document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="1" data-flag="deity" data-value="Compendium.pf2e.deities.Item.abadar"></button>';
 
     const planner = {
@@ -140,6 +310,7 @@ describe('Level planner skill increase listeners', () => {
 
     activateLevelPlannerListeners(planner, document.body);
     document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
 
     expect(planner.plan.levels[2].customFeats[0].choices).toBeUndefined();
     expect(planner.plan.levels[2].customFeats[1].choices).toEqual({

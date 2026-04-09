@@ -586,12 +586,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 4px;
+  align-content: flex-start;
 }
 
 .pf2e-leveler .wizard-source-filters--sidebar .wizard-source-filters__chips {
   flex-direction: column;
   flex-wrap: nowrap;
   align-items: flex-start;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .pf2e-leveler .wizard-source-filters__search {

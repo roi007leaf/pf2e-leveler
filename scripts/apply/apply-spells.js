@@ -11,26 +11,29 @@ const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
 export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
-  if (!classDef?.spellcasting) return [];
+  const addedSpells = [];
 
-  const slots = classDef.spellcasting.slots[level];
-  if (!slots) return [];
+  if (classDef?.spellcasting) {
+    const slots = classDef.spellcasting.slots[level];
+    if (slots) {
+      const entries = await ensureSpellcastingEntries(actor, classDef);
+      await updateSpellSlots(actor, entries, slots, classDef, level);
 
-  const entries = await ensureSpellcastingEntries(actor, classDef);
-  await updateSpellSlots(actor, entries, slots, classDef, level);
+      const levelData = plan.levels[level];
+      const planned = await addPlannedSpells(actor, entries, levelData);
+      addedSpells.push(...planned);
 
-  const levelData = plan.levels[level];
-  const addedSpells = await addPlannedSpells(actor, entries, levelData);
+      const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
+      addedSpells.push(...grantedSpells);
 
-  // Add subclass granted spells for new ranks at this level
-  const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
-  addedSpells.push(...grantedSpells);
+      const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
+      addedSpells.push(...focusSpells);
 
-  const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
-  addedSpells.push(...focusSpells);
+      await updateDivineFont(actor, plan, level);
+    }
+  }
 
-  // Scale divine font slots for Cleric
-  await updateDivineFont(actor, plan, level);
+  await ensureArchetypeSpellcastingEntries(actor, plan, level);
 
   return addedSpells;
 }
@@ -110,6 +113,22 @@ async function ensureSpellcastingEntries(actor, classDef) {
   return entries;
 }
 
+async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
+  const configs = collectArchetypeSpellcastingConfigs(actor, plan, level);
+  if (configs.length === 0) return;
+
+  const updates = [];
+  for (const config of configs) {
+    const entry = await findOrCreateEntry(actor, config);
+    const update = buildArchetypeSpellcastingSlotUpdate(entry, config);
+    if (update) updates.push(update);
+  }
+
+  if (updates.length > 0) {
+    await actor.updateEmbeddedDocuments('Item', updates);
+  }
+}
+
 const VARIABLE_TRADITIONS = ['bloodline', 'patron'];
 
 function resolveActorTradition(actor, tradition) {
@@ -132,8 +151,10 @@ async function findOrCreateEntry(actor, config) {
       i.type === 'spellcastingEntry' &&
       (config.flagKey
         ? (
-            i.flags?.['pf2e-leveler']?.[config.flagKey] === true
-            || String(i.name ?? '').toLowerCase().includes('studious')
+            (config.flagValue !== undefined
+              ? i.flags?.['pf2e-leveler']?.[config.flagKey] === config.flagValue
+              : i.flags?.['pf2e-leveler']?.[config.flagKey] === true)
+            || (config.flagKey === MAGUS_STUDIOUS_ENTRY_FLAG && String(i.name ?? '').toLowerCase().includes('studious'))
           )
         : true) &&
       i.system.tradition?.value === config.tradition &&
@@ -159,7 +180,7 @@ function buildEntryData(config) {
       ? {
           flags: {
             'pf2e-leveler': {
-              [config.flagKey]: true,
+              [config.flagKey]: config.flagValue ?? true,
             },
           },
         }
@@ -171,6 +192,163 @@ function buildEntryData(config) {
       proficiency: { value: 1 },
     },
   };
+}
+
+function collectArchetypeSpellcastingConfigs(actor, plan, level) {
+  const feats = collectArchetypeSpellcastingFeats(actor, plan, level);
+  if (feats.length === 0) return [];
+
+  const seen = new Set();
+  const configs = [];
+
+  for (const dedication of feats) {
+    const traits = (dedication.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
+    if (!traits.includes('dedication')) continue;
+
+    const classSlug = traits.find((trait) => {
+      const classDef = ClassRegistry.get(trait);
+      return !!classDef?.spellcasting;
+    });
+    if (!classSlug || seen.has(classSlug)) continue;
+
+    const classDef = ClassRegistry.get(classSlug);
+    if (!classDef?.spellcasting) continue;
+
+    const relatedFeats = feats.filter((feat) =>
+      (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes(classSlug),
+    );
+
+    configs.push({
+      name: `${capitalize(classSlug)} Dedication Spells`,
+      tradition: resolveArchetypeTradition(actor, classDef, classSlug),
+      prepared: classDef.spellcasting.type,
+      ability: resolveActorSpellAbility(actor, classDef),
+      flagKey: 'archetypeSpellcastingEntry',
+      flagValue: classSlug,
+      cantripCount: 2,
+      slotRanks: getArchetypeSpellcastingSlotRanks(relatedFeats, level),
+    });
+    seen.add(classSlug);
+  }
+
+  return configs;
+}
+
+function collectArchetypeSpellcastingFeats(actor, plan, level) {
+  const actorFeats = (actor.items?.filter((item) => item?.type === 'feat') ?? []).map(normalizeSpellcastingFeatRecord);
+  const actorSlugs = new Set(actorFeats.map((feat) => feat.slug).filter(Boolean));
+  const plannedFeats = collectPlannedArchetypeSpellcastingFeats(plan, level)
+    .map(normalizeSpellcastingFeatRecord)
+    .filter((feat) => feat.slug && !actorSlugs.has(feat.slug));
+
+  return [...actorFeats, ...plannedFeats];
+}
+
+function collectPlannedArchetypeSpellcastingFeats(plan, level) {
+  const levels = plan?.levels ?? {};
+  const results = [];
+
+  for (const [rawLevel, levelData] of Object.entries(levels)) {
+    if (Number(rawLevel) > Number(level)) continue;
+    if (!levelData) continue;
+    for (const key of FEAT_KEYS) {
+      const feats = levelData[key] ?? [];
+      for (const feat of feats) {
+        results.push({ ...feat, __plannedGroup: key });
+      }
+    }
+  }
+
+  return results;
+}
+
+function normalizeSpellcastingFeatRecord(feat) {
+  const traits = new Set((feat?.system?.traits?.value ?? feat?.traits ?? []).map((trait) => String(trait).toLowerCase()));
+  const slug = typeof feat?.slug === 'string' ? feat.slug : '';
+  const name = typeof feat?.name === 'string' ? feat.name : '';
+  const nameAndSlug = `${name} ${slug}`.toLowerCase();
+
+  if (feat?.__plannedGroup === 'archetypeFeats') {
+    traits.add('archetype');
+  }
+  if (nameAndSlug.includes('dedication')) {
+    traits.add('dedication');
+  }
+  for (const classDef of ClassRegistry.getAll()) {
+    if (!classDef?.slug || !classDef?.spellcasting) continue;
+    if (nameAndSlug.includes(classDef.slug)) {
+      traits.add(classDef.slug);
+    }
+  }
+
+  return {
+    ...feat,
+    name,
+    slug,
+    system: {
+      ...(feat?.system ?? {}),
+      traits: {
+        ...(feat?.system?.traits ?? {}),
+        value: [...traits],
+      },
+    },
+  };
+}
+
+function resolveArchetypeTradition(actor, classDef, classSlug) {
+  const tradition = classDef?.spellcasting?.tradition ?? 'arcane';
+  if (!VARIABLE_TRADITIONS.includes(tradition)) return tradition;
+
+  const subclassTag = SUBCLASS_TAGS[classSlug];
+  const subclassItem = actor.items?.find((item) =>
+    item?.type === 'feat' && (item.system?.traits?.otherTags ?? []).includes(subclassTag),
+  );
+  const subclassTradition = subclassItem?.system?.tradition?.value ?? null;
+  if (typeof subclassTradition === 'string' && subclassTradition.length > 0) return subclassTradition;
+
+  const existingEntry = actor.items?.find((item) => item?.type === 'spellcastingEntry');
+  return existingEntry?.system?.tradition?.value ?? 'arcane';
+}
+
+function getArchetypeSpellcastingSlotRanks(feats, level) {
+  const namesAndSlugs = feats.map((feat) => `${String(feat?.name ?? '').toLowerCase()} ${String(feat?.slug ?? '').toLowerCase()}`);
+  const hasBasic = namesAndSlugs.some((value) => value.includes('basic') && value.includes('spellcasting'));
+  const hasExpert = namesAndSlugs.some((value) => value.includes('expert') && value.includes('spellcasting'));
+  const hasMaster = namesAndSlugs.some((value) => value.includes('master') && value.includes('spellcasting'));
+
+  const ranks = [];
+  if (hasBasic) {
+    if (level >= 4) ranks.push(1);
+    if (level >= 6) ranks.push(2);
+    if (level >= 8) ranks.push(3);
+  }
+  if (hasExpert) {
+    if (level >= 12) ranks.push(4);
+    if (level >= 14) ranks.push(5);
+    if (level >= 16) ranks.push(6);
+  }
+  if (hasMaster) {
+    if (level >= 18) ranks.push(7);
+    if (level >= 20) ranks.push(8);
+  }
+
+  return [...new Set(ranks)].sort((a, b) => a - b);
+}
+
+function buildArchetypeSpellcastingSlotUpdate(entry, config) {
+  if (!entry?.id) return null;
+
+  const update = { _id: entry.id };
+  update['system.slots.slot0.max'] = Number(config.cantripCount ?? 0);
+  update['system.slots.slot0.value'] = Number(config.cantripCount ?? 0);
+
+  for (let rank = 1; rank <= 10; rank += 1) {
+    const enabled = config.slotRanks?.includes(rank) === true;
+    update[`system.slots.slot${rank}.max`] = enabled ? 1 : 0;
+    update[`system.slots.slot${rank}.value`] = enabled ? 1 : 0;
+  }
+
+  return update;
 }
 
 async function updateSpellSlots(actor, entries, slots, classDef, level) {
@@ -265,7 +443,7 @@ async function addPlannedSpells(actor, entries, levelData) {
     const spell = await resolveSpell(spellPlan.uuid);
     if (!spell) continue;
 
-    const entry = resolveTargetEntry(entries, spellPlan.entryType);
+    const entry = resolveTargetEntry(actor, entries, spellPlan.entryType);
     if (!entry) continue;
 
     const spellData = foundry.utils.deepClone(spell.toObject());
@@ -427,9 +605,16 @@ function getSubclassChoices(subclassItem) {
   return choices;
 }
 
-function resolveTargetEntry(entries, entryType) {
+function resolveTargetEntry(actor, entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
+  if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
+    const classSlug = entryType.split(':')[1] ?? '';
+    return actor.items?.find?.((item) =>
+      item?.type === 'spellcastingEntry'
+      && item?.flags?.['pf2e-leveler']?.archetypeSpellcastingEntry === classSlug,
+    ) ?? null;
+  }
   return entries.primary ?? entries.animist;
 }
 

@@ -1,6 +1,7 @@
 import { ANCESTRY_TRAIT_ALIASES, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
+import { createMixedAncestryHeritage } from '../../heritages/mixed-ancestry.js';
 
 export async function loadCompendium(wizard, key) {
   if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
@@ -209,7 +210,7 @@ export async function loadHeritages(wizard) {
   const ancestryTokens = collectAncestryMatchTokens(wizard.data.ancestry);
   if (ancestryTokens.size === 0) return [];
   const all = await loadRawHeritages(wizard);
-  return all.filter((h) => {
+  const filtered = all.filter((h) => {
     const heritageAncestrySlug = normalizeSlugLike(h.ancestrySlug);
     if (heritageAncestrySlug && ancestryTokens.has(heritageAncestrySlug)) return true;
     const heritageTraits = (h.traits ?? []).map(normalizeSlugLike).filter(Boolean);
@@ -217,6 +218,13 @@ export async function loadHeritages(wizard) {
     if (!h.ancestrySlug) return true;
     return false;
   });
+
+  const mixedAncestry = createMixedAncestryHeritage(wizard.data.ancestry);
+  if (!filtered.some((entry) => entry.uuid === mixedAncestry.uuid)) {
+    filtered.push(mixedAncestry);
+  }
+  wizard._documentCache?.set?.(mixedAncestry.uuid, mixedAncestry);
+  return filtered;
 }
 
 export async function loadSubclasses(wizard) {

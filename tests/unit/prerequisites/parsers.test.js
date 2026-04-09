@@ -397,6 +397,15 @@ describe('parsePrerequisiteNode', () => {
     }));
   });
 
+  test('parses feat prerequisites with selected parenthetical choice as an all node', () => {
+    const result = parsePrerequisiteNode('Order Explorer (Wave Order)');
+    expect(result.kind).toBe('all');
+    expect(result.children).toEqual([
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'order-explorer' }),
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'wave-order' }),
+    ]);
+  });
+
   test('parses semicolon-separated prerequisites as an all node', () => {
     const result = parsePrerequisiteNode('Champion Dedication; 4th level');
     expect(result.kind).toBe('all');

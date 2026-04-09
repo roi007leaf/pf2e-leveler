@@ -1,8 +1,12 @@
 import { getClassHandler } from './class-handlers/registry.js';
 import { ClassRegistry } from '../classes/registry.js';
+import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
+import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { debug, info, warn } from '../utils/logger.js';
 import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { format, localize } from '../utils/i18n.js';
+import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
+import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -15,6 +19,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.heritage) await applyItem(actor, data.heritage, 'heritage', getStoredChoiceSelections(data, data.heritage.uuid));
   if (data.background) await applyItem(actor, data.background, 'background', getStoredChoiceSelections(data, data.background.uuid));
   if (data.class) await applyItem(actor, data.class, 'class', getStoredChoiceSelections(data, data.class.uuid));
+  if (data.subclass) await applyItem(actor, data.subclass, 'subclass', getStoredChoiceSelections(data, data.subclass.uuid));
   reportProgress(0.28, 'Waiting for the PF2E system to finish initializing items...');
   await waitForSystem();
 
@@ -58,6 +63,11 @@ export async function applyCreation(actor, data, onProgress = null) {
 }
 
 export async function applyItem(actor, entry, type, choices = {}) {
+  if (entry?.uuid === MIXED_ANCESTRY_UUID) {
+    await applyMixedAncestryHeritage(actor, entry, choices);
+    return;
+  }
+
   const item = await fromUuid(entry.uuid).catch(() => null);
   if (!item) {
     warn(`Failed to resolve ${type}: ${entry.uuid}`);
@@ -67,6 +77,50 @@ export async function applyItem(actor, entry, type, choices = {}) {
   applyStoredChoices(itemData, choices);
   await actor.createEmbeddedDocuments('Item', [itemData]);
   debug(`Applied ${type}: ${entry.name}`);
+}
+
+async function applyMixedAncestryHeritage(actor, entry, choices = {}) {
+  const selectedAncestry = await resolveAncestryFromMixedChoice(choices?.[MIXED_ANCESTRY_CHOICE_FLAG]);
+  const selectedSlug = selectedAncestry?.slug
+    ?? (typeof choices?.[MIXED_ANCESTRY_CHOICE_FLAG] === 'string' ? choices[MIXED_ANCESTRY_CHOICE_FLAG] : null)
+    ?? null;
+  const vision = normalizeMixedAncestryVision(selectedAncestry?.system?.vision ?? null);
+  const itemData = {
+    name: entry?.name ?? 'Mixed Ancestry',
+    type: 'heritage',
+    img: entry?.img ?? actor?.ancestry?.img ?? null,
+    system: {
+      slug: 'mixed-ancestry',
+      description: {
+        value: selectedAncestry?.name
+          ? `<p>Mixed Ancestry tied to ${selectedAncestry.name}.</p>`
+          : '<p>Mixed Ancestry.</p>',
+      },
+      traits: {
+        value: ['versatile'],
+        rarity: 'uncommon',
+      },
+      ancestry: {
+        slug: null,
+      },
+      rules: [],
+      ...(vision ? { vision } : {}),
+    },
+    flags: {
+      [MODULE_ID]: {
+        mixedAncestryHeritage: true,
+        mixedAncestrySelection: selectedSlug,
+      },
+      pf2e: {
+        rulesSelections: {
+          [MIXED_ANCESTRY_CHOICE_FLAG]: selectedSlug,
+        },
+      },
+    },
+  };
+
+  await actor.createEmbeddedDocuments('Item', [itemData]);
+  debug(`Applied heritage: ${entry?.name ?? 'Mixed Ancestry'}`);
 }
 
 async function applyFeat(actor, entry, group, level) {
@@ -244,7 +298,7 @@ export function getAdditionalSelectedItems(data) {
     for (const choiceSet of (container.choiceSets ?? [])) {
       const selectedValue = container.choices?.[choiceSet.flag];
       if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') continue;
-      const option = choiceSet.options?.find((candidate) => candidate.value === selectedValue);
+      const option = findMatchingChoiceOption(choiceSet.options, selectedValue);
       const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
       if (!uuid || seen.has(uuid) || !isSpellChoiceOption(option, uuid)) continue;
       seen.add(uuid);
@@ -301,7 +355,32 @@ function getStoredChoiceSelections(data, uuid) {
   if (data.ancestryParagonFeat?.uuid === uuid) return data.ancestryParagonFeat.choices ?? {};
   if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
   if (data.skillFeat?.uuid === uuid) return data.skillFeat.choices ?? {};
+  if (uuid === MIXED_ANCESTRY_UUID) {
+    const selected = getMixedAncestrySelectedValue(data.mixedAncestry)
+      ?? getMixedAncestrySelectedValue(data.grantedFeatChoices?.[MIXED_ANCESTRY_UUID]);
+    return selected ? { [MIXED_ANCESTRY_CHOICE_FLAG]: selected } : {};
+  }
   return data.grantedFeatChoices?.[uuid] ?? {};
+}
+
+async function resolveAncestryFromMixedChoice(value) {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  if (value.startsWith('Compendium.')) return fromUuid(value).catch(() => null);
+
+  for (const key of getCompendiumKeysForCategory('ancestries')) {
+    const pack = game.packs.get(key);
+    if (!pack) continue;
+    const documents = await pack.getDocuments();
+    const match = documents.find((entry) => String(entry?.slug ?? '').toLowerCase() === value.toLowerCase());
+    if (match) return match;
+  }
+
+  return null;
+}
+
+function normalizeMixedAncestryVision(vision) {
+  if (vision === 'lowLightVision' || vision === 'low-light-vision') return 'lowLightVision';
+  return null;
 }
 
 function getCreationAncestryParagonGroup() {

@@ -1,5 +1,7 @@
 import { applySpells } from '../../../scripts/apply/apply-spells.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { DRUID } from '../../../scripts/classes/druid.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 
@@ -8,6 +10,8 @@ describe('applySpells', () => {
 
   beforeAll(() => {
     ClassRegistry.clear();
+    ClassRegistry.register(DRUID);
+    ClassRegistry.register(FIGHTER);
     ClassRegistry.register(SORCERER);
     ClassRegistry.register(MAGUS);
   });
@@ -212,6 +216,174 @@ describe('applySpells', () => {
         _id: 'created-entry-0',
         'system.slots.slot2.max': 2,
         'system.slots.slot3.max': 0,
+        'system.slots.slot4.max': 0,
+      }),
+    ]));
+  });
+
+  test('creates an archetype spellcasting entry for a spellcasting dedication', async () => {
+    const archetypeActor = {
+      items: [
+        {
+          id: 'druid-dedication',
+          type: 'feat',
+          name: 'Druid Dedication',
+          slug: 'druid-dedication',
+          system: {
+            traits: { value: ['archetype', 'dedication', 'druid', 'multiclass'] },
+          },
+        },
+      ],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: `created-entry-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    const plan = {
+      classSlug: 'fighter',
+      levels: {
+        2: {
+          archetypeFeats: [{ uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication', slug: 'druid-dedication', name: 'Druid Dedication' }],
+        },
+      },
+    };
+
+    await applySpells(archetypeActor, plan, 2);
+
+    expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Druid Dedication Spells',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            archetypeSpellcastingEntry: 'druid',
+          },
+        },
+        system: expect.objectContaining({
+          tradition: { value: 'primal' },
+          prepared: { value: 'prepared' },
+        }),
+      }),
+    ]);
+    expect(archetypeActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'created-entry-0',
+        'system.slots.slot0.max': 2,
+        'system.slots.slot1.max': 0,
+      }),
+    ]));
+  });
+
+  test('creates an archetype spellcasting entry from planned dedication feats even before actor feat embed sync', async () => {
+    const archetypeActor = {
+      items: [],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: `created-entry-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    const plan = {
+      classSlug: 'fighter',
+      levels: {
+        2: {
+          archetypeFeats: [{ uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication', slug: 'druid-dedication', name: 'Druid Dedication' }],
+        },
+      },
+    };
+
+    await applySpells(archetypeActor, plan, 2);
+
+    expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Druid Dedication Spells',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            archetypeSpellcastingEntry: 'druid',
+          },
+        },
+      }),
+    ]);
+    expect(archetypeActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'created-entry-0',
+        'system.slots.slot0.max': 2,
+      }),
+    ]));
+  });
+
+  test('basic archetype spellcasting benefits grant the standard multiclass slot progression', async () => {
+    const archetypeActor = {
+      items: [
+        {
+          id: 'druid-dedication',
+          type: 'feat',
+          name: 'Druid Dedication',
+          slug: 'druid-dedication',
+          system: {
+            traits: { value: ['archetype', 'dedication', 'druid', 'multiclass'] },
+          },
+        },
+        {
+          id: 'basic-druid-spellcasting',
+          type: 'feat',
+          name: 'Basic Druid Spellcasting',
+          slug: 'basic-druid-spellcasting',
+          system: {
+            traits: { value: ['archetype', 'druid'] },
+          },
+        },
+      ],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: `created-entry-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    const plan = {
+      classSlug: 'fighter',
+      levels: {
+        8: {
+          archetypeFeats: [
+            { uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication', slug: 'druid-dedication', name: 'Druid Dedication' },
+            { uuid: 'Compendium.pf2e.feats-srd.Item.basic-druid-spellcasting', slug: 'basic-druid-spellcasting', name: 'Basic Druid Spellcasting' },
+          ],
+        },
+      },
+    };
+
+    await applySpells(archetypeActor, plan, 8);
+
+    expect(archetypeActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'created-entry-0',
+        'system.slots.slot0.max': 2,
+        'system.slots.slot1.max': 1,
+        'system.slots.slot2.max': 1,
+        'system.slots.slot3.max': 1,
         'system.slots.slot4.max': 0,
       }),
     ]));

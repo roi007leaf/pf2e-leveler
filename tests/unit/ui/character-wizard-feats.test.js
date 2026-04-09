@@ -1,6 +1,7 @@
 import { CharacterWizard, buildCompendiumSourceOptions, filterStepContextByCompendiumSource } from '../../../scripts/ui/character-wizard/index.js';
 import { loadBackgrounds, loadHeritages, loadRawHeritages } from '../../../scripts/ui/character-wizard/loaders.js';
 import { saveCreationData } from '../../../scripts/creation/creation-store.js';
+import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -154,7 +155,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
   it('background step only shows actual background documents from mixed assigned packs', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 2;
+    wizard.currentStep = 3;
     wizard._loadBackgrounds = jest.fn(async () => [
       {
         uuid: 'background-1',
@@ -272,7 +273,10 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     const items = await loadHeritages(wizard);
 
-    expect(items.map((item) => item.uuid)).toEqual(['heritage-gnoll']);
+    expect(items.map((item) => item.uuid)).toEqual([
+      'heritage-gnoll',
+      'pf2e-leveler.synthetic.heritage.mixed-ancestry',
+    ]);
   });
 
   it('loads heritages when the selected ancestry has no slug but the heritage matches its name or uuid tokens', async () => {
@@ -301,7 +305,10 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     const items = await loadHeritages(wizard);
 
-    expect(items.map((item) => item.uuid)).toEqual(['heritage-dragon']);
+    expect(items.map((item) => item.uuid)).toEqual([
+      'heritage-dragon',
+      'pf2e-leveler.synthetic.heritage.mixed-ancestry',
+    ]);
   });
 
   it('loadRawHeritages marks loaded entries as heritage type for the step filter', async () => {
@@ -341,7 +348,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
   it('class step only shows actual class documents from mixed assigned packs', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 3;
+    wizard.currentStep = 4;
     wizard._loadClasses = jest.fn(async () => [
       {
         uuid: 'class-1',
@@ -415,6 +422,58 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.ancestralParagonEnabled).toBe(false);
   });
 
+  it('includes mixed ancestry secondary ancestry traits in the creation feat build state', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
+    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
+    wizard.data.mixedAncestry = { uuid: 'Compendium.pf2e.ancestries.Item.kholo', slug: 'kholo', name: 'Kholo' };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.ancestryTraits.has('human')).toBe(true);
+    expect(buildState.ancestryTraits.has('kholo')).toBe(true);
+    expect(buildState.ancestryTraits.has('gnoll')).toBe(true);
+  });
+
+  it('shows a dedicated mixed ancestry step when Mixed Ancestry heritage is selected', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
+    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
+    wizard.data.mixedAncestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
+    wizard._loadAncestries = jest.fn(async () => [
+      { uuid: 'ancestry-human', slug: 'human', name: 'Human', type: 'ancestry', rarity: 'common', traits: ['human'] },
+      { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf', type: 'ancestry', rarity: 'common', traits: ['elf'] },
+      { uuid: 'ancestry-kitsune', slug: 'kitsune', name: 'Kitsune', type: 'ancestry', rarity: 'uncommon', traits: ['kitsune'] },
+    ]);
+
+    expect(wizard.visibleSteps).toContain('mixedAncestry');
+    expect(wizard._isStepComplete('mixedAncestry')).toBe(true);
+
+    wizard.currentStep = wizard.visibleSteps.indexOf('mixedAncestry');
+    const context = await wizard._getStepContext();
+    expect(context.items.map((entry) => entry.slug)).toEqual(['kitsune']);
+    expect(context.items[0].name).toBe('Kitsune');
+  });
+
+  it('buildBrowserStepContext safely sorts browser items even when a synthetic entry has no name', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 2;
+    wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
+    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
+    wizard._loadAncestries = jest.fn(async () => [
+      { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf', type: 'ancestry', rarity: 'common', traits: ['elf'] },
+      { uuid: 'ancestry-bad', slug: 'bad', type: 'ancestry', rarity: 'common', traits: [] },
+    ]);
+
+    await expect(wizard._prepareContext()).resolves.toEqual(expect.objectContaining({
+      browserStep: expect.objectContaining({
+        items: expect.any(Array),
+      }),
+    }));
+  });
+
   it('keeps the feat step incomplete when a level 1 class feat is required but not selected yet', () => {
     game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
@@ -483,6 +542,30 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       { key: 'module.alpha', label: 'Alpha Pack', selected: true },
       { key: 'module.beta', label: 'Beta Pack', selected: true },
     ]);
+  });
+
+  it('includes synthetic step sources alongside configured compendium sources', () => {
+    game.packs.get = jest.fn((key) => ({
+      metadata: {
+        packageName: key === 'pf2e.heritages' ? 'pf2e' : 'battlezoo-dragons-battle-dragons-pf2e',
+      },
+    }));
+
+    const options = buildCompendiumSourceOptions('heritage', {
+      items: [
+        {
+          uuid: 'pf2e-leveler.synthetic.heritage.mixed-ancestry',
+          sourcePackage: 'pf2e-leveler',
+          sourcePackageLabel: 'PF2E Leveler',
+        },
+      ],
+    });
+
+    expect(options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'pf2e', selected: true }),
+      expect.objectContaining({ key: 'battlezoo-dragons-battle-dragons-pf2e', selected: true }),
+      expect.objectContaining({ key: 'pf2e-leveler', label: 'PF2E Leveler', selected: true }),
+    ]));
   });
 
   it('filters step option arrays by selected compendium sources without touching unrelated data', () => {

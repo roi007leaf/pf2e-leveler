@@ -61,10 +61,10 @@
     {{#each this.options}}
     <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
       {{#if this.img}}
-      <img src="{{this.img}}" alt="" class="wizard-item__img">
+      <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>
       {{/if}}
       <div class="wizard-item__info">
-        <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+        <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
       </div>
       {{#if this.selected}}
       <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>

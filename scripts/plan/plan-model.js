@@ -196,9 +196,19 @@ export function addLevelSpell(plan, level, spellEntry) {
   return plan;
 }
 
-export function removeLevelSpell(plan, level, uuid) {
+export function removeLevelSpell(plan, level, uuid, options = {}) {
   if (!plan.levels[level]?.spells) return plan;
-  plan.levels[level].spells = plan.levels[level].spells.filter((s) => s.uuid !== uuid);
+  const targetEntryType = options.entryType ?? null;
+  const targetRank = Number.isFinite(Number(options.rank)) ? Number(options.rank) : null;
+  let removed = false;
+  plan.levels[level].spells = plan.levels[level].spells.filter((s) => {
+    if (removed) return true;
+    if (s.uuid !== uuid) return true;
+    if (targetEntryType != null && (s.entryType ?? 'primary') !== targetEntryType) return true;
+    if (targetRank != null && Number(s.rank ?? s.baseRank ?? -1) !== targetRank) return true;
+    removed = true;
+    return false;
+  });
   return plan;
 }
 

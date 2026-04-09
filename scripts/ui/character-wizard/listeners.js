@@ -17,6 +17,7 @@ import {
   setFeatChoice,
   setHeritage,
   setImplement,
+  setMixedAncestry,
   setInnovationItem,
   setInnovationModification,
   setKineticGateMode,
@@ -290,11 +291,12 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  ['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat'].forEach((action) => {
+  ['clearAncestry', 'clearHeritage', 'clearMixedAncestry', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat'].forEach((action) => {
     el.querySelector(`[data-action="${action}"]`)?.addEventListener('click', async () => {
       const clearMap = {
         clearAncestry: () => setAncestry(wizard.data, null),
         clearHeritage: () => setHeritage(wizard.data, null),
+        clearMixedAncestry: () => setMixedAncestry(wizard.data, null),
         clearBackground: () => setBackground(wizard.data, null),
         clearClass: () => { setClass(wizard.data, null); wizard.classHandler = getClassHandler(null); },
         clearSubclass: () => setSubclass(wizard.data, null, null, null, null, null, null, null),
@@ -328,6 +330,12 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="browseFeatChoice"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       wizard._openFeatChoicePicker(btn.dataset.slot, btn.dataset.flag);
+    });
+  });
+
+  el.querySelectorAll('[data-action="browseSpellChoice"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._openSpellChoicePicker(btn.dataset.slot, btn.dataset.flag);
     });
   });
 

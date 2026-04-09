@@ -433,10 +433,10 @@
               {{#each this.options}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -854,23 +854,76 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
               <div class="section-header" style="font-size: var(--leveler-font-sm);">
                 <i class="section-header__icon fa-solid fa-book"></i>
-                {{format "PF2E_LEVELER.SPELLS.SPELLBOOK" selected=plannedSpells.length count=spellbookSelectionCount}}
+                {{format "PF2E_LEVELER.SPELLS.SPELLBOOK" selected=plannedSpellbookSelectionCount count=spellbookSelectionCount}}
               </div>
               {{#each plannedSpells}}
               <div class="feat-slot feat-slot--filled">
                 <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
                 <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
                 <span class="feat-slot__level">Rank {{this.displayRank}}</span>
-                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.displayRank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}
-              {{#unless (eq plannedSpells.length spellbookSelectionCount)}}
-              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-rank="-1" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD_TO_SPELLBOOK_HINT'}}" style="margin-top: 4px; padding: 4px 12px;">
+              {{#unless (gte plannedSpellbookSelectionCount spellbookSelectionCount)}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-entry-type="primary" data-rank="-1" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD_TO_SPELLBOOK_HINT'}}" style="margin-top: 4px; padding: 4px 12px;">
                 <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.SPELLS.ADD_TO_SPELLBOOK"}}
               </button>
               {{/unless}}
+
+              {{#if spellbookCantripSelectionCount}}
+              <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
+                <i class="section-header__icon fa-solid fa-wand-sparkles"></i>
+                {{format "PF2E_LEVELER.SPELLS.SPELLBOOK_CANTRIPS" selected=plannedSpellbookCantripCount count=spellbookCantripSelectionCount}}
+              </div>
+              {{#unless (gte plannedSpellbookCantripCount spellbookCantripSelectionCount)}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-entry-type="primary" data-rank="0" data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ADD_CANTRIP_TO_SPELLBOOK_HINT'}}" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.SPELLS.ADD_CANTRIP_TO_SPELLBOOK"}}
+              </button>
+              {{/unless}}
+              {{/if}}
             </div>
             {{/if}}
+
+            {{#each dedicationSpellSections}}
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                <i class="section-header__icon fa-solid fa-book-atlas"></i>
+                {{this.name}}
+              </div>
+              {{#each this.plannedSpells}}
+              <div class="feat-slot feat-slot--filled">
+                <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
+                <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                <span class="feat-slot__level">Rank {{this.displayRank}}</span>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.displayRank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+              </div>
+              {{/each}}
+
+              {{#if (or this.cantripSelectionCount this.plannedCantripCount)}}
+              <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
+                <i class="section-header__icon fa-solid fa-wand-sparkles"></i>
+                {{this.tradition}} cantrips ({{this.plannedCantripCount}}/{{this.cantripSelectionCount}})
+              </div>
+              {{#if this.remainingCantripSelections}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-entry-type="{{this.entryType}}" data-rank="0" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> Add Cantrips
+              </button>
+              {{/if}}
+              {{/if}}
+
+              {{#each this.rankRows}}
+              <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
+                <i class="section-header__icon fa-solid fa-sparkles"></i>
+                {{this.label}} spells ({{this.planned}}/{{this.count}})
+              </div>
+              {{#unless this.isFull}}
+              <button type="button" class="spell-add-btn" data-action="openSpellPicker" data-entry-type="{{../entryType}}" data-rank="{{this.rank}}" style="margin-top: 4px; padding: 4px 12px;">
+                <i class="fa-solid fa-plus"></i> Add {{this.label}} Spell
+              </button>
+              {{/unless}}
+              {{/each}}
+            </div>
+            {{/each}}
 
             {{#if plannedSpells.length}}
             {{#unless hasSpellbook}}
@@ -884,7 +937,7 @@
                 <img class="feat-slot__icon" src="{{this.img}}" alt="" data-action="viewFeat" data-uuid="{{this.uuid}}">
                 <span class="feat-slot__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
                 <span class="feat-slot__level">Rank {{this.rank}}</span>
-                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                <i class="feat-slot__clear fa-solid fa-xmark" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.rank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}
             </div>

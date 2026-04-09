@@ -169,6 +169,9 @@ export function parsePrerequisiteNode(text) {
   }
 
   const parsed = parsePrerequisite(normalized);
+  if (parsed?.kind === 'all' || parsed?.kind === 'any' || parsed?.kind === 'not') {
+    return parsed;
+  }
   return {
     kind: 'leaf',
     ...parsed,
@@ -552,6 +555,22 @@ function tryParseLanguageRequirement(text, fullText = text) {
 function tryParseFeatRequirement(text) {
   if (looksLikeDescriptiveRequirement(text)) {
     return { type: 'unknown', text };
+  }
+
+  const parentheticalMatch = String(text ?? '').trim().match(/^(.+?)\s*\(([^()]+)\)\s*$/u);
+  if (parentheticalMatch) {
+    const baseRequirement = tryParseFeatRequirement(parentheticalMatch[1].trim());
+    const choiceRequirement = tryParseFeatRequirement(parentheticalMatch[2].trim());
+    if (baseRequirement?.type === 'feat' && choiceRequirement?.type === 'feat') {
+      return {
+        kind: 'all',
+        text,
+        children: [
+          { kind: 'leaf', ...baseRequirement },
+          { kind: 'leaf', ...choiceRequirement },
+        ],
+      };
+    }
   }
 
   const slug = slugify(text);

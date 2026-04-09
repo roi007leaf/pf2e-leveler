@@ -587,23 +587,24 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     game.i18n.has = jest.fn((key) => key === 'PF2E.SpecificRule.Druid.DruidicOrder.Prompt');
     game.i18n.localize = jest.fn((key) => (key === 'PF2E.SpecificRule.Druid.DruidicOrder.Prompt' ? 'Select a druidic order.' : key));
 
-    try {
-      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
-      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          flag: 'druidicOrder',
+      try {
+        const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+        expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            flag: 'druidicOrder',
           prompt: 'Select a druidic order.',
           choiceType: 'item',
           options: expect.arrayContaining([
             expect.objectContaining({ value: 'Compendium.pf2e.classfeatures.Item.animal-order', label: 'Animal Order', img: 'animal.webp' }),
             expect.objectContaining({ value: 'Compendium.pf2e.classfeatures.Item.leaf-order', label: 'Leaf Order', img: 'leaf.webp' }),
-          ]),
-        }),
-      ]));
-    } finally {
-      global.fromUuid = originalFromUuid;
-      game.packs = originalPacks;
-      game.i18n.has = originalHas;
+            ]),
+          }),
+        ]));
+        expect((context.archetypeFeat?.grantChoiceSets ?? []).some((entry) => entry.flag === 'druidicOrder')).toBe(false);
+      } finally {
+        global.fromUuid = originalFromUuid;
+        game.packs = originalPacks;
+        game.i18n.has = originalHas;
       game.i18n.localize = originalLocalize;
     }
   });
@@ -628,9 +629,9 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     expect(buildState.classArchetypeDedications.has('druid-dedication')).toBe(true);
     expect(buildState.classArchetypeTraits.has('druid')).toBe(true);
-    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
-    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
-    expect(preset.showDedications).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.lockedTraits).toEqual(['archetype']);
+    expect(preset.showDedications).toBe(false);
   });
 
   it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', () => {
@@ -652,6 +653,48 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const preset = planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
 
     expect(buildState.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.lockedTraits).toEqual(['archetype']);
+    expect(preset.showDedications).toBe(false);
+  });
+
+  it('reopens dedication feats once the current dedication is completed', () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+      slug: 'medic-dedication',
+      name: 'Medic Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication', 'medic'],
+      choices: {},
+    }];
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+      slug: 'treat-condition',
+      name: 'Treat Condition',
+      level: 4,
+      traits: ['archetype', 'skill'],
+      system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+      choices: {},
+    }];
+    planner.plan.levels[6].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.holistic-care',
+      slug: 'holistic-care',
+      name: 'Holistic Care',
+      level: 6,
+      traits: ['archetype', 'skill'],
+      system: { prerequisites: { value: [{ value: 'trained in Diplomacy, Treat Condition' }] } },
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 8);
+    const preset = planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
+
+    expect(buildState.canTakeNewArchetypeDedication).toBe(true);
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.showDedications).toBe(true);
@@ -737,6 +780,240 @@ describe('LevelPlanner bootstrap from existing actor', () => {
         }),
       ]));
       expect(context.archetypeFeatChoiceSets.find((entry) => entry.flag === 'levelerSkillFallback1').options.some((entry) => entry.value === 'religion')).toBe(false);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('shows fallback skill choices for druid dedication when the granted nature and order skill already overlap', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          athletics: 'Athletics',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          nature: { rank: 1 },
+          athletics: { rank: 1 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      slug: 'druid-dedication',
+      name: 'Druid Dedication',
+      level: 2,
+      choices: { druidicOrder: 'Compendium.pf2e.classfeatures.Item.animal-order' },
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          system: {
+            description: {
+              value: "<p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.animal-order') {
+        return {
+          uuid,
+          name: 'Animal Order',
+          system: {
+            rules: [
+              { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.athletics.rank', value: 1 },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const fallbackSets = context.archetypeFeatChoiceSets.filter((entry) => entry.flag.startsWith('levelerSkillFallback'));
+      expect(fallbackSets).toHaveLength(2);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('shows druid dedication fallback skill choices when the selected order skill is described in text instead of rules', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          intimidation: 'Intimidation',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          nature: { rank: 1 },
+          intimidation: { rank: 1 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      slug: 'druid-dedication',
+      name: 'Druid Dedication',
+      level: 2,
+      choices: { druidicOrder: 'Compendium.pf2e.classfeatures.Item.flame-order' },
+      skillRules: [{ skill: 'nature', value: 1 }],
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          system: {
+            description: {
+              value: "<p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.flame-order') {
+        return {
+          uuid,
+          name: 'Flame Order',
+          system: {
+            description: {
+              value: '<p>Order Skill Intimidation</p>',
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const fallbackSets = context.archetypeFeatChoiceSets.filter((entry) => entry.flag.startsWith('levelerSkillFallback'));
+      expect(fallbackSets).toHaveLength(2);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('backfills planner feat skill rules from source text when a saved druid dedication entry is stale', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          athletics: 'Athletics',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          nature: { rank: 1 },
+          athletics: { rank: 1 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+      slug: 'druid-dedication',
+      name: 'Druid Dedication',
+      level: 2,
+      choices: { druidicOrder: 'Compendium.pf2e.classfeatures.Item.animal-order' },
+      skillRules: [],
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          system: {
+            description: {
+              value: "<p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.animal-order') {
+        return {
+          uuid,
+          name: 'Animal Order',
+          system: {
+            rules: [
+              { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.athletics.rank', value: 1 },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const fallbackSets = context.archetypeFeatChoiceSets.filter((entry) => entry.flag.startsWith('levelerSkillFallback'));
+      expect(fallbackSets).toHaveLength(2);
+      expect(planner.plan.levels[2].archetypeFeats[0].skillRules).toEqual(
+        expect.arrayContaining([expect.objectContaining({ skill: 'nature', value: 1 })]),
+      );
     } finally {
       global.CONFIG = originalConfig;
       global.fromUuid = originalFromUuid;

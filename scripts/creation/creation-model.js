@@ -5,6 +5,7 @@ export function createCreationData() {
     version: CURRENT_VERSION,
     ancestry: null,
     heritage: null,
+    mixedAncestry: null,
     background: null,
     class: null,
     subclass: null,
@@ -52,6 +53,7 @@ function clearBoostsForPrefix(data, prefix) {
 export function setAncestry(data, item) {
   data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
   data.heritage = null;
+  data.mixedAncestry = null;
   data.languages = [];
   data.ancestryFeat = null;
   data.ancestryParagonFeat = null;
@@ -63,10 +65,20 @@ export function setAncestry(data, item) {
 
 export function setHeritage(data, item) {
   data.heritage = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
+  if ((item?.slug ?? null) !== 'mixed-ancestry' && (item?.uuid ?? null) !== 'pf2e-leveler.synthetic.heritage.mixed-ancestry') {
+    data.mixedAncestry = null;
+  }
   data.ancestryFeat = null;
   data.ancestryParagonFeat = null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
+  return data;
+}
+
+export function setMixedAncestry(data, item) {
+  data.mixedAncestry = item
+    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null }
+    : null;
   return data;
 }
 

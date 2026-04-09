@@ -85,7 +85,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 18;
+    wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Barrister' };
     wizard.data.subclass = {
@@ -128,7 +128,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('includes lore granted by selected ancestry lore feats', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 18;
+    wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Barrister' };
     wizard.data.ancestryFeat = {
@@ -262,7 +262,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('keeps disallowed languages visible but marked as disallowed', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 21;
+    wizard.currentStep = 22;
     wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };
 
     global.game.user.isGM = false;
@@ -294,7 +294,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('keeps disallowed skills visible but marked as disallowed', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 18;
+    wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
 
     global.game.user.isGM = false;
@@ -314,7 +314,7 @@ describe('CharacterWizard skills step grants', () => {
 
   it('sorts recommended skills first and not-recommended skills last', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 18;
+    wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
 
     global.game.settings.get = jest.fn((moduleId, settingKey) => {
@@ -364,7 +364,7 @@ describe('CharacterWizard skills step grants', () => {
     });
 
     const wizard = new CharacterWizard(createMockActor());
-    wizard.currentStep = 18;
+    wizard.currentStep = 19;
     wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
     wizard.data.background = { uuid: 'background-uuid', name: 'Warrior' };
 

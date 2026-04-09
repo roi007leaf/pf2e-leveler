@@ -1,5 +1,6 @@
 import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
+import { debug } from '../../utils/logger.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -56,7 +57,7 @@ export function activateLevelPlannerListeners(planner, html) {
   });
 
   el.querySelectorAll('[data-action="selectPlannedFeatChoice"]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const levelData = getLevelData(planner.plan, planner.selectedLevel);
       const category = button.dataset.category;
       const flag = button.dataset.flag;
@@ -68,6 +69,17 @@ export function activateLevelPlannerListeners(planner, html) {
         : null;
       if (!feat || !flag || !value) return;
       feat.choices = { ...(feat.choices ?? {}), [flag]: value };
+      await syncPlannedFeatChoiceSkillRules(feat, flag, value);
+      if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
+        debug('Planner druid dedication choice selected', {
+          level: planner.selectedLevel,
+          flag,
+          value,
+          choices: feat.choices,
+          skillRules: feat.skillRules ?? [],
+          dynamicSkillRules: feat.dynamicSkillRules ?? [],
+        });
+      }
       planner._savePlanAndRender();
     });
   });
@@ -143,7 +155,8 @@ export function activateLevelPlannerListeners(planner, html) {
   el.querySelectorAll('[data-action="openSpellPicker"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const rank = Number(btn.dataset.rank);
-      planner._openSpellPicker(rank);
+      const entryType = btn.dataset.entryType ?? 'primary';
+      planner._openSpellPicker(rank, entryType);
     });
   });
 
@@ -157,7 +170,9 @@ export function activateLevelPlannerListeners(planner, html) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const uuid = btn.dataset.uuid;
-      removeLevelSpell(planner.plan, planner.selectedLevel, uuid);
+      const entryType = btn.dataset.entryType ?? 'primary';
+      const rank = btn.dataset.rank != null ? Number(btn.dataset.rank) : null;
+      removeLevelSpell(planner.plan, planner.selectedLevel, uuid, { entryType, rank });
       planner._savePlanAndRender();
     });
   });
@@ -281,4 +296,37 @@ export function getSelectableSkillRank(planner, slug) {
   }
 
   return buildState.skills[slug] ?? 0;
+}
+
+async function syncPlannedFeatChoiceSkillRules(feat, flag, value) {
+  const sourceKey = `choice:${String(flag ?? '').toLowerCase()}`;
+  const preservedRules = Array.isArray(feat?.dynamicSkillRules)
+    ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)
+    : [];
+
+  if (typeof value !== 'string' || !value.startsWith('Compendium.')) {
+    feat.dynamicSkillRules = preservedRules;
+    return;
+  }
+
+  if (typeof fromUuid !== 'function') {
+    feat.dynamicSkillRules = preservedRules;
+    return;
+  }
+
+  const selectedItem = await fromUuid(value).catch(() => null);
+  if (!selectedItem) {
+    feat.dynamicSkillRules = preservedRules;
+    return;
+  }
+
+  const { extractFeatSkillRules } = await import('./index.js');
+  const selectedRules = await extractFeatSkillRules(selectedItem).catch(() => []);
+  feat.dynamicSkillRules = [
+    ...preservedRules,
+    ...selectedRules.map((rule) => ({
+      ...rule,
+      source: sourceKey,
+    })),
+  ];
 }

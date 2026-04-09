@@ -89,9 +89,12 @@ export class WizardHandler extends CasterBaseHandler {
 
   async _applySpellcasting(actor, data) {
     const mainData = foundry.utils.deepClone(data);
+    const curriculumSpellUuids = this._resolveCurriculumEntrySpells(data);
+    const curriculumCantrips = await this._loadCurriculumSpells(curriculumSpellUuids.cantrips);
+    const curriculumRank1 = await this._loadCurriculumSpells(curriculumSpellUuids.rank1);
 
-    mainData.spells.cantrips = this._mergeUniqueSpells(data.spells.cantrips);
-    mainData.spells.rank1 = this._mergeUniqueSpells(data.spells.rank1);
+    mainData.spells.cantrips = this._mergeUniqueSpells(data.spells.cantrips, curriculumCantrips);
+    mainData.spells.rank1 = this._mergeUniqueSpells(data.spells.rank1, curriculumRank1);
 
     if (mainData.subclass) {
       mainData.subclass = { ...mainData.subclass, curriculum: null, slug: null };
