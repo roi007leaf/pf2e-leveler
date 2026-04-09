@@ -580,7 +580,7 @@ describe('CharacterWizard skills step grants', () => {
     );
   });
 
-  it('includes selected lore skills in the skills step count and context', async () => {
+  it('does not count ad-hoc lore skills toward the level 1 skills step', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
@@ -588,9 +588,7 @@ describe('CharacterWizard skills step grants', () => {
 
     const context = await wizard._getStepContext();
 
-    expect(context.selectedCount).toBe(1);
-    expect(context.selectedLoreSkills).toEqual([
-      expect.objectContaining({ name: 'Underworld Lore', label: 'Underworld Lore' }),
-    ]);
+    expect(context.selectedCount).toBe(0);
+    expect(context.selectedLoreSkills).toBeUndefined();
   });
 });

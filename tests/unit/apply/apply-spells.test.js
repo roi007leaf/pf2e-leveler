@@ -4,6 +4,7 @@ import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { WIZARD } from '../../../scripts/classes/wizard.js';
 
 describe('applySpells', () => {
   let actor;
@@ -14,6 +15,7 @@ describe('applySpells', () => {
     ClassRegistry.register(FIGHTER);
     ClassRegistry.register(SORCERER);
     ClassRegistry.register(MAGUS);
+    ClassRegistry.register(WIZARD);
   });
 
   beforeEach(() => {
@@ -387,5 +389,72 @@ describe('applySpells', () => {
         'system.slots.slot4.max': 0,
       }),
     ]));
+  });
+
+  test('adds planned dedication spells to the newly created dedication spellcasting entry', async () => {
+    const archetypeActor = {
+      items: [],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: doc.type === 'spellcastingEntry' ? `created-entry-${index}` : `created-item-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'wizard-cantrip-a' ? 'Detect Magic' : 'Read Aura',
+      img: 'spell.png',
+      system: { level: { value: 0 }, traits: { value: ['arcane', 'cantrip'] } },
+      toObject: () => ({
+        name: uuid === 'wizard-cantrip-a' ? 'Detect Magic' : 'Read Aura',
+        type: 'spell',
+        system: { level: { value: 0 }, traits: { value: ['arcane', 'cantrip'] } },
+      }),
+    }));
+
+    const plan = {
+      classSlug: 'magus',
+      levels: {
+        2: {
+          archetypeFeats: [{ uuid: 'Compendium.pf2e.feats-srd.Item.wizard-dedication', slug: 'wizard-dedication', name: 'Wizard Dedication' }],
+          spells: [
+            { uuid: 'wizard-cantrip-a', name: 'Detect Magic', rank: 0, isCantrip: true, entryType: 'archetype:wizard' },
+            { uuid: 'wizard-cantrip-b', name: 'Read Aura', rank: 0, isCantrip: true, entryType: 'archetype:wizard' },
+          ],
+        },
+      },
+    };
+
+    await applySpells(archetypeActor, plan, 2);
+
+    expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Wizard Dedication Spells',
+        type: 'spellcastingEntry',
+      }),
+    ]);
+    expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Detect Magic',
+        system: expect.objectContaining({
+          location: { value: 'created-entry-0' },
+        }),
+      }),
+    ]);
+    expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Read Aura',
+        system: expect.objectContaining({
+          location: { value: 'created-entry-0' },
+        }),
+      }),
+    ]);
   });
 });

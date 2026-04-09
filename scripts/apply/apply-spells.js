@@ -12,11 +12,13 @@ const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
   const addedSpells = [];
+  const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
 
   if (classDef?.spellcasting) {
     const slots = classDef.spellcasting.slots[level];
     if (slots) {
       const entries = await ensureSpellcastingEntries(actor, classDef);
+      entries.archetypes = archetypeEntries;
       await updateSpellSlots(actor, entries, slots, classDef, level);
 
       const levelData = plan.levels[level];
@@ -32,9 +34,6 @@ export async function applySpells(actor, plan, level) {
       await updateDivineFont(actor, plan, level);
     }
   }
-
-  await ensureArchetypeSpellcastingEntries(actor, plan, level);
-
   return addedSpells;
 }
 
@@ -115,11 +114,13 @@ async function ensureSpellcastingEntries(actor, classDef) {
 
 async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
   const configs = collectArchetypeSpellcastingConfigs(actor, plan, level);
-  if (configs.length === 0) return;
+  if (configs.length === 0) return {};
 
   const updates = [];
+  const entriesByType = {};
   for (const config of configs) {
     const entry = await findOrCreateEntry(actor, config);
+    entriesByType[`archetype:${config.flagValue}`] = entry;
     const update = buildArchetypeSpellcastingSlotUpdate(entry, config);
     if (update) updates.push(update);
   }
@@ -127,6 +128,8 @@ async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
   if (updates.length > 0) {
     await actor.updateEmbeddedDocuments('Item', updates);
   }
+
+  return entriesByType;
 }
 
 const VARIABLE_TRADITIONS = ['bloodline', 'patron'];
@@ -609,6 +612,8 @@ function resolveTargetEntry(actor, entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
   if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
+    const stagedEntry = entries?.archetypes?.[entryType];
+    if (stagedEntry) return stagedEntry;
     const classSlug = entryType.split(':')[1] ?? '';
     return actor.items?.find?.((item) =>
       item?.type === 'spellcastingEntry'

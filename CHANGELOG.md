@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.9
+
+### Level Planner
+
+- **Higher-level skill increases now support Lore** - Skill increase pickers can now train and advance existing Lore skills in addition to the standard skill list
+- **Subclass dedication requirements can be enforced by setting** - A new GM setting can restrict level 2 class-feat selection to a required dedication such as `Battle Harbinger Dedication` when a subclass says you must take it
+- **Required subclass dedications are labeled in the picker** - When that setting is enabled, the forced dedication feat now shows a `Subclass/Archetype Limitation` badge so the restriction is obvious in the UI
+
+### Spellcasting
+
+- **Planned dedication spell selections now apply to their new spellcasting entries** - When a level-up plan creates an archetype spellcasting entry such as `Wizard Dedication Spells`, the selected dedication cantrips and spells are now embedded onto that entry during apply instead of only creating empty slots
+
 ## 2.1.8
 
 ### Character Wizard
@@ -11,6 +23,7 @@
 - **Ancestry feat spell choices now use the spell picker** - Ancestry feats such as `Otherworldly Magic` can now open a real spell picker, store the selected spell correctly, and apply it to the actor during creation
 - **Subclass grant items now apply correctly** - Order and similar subclass items are now applied and grant-scanned properly during creation, so features like `Untamed Order` can contribute granted feat content such as `Untamed Form`
 - **Long content-source chip lists no longer shove step content down** - The source chip panel on wizard steps now has a capped height with its own scroll area
+- **Skill cards keep a consistent height when sourced** - Skill rows no longer shrink when they display a source such as `Feat Choices` or a later grant
 
 ### Level Planner
 
