@@ -84,6 +84,7 @@ jobs:
              ./module.zip                        \
             module.json                          \
             README.md                            \
+            CHANGELOG.md                         \
             LICENSE                              \
             templates/                           \
             scripts/                             \
