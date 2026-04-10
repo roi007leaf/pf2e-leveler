@@ -8,6 +8,7 @@ import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } 
 import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
 import { debug } from '../../utils/logger.js';
+import { getAvailableLanguages } from './context.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -342,7 +343,9 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
     ? await buildPlannerDedicationChoiceSetFallbacks(planner, feat, source)
     : [];
 
-  const combined = dedupePlannerChoiceSets([...choiceSets, ...dedicationFallbackSets, ...fallbackSets]);
+  const specialChoiceSets = buildPlannerSpecialChoiceSets(feat, source);
+  const combined = dedupePlannerChoiceSets([...choiceSets, ...dedicationFallbackSets, ...fallbackSets, ...specialChoiceSets]);
+  syncPlannerChoiceSetSkillRules(feat, combined);
   if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
     debug('Planner druid dedication choice sets built', {
       level: planner.selectedLevel,
@@ -359,13 +362,63 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   return combined
     .map((entry) => ({
       ...entry,
-      options: (entry.options ?? []).map((option) => ({
-        ...option,
-        selected: String(option?.value ?? '') === String(feat?.choices?.[entry.flag] ?? ''),
-      })),
-      choiceType: entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
+      options: hydratePlannerChoiceOptions(entry, feat),
+      choiceType: entry.choiceType ?? (entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item'),
     }))
-    .filter((entry) => entry.options.length > 0);
+    .filter((entry) => entry.choiceType === 'lore' || entry.options.length > 0);
+}
+
+function buildPlannerSpecialChoiceSets(feat, source) {
+  const slug = String(feat?.slug ?? source?.slug ?? '').toLowerCase();
+  const special = [];
+
+  if (slug === 'additional-lore') {
+    special.push({
+      flag: 'levelerAdditionalLore',
+      prompt: 'Select a Lore skill.',
+      choiceType: 'lore',
+      grantsSkillTraining: true,
+      options: [],
+    });
+  }
+
+  if (slug === 'multilingual') {
+    special.push({
+      flag: 'levelerMultilingualLanguage',
+      prompt: 'Select a language.',
+      choiceType: 'language',
+      options: annotateGuidanceBySlug(getAvailableLanguages(), 'language').map((entry) => ({
+        value: entry.slug,
+        label: entry.label,
+        rarity: entry.rarity,
+        isRecommended: entry.isRecommended,
+        isNotRecommended: entry.isNotRecommended,
+        isDisallowed: entry.isDisallowed,
+      })),
+    });
+  }
+
+  return special;
+}
+
+function hydratePlannerChoiceOptions(entry, feat) {
+  const selectedValue = String(feat?.choices?.[entry.flag] ?? '');
+  const options = (entry.options ?? []).map((option) => ({
+    ...option,
+    selected: String(option?.value ?? '') === selectedValue,
+  }));
+
+  if (entry?.grantsSkillTraining !== true || !selectedValue || options.some((option) => option.selected)) return options;
+  if (SKILLS.includes(selectedValue)) return options;
+
+  return [
+    ...options,
+    {
+      value: selectedValue,
+      label: localizeSkillSlug(selectedValue),
+      selected: true,
+    },
+  ];
 }
 
 async function backfillPlannerFeatSkillRules(feat, source) {
@@ -860,6 +913,67 @@ function syncFeatDynamicSkillRules(feat, shouldAdd, deitySkill) {
     otherRules.push({ skill: deitySkill, value: 1, source: 'deity-associated-skill' });
   }
   feat.dynamicSkillRules = otherRules;
+}
+
+function syncPlannerChoiceSetSkillRules(feat, choiceSets) {
+  if (!feat) return;
+
+  const preservedRules = Array.isArray(feat.dynamicSkillRules)
+    ? feat.dynamicSkillRules.filter((rule) => !String(rule?.source ?? '').startsWith('choice:'))
+    : [];
+  const preservedLoreRules = Array.isArray(feat.dynamicLoreRules)
+    ? feat.dynamicLoreRules.filter((rule) => !String(rule?.source ?? '').startsWith('choice:'))
+    : [];
+  const choiceRules = [];
+  const loreRules = [];
+
+  for (const choiceSet of choiceSets ?? []) {
+    if (choiceSet?.grantsSkillTraining !== true) continue;
+    const sourceKey = `choice:${String(choiceSet?.flag ?? '').toLowerCase()}`;
+    const selectedSkill = normalizePlannerSkillChoice(feat?.choices?.[choiceSet?.flag]);
+    if (selectedSkill) {
+      choiceRules.push({ skill: selectedSkill, value: 1, source: sourceKey });
+      continue;
+    }
+    const selectedLore = normalizePlannerLoreChoice(feat?.choices?.[choiceSet?.flag]);
+    if (selectedLore) loreRules.push({ skill: selectedLore, value: 1, source: sourceKey });
+  }
+
+  feat.dynamicSkillRules = [...preservedRules, ...choiceRules];
+  feat.dynamicLoreRules = [...preservedLoreRules, ...loreRules];
+}
+
+function normalizePlannerSkillChoice(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const aliases = {
+    acr: 'acrobatics',
+    arc: 'arcana',
+    ath: 'athletics',
+    cra: 'crafting',
+    dec: 'deception',
+    dip: 'diplomacy',
+    itm: 'intimidation',
+    med: 'medicine',
+    nat: 'nature',
+    occ: 'occultism',
+    prf: 'performance',
+    rel: 'religion',
+    soc: 'society',
+    ste: 'stealth',
+    sur: 'survival',
+    thi: 'thievery',
+  };
+
+  const candidate = aliases[normalized] ?? normalized;
+  return SKILLS.includes(candidate) ? candidate : null;
+}
+
+function normalizePlannerLoreChoice(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized || SKILLS.includes(normalized)) return null;
+  return normalized.includes('lore') ? normalized : null;
 }
 
 function localizeSkillSlug(slug) {

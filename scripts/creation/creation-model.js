@@ -92,7 +92,18 @@ export function setBackground(data, item) {
 }
 
 export function setClass(data, item) {
-  data.class = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug } : null;
+  data.class = item
+    ? {
+      uuid: item.uuid,
+      name: item.name,
+      img: item.img,
+      slug: item.slug,
+      sourcePack: item.sourcePack ?? null,
+      sourcePackage: item.sourcePackage ?? null,
+      keyAbility: Array.isArray(item.keyAbility) ? [...item.keyAbility] : null,
+      subclassTag: typeof item.subclassTag === 'string' ? item.subclassTag : null,
+    }
+    : null;
   data.subclass = null;
   data.implement = null;
   data.tactics = [];

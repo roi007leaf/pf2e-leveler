@@ -192,7 +192,19 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
     };
   }).filter((entry) => !entry.disabled || entry.selected);
 
-  return annotateGuidanceBySlug(entries, 'skill').map((entry) => ({
+  const loreRanks = computeBuildState(planner.actor, planner.plan, level - 1).lores ?? {};
+  const selectedLoreSlugs = (levelData.intBonusSkills ?? []).filter((slug) => !SKILLS.includes(slug));
+  const loreSlugs = new Set([...Object.keys(loreRanks), ...selectedLoreSlugs]);
+  const loreEntries = [...loreSlugs].map((slug) => ({
+    slug,
+    label: humanizeSkillLikeLabel(slug),
+    selected: selected.has(slug),
+    disabled: !selected.has(slug) && (loreRanks[slug] ?? 0) >= 1,
+    trained: (loreRanks[slug] ?? 0) >= 1,
+    isLore: true,
+  })).filter((entry) => !entry.disabled || entry.selected);
+
+  return annotateGuidanceBySlug([...entries, ...loreEntries], 'skill').map((entry) => ({
     ...entry,
     disabled: entry.disabled || entry.isDisallowed === true,
   }));
@@ -206,12 +218,18 @@ export function buildIntBonusLanguageContext(planner, levelData, level) {
   const current = new Set(planner.actor.system?.details?.languages?.value ?? []);
   const priorPlanned = getPlannedLanguagesBeforeLevel(planner, level);
   for (const slug of priorPlanned) current.add(slug);
+  const ancestrySuggested = new Set(
+    planner.actor.ancestry?.system?.additionalLanguages?.value
+    ?? planner.actor.system?.details?.ancestry?.additionalLanguages?.value
+    ?? [],
+  );
 
   const allLanguages = getAvailableLanguages();
   const entries = allLanguages.map((entry) => ({
     ...entry,
     selected: selected.has(entry.slug),
     disabled: current.has(entry.slug) && !selected.has(entry.slug),
+    suggested: ancestrySuggested.has(entry.slug),
   })).filter((entry) => !entry.disabled || entry.selected);
 
   return annotateGuidanceBySlug(entries, 'language').map((entry) => ({

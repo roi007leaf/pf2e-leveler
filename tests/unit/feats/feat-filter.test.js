@@ -155,6 +155,44 @@ describe('filterFeatsByCategory', () => {
     expect(result[0].name).toBe('Fighter Dedication');
   });
 
+  test('includes feats with dedication prerequisites in the archetype category even if the raw archetype trait is missing', () => {
+    const feats = [
+      makeFeat('Marshal Dedication', 2, ['archetype', 'dedication']),
+      {
+        ...makeFeat('Dread Marshal Stance', 4, ['stance']),
+        system: {
+          ...makeFeat('Dread Marshal Stance', 4, ['stance']).system,
+          prerequisites: { value: [{ value: 'Marshal Dedication, trained in Intimidation' }] },
+        },
+      },
+    ];
+
+    const result = filterFeatsByCategory(feats, 'archetype', '', 4);
+
+    expect(result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Marshal Dedication' }),
+      expect.objectContaining({ name: 'Dread Marshal Stance' }),
+    ]));
+  });
+
+  test('includes skill feats with dedication prerequisites in the skill category even if the raw archetype trait is missing', () => {
+    const feats = [
+      {
+        ...makeFeat('Treat Condition', 4, ['skill']),
+        system: {
+          ...makeFeat('Treat Condition', 4, ['skill']).system,
+          prerequisites: { value: [{ value: 'Medic Dedication' }] },
+        },
+      },
+    ];
+
+    const result = filterFeatsByCategory(feats, 'skill', '', 4);
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Treat Condition' }),
+    ]);
+  });
+
   test('includes additional feats granted by an owned archetype dedication', async () => {
     const dedication = {
       ...makeFeat('Avenger Dedication', 2, ['archetype', 'dedication']),

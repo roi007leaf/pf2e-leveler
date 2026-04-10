@@ -1,4 +1,13 @@
 <div class="pf2e-leveler feat-picker">
+  {{#if isLoading}}
+  <div class="compendium-manager__loading">
+    <div class="wizard-loading__card compendium-manager__loadingCard">
+      <div class="wizard-loading__spinner" aria-hidden="true"></div>
+      <div class="wizard-loading__title">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.INDEXING_TITLE"}}</div>
+      <div class="wizard-loading__text">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.INDEXING_HINT"}}</div>
+    </div>
+  </div>
+  {{/if}}
   <div class="picker__browser">
     <aside class="picker__sidebar">
       <div class="picker__filter-group">

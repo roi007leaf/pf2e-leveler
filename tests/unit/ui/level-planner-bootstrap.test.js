@@ -1292,4 +1292,88 @@ describe('LevelPlanner bootstrap from existing actor', () => {
       global.fromUuid = originalFromUuid;
     }
   });
+
+  it('backfills selected training-granting skill choices onto stale planned feat entries', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.SkillAcr',
+          arc: 'PF2E.SkillArc',
+          ath: 'PF2E.SkillAth',
+          cra: 'PF2E.SkillCra',
+          dec: 'PF2E.SkillDec',
+          dip: 'PF2E.SkillDip',
+          itm: 'PF2E.SkillItm',
+          med: 'PF2E.SkillMed',
+          nat: 'PF2E.SkillNat',
+          occ: 'PF2E.SkillOcc',
+          prf: 'PF2E.SkillPrf',
+          rel: 'PF2E.SkillRel',
+          soc: 'PF2E.SkillSoc',
+          ste: 'PF2E.SkillSte',
+          sur: 'PF2E.SkillSur',
+          thi: 'PF2E.SkillThi',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          survival: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.test.Item.scholar',
+      slug: 'scholar',
+      name: 'Scholar',
+      level: 1,
+      choices: { skill: 'survival' },
+      dynamicSkillRules: [],
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.test.Item.scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          system: {
+            description: { value: '<p>Choose a magical tradition skill.</p>' },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: { config: 'skills' },
+                leveler: { grantsSkillTraining: true },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.archetypeFeatChoiceSets.find((entry) => entry.flag === 'skill')).toBeTruthy();
+      expect(planner.plan.levels[4].archetypeFeats[0].dynamicSkillRules).toEqual([
+        expect.objectContaining({ skill: 'survival', value: 1, source: 'choice:skill' }),
+      ]);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
 });

@@ -567,6 +567,26 @@
   padding-right: 2px;
 }
 
+.pf2e-leveler .compendium-manager {
+  position: relative;
+}
+
+.pf2e-leveler .compendium-manager__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(14, 12, 11, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.pf2e-leveler .compendium-manager__loadingCard {
+  max-width: 420px;
+}
+
 .pf2e-leveler .compendium-manager__panel {
   padding: 14px;
   border: 1px solid rgba(196, 180, 158, 0.16);

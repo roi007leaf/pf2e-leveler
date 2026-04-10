@@ -11,6 +11,7 @@ import {
 } from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 
 const CATEGORY_LABELS = {
   ammunition: 'Ammunition',
@@ -257,7 +258,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredItems.length,
       capped,
     };
-    const html = await renderTemplate(`modules/${MODULE_ID}/templates/item-picker.hbs`, context);
+    const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/item-picker.hbs`, context);
     const temp = document.createElement('div');
     temp.innerHTML = html;
     const newList = temp.querySelector('.item-list');
@@ -448,4 +449,8 @@ export async function loadItems() {
   }
   _itemCache = items;
   return items;
+}
+
+export function invalidateItemCache() {
+  _itemCache = null;
 }

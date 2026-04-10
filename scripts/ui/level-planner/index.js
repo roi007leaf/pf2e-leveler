@@ -800,8 +800,25 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _promptLoreSkillIncrease({ custom = false } = {}) {
+    const loreSlug = await this._promptLoreSlug();
+    if (!loreSlug) return;
+
+    const seed = buildLoreSkillIncreaseEntry(loreSlug, 0);
+    const currentRank = computeBuildState(this.actor, this.plan, this.selectedLevel).lores?.[seed.skill] ?? 0;
+    const entry = buildLoreSkillIncreaseEntry(loreSlug, currentRank);
+    if (!entry.label) return;
+
+    if (custom) {
+      addLevelCustomSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
+    } else {
+      setLevelSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
+    }
+    this._savePlanAndRender();
+  }
+
+  async _promptLoreSlug() {
     const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
-    if (!dialogClass?.prompt) return;
+    if (!dialogClass?.prompt) return '';
 
     const value = await dialogClass.prompt({
       window: { title: game.i18n?.localize?.('PF2E_LEVELER.CREATION.LORE_SKILLS') ?? 'Lore Skills' },
@@ -813,20 +830,52 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       `,
       ok: {
         label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
-        callback: (html) => html.querySelector?.('input[name="lore-name"]')?.value ?? '',
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return root?.querySelector?.('input[name="lore-name"]')?.value ?? '';
+        },
       },
     });
 
-    const seed = buildLoreSkillIncreaseEntry(value, 0);
-    const currentRank = computeBuildState(this.actor, this.plan, this.selectedLevel).lores?.[seed.skill] ?? 0;
-    const entry = buildLoreSkillIncreaseEntry(value, currentRank);
-    if (!entry.label) return;
+    return buildLoreSkillIncreaseEntry(value, 0).skill ?? '';
+  }
 
-    if (custom) {
-      addLevelCustomSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
-    } else {
-      setLevelSkillIncrease(this.plan, this.selectedLevel, { skill: entry.skill, toRank: entry.toRank });
-    }
+  async _promptIntBonusLoreSkill() {
+    const benefit = this._buildIntelligenceBenefitContext(this.selectedLevel);
+    const max = benefit?.count ?? 0;
+    if (max <= 0) return;
+
+    const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
+    const selected = [...(levelData.intBonusSkills ?? [])];
+    if (selected.length >= max) return;
+
+    const loreSlug = await this._promptLoreSlug();
+    if (!loreSlug || selected.includes(loreSlug)) return;
+
+    levelData.intBonusSkills = [...selected, loreSlug];
+    this._savePlanAndRender();
+  }
+
+  async _promptPlannedFeatLoreChoice({ category, flag, index = null } = {}) {
+    const levelData = getLevelData(this.plan, this.selectedLevel);
+    const featList = category ? levelData?.[category] : null;
+    const feat = Array.isArray(featList)
+      ? featList[Number.isInteger(index) && index >= 0 ? index : 0]
+      : null;
+    if (!feat || !flag) return;
+
+    const loreSlug = await this._promptLoreSlug();
+    if (!loreSlug) return;
+
+    const sourceKey = `choice:${String(flag ?? '').toLowerCase()}`;
+    feat.choices = { ...(feat.choices ?? {}), [flag]: loreSlug };
+    feat.dynamicSkillRules = Array.isArray(feat.dynamicSkillRules)
+      ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)
+      : [];
+    feat.dynamicLoreRules = [
+      ...(Array.isArray(feat.dynamicLoreRules) ? feat.dynamicLoreRules.filter((rule) => rule?.source !== sourceKey) : []),
+      { skill: loreSlug, value: 1, source: sourceKey },
+    ];
     this._savePlanAndRender();
   }
 
@@ -1245,6 +1294,14 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _openCustomFeatPicker(level, index = null) {
     const buildState = computeBuildState(this.actor, this.plan, level);
+    const existingFeatUuids = new Set();
+    for (const levelData of Object.values(this.plan?.levels ?? {})) {
+      for (const key of ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']) {
+        for (const feat of levelData?.[key] ?? []) {
+          if (typeof feat?.uuid === 'string' && feat.uuid.length > 0) existingFeatUuids.add(feat.uuid);
+        }
+      }
+    }
 
     const picker = new FeatPicker(
       this.actor,
@@ -1277,6 +1334,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         multiSelect: index == null,
         preset: {
           selectedFeatTypes: ['class', 'ancestry', 'general', 'skill', 'archetype', 'mythic', 'bonus', 'other'],
+          excludedFeatUuids: [...existingFeatUuids],
         },
       },
     );

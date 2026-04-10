@@ -134,6 +134,7 @@ global.foundry = {
     },
     handlebars: {
       loadTemplates: jest.fn(() => Promise.resolve()),
+      renderTemplate: jest.fn(() => Promise.resolve('<div>Mock Template</div>')),
     },
   },
 };

@@ -1,6 +1,8 @@
 import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 import { debug } from '../../utils/logger.js';
+import { SKILLS } from '../../constants.js';
+import { normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -37,6 +39,10 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="addIntBonusLoreSkill"]')?.addEventListener('click', () => {
+    planner._promptIntBonusLoreSkill();
+  });
+
   el.querySelectorAll('[data-action="toggleIntBonusLanguage"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const language = btn.dataset.language;
@@ -62,6 +68,7 @@ export function activateLevelPlannerListeners(planner, html) {
       const category = button.dataset.category;
       const flag = button.dataset.flag;
       const value = button.dataset.value;
+      const grantsSkillTraining = button.dataset.grantsSkillTraining === 'true';
       const index = Number(button.dataset.index);
       const featList = category ? levelData?.[category] : null;
       const feat = Array.isArray(featList)
@@ -69,7 +76,7 @@ export function activateLevelPlannerListeners(planner, html) {
         : null;
       if (!feat || !flag || !value) return;
       feat.choices = { ...(feat.choices ?? {}), [flag]: value };
-      await syncPlannedFeatChoiceSkillRules(feat, flag, value);
+      await syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining });
       if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
         debug('Planner druid dedication choice selected', {
           level: planner.selectedLevel,
@@ -81,6 +88,15 @@ export function activateLevelPlannerListeners(planner, html) {
         });
       }
       planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="promptPlannedFeatLoreChoice"]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const category = button.dataset.category;
+      const flag = button.dataset.flag;
+      const index = Number(button.dataset.index);
+      await planner._promptPlannedFeatLoreChoice({ category, flag, index });
     });
   });
 
@@ -306,25 +322,51 @@ export function getSelectableSkillRank(planner, slug) {
   return buildState.skills[slug] ?? buildState.lores?.[slug] ?? 0;
 }
 
-async function syncPlannedFeatChoiceSkillRules(feat, flag, value) {
+async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining = false } = {}) {
   const sourceKey = `choice:${String(flag ?? '').toLowerCase()}`;
   const preservedRules = Array.isArray(feat?.dynamicSkillRules)
     ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)
     : [];
+  const preservedLoreRules = Array.isArray(feat?.dynamicLoreRules)
+    ? feat.dynamicLoreRules.filter((rule) => rule?.source !== sourceKey)
+    : [];
+
+  const selectedSkill = grantsSkillTraining ? normalizeSelectedSkillChoice(value) : null;
+  if (selectedSkill) {
+    feat.dynamicSkillRules = [
+      ...preservedRules,
+      { skill: selectedSkill, value: 1, source: sourceKey },
+    ];
+    feat.dynamicLoreRules = preservedLoreRules;
+    return;
+  }
+
+  const selectedLore = grantsSkillTraining ? normalizeSelectedLoreChoice(value) : null;
+  if (selectedLore) {
+    feat.dynamicSkillRules = preservedRules;
+    feat.dynamicLoreRules = [
+      ...preservedLoreRules,
+      { skill: selectedLore, value: 1, source: sourceKey },
+    ];
+    return;
+  }
 
   if (typeof value !== 'string' || !value.startsWith('Compendium.')) {
     feat.dynamicSkillRules = preservedRules;
+    feat.dynamicLoreRules = preservedLoreRules;
     return;
   }
 
   if (typeof fromUuid !== 'function') {
     feat.dynamicSkillRules = preservedRules;
+    feat.dynamicLoreRules = preservedLoreRules;
     return;
   }
 
   const selectedItem = await fromUuid(value).catch(() => null);
   if (!selectedItem) {
     feat.dynamicSkillRules = preservedRules;
+    feat.dynamicLoreRules = preservedLoreRules;
     return;
   }
 
@@ -337,4 +379,42 @@ async function syncPlannedFeatChoiceSkillRules(feat, flag, value) {
       source: sourceKey,
     })),
   ];
+  feat.dynamicLoreRules = preservedLoreRules;
+}
+
+function normalizeSelectedSkillChoice(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return null;
+
+  const aliases = {
+    acr: 'acrobatics',
+    arc: 'arcana',
+    ath: 'athletics',
+    cra: 'crafting',
+    dec: 'deception',
+    dip: 'diplomacy',
+    itm: 'intimidation',
+    med: 'medicine',
+    nat: 'nature',
+    occ: 'occultism',
+    prf: 'performance',
+    rel: 'religion',
+    soc: 'society',
+    ste: 'stealth',
+    sur: 'survival',
+    thi: 'thievery',
+  };
+
+  const candidate = aliases[normalized] ?? normalized;
+  return SKILLS.includes(candidate) ? candidate : null;
+}
+
+function normalizeSelectedLoreChoice(value) {
+  const normalizedName = normalizeLoreSkillName(value);
+  if (!normalizedName) return null;
+  const slug = slugifyLoreSkillName(normalizedName);
+  if (!slug || SKILLS.includes(slug)) return null;
+  return slug;
 }

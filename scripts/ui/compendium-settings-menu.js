@@ -9,7 +9,9 @@ import {
   getDefaultCompendiumKeys,
 } from '../compendiums/catalog.js';
 import { createDefaultPlayerCompendiumSelections } from '../access/player-content.js';
-import { invalidateCache } from '../feats/feat-cache.js';
+import { invalidateCache, loadFeats } from '../feats/feat-cache.js';
+import { invalidateItemCache, loadItems } from './item-picker.js';
+import { clearSpellPickerCache, loadSpells } from './spell-picker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -20,6 +22,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     this.viewMode = 'categories';
     this.packSearch = '';
     this._draftSelections = null;
+    this._isSaving = false;
   }
 
   static DEFAULT_OPTIONS = {
@@ -113,6 +116,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
     }
 
     return {
+      isSaving: this._isSaving,
       titleText: this._getMenuTitle(),
       intro: this._getIntroText(),
       viewMode: this.viewMode,
@@ -207,11 +211,40 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
   }
 
   async _saveSelections() {
+    if (this._isSaving) return;
     this._syncSelectionsFromDom();
-    await game.settings.set(MODULE_ID, this._getSettingKey(), this._serializeSelections(this._draftSelections ?? {}));
-    invalidateCache();
-    ui.notifications.info(game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVED'));
-    this.close();
+    const nextSelections = this._serializeSelections(this._draftSelections ?? {});
+    const currentSelections = this._serializeSelections(this._getConfiguredSelections());
+    if (JSON.stringify(nextSelections) === JSON.stringify(currentSelections)) {
+      ui.notifications.info(game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVED'));
+      this.close();
+      return;
+    }
+    this._isSaving = true;
+    this.render(false);
+    await new Promise((resolve) => {
+      if (typeof globalThis.requestAnimationFrame === 'function') {
+        globalThis.requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+    try {
+      await game.settings.set(MODULE_ID, this._getSettingKey(), nextSelections);
+      invalidateCache();
+      invalidateItemCache();
+      clearSpellPickerCache();
+      await Promise.allSettled([
+        loadFeats(),
+        loadItems(),
+        loadSpells(),
+      ]);
+      ui.notifications.info(game.i18n.localize('PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVED'));
+      this.close();
+    } finally {
+      this._isSaving = false;
+      if (this.rendered) this.render(false);
+    }
   }
 
   _setViewMode(viewMode) {

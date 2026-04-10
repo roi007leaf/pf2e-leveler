@@ -76,6 +76,7 @@ import {
   parseCurriculum,
   parseSpellUuidsFromDescription,
   parseVesselSpell,
+  resolveClassSubclassTag,
 } from './loaders.js';
 import { annotateGuidance, annotateGuidanceBySlug, sortByGuidancePriority } from '../../access/content-guidance.js';
 
@@ -180,7 +181,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _hasSubclass() {
-    return !!SUBCLASS_TAGS[this.data.class?.slug];
+    return !!(this.data.class?.subclassTag ?? SUBCLASS_TAGS[this.data.class?.slug]);
   }
 
   _hasMixedAncestry() {
@@ -201,6 +202,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
 
   async _prepareContext() {
+    await this._ensureClassMetadata();
     this._cachedHasClassFeatAtLevel1 = this.data.class?.uuid ? await this._hasClassFeatAtLevel1() : false;
     this._cachedRequiredClassBoostSelections = await this._getRequiredClassBoostSelections();
     this._cachedBoostStepComplete = await this._computeBoostStepComplete();
@@ -344,6 +346,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     return item;
   }
 
+  _normalizeClassKeyAbilityOptions(classItem) {
+    const values = classItem?.system?.keyAbility?.value;
+    if (Array.isArray(values)) {
+      return values.filter((value) => typeof value === 'string' && value.length > 0);
+    }
+    const selected = classItem?.system?.keyAbility?.selected;
+    if (typeof selected === 'string' && selected.length > 0) return [selected];
+    return [];
+  }
+
+  async _ensureClassMetadata(classItem = null) {
+    if (!this.data.class?.uuid) return;
+    const resolvedClassItem = classItem ?? await this._getCachedDocument(this.data.class.uuid);
+    if (!resolvedClassItem) return;
+
+    const keyAbility = this._normalizeClassKeyAbilityOptions(resolvedClassItem);
+    if (!Array.isArray(this.data.class.keyAbility) || this.data.class.keyAbility.length === 0) {
+      this.data.class.keyAbility = keyAbility;
+    }
+
+    if (!this.data.class.subclassTag) {
+      this.data.class.subclassTag = await resolveClassSubclassTag(this, resolvedClassItem);
+    }
+  }
+
   async _resolveMixedAncestryRef(value) {
     const selectedValue = getMixedAncestrySelectedValue(value);
     if (!selectedValue) return null;
@@ -413,6 +440,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this._hasRecoveredCreationSelections(recoveredData)) return;
 
     this.data = recoveredData;
+    await this._ensureClassMetadata(classItem);
     this.classHandler = getClassHandler(this.data.class?.slug);
     this._missingStoredCreationData = false;
     await this._refreshGrantedFeatChoiceSections();
@@ -526,6 +554,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         break;
       case 'class':
         setClass(this.data, item);
+        await this._ensureClassMetadata(item);
         this.classHandler = getClassHandler(item.slug);
         break;
       case 'implement':
@@ -1260,7 +1289,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _getSkillsNote() {
     if (this.data.subclass) return null;
     const slug = this.data.class?.slug;
-    if (SUBCLASS_TAGS[slug]) return 'Your subclass may also grant trained skills — select a subclass first.';
+    if (this.data.class?.subclassTag ?? SUBCLASS_TAGS[slug]) return 'Your subclass may also grant trained skills — select a subclass first.';
     return null;
   }
 

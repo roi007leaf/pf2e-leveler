@@ -360,6 +360,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
     if (includePlannedFeatRules) applyPlannedLevelSkillRankRules(skills, plan, level, atLevel);
 
     for (const skill of levelData.intBonusSkills ?? []) {
+      if (!SKILLS.includes(skill)) continue;
       if ((skills[skill] ?? PROFICIENCY_RANKS.UNTRAINED) < PROFICIENCY_RANKS.TRAINED) {
         skills[skill] = PROFICIENCY_RANKS.TRAINED;
       }
@@ -408,6 +409,24 @@ function computeLoreSkills(actor, plan, atLevel) {
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
+    for (const skill of levelData.intBonusSkills ?? []) {
+      const loreSlug = String(skill ?? '').trim().toLowerCase();
+      if (!loreSlug || SKILLS.includes(loreSlug)) continue;
+      lores[loreSlug] = Math.max(lores[loreSlug] ?? 0, 1);
+    }
+
+    for (const key of ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']) {
+      for (const feat of levelData[key] ?? []) {
+        for (const rule of [...(feat?.dynamicLoreRules ?? []), ...(feat?.loreRules ?? [])]) {
+          const skill = String(rule?.skill ?? '').trim().toLowerCase();
+          if (!skill || SKILLS.includes(skill)) continue;
+          const rank = Number(rule?.value ?? 0);
+          if (!Number.isFinite(rank) || rank <= 0) continue;
+          lores[skill] = Math.max(lores[skill] ?? 0, rank);
+        }
+      }
+    }
+
     for (const inc of [...(levelData.skillIncreases ?? []), ...(levelData.customSkillIncreases ?? [])]) {
       const skill = String(inc?.skill ?? '').trim().toLowerCase();
       if (!skill || SKILLS.includes(skill)) continue;

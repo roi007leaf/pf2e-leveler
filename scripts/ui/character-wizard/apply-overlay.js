@@ -13,7 +13,10 @@ async function resolveDocument(wizard, uuid) {
 
 export async function buildApplyOverlayContext(wizard) {
   const promptRows = await wizard._getApplyPromptRows();
-  const dedupedPromptRows = dedupePromptRows(promptRows);
+  const dedupedPromptRows = dedupePromptRows(promptRows).filter((row) => {
+    const value = String(row?.value ?? '');
+    return value !== 'Pending selection';
+  });
   const activeApplyPrompt = matchActivePromptRow(wizard, dedupedPromptRows);
 
   return { applySelectionRows: [], applyPromptRows: dedupedPromptRows, activeApplyPrompt };
@@ -55,7 +58,7 @@ export async function getApplyPromptRows(wizard) {
     const prompt = getRulePrompt(rule);
     if (!prompt) return;
     const value = await resolvePromptSelectionLabel(wizard, rule, optionSource);
-    const rowValue = value || 'Pending selection';
+    const rowValue = value;
     const normalizedSource = normalizeSourceLabel(source);
     const flag = getRuleSelectionFlag(rule) ?? '';
     const exactKey = `${normalizedSource}:${prompt}:${flag}:${rowValue}`;
@@ -203,11 +206,12 @@ function dedupePromptRows(rows) {
   for (const row of rows ?? []) {
     const label = normalizeSourceLabel(row.label);
     const prompt = String(row.prompt ?? '');
+    const normalizedPrompt = normalizePromptText(prompt);
     const flag = String(row.flag ?? '');
     const value = String(row.value ?? '');
     const pending = row.pending === true || value === 'Pending selection';
-    const promptKey = `${label}:${prompt}:${flag}`;
-    const exactKey = `${label}:${prompt}:${flag}:${value}`;
+    const promptKey = `${label}:${normalizedPrompt}:${flag}`;
+    const exactKey = `${label}:${normalizedPrompt}:${flag}:${value}`;
 
     if (seen.has(exactKey)) continue;
     const existingIndex = promptFlagIndex.get(promptKey);
@@ -216,7 +220,9 @@ function dedupePromptRows(rows) {
       const existingPending = existing.pending === true || String(existing.value ?? '') === 'Pending selection';
       if (!existingPending && pending) continue;
       if (existingPending && !pending) {
-        seen.delete(`${existing.label}:${existing.prompt}:${String(existing.flag ?? '')}:${String(existing.value ?? '')}`);
+        seen.delete(
+          `${normalizeSourceLabel(existing.label)}:${normalizePromptText(existing.prompt)}:${String(existing.flag ?? '')}:${String(existing.value ?? '')}`,
+        );
         deduped[existingIndex] = { ...row, label };
         seen.set(exactKey, existingIndex);
         continue;
@@ -250,7 +256,7 @@ function normalizeSourceLabel(source) {
 
 export async function resolvePromptSelectionLabel(wizard, rule, optionSource = null) {
   const flag = getRuleSelectionFlag(rule);
-  const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  const subclassTag = wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug];
   const rawPrompt = String(rule?.prompt ?? '');
   const localizedPrompt = game.i18n?.has?.(rule?.prompt)
     ? game.i18n.localize(rule.prompt)

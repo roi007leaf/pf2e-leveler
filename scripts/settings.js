@@ -3,6 +3,14 @@ import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from './ui/compend
 import { ContentGuidanceMenu } from './ui/content-guidance-menu.js';
 import { invalidateCache } from './feats/feat-cache.js';
 import { invalidateGuidanceCache } from './access/content-guidance.js';
+import { invalidateItemCache } from './ui/item-picker.js';
+import { clearSpellPickerCache } from './ui/spell-picker.js';
+
+function invalidateContentPickers() {
+  invalidateCache();
+  invalidateItemCache();
+  clearSpellPickerCache();
+}
 
 export function registerSettings() {
   game.settings.register(MODULE_ID, 'showPlanButton', {
@@ -85,7 +93,7 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'playerAllowRare', {
@@ -95,7 +103,7 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: false,
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'playerAllowUnique', {
@@ -105,7 +113,7 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: false,
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'featSortMethod', {
@@ -182,7 +190,7 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: false,
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'customCompendiums', {
@@ -192,7 +200,7 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: {},
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'playerCompendiumAccess', {
@@ -202,7 +210,7 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: { enabled: false, selections: {} },
-    onChange: () => invalidateCache(),
+    onChange: () => invalidateContentPickers(),
   });
 
   game.settings.register(MODULE_ID, 'additionalFeatCompendiums', {

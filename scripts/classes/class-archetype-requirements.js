@@ -1,6 +1,5 @@
 import { SUBCLASS_TAGS } from '../constants.js';
 import { slugify } from '../utils/pf2e-api.js';
-import { debug } from '../utils/logger.js';
 
 const REQUIRED_SECOND_LEVEL_CLASS_FEAT_PATTERN = /must\s+select\s+(.+?)\s+as\s+your\s+(?:2nd|second)\s*-\s*level\s+class\s+feat/i;
 
@@ -15,15 +14,6 @@ export function getSelectedSubclassItem(actor, classSlug = actor?.class?.slug ??
     (item?.type === 'feat' || item?.type === 'classfeature')
     && matchesTagFamily(item?.system?.traits?.otherTags ?? [], subclassTag),
   ) ?? null;
-
-  debug('Subclass dedication requirement source lookup', {
-    actor: actor?.name ?? null,
-    classSlug,
-    subclassTag,
-    matchedName: matched?.name ?? null,
-    matchedType: matched?.type ?? null,
-    matchedOtherTags: matched?.system?.traits?.otherTags ?? [],
-  });
 
   return matched;
 }
@@ -64,24 +54,6 @@ export function getRequiredSecondLevelClassFeatForActor(actor, classSlug = actor
   const requirement = requirementSources
     .map((value) => parseRequiredSecondLevelClassFeat(value))
     .find(Boolean) ?? null;
-  const matchingSourceSample = requirement
-    ? null
-    : requirementSources.find((value) => /must\s+select|class\s+feat|2nd|second|dedication|battle harbinger/i.test(String(value ?? '')));
-  const matchingSourceSamples = requirement
-    ? []
-    : requirementSources
-      .filter((value) => /must\s+select|class\s+feat|2nd|second|dedication|battle harbinger/i.test(String(value ?? '')))
-      .slice(0, 5)
-      .map((value) => normalizeRequirementText(value).slice(0, 240));
-  debug('Subclass dedication requirement parsed', {
-    actor: actor?.name ?? null,
-    classSlug,
-    subclassName: subclassItem?.name ?? null,
-    requirementSourceCount: requirementSources.length,
-    matchingSourceSample: matchingSourceSample ? normalizeRequirementText(matchingSourceSample).slice(0, 240) : null,
-    matchingSourceSamples,
-    requirement,
-  });
   return requirement;
 }
 

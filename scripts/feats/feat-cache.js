@@ -1,21 +1,127 @@
+import { MODULE_ID } from '../constants.js';
 import { warn } from '../utils/logger.js';
-import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import { discoverCompendiumsByCategory, getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 
 let cachedFeats = null;
+const RAW_FEAT_DISCOVERY_STORAGE_KEY = `${MODULE_ID}.raw-feat-pack-discovery`;
 
 export async function loadFeats() {
   if (cachedFeats) return cachedFeats;
 
-  const featGroups = await Promise.all(getAdditionalCompendiumKeys().map((key) => loadCompendiumFeats(key)));
+  const keys = await getAdditionalCompendiumKeys();
+  const featGroups = await Promise.all(keys.map((key) => loadCompendiumFeats(key)));
   const allFeats = dedupeByUuid(featGroups.flat());
 
   cachedFeats = allFeats;
   return cachedFeats;
 }
 
-function getAdditionalCompendiumKeys() {
-  return getCompendiumKeysForCategory('feats');
+async function getAdditionalCompendiumKeys() {
+  const configuredKeys = Array.isArray(game.settings.get(MODULE_ID, 'customCompendiums')?.feats)
+    ? game.settings.get(MODULE_ID, 'customCompendiums').feats
+    : [];
+  const baseKeys = getCompendiumKeysForCategory('feats');
+  const discovered = await discoverCompendiumsByCategory().catch(() => null);
+  const officialDiscoveredKeys = (discovered?.feats ?? [])
+    .filter((pack) => pack?.packageName === game.system?.id)
+    .map((pack) => pack.key)
+    .filter(Boolean);
+  const rawDiscoveredKeys = await discoverRawFeatPackKeys();
+  if (configuredKeys.length > 0) {
+    return [...new Set([...baseKeys, ...officialDiscoveredKeys, ...rawDiscoveredKeys])];
+  }
+
+  const discoveredKeys = (discovered?.feats ?? []).map((pack) => pack.key).filter(Boolean);
+  return [...new Set([...baseKeys, ...officialDiscoveredKeys, ...discoveredKeys, ...rawDiscoveredKeys])];
+}
+
+async function discoverRawFeatPackKeys() {
+  const packs = getAllPacks();
+  const cachedKeys = getStoredRawFeatPackKeys(packs);
+  if (cachedKeys) return cachedKeys;
+  const keys = [];
+  for (const pack of packs) {
+    if (!isItemPack(pack)) continue;
+    const key = pack.collection ?? pack.metadata?.id ?? '';
+    if (!key) continue;
+    const index = await getPackIndex(pack).catch(() => []);
+    if (index.some((entry) => isFeatIndexEntry(entry))) keys.push(key);
+  }
+  storeRawFeatPackKeys(packs, keys);
+  return keys;
+}
+
+function getStoredRawFeatPackKeys(packs) {
+  const storage = getStorage();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(RAW_FEAT_DISCOVERY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.signature !== buildRawFeatPackSignature(packs)) return null;
+    return Array.isArray(parsed.keys) ? parsed.keys.filter((key) => typeof key === 'string' && key.length > 0) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeRawFeatPackKeys(packs, keys) {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(RAW_FEAT_DISCOVERY_STORAGE_KEY, JSON.stringify({
+      signature: buildRawFeatPackSignature(packs),
+      keys,
+    }));
+  } catch {
+    // Ignore storage failures; cache discovery can always fall back to a fresh scan.
+  }
+}
+
+function buildRawFeatPackSignature(packs) {
+  return packs
+    .filter((pack) => isItemPack(pack))
+    .map((pack) => `${pack.collection ?? pack.metadata?.id ?? ''}:${pack.metadata?.packageName ?? pack.metadata?.package ?? ''}`)
+    .sort()
+    .join('|');
+}
+
+function getStorage() {
+  if (typeof globalThis?.localStorage?.getItem === 'function') return globalThis.localStorage;
+  return null;
+}
+
+async function getPackIndex(pack) {
+  if (!pack) return [];
+  if (typeof pack.getIndex === 'function') {
+    const index = await pack.getIndex({ fields: ['type', 'system.category'] }).catch(() => null);
+    if (index) return Array.from(index);
+  }
+  return Array.from(pack.index ?? []);
+}
+
+function getAllPacks() {
+  if (!game.packs) return [];
+  if (typeof game.packs.values === 'function') return [...game.packs.values()];
+  if (Array.isArray(game.packs.contents)) return [...game.packs.contents];
+  if (Array.isArray(game.packs)) return [...game.packs];
+  return [];
+}
+
+function isItemPack(pack) {
+  return pack?.documentName === 'Item'
+    || pack?.metadata?.type === 'Item'
+    || pack?.metadata?.documentName === 'Item';
+}
+
+function isFeatIndexEntry(entry) {
+  const type = String(entry?.type ?? entry?.system?.type ?? '').toLowerCase();
+  const rawCategory = entry?.system?.category;
+  const category = String(
+    (typeof rawCategory === 'object' && rawCategory !== null ? rawCategory.value : rawCategory) ?? '',
+  ).toLowerCase();
+  return type === 'feat' && category !== 'classfeature' && category !== 'class-feature';
 }
 
 async function loadCompendiumFeats(key) {
@@ -28,7 +134,7 @@ async function loadCompendiumFeats(key) {
     const collection = await compendium.getDocuments();
     const sourcePackage = compendium.metadata?.packageName ?? compendium.metadata?.package ?? '';
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
-    return collection
+    const feats = collection
       .filter((item) => item.type === 'feat' && String(item.system.category?.value ?? item.system.category ?? '') !== 'classfeature')
       .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
       .map((item) => {
@@ -37,6 +143,7 @@ async function loadCompendiumFeats(key) {
         item.sourcePackageLabel = sourcePackageLabel || key;
         return item;
       });
+    return feats;
   } catch (err) {
     warn(`Failed to load compendium ${key}: ${err.message}`);
     return [];

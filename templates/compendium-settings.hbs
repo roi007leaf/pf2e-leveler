@@ -1,4 +1,14 @@
 <section class="compendium-manager">
+  {{#if isSaving}}
+  <div class="compendium-manager__loading">
+    <div class="wizard-loading__card compendium-manager__loadingCard">
+      <div class="wizard-loading__spinner" aria-hidden="true"></div>
+      <div class="wizard-loading__title">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.INDEXING_TITLE"}}</div>
+      <div class="wizard-loading__text">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.INDEXING_HINT"}}</div>
+    </div>
+  </div>
+  {{/if}}
+
   <header class="compendium-manager__hero">
     <div>
       <div class="compendium-manager__eyebrow">{{summaryLabel}}</div>
@@ -12,16 +22,18 @@
     <button
       type="button"
       class="compendium-manager__tab {{#if isCategoryView}}is-active{{/if}}"
-      data-action="select-view-mode"
-      data-view-mode="categories"
+          data-action="select-view-mode"
+          data-view-mode="categories"
+          {{#if isSaving}}disabled{{/if}}
     >
       <span class="compendium-manager__tabLabel">{{categoriesViewLabel}}</span>
     </button>
     <button
       type="button"
       class="compendium-manager__tab {{#if isPackView}}is-active{{/if}}"
-      data-action="select-view-mode"
-      data-view-mode="packs"
+          data-action="select-view-mode"
+          data-view-mode="packs"
+          {{#if isSaving}}disabled{{/if}}
     >
       <span class="compendium-manager__tabLabel">{{packsViewLabel}}</span>
     </button>
@@ -36,6 +48,7 @@
           class="compendium-manager__tab {{#if category.active}}is-active{{/if}}"
           data-action="select-category"
           data-category="{{category.key}}"
+          {{#if ../isSaving}}disabled{{/if}}
         >
           <span class="compendium-manager__tabLabel">{{category.label}}</span>
           <span class="compendium-manager__tabMeta">
@@ -66,6 +79,7 @@
               value="{{packSearch}}"
               placeholder="{{packSearchPlaceholder}}"
               data-action="search-pack-assignments"
+              {{#if ../isSaving}}disabled{{/if}}
             >
           </div>
         </header>
@@ -98,6 +112,7 @@
                           data-locked="{{#if category.enforced}}true{{else}}false{{/if}}"
                           {{#if category.selected}}checked{{/if}}
                           {{#if category.enforced}}disabled{{/if}}
+                          {{#if ../../isSaving}}disabled{{/if}}
                         >
                         <span>{{category.label}}</span>
                         {{#if category.enforced}}
@@ -139,6 +154,7 @@
                   data-action="toggle-all-compendiums"
                   data-category="{{category.key}}"
                   {{#unless category.hasSelectablePacks}}disabled title="{{../allDisabledLabel}}"{{/unless}}
+                  {{#if ../isSaving}}disabled{{/if}}
                 >
                   {{#if category.allSelected}}{{../deselectAllLabel}}{{else}}{{../allLabel}}{{/if}}
                 </button>
@@ -158,6 +174,7 @@
                       data-locked="{{#if pack.enforced}}true{{else}}false{{/if}}"
                       {{#if pack.checked}}checked{{/if}}
                       {{#if pack.enforced}}disabled{{/if}}
+                      {{#if ../../isSaving}}disabled{{/if}}
                     >
                     <label class="compendium-pack__body" for="compendium-pack-{{category.key}}-{{@index}}">
                       <div class="compendium-pack__topline">
@@ -187,11 +204,11 @@
   </div>
 
   <footer class="compendium-manager__footer">
-    <button type="button" class="compendium-manager__button compendium-manager__button--ghost" data-action="close-compendiums">
+    <button type="button" class="compendium-manager__button compendium-manager__button--ghost" data-action="close-compendiums" {{#if isSaving}}disabled{{/if}}>
       {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.CANCEL"}}
     </button>
-    <button type="button" class="compendium-manager__button compendium-manager__button--primary" data-action="save-compendiums">
-      {{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVE"}}
+    <button type="button" class="compendium-manager__button compendium-manager__button--primary" data-action="save-compendiums" {{#if isSaving}}disabled{{/if}}>
+      {{#if isSaving}}{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVING"}}{{else}}{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SAVE"}}{{/if}}
     </button>
   </footer>
 </section>

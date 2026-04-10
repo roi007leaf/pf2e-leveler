@@ -192,6 +192,40 @@ describe('Level planner skill increase listeners', () => {
     }
   });
 
+  it('adds selected training-granting skill choices onto the planned feat', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="skill" data-value="survival" data-grants-skill-training="true"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          4: {
+            archetypeFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.investigator-dedication',
+                name: 'Investigator Dedication',
+                slug: 'investigator-dedication',
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 4,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[4].archetypeFeats[0].choices).toEqual({
+      skill: 'survival',
+    });
+    expect(planner.plan.levels[4].archetypeFeats[0].dynamicSkillRules).toEqual([
+      expect.objectContaining({ skill: 'survival', value: 1, source: 'choice:skill' }),
+    ]);
+  });
+
   it('shows druid dedication replacement skill choices after selecting an order in the planner', async () => {
     const originalConfig = global.CONFIG;
     const originalFromUuid = global.fromUuid;

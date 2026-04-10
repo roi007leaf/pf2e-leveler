@@ -146,7 +146,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     }
     if (typeof resolvedSelectedValue !== 'string' || resolvedSelectedValue === '[object Object]') return null;
 
-    const option = choiceSet.options?.find((entry) => extractChoiceValue(entry) === resolvedSelectedValue);
+    const option = findMatchingChoiceOption(choiceSet.options, resolvedSelectedValue);
     const uuid = option?.uuid ?? (resolvedSelectedValue.startsWith('Compendium.') ? resolvedSelectedValue : null);
     if (!uuid) return null;
     return resolveDocument(wizard, uuid);
@@ -268,7 +268,7 @@ function isCloisteredClericDoctrine(subclass) {
 
 function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
   if (!item || !Array.isArray(parsedChoiceSets) || parsedChoiceSets.length === 0) return false;
-  const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  const subclassTag = wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug];
   if (typeof subclassTag !== 'string' || subclassTag.length === 0) return false;
 
   const rules = item.system?.rules ?? [];
@@ -423,7 +423,7 @@ export async function getPendingChoices(wizard) {
     choices.push({ source, prompt: text });
   };
 
-  const subclassTag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  const subclassTag = wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug];
   const hasSubclass = !!wizard.data.subclass;
 
   const scanItem = async (item, sourceLabel, optionSource = null) => {
@@ -1240,7 +1240,7 @@ async function enrichChoiceOption(wizard, choice) {
 
   return {
     ...choice,
-    value,
+    value: item.uuid ?? item.slug ?? value,
     label: resolveChoiceOptionLabel(label, item, value, choiceUuid),
     uuid: item.uuid,
     slug: item.slug ?? choice?.slug ?? choiceValue?.slug ?? null,
@@ -1277,6 +1277,8 @@ export function extractChoiceValue(choice) {
       ?? rawValue.slug
       ?? choice.uuid
       ?? choice.slug
+      ?? (typeof choice.label === 'string' ? choice.label : '')
+      ?? (typeof choice.name === 'string' ? choice.name : '')
       ?? (typeof rawValue.label === 'string' ? rawValue.label : '')
       ?? (typeof rawValue.name === 'string' ? rawValue.name : '')
       ?? ''
@@ -1318,6 +1320,7 @@ export function findMatchingChoiceOption(options, selectedValue) {
   return (options ?? []).find((option) => {
     const candidates = new Set([
       extractChoiceValue(option),
+      extractChoiceLabel(option),
       extractChoiceUuid(option),
       option?.slug,
       option?.value?.slug,

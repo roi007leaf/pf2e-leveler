@@ -420,7 +420,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         prompt: 'Select an impulse feat.',
         options: [
           expect.objectContaining({
-            value: 'calcifying-sand',
+            value: 'Compendium.pf2e.feats-srd.Item.calcifying-sand',
             label: 'Calcifying Sand',
             uuid: 'Compendium.pf2e.feats-srd.Item.calcifying-sand',
             img: 'icons/svg/item-bag.svg',
@@ -523,6 +523,53 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         label: 'Blue Dragon',
         selected: false,
         summary: 'Blue dragon instincts crackle with lightning.',
+      }),
+    ]);
+  });
+
+  it('falls back to outer labels for object-backed choices without nested identity values', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.subclass = {
+      name: 'Dragon Instinct',
+      choiceSets: [
+        {
+          flag: 'dragonInstinct',
+          prompt: 'Select a dragon.',
+          options: [
+            {
+              label: 'Adamantine Dragon',
+              value: {
+                img: 'icons/svg/item-bag.svg',
+                description: '<p>Adamantine dragons are impossibly durable.</p>',
+              },
+            },
+            {
+              label: 'Barrage Dragon',
+              value: {
+                img: 'icons/svg/item-bag.svg',
+                description: '<p>Barrage dragons unleash relentless elemental blasts.</p>',
+              },
+            },
+          ],
+        },
+      ],
+      choices: {
+        dragonInstinct: 'Adamantine Dragon',
+      },
+    };
+
+    const context = await wizard._buildSubclassChoicesContext();
+    expect(context.choiceSets[0].isItemChoice).toBe(true);
+    expect(context.choiceSets[0].options).toEqual([
+      expect.objectContaining({
+        value: 'Adamantine Dragon',
+        label: 'Adamantine Dragon',
+        selected: true,
+      }),
+      expect.objectContaining({
+        value: 'Barrage Dragon',
+        label: 'Barrage Dragon',
+        selected: false,
       }),
     ]);
   });
@@ -3084,7 +3131,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       expect.objectContaining({
         label: 'Seer',
         prompt: 'Animistic Practice',
-        value: 'Pending selection',
+        value: null,
         pending: true,
       }),
     ]);
@@ -3437,7 +3484,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       expect.objectContaining({
         label: 'Natural Ambition',
         prompt: 'Choose a class feat.',
-        value: 'Pending selection',
+        value: null,
         pending: true,
       }),
     ]);
@@ -4197,6 +4244,36 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         prompt: 'Select a skill.',
         value: 'Nature',
         pending: false,
+      }),
+    ]);
+  });
+
+  it('omits unresolved pending prompt rows from the apply overlay', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._getApplyPromptRows = jest.fn(async () => ([
+      { label: 'Scholar', prompt: 'Select a skill.', value: 'Pending selection', pending: true, flag: 'skill' },
+    ]));
+
+    const context = await wizard._buildApplyOverlayContext();
+
+    expect(context.applyPromptRows).toEqual([]);
+    expect(context.activeApplyPrompt).toBeNull();
+  });
+
+  it('dedupes apply overlay prompt rows when the same choice differs only by prompt casing', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._getApplyPromptRows = jest.fn(async () => ([
+      { label: 'Arcane Tattoos', prompt: 'Cantrip', value: 'Sigil (Arcane Tattoos)', pending: false, flag: 'cantrip' },
+      { label: 'Arcane Tattoos', prompt: 'cantrip', value: 'Sigil (Arcane Tattoos)', pending: false, flag: 'cantrip' },
+    ]));
+
+    const context = await wizard._buildApplyOverlayContext();
+
+    expect(context.applyPromptRows).toEqual([
+      expect.objectContaining({
+        label: 'Arcane Tattoos',
+        value: 'Sigil (Arcane Tattoos)',
+        flag: 'cantrip',
       }),
     ]);
   });

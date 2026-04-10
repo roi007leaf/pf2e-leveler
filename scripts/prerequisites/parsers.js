@@ -50,7 +50,7 @@ const WEARING_ARMOR_PATTERN = /^wearing\s+(.+?)\s+armor$/i;
 const WIELDING_WEAPON_PATTERN = /^wielding\s+(?:an?\s+)?(.+?)\s+weapon$/i;
 const WIELDING_WEAPON_GROUP_PATTERN = /^wielding\s+(?:an?\s+)?weapon in the\s+(.+?)\s+group$/i;
 const WIELDING_WEAPON_TRAIT_PATTERN = /^wielding\s+(?:an?\s+)?weapon with the\s+(.+?)\s+trait$/i;
-const NARRATIVE_MEMBERSHIP_PATTERN = /^(member of|you were|worshipper of|follower of)\b/i;
+const NARRATIVE_MEMBERSHIP_PATTERN = /^(member of|you were|you are or were|worshipper of|follower of)\b/i;
 const NARRATIVE_ATTENDANCE_PATTERN = /^(attended|studied at|graduated from)\b/i;
 const NARRATIVE_DEATH_PATTERN = /\b(dead|died|mummified)\b/i;
 const NARRATIVE_INITIATION_PATTERN = /\b(initiates you into|earned the trust of)\b/i;
@@ -145,6 +145,9 @@ export function parsePrerequisiteNode(text) {
   const normalized = String(text ?? '').trim();
   if (!normalized) return { kind: 'unknown', type: 'unknown', text: normalized };
 
+  const atomicUnknown = tryParseAtomicUnknownNode(normalized);
+  if (atomicUnknown) return atomicUnknown;
+
   const rankEitherNode = tryParseRankWithEitherNode(normalized);
   if (rankEitherNode) return rankEitherNode;
 
@@ -180,6 +183,35 @@ export function parsePrerequisiteNode(text) {
     kind: 'leaf',
     ...parsed,
   };
+}
+
+function tryParseAtomicUnknownNode(text) {
+  const parsed = parsePrerequisite(text);
+  if (parsed?.type !== 'unknown') return null;
+  if (!shouldKeepUnknownPrerequisiteAtomic(text)) return null;
+  return {
+    kind: 'leaf',
+    ...parsed,
+  };
+}
+
+function shouldKeepUnknownPrerequisiteAtomic(text) {
+  const normalized = String(text ?? '').trim();
+  if (!normalized) return false;
+
+  return [
+    NARRATIVE_MEMBERSHIP_PATTERN,
+    NARRATIVE_ATTENDANCE_PATTERN,
+    NARRATIVE_DEATH_PATTERN,
+    NARRATIVE_INITIATION_PATTERN,
+    ACTION_CAPABILITY_PATTERN,
+    WEAPON_TYPE_PROFICIENCY_PATTERN,
+    COMPANION_PROHIBITION_PATTERN,
+    ALIGNMENT_PATTERN,
+    CURSE_STATE_PATTERN,
+    SIGNATURE_TRICK_PATTERN,
+    MULTIPLE_ANCESTRY_FEATS_PATTERN,
+  ].some((pattern) => pattern.test(normalized));
 }
 
 function tryParseRankRequirement(text, fullText = text) {

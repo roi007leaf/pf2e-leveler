@@ -12,6 +12,7 @@ import {
 } from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 
 let cachedSpells = null;
 let cachedSpellSourceSignature = '';
@@ -400,7 +401,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const listContainer = root?.querySelector('.spell-picker__list');
     if (!listContainer) return;
 
-    const html = await renderTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
+    const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       sourceOptions: this._getSourceOptions(),
       rankOptions: this._getRankOptions(),
@@ -898,7 +899,7 @@ function getTraditionLabel(tradition) {
   return game.i18n?.has?.(key) ? game.i18n.localize(key) : tradition.charAt(0).toUpperCase() + tradition.slice(1);
 }
 
-async function loadSpells() {
+export async function loadSpells() {
   const keys = getCompendiumKeysForCategory('spells');
   const signature = keys.join('|');
   if (cachedSpells && cachedSpellSourceSignature === signature) return cachedSpells;

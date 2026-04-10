@@ -10,25 +10,6 @@
         <div class="wizard-apply-card__fill" style="width: {{applyProgressPercent}}%;"></div>
       </div>
       <div class="wizard-apply-card__percent">{{applyProgressPercent}}%</div>
-      {{#if activeApplyPrompt}}
-      <div class="wizard-apply-card__section">
-        <div class="wizard-apply-card__section-title">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.CURRENT_PROMPT"}}</div>
-        <div class="wizard-apply-card__rows">
-          <div class="wizard-apply-card__row">
-            <div class="wizard-apply-card__label">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.PROMPT"}}</div>
-            <div class="wizard-apply-card__value">{{activeApplyPrompt.prompt}}</div>
-          </div>
-          <div class="wizard-apply-card__row">
-            <div class="wizard-apply-card__label">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.USE"}}</div>
-            <div class="wizard-apply-card__value">{{activeApplyPrompt.value}}</div>
-          </div>
-          <div class="wizard-apply-card__row">
-            <div class="wizard-apply-card__label">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.SOURCE"}}</div>
-            <div class="wizard-apply-card__value">{{activeApplyPrompt.label}}</div>
-          </div>
-        </div>
-      </div>
-      {{/if}}
         {{#if applyPromptRows.length}}
         <div class="wizard-apply-card__section">
         <div class="wizard-apply-card__section-title">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.USE_IN_PROMPTS"}}</div>

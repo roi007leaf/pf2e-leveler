@@ -345,6 +345,15 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
+  test('keeps narrative membership prerequisites with internal or wording as a single unknown node', () => {
+    const result = parsePrerequisiteNode('You are or were a crew member of the Nightwave');
+    expect(result).toEqual(expect.objectContaining({
+      kind: 'leaf',
+      type: 'unknown',
+      text: 'You are or were a crew member of the Nightwave',
+    }));
+  });
+
   test('treats signature trick prerequisites as unknown legacy text', () => {
     const result = parsePrerequisite('You Must Have A Signature Trick');
     expect(result.type).toBe('unknown');

@@ -2,6 +2,7 @@ import { ANCESTRY_TRAIT_ALIASES, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
 import { createMixedAncestryHeritage } from '../../heritages/mixed-ancestry.js';
+import { slugify } from '../../utils/pf2e-api.js';
 
 export async function loadCompendium(wizard, key) {
   if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
@@ -40,6 +41,7 @@ export async function loadCompendium(wizard, key) {
     sanctification: d.system?.sanctification ?? {},
     domains: d.system?.domains ?? { primary: [], alternate: [] },
     skill: d.system?.skill ?? null,
+    keyAbility: normalizeKeyAbilityOptions(d.system?.keyAbility ?? null),
   }));
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[key] = items;
@@ -101,6 +103,7 @@ export async function loadBackgrounds(wizard) {
       sourcePackage: d.sourcePackage,
       sourcePackageLabel: d.sourcePackageLabel,
       slug: d.slug ?? null,
+      keyAbility: d.keyAbility ?? [],
       rarity: d.rarity ?? 'common',
       description: d.description ?? '',
       traits: d.traits ?? [],
@@ -198,6 +201,14 @@ function normalizeBoostEntries(boosts) {
     .filter((value) => typeof value === 'string' && value.length > 0);
 }
 
+function normalizeKeyAbilityOptions(keyAbility) {
+  if (Array.isArray(keyAbility?.value)) {
+    return keyAbility.value.filter((value) => typeof value === 'string' && value.length > 0);
+  }
+  if (typeof keyAbility?.selected === 'string' && keyAbility.selected.length > 0) return [keyAbility.selected];
+  return [];
+}
+
 function isRangedWeaponData(system) {
   const traits = system?.traits?.value ?? [];
   const hasThrownMeleeTrait = traits.some((trait) => /^thrown(?:-\d+)?$/i.test(String(trait)));
@@ -228,9 +239,37 @@ export async function loadHeritages(wizard) {
 }
 
 export async function loadSubclasses(wizard) {
-  const tag = SUBCLASS_TAGS[wizard.data.class?.slug];
+  const tag = wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug];
   if (!tag) return [];
-  return loadTaggedClassFeatures(wizard, tag, `subclass-${tag}`, { includeSubclassData: true });
+  return loadTaggedClassFeatures(wizard, tag, `subclass-${tag}`, {
+    includeSubclassData: true,
+    packageName: wizard.data.class?.sourcePackage ?? null,
+  });
+}
+
+export async function resolveClassSubclassTag(wizard, classItem) {
+  const explicitTag = classItem?.subclassTag ?? SUBCLASS_TAGS[classItem?.slug];
+  if (typeof explicitTag === 'string' && explicitTag.length > 0) return explicitTag;
+  if (!classItem?.slug) return null;
+
+  const candidates = [...new Set(
+    Object.values(classItem.system?.items ?? {})
+      .filter((feature) => feature && feature.level <= 1 && typeof feature.name === 'string' && feature.name.trim().length > 0)
+      .map((feature) => `${classItem.slug}-${slugify(feature.name)}`)
+      .filter(Boolean),
+  )];
+  if (candidates.length === 0) return null;
+
+  const docs = await loadClassFeatureDocsForClass(wizard, classItem);
+  const matches = candidates
+    .map((candidate) => ({
+      candidate,
+      count: docs.filter((doc) => (doc.otherTags ?? []).includes(candidate)).length,
+    }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count || a.candidate.localeCompare(b.candidate));
+
+  return matches[0]?.candidate ?? null;
 }
 
 export async function loadTheses(wizard) {
@@ -376,9 +415,11 @@ export async function loadKineticImpulses(wizard, data) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSubclassData = false } = {}) {
+export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSubclassData = false, packageName = null } = {}) {
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
-  const docs = await loadCompendiumCategory(wizard, 'classFeatures');
+  const docs = packageName
+    ? await loadClassFeatureDocsForClass(wizard, { sourcePackage: packageName })
+    : await loadCompendiumCategory(wizard, 'classFeatures');
   const items = await Promise.all(docs
     .filter((d) => (d.otherTags ?? []).includes(tag))
     .map(async (d) => {
@@ -410,6 +451,34 @@ export async function loadTaggedClassFeatures(wizard, tag, cacheKey, { includeSu
   items.sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
+}
+
+async function loadClassFeatureDocsForClass(wizard, classItem) {
+  const packageName = classItem?.sourcePackage ?? null;
+  const docs = await loadCompendiumCategory(wizard, 'classFeatures');
+  if (!packageName) return docs;
+
+  const configuredKeys = new Set(getCompendiumKeysForCategory('classFeatures'));
+  const loader = typeof wizard._loadCompendium === 'function'
+    ? wizard._loadCompendium.bind(wizard)
+    : (key) => loadCompendium(wizard, key);
+
+  const allPacks = typeof game.packs?.values === 'function'
+    ? [...game.packs.values()]
+    : Array.isArray(game.packs?.contents)
+      ? [...game.packs.contents]
+      : [];
+
+  const extraKeys = allPacks
+    .filter((pack) => pack?.documentName === 'Item' || pack?.metadata?.type === 'Item' || pack?.metadata?.documentName === 'Item')
+    .filter((pack) => (pack.metadata?.packageName ?? pack.metadata?.package ?? '') === packageName)
+    .map((pack) => pack.collection ?? pack.metadata?.id ?? '')
+    .filter((key) => key && !configuredKeys.has(key));
+
+  if (extraKeys.length === 0) return docs;
+
+  const extraLists = await Promise.all(extraKeys.map((key) => loader(key)));
+  return dedupeCompendiumItems([...docs, ...extraLists.flat()]);
 }
 
 export function parseVesselSpell(html) {

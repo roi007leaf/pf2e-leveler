@@ -8,14 +8,17 @@ export function filterFeatsByCategory(feats, category, searchQuery, targetLevel,
   return feats.filter((feat) => {
     const traits = feat.system.traits.value.map((t) => t.toLowerCase());
     const featMatchKeys = getAdditionalArchetypeMatchKeys(feat);
+    const prerequisiteTexts = (feat.system?.prerequisites?.value ?? []).map((entry) => String(entry?.value ?? ''));
     const matchesCategory = matchesFeatCategory(traits, category, normalizedQuery, {
       includeDedications,
       includeSkillFeats,
       featMatchKeys,
       additionalArchetypeFeatLevels,
+      prerequisiteTexts,
     });
     const unlockedLevel = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys);
-    const levelRequirement = category === 'archetype' && unlockedLevel != null
+    const hasNativeArchetypeTrait = traits.includes('archetype');
+    const levelRequirement = category === 'archetype' && unlockedLevel != null && !hasNativeArchetypeTrait
       ? unlockedLevel
       : feat.system.level.value;
     const withinLevel = levelRequirement <= targetLevel;
@@ -38,25 +41,27 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
   const featMatchKeys = Array.isArray(options.featMatchKeys) ? options.featMatchKeys : [];
   const additionalArchetypeFeatLevels = options.additionalArchetypeFeatLevels ?? new Map();
   const isAdditionalArchetypeFeat = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys) != null;
+  const prerequisiteTexts = Array.isArray(options.prerequisiteTexts) ? options.prerequisiteTexts : [];
+  const hasDedicationPrerequisite = prerequisiteTexts.some((text) => /\bdedication\b/i.test(String(text ?? '')));
   const isSkillFeat = traits.includes('skill');
   switch (category) {
     case 'custom':
       return true;
     case 'class':
       return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
-        || (includeDedications && isAdditionalArchetypeFeat && !isSkillFeat)
+        || (includeDedications && (isAdditionalArchetypeFeat || hasDedicationPrerequisite) && !isSkillFeat)
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
-      return isSkillFeat && (!traits.includes('archetype') || isAdditionalArchetypeFeat);
+      return isSkillFeat && (!traits.includes('archetype') || isAdditionalArchetypeFeat || hasDedicationPrerequisite);
     case 'general':
       return (traits.includes('general') && !traits.includes('archetype') && (includeSkillFeats || !traits.includes('skill')))
         || (includeSkillFeats && isAdditionalArchetypeFeat && traits.includes('skill'))
         || (includeSkillFeats && !traits.includes('general') && !traits.includes('archetype') && traits.includes('skill'));
     case 'archetype':
       return traits.includes('dedication')
-        || ((traits.includes('archetype') || isAdditionalArchetypeFeat) && !isSkillFeat);
+        || ((traits.includes('archetype') || isAdditionalArchetypeFeat || hasDedicationPrerequisite) && !isSkillFeat);
     case 'mythic':
       return traits.includes('mythic');
     default:

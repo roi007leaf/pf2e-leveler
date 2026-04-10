@@ -1,5 +1,8 @@
 import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from '../../../scripts/ui/compendium-settings-menu.js';
 import * as catalog from '../../../scripts/compendiums/catalog.js';
+import * as featCache from '../../../scripts/feats/feat-cache.js';
+import * as itemPicker from '../../../scripts/ui/item-picker.js';
+import * as spellPicker from '../../../scripts/ui/spell-picker.js';
 
 describe('CompendiumSettingsMenu', () => {
   afterEach(() => {
@@ -388,5 +391,63 @@ describe('CompendiumSettingsMenu', () => {
     expect(context.showViewModeTabs).toBe(false);
     expect(context.isCategoryView).toBe(true);
     expect(ancestriesCategory.packs.map((pack) => pack.key)).toEqual(['pf2e.ancestries']);
+  });
+
+  test('save selections invalidates and prewarms content caches before closing', async () => {
+    game.settings.set = jest.fn().mockResolvedValue(undefined);
+    ui.notifications.info = jest.fn();
+    jest.spyOn(featCache, 'invalidateCache').mockImplementation(() => {});
+    jest.spyOn(featCache, 'loadFeats').mockResolvedValue([]);
+    jest.spyOn(itemPicker, 'invalidateItemCache').mockImplementation(() => {});
+    jest.spyOn(itemPicker, 'loadItems').mockResolvedValue([]);
+    jest.spyOn(spellPicker, 'clearSpellPickerCache').mockImplementation(() => {});
+    jest.spyOn(spellPicker, 'loadSpells').mockResolvedValue([]);
+
+    const menu = new CompendiumSettingsMenu();
+    menu._draftSelections = { feats: ['pf2e.feats-srd'] };
+    menu._syncSelectionsFromDom = jest.fn();
+    menu.render = jest.fn();
+    menu.close = jest.fn();
+
+    await menu._saveSelections();
+
+    expect(game.settings.set).toHaveBeenCalledWith('pf2e-leveler', 'customCompendiums', { feats: ['pf2e.feats-srd'] });
+    expect(featCache.invalidateCache).toHaveBeenCalled();
+    expect(itemPicker.invalidateItemCache).toHaveBeenCalled();
+    expect(spellPicker.clearSpellPickerCache).toHaveBeenCalled();
+    expect(featCache.loadFeats).toHaveBeenCalled();
+    expect(itemPicker.loadItems).toHaveBeenCalled();
+    expect(spellPicker.loadSpells).toHaveBeenCalled();
+    expect(ui.notifications.info).toHaveBeenCalled();
+    expect(menu.close).toHaveBeenCalled();
+  });
+
+  test('save selections skips invalidation and prewarm when nothing changed', async () => {
+    game.settings.set = jest.fn().mockResolvedValue(undefined);
+    ui.notifications.info = jest.fn();
+    jest.spyOn(featCache, 'invalidateCache').mockImplementation(() => {});
+    jest.spyOn(featCache, 'loadFeats').mockResolvedValue([]);
+    jest.spyOn(itemPicker, 'invalidateItemCache').mockImplementation(() => {});
+    jest.spyOn(itemPicker, 'loadItems').mockResolvedValue([]);
+    jest.spyOn(spellPicker, 'clearSpellPickerCache').mockImplementation(() => {});
+    jest.spyOn(spellPicker, 'loadSpells').mockResolvedValue([]);
+
+    const menu = new CompendiumSettingsMenu();
+    menu._draftSelections = { feats: ['pf2e.feats-srd'] };
+    menu._getConfiguredSelections = jest.fn(() => ({ feats: ['pf2e.feats-srd'] }));
+    menu._syncSelectionsFromDom = jest.fn();
+    menu.close = jest.fn();
+
+    await menu._saveSelections();
+
+    expect(game.settings.set).not.toHaveBeenCalled();
+    expect(featCache.invalidateCache).not.toHaveBeenCalled();
+    expect(itemPicker.invalidateItemCache).not.toHaveBeenCalled();
+    expect(spellPicker.clearSpellPickerCache).not.toHaveBeenCalled();
+    expect(featCache.loadFeats).not.toHaveBeenCalled();
+    expect(itemPicker.loadItems).not.toHaveBeenCalled();
+    expect(spellPicker.loadSpells).not.toHaveBeenCalled();
+    expect(ui.notifications.info).toHaveBeenCalled();
+    expect(menu.close).toHaveBeenCalled();
   });
 });

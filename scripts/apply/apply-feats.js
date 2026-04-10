@@ -47,7 +47,7 @@ export async function applyFeats(actor, plan, level) {
       const item = await resolveFeat(featEntry.uuid);
       if (!item) continue;
 
-      const featData = prepareForCreation(item, group, level);
+      const featData = prepareForCreation(item, featEntry, group, level);
       itemsToCreate.push(featData);
     }
   }
@@ -154,9 +154,15 @@ async function resolveFeat(uuid) {
   }
 }
 
-function prepareForCreation(item, group, level) {
+function prepareForCreation(item, featEntry, group, level) {
   const data = foundry.utils.deepClone(item.toObject());
   data.system.location = `${group}-${level}`;
   data.system.level = { ...data.system.level, taken: level };
+  const choiceEntries = Object.entries(featEntry?.choices ?? {}).filter(([, value]) => ['string', 'number'].includes(typeof value));
+  if (choiceEntries.length > 0) {
+    data.flags ??= {};
+    data.flags.pf2e ??= {};
+    data.flags.pf2e.rulesSelections = Object.fromEntries(choiceEntries.map(([key, value]) => [key, String(value)]));
+  }
   return data;
 }

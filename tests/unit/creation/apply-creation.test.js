@@ -7,7 +7,7 @@ jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
     applyExtras: jest.fn(async () => {}),
     resolveFocusSpells: jest.fn(async () => []),
     getExtraSteps: jest.fn(() => []),
-    shouldApplySubclassItem: jest.fn(() => true),
+    shouldApplySubclassItem: jest.fn(() => false),
   })),
 }));
 
@@ -558,7 +558,7 @@ describe('applyCreation ancestry paragon', () => {
     }));
   });
 
-  it('applies the selected subclass item during creation so PF2E can process its granted rules', async () => {
+  it('does not manually apply the selected subclass item during creation', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
       if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
@@ -612,6 +612,8 @@ describe('applyCreation ancestry paragon', () => {
 
     expect(createdDocs).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Druid', type: 'class' }),
+    ]));
+    expect(createdDocs).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Untamed Order', type: 'feat' }),
     ]));
   });

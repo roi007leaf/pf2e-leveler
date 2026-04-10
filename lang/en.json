@@ -572,7 +572,10 @@
         "NO_PACK_ASSIGNMENTS": "No compendiums match that search.",
         "CANCEL": "Cancel",
         "SAVE": "Save Changes",
-        "SAVED": "Custom compendium categories saved"
+        "SAVING": "Saving...",
+        "SAVED": "Custom compendium categories saved",
+        "INDEXING_TITLE": "Reindexing Compendiums",
+        "INDEXING_HINT": "PF2E Leveler is rebuilding feat, item, and spell indexes for the updated source selection."
       },
       "COMPENDIUM_CATEGORIES": {
         "ANCESTRIES": "Ancestries",

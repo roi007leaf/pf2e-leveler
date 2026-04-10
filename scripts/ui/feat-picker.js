@@ -1,5 +1,5 @@
 import { MODULE_ID } from '../constants.js';
-import { loadFeats } from '../feats/feat-cache.js';
+import { getCachedFeats, loadFeats } from '../feats/feat-cache.js';
 import {
   getFeatsForSelection,
   collectAdditionalArchetypeFeatLevels,
@@ -22,6 +22,7 @@ import {
 } from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 
 export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, category, targetLevel, buildState, onSelect, options = {}) {
@@ -69,10 +70,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.preset = options.preset ?? null;
     this.customTitle = options.title ?? null;
     this.allowedFeatUuids = new Set();
+    this.excludedFeatUuids = new Set();
     this._minLevelLocked = false;
     this._maxLevelLocked = false;
     this._ignoreDedicationLock = false;
     this._requiredFeatLimitation = false;
+    this._isLoadingFeats = false;
+    this._loadFeatsPromise = null;
     this._applyPreset(this.preset);
   }
 
@@ -107,23 +111,19 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext() {
     if (this.allFeats.length === 0) {
-      const allCachedFeats = await loadFeats();
-      this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
-        ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
-        : new Map();
-      this.additionalArchetypeFeatTraits = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
-        ? await collectAdditionalArchetypeFeatTraits(allCachedFeats, this.buildState?.feats ?? new Set())
-        : new Map();
-      this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
-        sortMethod: this.sortMethod,
-        includeDedications: this.category === 'class',
-        includeSkillFeats: this.category === 'general',
-        buildState: this.buildState,
-        additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
-        ignoreDedicationLock: this._ignoreDedicationLock,
-      });
-      // Computed once — allFeats is fixed for the lifetime of this picker instance
-      this._showSkillFilter = this._featsHaveSkillRelevance();
+      if (getCachedFeats().length > 0) {
+        await this._initializeFeats();
+      } else {
+        if (!this._loadFeatsPromise) {
+          this._isLoadingFeats = true;
+          this._loadFeatsPromise = this._initializeFeats().finally(() => {
+            this._isLoadingFeats = false;
+            this._loadFeatsPromise = null;
+            if (this.rendered) this.render(false);
+          });
+        }
+        if (this._isLoadingFeats) return this._getLoadingContext();
+      }
     }
 
     const sourceOptions = this._getSourceOptions();
@@ -165,6 +165,63 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       traitOptions,
       allVisibleSelected: this.filteredFeats.length > 0
         && this.filteredFeats.every((feat) => this.selectedFeatUuids.has(this._getFeatUuid(feat))),
+      isLoading: false,
+    };
+  }
+
+  async _initializeFeats() {
+    const allCachedFeats = await loadFeats();
+    this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
+      ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
+      : new Map();
+    this.additionalArchetypeFeatTraits = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
+      ? await collectAdditionalArchetypeFeatTraits(allCachedFeats, this.buildState?.feats ?? new Set())
+      : new Map();
+    this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
+      sortMethod: this.sortMethod,
+      includeDedications: this.category === 'class',
+      includeSkillFeats: this.category === 'general',
+      buildState: this.buildState,
+      additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
+      ignoreDedicationLock: this._ignoreDedicationLock,
+    });
+    this._showSkillFilter = this._featsHaveSkillRelevance();
+  }
+
+  _getLoadingContext() {
+    return {
+      feats: [],
+      filteredCount: 0,
+      sourceOptions: [],
+      featTypeOptions: [],
+      levelOptions: this._getLevelOptions(),
+      category: this.category,
+      targetLevel: this.targetLevel,
+      minLevelLocked: this._minLevelLocked,
+      maxLevelLocked: this._maxLevelLocked,
+      hideFailedPrereqs: this.hideFailedPrereqs,
+      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+        labels: this._getRarityLabels(),
+      }),
+      sortMethod: this.sortMethod,
+      minLevel: this.minLevel,
+      maxLevel: this.maxLevel,
+      showSkillFilter: false,
+      showGeneralSkillToggle: false,
+      showFeatTypeFilter: false,
+      skillChips: [],
+      selectedSkillChips: [],
+      skillLogic: this.skillLogic,
+      showSkillFeats: this.showSkillFeats,
+      enforcePrerequisites: this.enforcePrerequisites,
+      multiSelect: this.multiSelect,
+      selectedCount: this.selectedFeatUuids.size,
+      selectedTraits: [...this.selectedTraits],
+      selectedTraitChips: [],
+      traitLogic: this.traitLogic,
+      traitOptions: [],
+      allVisibleSelected: false,
+      isLoading: true,
     };
   }
 
@@ -196,6 +253,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.allowedFeatUuids.size > 0) {
       feats = feats.filter((feat) => this.allowedFeatUuids.has(this._getFeatUuid(feat)));
     }
+    if (this.excludedFeatUuids.size > 0) {
+      feats = feats.filter((feat) => !this.excludedFeatUuids.has(this._getFeatUuid(feat)));
+    }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
     if (this._showSkillFilter && this.selectedSkills.size > 0) feats = filterBySkill(feats, [...this.selectedSkills], this.skillLogic);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
@@ -209,7 +269,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this._preTraitFeats = feats;
     feats = applyTraitFilter(feats, this.selectedTraits, (feat) => this._getTraitFilterValues(feat), this.traitLogic);
-
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
     return sortFeats(feats, this.sortMethod);
@@ -493,7 +552,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const listContainer = root?.querySelector('.feat-list');
     if (!listContainer) return;
 
-    const html = await renderTemplate(`modules/${MODULE_ID}/templates/feat-picker.hbs`, {
+    const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/feat-picker.hbs`, {
       feats: this.filteredFeats.map((feat) => this._toTemplateFeat(feat)),
       filteredCount: this.filteredFeats.length,
       category: this.category,
@@ -874,6 +933,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getAdditionalArchetypeUnlockLevel(feat) {
+    const traits = [...(feat.system?.traits?.value ?? [])].map((trait) => String(trait).toLowerCase());
+    if (traits.includes('archetype')) return null;
     const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
     for (const key of featKeys) {
       const level = this.additionalArchetypeFeatLevels.get(key);
@@ -1071,6 +1132,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.selectedFeatTypes)) this.selectedFeatTypes = new Set(preset.selectedFeatTypes);
     if (Array.isArray(preset.lockedFeatTypes)) this.lockedFeatTypes = new Set(preset.lockedFeatTypes);
     if (Array.isArray(preset.allowedFeatUuids)) this.allowedFeatUuids = new Set(preset.allowedFeatUuids.filter((uuid) => typeof uuid === 'string' && uuid.length > 0));
+    if (Array.isArray(preset.excludedFeatUuids)) this.excludedFeatUuids = new Set(preset.excludedFeatUuids.filter((uuid) => typeof uuid === 'string' && uuid.length > 0));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';

@@ -37,9 +37,9 @@ export class BaseClassHandler {
 
   getSpellContext(_data, _classDef) { return {}; }
 
-  async getKeyAbilityOptions(_data, classDef) { return classDef?.keyAbility ?? []; }
+  async getKeyAbilityOptions(data, classDef) { return classDef?.keyAbility ?? data?.class?.keyAbility ?? []; }
 
-  shouldApplySubclassItem(_data) { return true; }
+  shouldApplySubclassItem(_data) { return false; }
 
   async applyExtras(_actor, _data) {}
 }

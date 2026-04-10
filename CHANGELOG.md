@@ -4,11 +4,32 @@
 
 ### Character Wizard
 
-- **Arcane Tattoos and similar direct spell-choice cantrips no longer open an empty picker** - Directly allowed spell UUID choices now remain visible even when the spell picker is opened in the generic `Any Spellbook` flow, so cantrip-only feat choices like `Arcane Tattoos` load correctly
+- **Arcane Tattoos and similar spell-choice feats now open correctly** - Direct spell-choice feats that only allow a small set of spells, including cantrips, now open a populated picker instead of an empty window
+- **Custom classes now behave more like built-in PF2E classes** - Custom classes such as `Elemental Avatar` and `Eldamon Trainer` now surface their class key ability and subclass choices correctly in the wizard
+- **Subclass items are no longer added twice** - The wizard now skips manually embedding subclass items when PF2E already handles that assignment, which prevents duplicate subclass features such as duplicated instincts or schools
+- **Prompt cards no longer select every option at once** - Item-backed option lists such as `Dragon Instinct` now keep a stable identity per card, so clicking one choice only selects that one
+- **Fallback skill prompts now recover cleanly** - If all authored skill options are already trained, the wizard now widens the prompt to other valid untrained skills and keeps the chosen fallback skill selected after reopening
+- **Pending prompt rows are no longer shown in the summary** - The PF2E prompts summary now removes unresolved `Pending selection` rows and also collapses duplicate resolved rows caused by source-label or prompt-text differences
 
 ### Level Planner
 
-- **Gradual ability boost rows no longer re-break after reopen** - Already-applied gradual boost levels no longer get incorrectly repopulated from actor history after clearing or reopening, which fixes the red incomplete state and allows the same attribute to be selected again cleanly
+- **Gradual Ability Boost rows reopen correctly** - Applied gradual boosts no longer come back in a broken state after reopening the planner, and clearing one no longer leaves the same ability stuck unusable
+- **Feat-choice skill grants now persist properly** - Selected skills from feat-choice prompts, including replacement training from dedications, now survive reopen, apply correctly, and no longer show broken `Set by: null` tooltips
+
+### Feat Picker
+
+- **Marshal stance feats now appear at their real level** - Native archetype feats such as `Dread Marshal Stance` and `Inspiring Marshal Stance` now show in the level 4 archetype picker correctly instead of being treated like later dedication-unlocked extras
+- **Dedication overlay badges no longer appear on native archetype feats** - Real archetype feats no longer show misleading badges such as `Dedication Lv 8+` when that badge only belongs on synthetic additional-feat unlocks
+- **Cold-start loading is clearer and warm opens are faster** - The feat picker now shows a visible reindexing/loading state only on a true cold cache warm instead of flashing `Reindexing` every time you open the picker
+
+### Compendium Indexing
+
+- **Reindexing is now visible when sources change** - Saving compendium source settings now shows a proper rebuild/loading state instead of silently rebuilding caches in the background
+- **Repeated reloads avoid unnecessary rescans** - Raw feat-pack discovery is cached between reloads, and unchanged compendium saves no longer force a full invalidation/rebuild
+
+### Compatibility
+
+- **Pickers now use Foundry V13's namespaced template renderer** - Updated picker rendering to avoid deprecated global template helper usage in newer Foundry versions
 
 ## 2.1.11
 
