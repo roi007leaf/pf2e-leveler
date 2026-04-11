@@ -62,6 +62,17 @@ export function matchLevel(parsed, buildState) {
 
 export function matchFeat(parsed, buildState) {
   const met = !!buildState.feats?.has(parsed.slug) || !!buildState.classFeatures?.has(parsed.slug);
+  if (!met) return { met, text: parsed.text };
+
+  const aliasSources = buildState.featAliasSources?.get?.(parsed.slug);
+  if (aliasSources instanceof Map) {
+    const viaEntry = [...aliasSources.entries()].find(([slug]) => slug && slug !== parsed.slug);
+    if (viaEntry) {
+      const viaName = viaEntry[1] || viaEntry[0];
+      return { met, text: `${parsed.text} (via ${viaName})` };
+    }
+  }
+
   return { met, text: parsed.text };
 }
 

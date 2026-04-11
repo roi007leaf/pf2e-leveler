@@ -10,6 +10,7 @@ import { extractFeatSkillRules } from './index.js';
 import { debug } from '../../utils/logger.js';
 import { getAvailableLanguages } from './context.js';
 import { buildCustomSpellEntryOptions } from './spells.js';
+import { evaluatePredicate } from '../../utils/predicate.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -510,6 +511,7 @@ async function collectGrantPreviewEntries({
 
   for (const rule of item.system?.rules ?? []) {
     if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+    if (!matchesGrantPredicate(rule, planner)) continue;
     const ruleChoices = {
       ...(storedChoices ?? {}),
       ...extractGrantPreselectedChoices(rule),
@@ -765,6 +767,7 @@ async function getGrantedPlannerSkillSlugs(planner, feat, source) {
 
     for (const rule of item?.system?.rules ?? []) {
       if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+      if (!matchesGrantPredicate(rule, planner)) continue;
       const grantedUuid = resolveGrantRuleUuid(rule.uuid, feat?.choices ?? {});
       if (!grantedUuid) continue;
       const grantedItem = await fromUuid(grantedUuid).catch(() => null);
@@ -819,6 +822,12 @@ function extractExplicitTrainedSkillsFromDescription(html) {
   }
 
   return [...skills];
+}
+
+function matchesGrantPredicate(rule, planner) {
+  if (!rule?.predicate) return true;
+  const actorLevel = planner?.selectedLevel ?? planner?.actor?.system?.details?.level?.value ?? 1;
+  return evaluatePredicate(rule.predicate, actorLevel);
 }
 
 async function resolvePlannerDeitySkill(planner, deityUuid) {

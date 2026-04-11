@@ -2,6 +2,8 @@ import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_A
 import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { slugify } from '../utils/pf2e-api.js';
+import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
+import { evaluatePredicate } from '../utils/predicate.js';
 
 const CLASS_SUBCLASS_TYPES = {
   alchemist: 'research field',
@@ -48,6 +50,7 @@ export function computeBuildState(actor, plan, atLevel) {
     weaponProficiencies: computeWeaponProficiencies(actor),
     equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
+    featAliasSources: computeFeatAliasSources(actor, plan, atLevel),
     deity: computeDeityState(actor),
     divineFont: computeDivineFontState(actor),
     spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
@@ -697,6 +700,30 @@ function computeFeats(actor, plan, atLevel) {
   return feats;
 }
 
+function computeFeatAliasSources(actor, plan, atLevel) {
+  const sources = new Map();
+
+  const addSources = (feat) => {
+    const sourceSlug = getPrimaryFeatAlias(feat);
+    const sourceName = feat?.name?.trim() || sourceSlug || '';
+    if (!sourceSlug && !sourceName) return;
+
+    for (const alias of getFeatAliases(feat)) {
+      if (!alias) continue;
+      if (!sources.has(alias)) sources.set(alias, new Map());
+      sources.get(alias).set(sourceSlug || sourceName, sourceName || sourceSlug);
+    }
+  };
+
+  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  for (const feat of existingFeats) addSources(feat);
+
+  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  for (const feat of plannedFeats) addSources(feat);
+
+  return sources;
+}
+
 function computeSenses(actor) {
   const senses = new Set();
   const perceptionSenses = actor?.system?.perception?.senses ?? [];
@@ -945,6 +972,14 @@ function getFeatAliases(feat) {
     addFeatChoiceAlias(aliases, selected);
   }
 
+  for (const alias of (feat?.aliases ?? [])) {
+    if (typeof alias === 'string' && alias.length > 0) aliases.add(alias);
+  }
+
+  for (const alias of getDedicationAliasesFromDescription(feat)) {
+    aliases.add(alias);
+  }
+
   return aliases;
 }
 
@@ -1131,54 +1166,6 @@ function matchesRuleAtLevel(rule, atLevel) {
   const predicate = rule?.predicate;
   if (!predicate) return true;
   return evaluatePredicate(predicate, atLevel);
-}
-
-function evaluatePredicate(predicate, atLevel) {
-  if (typeof predicate === 'string') return matchesPredicateString(predicate, atLevel);
-  if (Array.isArray(predicate)) return predicate.every((entry) => evaluatePredicate(entry, atLevel));
-  if (!predicate || typeof predicate !== 'object') return true;
-  if (Array.isArray(predicate.and)) return predicate.and.every((entry) => evaluatePredicate(entry, atLevel));
-  if (Array.isArray(predicate.or)) return predicate.or.some((entry) => evaluatePredicate(entry, atLevel));
-  if ('not' in predicate) return !evaluatePredicate(predicate.not, atLevel);
-  if (Array.isArray(predicate.nor)) return predicate.nor.every((entry) => !evaluatePredicate(entry, atLevel));
-  if (Array.isArray(predicate.gte)) return comparePredicate('gte', predicate.gte, atLevel);
-  if (Array.isArray(predicate.gt)) return comparePredicate('gt', predicate.gt, atLevel);
-  if (Array.isArray(predicate.lte)) return comparePredicate('lte', predicate.lte, atLevel);
-  if (Array.isArray(predicate.lt)) return comparePredicate('lt', predicate.lt, atLevel);
-  if (Array.isArray(predicate.eq)) return comparePredicate('eq', predicate.eq, atLevel);
-  return true;
-}
-
-function matchesPredicateString(predicate, atLevel) {
-  const text = String(predicate ?? '').toLowerCase();
-  const levelMatch = text.match(/^self:level:(\d+)$/);
-  if (levelMatch) return atLevel >= Number(levelMatch[1]);
-  return true;
-}
-
-function comparePredicate(kind, args, atLevel) {
-  if (!Array.isArray(args) || args.length < 2) return true;
-  const [left, right] = args;
-  const leftValue = normalizePredicateOperand(left, atLevel);
-  const rightValue = normalizePredicateOperand(right, atLevel);
-  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) return true;
-
-  switch (kind) {
-    case 'gte': return leftValue >= rightValue;
-    case 'gt': return leftValue > rightValue;
-    case 'lte': return leftValue <= rightValue;
-    case 'lt': return leftValue < rightValue;
-    case 'eq': return leftValue === rightValue;
-    default: return true;
-  }
-}
-
-function normalizePredicateOperand(value, atLevel) {
-  if (typeof value === 'number') return value;
-  const text = String(value ?? '').toLowerCase();
-  if (text === 'self:level') return atLevel;
-  const numeric = Number(text);
-  return Number.isFinite(numeric) ? numeric : NaN;
 }
 
 function resolveInjectedValue(value, item) {

@@ -1,6 +1,8 @@
 import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { debug } from '../../utils/logger.js';
+import { localize } from '../../utils/i18n.js';
+import { evaluatePredicate } from '../../utils/predicate.js';
 import { buildSkillContext } from './skills-languages.js';
 
 async function resolveDocument(wizard, uuid) {
@@ -196,6 +198,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     for (const rule of item.system?.rules ?? []) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
+      if (!matchesGrantPredicate(rule, wizard)) continue;
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
@@ -469,6 +472,7 @@ export async function getPendingChoices(wizard) {
     }
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
+      if (!matchesGrantPredicate(rule, wizard)) continue;
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
@@ -580,12 +584,14 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
   if (grantedSkills.length === 0) return syntheticRules;
 
   const skillContext = await buildSkillContext(wizard);
-  const trainedSkills = new Set(
-    (skillContext ?? [])
-      .filter((entry) => entry?.selected || entry?.autoTrained)
-      .map((entry) => entry.slug),
-  );
-  const overlaps = grantedSkills.filter((skill) => trainedSkills.has(skill));
+  const skillContextBySlug = new Map((skillContext ?? []).map((entry) => [entry.slug, entry]));
+  const overlaps = grantedSkills.filter((skill) => {
+    const entry = skillContextBySlug.get(skill);
+    if (!entry) return false;
+    if (entry.selected) return true;
+    if (!entry.autoTrained) return false;
+    return !isAutoTrainedBySource(entry, sourceItem);
+  });
   if (overlaps.length === 0) return syntheticRules;
 
   return [
@@ -603,6 +609,23 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
       sourceName: sourceItem?.name ?? null,
     },
   }))];
+}
+
+function isAutoTrainedBySource(entry, sourceItem) {
+  if (!entry?.autoTrained || !sourceItem) return false;
+  const sourceName = String(sourceItem.name ?? '').trim();
+  if (sourceName && entry.source === sourceName) return true;
+
+  const sourceType = String(sourceItem.type ?? '').toLowerCase();
+  if (sourceType === 'background') return entry.source === localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background');
+  if (sourceType === 'class') return entry.source === localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class');
+  if (sourceType === 'ancestry') return entry.source === localizeWithFallback('CREATION.AUTO_TRAINED_ANCESTRY', 'Ancestry');
+  return false;
+}
+
+function localizeWithFallback(key, fallback) {
+  const value = localize(key);
+  return value === `PF2E_LEVELER.${key}` ? fallback : value;
 }
 
 export async function buildMixedAncestryChoiceOptions(wizard) {
@@ -669,6 +692,7 @@ export async function extractGrantedTrainedSkills(wizard, rules, currentChoices 
 
     for (const rule of (itemRules ?? [])) {
       if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+      if (!matchesGrantPredicate(rule, wizard)) continue;
       const grantedUuid = resolveGrantRuleUuid(rule.uuid, currentChoices);
       if (!grantedUuid) continue;
       const grantedItem = await resolveDocument(wizard, grantedUuid);
@@ -818,11 +842,13 @@ async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}, s
   const skillState = createSkillStateMap(skillContext);
   const allowAutoTrainedSelection = !!rule?.leveler?.allowAutoTrainedSelection
     || shouldAllowAutoTrainedSkillSelection(sourceItem, rule);
+  const suppressTrainingBadges = shouldSuppressTrainingBadges(sourceItem, rule);
   return decorateSkillChoiceOptions(options, skillState, currentChoices, {
     flag: rule?.flag ?? null,
     blockedSkills: rule?.leveler?.blockedSkills ?? [],
     blockedSourceName: rule?.leveler?.sourceName ?? null,
     allowAutoTrainedSelection,
+    suppressTrainingBadges,
     assuranceTakenSkills: allowAutoTrainedSelection ? collectAssuranceSelectedSkills(wizard, rule?.flag ?? null, currentChoices) : [],
   });
 }
@@ -860,6 +886,7 @@ function hydrateChoiceSetOptions(wizard, choiceSet, skillState, currentChoices) 
     blockedSkills: choiceSet?.blockedSkills ?? [],
     blockedSourceName: choiceSet?.sourceName ?? null,
     allowAutoTrainedSelection: !!choiceSet?.allowAutoTrainedSelection,
+    suppressTrainingBadges: shouldSuppressTrainingBadges(choiceSet, { flag: choiceSet?.flag }),
     assuranceTakenSkills: choiceSet?.allowAutoTrainedSelection
       ? collectAssuranceSelectedSkills(wizard, choiceSet?.flag ?? null, currentChoices)
       : [],
@@ -877,8 +904,10 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
   blockedSkills = [],
   blockedSourceName = null,
   allowAutoTrainedSelection = false,
+  suppressTrainingBadges = false,
   assuranceTakenSkills = [],
 } = {}) {
+  const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
   const normalizedBlockedSkills = new Set((blockedSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
   const normalizedAssuranceTakenSkills = new Set((assuranceTakenSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
   const selectedSkills = new Set(
@@ -905,10 +934,11 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
         .map((key) => findMatchingSkillState(skillState, key))
         .find(Boolean) ?? null;
       const blockedBySyntheticGrant = optionKeys.some((key) => normalizedBlockedSkills.has(key));
+      const suppressFeatChoiceSource = isCurrentSelection && matchedState?.source === featChoicesSource;
       const effectiveState = {
-        selected: !!matchedState?.selected,
-        autoTrained: !!matchedState?.autoTrained || blockedBySyntheticGrant,
-        source: matchedState?.source ?? (blockedBySyntheticGrant ? blockedSourceName : null),
+        selected: suppressFeatChoiceSource || suppressTrainingBadges ? false : !!matchedState?.selected,
+        autoTrained: suppressFeatChoiceSource || suppressTrainingBadges ? false : !!matchedState?.autoTrained || blockedBySyntheticGrant,
+        source: suppressFeatChoiceSource || suppressTrainingBadges ? null : matchedState?.source ?? (blockedBySyntheticGrant ? blockedSourceName : null),
       };
       const alreadyHasAssurance = optionKeys.some((key) => normalizedAssuranceTakenSkills.has(key));
 
@@ -940,8 +970,22 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
   });
 
   return fallbackOptions.length > 0
-    ? decorateSkillChoiceOptions(fallbackOptions, skillState, currentChoices, { flag, blockedSkills, blockedSourceName, allowAutoTrainedSelection, assuranceTakenSkills })
+    ? decorateSkillChoiceOptions(fallbackOptions, skillState, currentChoices, { flag, blockedSkills, blockedSourceName, allowAutoTrainedSelection, suppressTrainingBadges, assuranceTakenSkills })
     : decorated;
+}
+
+function shouldSuppressTrainingBadges(sourceItem, rule = {}) {
+  const flag = String(rule?.flag ?? '').toLowerCase();
+  if (flag === 'assurance') return true;
+  const sourceSlug = String(sourceItem?.system?.slug ?? sourceItem?.slug ?? '').toLowerCase();
+  const sourceName = String(sourceItem?.name ?? sourceItem?.featName ?? '').toLowerCase();
+  return sourceSlug === 'assurance' || sourceName === 'assurance';
+}
+
+function matchesGrantPredicate(rule, wizard) {
+  if (!rule?.predicate) return true;
+  const actorLevel = wizard?.actor?.system?.details?.level?.value ?? 1;
+  return evaluatePredicate(rule.predicate, actorLevel);
 }
 
 function collectAssuranceSelectedSkills(wizard, excludeFlag = null, currentChoices = {}) {

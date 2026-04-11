@@ -305,6 +305,11 @@ function normalizeSpellcastingFeatRecord(feat) {
   const slug = typeof feat?.slug === 'string' ? feat.slug : '';
   const name = typeof feat?.name === 'string' ? feat.name : '';
   const nameAndSlug = `${name} ${slug}`.toLowerCase();
+  const description = String(feat?.system?.description?.value ?? feat?.description ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 
   if (feat?.__plannedGroup === 'archetypeFeats') {
     traits.add('archetype');
@@ -314,7 +319,17 @@ function normalizeSpellcastingFeatRecord(feat) {
   }
   for (const classDef of ClassRegistry.getAll()) {
     if (!classDef?.slug || !classDef?.spellcasting) continue;
-    if (nameAndSlug.includes(classDef.slug)) {
+    const classSlug = classDef.slug.toLowerCase();
+    const className = String(classDef.name ?? '').toLowerCase();
+    if (nameAndSlug.includes(classSlug)) {
+      traits.add(classDef.slug);
+      continue;
+    }
+    if (description && (description.includes(`counts as ${className} dedication`) || description.includes(`counts as ${classSlug} dedication`))) {
+      traits.add(classDef.slug);
+      continue;
+    }
+    if (description && (description.includes(`counts as the ${className} dedication`) || description.includes(`counts as the ${classSlug} dedication`))) {
       traits.add(classDef.slug);
     }
   }

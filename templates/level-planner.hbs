@@ -234,9 +234,7 @@
               {{/each}}
             </div>
             {{/if}}
-            <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="classFeats" data-flag="{{this.flag}}">
-              <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-            </button>
+
             {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
@@ -315,9 +313,7 @@
             </div>
             {{else if (eq this.choiceType "lore")}}
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
-            <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="generalFeats" data-flag="{{this.flag}}">
-              <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-            </button>
+
             {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
@@ -419,9 +415,7 @@
             </div>
             {{else if (eq this.choiceType "lore")}}
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
-            <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="ancestryFeats" data-flag="{{this.flag}}">
-              <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-            </button>
+
             {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
@@ -530,9 +524,7 @@
             </div>
             {{else if (eq this.choiceType "lore")}}
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
-            <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="archetypeFeats" data-flag="{{this.flag}}">
-              <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-            </button>
+
             {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
@@ -716,9 +708,7 @@
               </div>
               {{else if (eq this.choiceType "lore")}}
               {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
-              <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="customFeats" data-index="{{../index}}" data-flag="{{this.flag}}">
-                <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-              </button>
+
               {{else}}
               <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}
@@ -773,9 +763,7 @@
               </div>
               {{else if (eq this.choiceType "lore")}}
               {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
-              <button type="button" class="add-lore-btn" style="margin-top: var(--leveler-spacing-sm);" data-action="promptPlannedFeatLoreChoice" data-category="customFeats" data-index="{{../index}}" data-flag="{{this.flag}}">
-                <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.LORE_SKILLS"}}
-              </button>
+
               {{else}}
               <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}

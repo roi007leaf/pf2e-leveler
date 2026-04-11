@@ -4,6 +4,7 @@ import {
   extractChoiceLabel,
   findMatchingChoiceOption,
 } from './choice-sets.js';
+import { evaluatePredicate } from '../../utils/predicate.js';
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
@@ -14,8 +15,9 @@ async function resolveDocument(wizard, uuid) {
 export async function buildApplyOverlayContext(wizard) {
   const promptRows = await wizard._getApplyPromptRows();
   const dedupedPromptRows = dedupePromptRows(promptRows).filter((row) => {
-    const value = String(row?.value ?? '');
-    return value !== 'Pending selection';
+    if (row?.pending) return false;
+    const value = String(row?.value ?? '').trim();
+    return value.length > 0 && value !== 'Pending selection';
   });
   const activeApplyPrompt = matchActivePromptRow(wizard, dedupedPromptRows);
 
@@ -132,6 +134,7 @@ export async function getApplyPromptRows(wizard) {
     }
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || !rule.uuid) continue;
+      if (!matchesGrantPredicate(rule, wizard)) continue;
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       await scanItem(granted, `${sourceLabel} -> ${granted.name}`, granted);
@@ -196,6 +199,12 @@ export async function getApplyPromptRows(wizard) {
   }
 
   return promptRows;
+}
+
+function matchesGrantPredicate(rule, wizard) {
+  if (!rule?.predicate) return true;
+  const actorLevel = wizard?.actor?.system?.details?.level?.value ?? 1;
+  return evaluatePredicate(rule.predicate, actorLevel);
 }
 
 function dedupePromptRows(rows) {

@@ -5,6 +5,7 @@ import { createCreationData, setAncestry, setHeritage, setMixedAncestry, setBack
 import { getCreationData, saveCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
 import { localize } from '../../utils/i18n.js';
+import { evaluatePredicate } from '../../utils/predicate.js';
 import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { isAncestralParagonEnabled, slugify } from '../../utils/pf2e-api.js';
@@ -1945,6 +1946,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const scan = async (item) => {
       for (const rule of item?.system?.rules ?? []) {
         if (rule.key !== 'GrantItem' || typeof rule.uuid !== 'string') continue;
+        if (!evaluatePredicate(rule.predicate, this.actor?.system?.details?.level?.value ?? 1)) continue;
         const granted = await fromUuid(rule.uuid).catch(() => null);
         if (!granted || seen.has(granted.uuid)) continue;
         seen.add(granted.uuid);

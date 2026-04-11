@@ -1,3 +1,5 @@
+import { SKILLS } from '../constants.js';
+
 export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
   const skillIncreases = [...(levelData?.skillIncreases ?? []), ...(levelData?.customSkillIncreases ?? [])];
@@ -12,7 +14,14 @@ export async function applySkillIncreases(actor, plan, level) {
   const loreItemsToCreate = [];
 
   for (const inc of skillIncreases) {
-    updates[`system.skills.${inc.skill}.rank`] = inc.toRank;
+    const skill = String(inc?.skill ?? '').trim().toLowerCase();
+    if (!skill) continue;
+    if (skill.endsWith('-lore') || !SKILLS.includes(skill)) {
+      loreItemsToCreate.push({ skill, toRank: inc.toRank });
+      applied.push(inc);
+      continue;
+    }
+    updates[`system.skills.${skill}.rank`] = inc.toRank;
     applied.push(inc);
   }
 

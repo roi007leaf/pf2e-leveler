@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.17
+
+### Feat Picker
+
+- **Prerequisite tags now show when a requirement is met via a different feat** - Feats that count as another dedication now display the match source, e.g. `Wizard Dedication (via Spellshot Dedication)`
+
+### Level Planner
+
+- **Dedication alias matching is now more robust** - Spellshot and similar feats now reliably satisfy dedication prerequisites in the planner even when the description uses UUID links
+
 ## 2.1.16
 
 ### Character Wizard

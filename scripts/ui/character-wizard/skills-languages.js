@@ -1,5 +1,6 @@
 import { SKILLS } from '../../constants.js';
 import { localize } from '../../utils/i18n.js';
+import { evaluatePredicate } from '../../utils/predicate.js';
 
 export async function buildLanguageContext(wizard) {
   const ancestryItem = wizard.data.ancestry?.uuid ? await wizard._getCachedDocument(wizard.data.ancestry.uuid) : null;
@@ -95,6 +96,7 @@ async function scanItemForLanguages(wizard, item, result, seen = new Set()) {
       }
     }
     if (rule.key === 'GrantItem' && typeof rule.uuid === 'string') {
+      if (!evaluatePredicate(rule.predicate, wizard?.actor?.system?.details?.level?.value ?? 1)) continue;
       const granted = await fromUuid(rule.uuid).catch(() => null);
       if (granted) await scanItemForLanguages(wizard, granted, result, seen);
     }
@@ -385,6 +387,7 @@ function buildFutureSkillChoiceMap(wizard) {
         .map((option) => resolveSkillSlug(option))
         .filter((slug) => typeof slug === 'string' && slug.length > 0);
       if (skillSlugs.length === 0 || skillSlugs.length !== (choiceSet?.options ?? []).length) continue;
+      if (isUnrestrictedSkillChoiceSet(skillSlugs)) continue;
 
       for (const slug of skillSlugs) {
         const entries = map.get(slug) ?? [];
@@ -398,6 +401,12 @@ function buildFutureSkillChoiceMap(wizard) {
   }
 
   return map;
+}
+
+function isUnrestrictedSkillChoiceSet(skillSlugs) {
+  const set = new Set(skillSlugs);
+  if (set.size < SKILLS.length) return false;
+  return SKILLS.every((slug) => set.has(slug));
 }
 
 function buildResolvedSkillChoiceSet(wizard) {

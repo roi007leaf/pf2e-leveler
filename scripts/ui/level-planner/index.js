@@ -32,6 +32,7 @@ import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled, isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
+import { getDedicationAliasesFromDescription } from '../../utils/feat-aliases.js';
 import { localize } from '../../utils/i18n.js';
 import { debug } from '../../utils/logger.js';
 import { FeatPicker } from '../feat-picker.js';
@@ -80,6 +81,7 @@ import {
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
 const FEAT_SKILL_RULES_VERSION = 3;
+const FEAT_ALIASES_VERSION = 1;
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -412,6 +414,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         }
       }
     }
+
+    // Flag if any stored feats are missing alias resolution.
+    outerAliases: for (const levelData of Object.values(plan.levels)) {
+      for (const key of SKILL_RULES_FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.aliasesResolved !== true || feat.aliasesVersion !== FEAT_ALIASES_VERSION) {
+            this._needsFeatAliasesBackfill = true;
+            break outerAliases;
+          }
+        }
+      }
+    }
   }
 
   async _backfillFeatSkillRules() {
@@ -434,6 +448,32 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           }
           feat.skillRulesResolved = true;
           feat.skillRulesVersion = FEAT_SKILL_RULES_VERSION;
+        }
+      }
+    }
+    await savePlan(this.actor, this.plan);
+  }
+
+  async _backfillFeatAliases() {
+    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+    for (const levelData of Object.values(this.plan.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.aliasesResolved === true && feat.aliasesVersion === FEAT_ALIASES_VERSION) continue;
+          if (!feat.uuid) {
+            feat.aliases = [];
+            feat.aliasesResolved = true;
+            feat.aliasesVersion = FEAT_ALIASES_VERSION;
+            continue;
+          }
+          try {
+            const doc = await fromUuid(feat.uuid);
+            feat.aliases = doc ? getDedicationAliasesFromDescription(doc) : [];
+          } catch {
+            feat.aliases = [];
+          }
+          feat.aliasesResolved = true;
+          feat.aliasesVersion = FEAT_ALIASES_VERSION;
         }
       }
     }
@@ -564,6 +604,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         level: feat.system?.level?.value ?? null,
         traits: [...(feat.system?.traits?.value ?? [])],
         choices: { ...(feat.flags?.pf2e?.rulesSelections ?? {}) },
+        aliases: getDedicationAliasesFromDescription(feat),
+        aliasesResolved: true,
+        aliasesVersion: FEAT_ALIASES_VERSION,
         skillRules: extractDirectFeatSkillRules(feat),
         skillRulesResolved: false,
         skillRulesVersion: 0,
@@ -658,6 +701,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._needsSkillRulesBackfill) {
       this._needsSkillRulesBackfill = false;
       await this._backfillFeatSkillRules();
+    }
+    if (this._needsFeatAliasesBackfill) {
+      this._needsFeatAliasesBackfill = false;
+      await this._backfillFeatAliases();
     }
     this._buildStateCache = new Map();
     const options = this._getVariantOptions();
@@ -1359,6 +1406,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       async (feat) => {
         const slug = feat.slug ?? feat.uuid ?? null;
         const skillRules = await extractFeatSkillRules(feat);
+        const aliases = getDedicationAliasesFromDescription(feat);
         setLevelFeat(this.plan, level, category, {
           uuid: feat.uuid,
           name: feat.name,
@@ -1367,6 +1415,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           level: feat.system.level.value,
           traits: [...(feat.system?.traits?.value ?? [])],
           choices: {},
+          aliases,
+          aliasesResolved: true,
+          aliasesVersion: FEAT_ALIASES_VERSION,
           skillRules,
           skillRulesResolved: true,
           skillRulesVersion: FEAT_SKILL_RULES_VERSION,
@@ -1409,6 +1460,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           const feat = selectedFeats[offset];
           const slug = feat.slug ?? feat.uuid ?? null;
           const skillRules = await extractFeatSkillRules(feat);
+          const aliases = getDedicationAliasesFromDescription(feat);
           addLevelCustomFeat(this.plan, level, {
             uuid: feat.uuid,
             name: feat.name,
@@ -1417,6 +1469,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             level: feat.system.level.value,
             traits: [...(feat.system?.traits?.value ?? [])],
             choices: {},
+            aliases,
+            aliasesResolved: true,
+            aliasesVersion: FEAT_ALIASES_VERSION,
             skillRules,
             skillRulesResolved: true,
             skillRulesVersion: FEAT_SKILL_RULES_VERSION,
