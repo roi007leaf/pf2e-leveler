@@ -455,20 +455,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const sourceItem = sourceUuid ? await this._getCachedDocument(sourceUuid) : null;
     const feat = sourceItem ?? actorItem;
     const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+    const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
     const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
 
     switch (slot) {
       case 'ancestryFeat':
-        setAncestryFeat(data, feat, choiceSets, grantedLores);
+        setAncestryFeat(data, feat, choiceSets, grantedSkills, grantedLores);
         break;
       case 'ancestryParagonFeat':
-        setAncestryParagonFeat(data, feat, choiceSets, grantedLores);
+        setAncestryParagonFeat(data, feat, choiceSets, grantedSkills, grantedLores);
         break;
       case 'classFeat':
-        setClassFeat(data, feat, choiceSets, grantedLores);
+        setClassFeat(data, feat, choiceSets, grantedSkills, grantedLores);
         break;
       case 'skillFeat':
-        setSkillFeat(data, feat, choiceSets, grantedLores);
+        setSkillFeat(data, feat, choiceSets, grantedSkills, grantedLores);
         break;
       default:
         break;
@@ -673,29 +674,33 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const callbacks = {
       ancestry: async (feat) => {
         const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
         const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
-        setAncestryFeat(this.data, feat, choiceSets, grantedLores);
+        setAncestryFeat(this.data, feat, choiceSets, grantedSkills, grantedLores);
         await this._refreshGrantedFeatChoiceSections();
         await this._saveAndRender();
       },
       paragon: async (feat) => {
         const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
         const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
-        setAncestryParagonFeat(this.data, feat, choiceSets, grantedLores);
+        setAncestryParagonFeat(this.data, feat, choiceSets, grantedSkills, grantedLores);
         await this._refreshGrantedFeatChoiceSections();
         await this._saveAndRender();
       },
       class: async (feat) => {
         const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
         const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
-        setClassFeat(this.data, feat, choiceSets, grantedLores);
+        setClassFeat(this.data, feat, choiceSets, grantedSkills, grantedLores);
         await this._refreshGrantedFeatChoiceSections();
         await this._saveAndRender();
       },
       skill: async (feat) => {
         const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
         const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
-        setSkillFeat(this.data, feat, choiceSets, grantedLores);
+        setSkillFeat(this.data, feat, choiceSets, grantedSkills, grantedLores);
         await this._refreshGrantedFeatChoiceSections();
         await this._saveAndRender();
       },
@@ -772,6 +777,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ...bgSkillsForState,
       ...(this.data.subclass?.grantedSkills ?? []),
       ...(this.data.deity?.skill ? [this.data.deity.skill] : []),
+      ...(this.data.ancestryFeat?.grantedSkills ?? []),
+      ...(this.data.ancestryParagonFeat?.grantedSkills ?? []),
+      ...(this.data.classFeat?.grantedSkills ?? []),
+      ...(this.data.skillFeat?.grantedSkills ?? []),
       ...this.data.skills,
     ];
     const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
@@ -1646,14 +1655,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       if (match && rule.value >= 1) skills.push(match[1]);
     }
     if (skills.length === 0 && html) {
-      const text = html.replace(/<[^>]+>/g, ' ').toLowerCase();
-      for (const skill of SKILLS) {
-        const localized = this._localizeSkillSlug(skill).toLowerCase();
-        const pattern = new RegExp(`(?:trained|expert|master|legendary)\\s+in\\s+(?:[\\w,\\s]+,\\s*)?(?:${localized}|${skill})`, 'i');
-        if (pattern.test(text)) skills.push(skill);
+      const text = String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+      const clauses = text.match(/\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+([^.!?]+)/gu) ?? [];
+      for (const clause of clauses) {
+        for (const skill of SKILLS) {
+          const localized = this._localizeSkillSlug(skill).toLowerCase();
+          if (clause.includes(localized) || clause.includes(skill.toLowerCase())) {
+            skills.push(skill);
+          }
+        }
       }
     }
-    return skills;
+    return [...new Set(skills)];
   }
 
   _resolveSubclassTradition(item) {
@@ -1867,6 +1880,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
       feat.choiceSets = await this._parseChoiceSets(item.system?.rules ?? [], feat.choices ?? {}, item);
+      feat.grantedSkills = this._parseGrantedSkills(item.system?.rules ?? [], item.system?.description?.value ?? '');
       feat.grantedLores = this._parseSubclassLores(item.system?.rules ?? [], item.system?.description?.value ?? '');
     }
     await this._refreshGrantedFeatChoiceSections();

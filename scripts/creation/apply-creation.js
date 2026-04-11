@@ -51,6 +51,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
   await applySelectedSkillChoices(actor, data);
+  await ensureGrantedFeatSectionsApplied(actor, data);
   await applyEquipment(actor, data);
 
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
@@ -280,6 +281,41 @@ async function applySelectedSkillChoices(actor, data) {
   debug(`Applied selected skill choices: ${Object.keys(updates).join(', ')}`);
 }
 
+async function ensureGrantedFeatSectionsApplied(actor, data) {
+  for (const section of (data.grantedFeatSections ?? [])) {
+    const uuid = section?.slot;
+    if (typeof uuid !== 'string' || uuid.length === 0) continue;
+    if (actorHasItemSource(actor, uuid)) continue;
+
+    await applyMissingGrantedFeatSection(actor, data, section);
+  }
+}
+
+async function applyMissingGrantedFeatSection(actor, data, section) {
+  const uuid = section?.slot;
+  if (typeof uuid !== 'string' || uuid.length === 0) return;
+
+  const item = await fromUuid(uuid).catch(() => null);
+  if (!item) return;
+
+  const itemData = foundry.utils.deepClone(item.toObject());
+  applyStoredChoices(itemData, getStoredChoiceSelections(data, uuid));
+
+  const sourceSuffix = formatManualGrantedSourceSuffix(data, section?.sourceName);
+  if (sourceSuffix) {
+    itemData.name = `${itemData.name} (${sourceSuffix})`;
+  }
+
+  itemData.flags ??= {};
+  itemData.flags[MODULE_ID] ??= {};
+  itemData.flags[MODULE_ID].manualGrantedFallback = true;
+  itemData.flags[MODULE_ID].manualGrantedFallbackSource = section?.sourceName ?? null;
+  itemData.flags[MODULE_ID].manualGrantedFallbackOriginalName = item?.name ?? itemData.name;
+
+  await actor.createEmbeddedDocuments('Item', [itemData]);
+  debug(`Backfilled missing granted feat section: ${itemData.name}`);
+}
+
 export function getAdditionalSelectedItems(data) {
   const containers = [
     { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
@@ -363,6 +399,43 @@ function getStoredChoiceSelections(data, uuid) {
     return selected ? { [MIXED_ANCESTRY_CHOICE_FLAG]: selected } : {};
   }
   return data.grantedFeatChoices?.[uuid] ?? {};
+}
+
+function actorHasItemSource(actor, uuid) {
+  const items = Array.isArray(actor?.items)
+    ? actor.items
+    : Array.isArray(actor?.items?.contents)
+      ? actor.items.contents
+      : [];
+
+  return items.some((item) => {
+    const sourceId = item?.sourceId ?? item?.flags?.core?.sourceId ?? item?._stats?.compendiumSource ?? null;
+    return sourceId === uuid || item?.uuid === uuid;
+  });
+}
+
+function formatManualGrantedSourceSuffix(data, sourceName) {
+  const normalized = String(sourceName ?? '').trim();
+  if (!normalized) return '';
+
+  const segments = normalized.split('->').map((part) => part.trim()).filter(Boolean);
+  if (segments.length === 0) return '';
+  const primary = segments[0];
+
+  const typedSource = [
+    ['Ancestry', data?.ancestry?.name],
+    ['Heritage', data?.heritage?.name],
+    ['Background', data?.background?.name],
+    ['Class', data?.class?.name],
+    ['Subclass', data?.subclass?.name],
+    ['Ancestry Feat', data?.ancestryFeat?.name],
+    ['Ancestry Paragon', data?.ancestryParagonFeat?.name],
+    ['Class Feat', data?.classFeat?.name],
+    ['Skill Feat', data?.skillFeat?.name],
+  ].find(([, name]) => String(name ?? '').trim() === primary);
+
+  if (typedSource) return `${typedSource[0]}: ${typedSource[1]}`;
+  return primary;
 }
 
 async function resolveAncestryFromMixedChoice(value) {

@@ -197,6 +197,12 @@ export async function buildSkillContext(wizard) {
   const bgSkills = await getBackgroundTrainedSkills(wizard) ?? [];
   const selectedSkills = Array.isArray(wizard.data.skills) ? wizard.data.skills : [];
   const subclassSkills = Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : [];
+  const featGrantedSkills = [
+    ...(Array.isArray(wizard.data.ancestryFeat?.grantedSkills) ? wizard.data.ancestryFeat.grantedSkills : []),
+    ...(Array.isArray(wizard.data.ancestryParagonFeat?.grantedSkills) ? wizard.data.ancestryParagonFeat.grantedSkills : []),
+    ...(Array.isArray(wizard.data.classFeat?.grantedSkills) ? wizard.data.classFeat.grantedSkills : []),
+    ...(Array.isArray(wizard.data.skillFeat?.grantedSkills) ? wizard.data.skillFeat.grantedSkills : []),
+  ];
   const deitySkill = wizard.data.deity?.skill ?? null;
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
@@ -206,8 +212,9 @@ export async function buildSkillContext(wizard) {
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
     const fromDeity = deitySkill === slug;
+    const fromFeatGrant = featGrantedSkills.includes(slug);
     const fromFeatChoices = featChoiceSkillSet.has(slug);
-    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity || fromFeatChoices;
+    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity || fromFeatGrant || fromFeatChoices;
     const source = fromClass
       ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
       : fromBg
@@ -216,9 +223,11 @@ export async function buildSkillContext(wizard) {
           ? wizard.data.subclass.name
           : fromDeity
             ? (wizard.data.deity?.name ?? 'Deity')
-            : fromFeatChoices
-              ? featChoicesSource
-              : null;
+            : fromFeatGrant
+              ? getFeatGrantedSkillSource(wizard, slug)
+              : fromFeatChoices
+                ? featChoicesSource
+                : null;
     return {
       slug,
       label: localizeSkillSlug(slug),
@@ -228,6 +237,13 @@ export async function buildSkillContext(wizard) {
       futureSkillChoices: futureSkillChoiceMap.get(slug) ?? [],
     };
   });
+}
+
+function getFeatGrantedSkillSource(wizard, slug) {
+  for (const feat of [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.skillFeat]) {
+    if ((feat?.grantedSkills ?? []).includes(slug)) return feat.name ?? null;
+  }
+  return null;
 }
 
 export function buildSelectedLoreSkillContext(wizard) {

@@ -13,12 +13,14 @@ export async function applySpells(actor, plan, level) {
   const classDef = ClassRegistry.get(plan.classSlug);
   const addedSpells = [];
   const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
+  const customEntries = await ensureCustomPlannedSpellcastingEntries(actor, plan, level);
 
   if (classDef?.spellcasting) {
     const slots = classDef.spellcasting.slots[level];
     if (slots) {
       const entries = await ensureSpellcastingEntries(actor, classDef);
       entries.archetypes = archetypeEntries;
+      entries.custom = customEntries;
       await updateSpellSlots(actor, entries, slots, classDef, level);
 
       const levelData = plan.levels[level];
@@ -35,6 +37,25 @@ export async function applySpells(actor, plan, level) {
     }
   }
   return addedSpells;
+}
+
+async function ensureCustomPlannedSpellcastingEntries(actor, plan, level) {
+  const configs = collectCustomSpellcastingEntryConfigs(plan, level);
+  if (configs.length === 0) return {};
+
+  const entriesByType = {};
+  for (const config of configs) {
+    const entry = await findOrCreateEntry(actor, {
+      name: config.name,
+      tradition: config.tradition,
+      prepared: config.prepared,
+      ability: config.ability,
+      flagKey: 'customSpellcastingEntry',
+      flagValue: config.key,
+    });
+    entriesByType[`custom:${config.key}`] = entry;
+  }
+  return entriesByType;
 }
 
 async function updateDivineFont(actor, plan, level) {
@@ -234,6 +255,20 @@ function collectArchetypeSpellcastingConfigs(actor, plan, level) {
     seen.add(classSlug);
   }
 
+  return configs;
+}
+
+function collectCustomSpellcastingEntryConfigs(plan, level) {
+  const configs = [];
+  const seen = new Set();
+  for (const [rawLevel, levelData] of Object.entries(plan?.levels ?? {})) {
+    if (Number(rawLevel) > Number(level)) continue;
+    for (const entry of levelData?.customSpellEntries ?? []) {
+      if (!entry?.key || seen.has(entry.key)) continue;
+      configs.push(entry);
+      seen.add(entry.key);
+    }
+  }
   return configs;
 }
 
@@ -611,6 +646,19 @@ function getSubclassChoices(subclassItem) {
 function resolveTargetEntry(actor, entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
+  if (typeof entryType === 'string' && entryType.startsWith('existing:')) {
+    const itemId = entryType.slice('existing:'.length);
+    return actor.items?.find?.((item) => item?.type === 'spellcastingEntry' && item.id === itemId) ?? null;
+  }
+  if (typeof entryType === 'string' && entryType.startsWith('custom:')) {
+    const stagedEntry = entries?.custom?.[entryType];
+    if (stagedEntry) return stagedEntry;
+    const customKey = entryType.slice('custom:'.length);
+    return actor.items?.find?.((item) =>
+      item?.type === 'spellcastingEntry'
+      && item?.flags?.['pf2e-leveler']?.customSpellcastingEntry === customKey,
+    ) ?? null;
+  }
   if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
     const stagedEntry = entries?.archetypes?.[entryType];
     if (stagedEntry) return stagedEntry;

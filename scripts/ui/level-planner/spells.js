@@ -33,6 +33,8 @@ export async function buildSpellContext(planner, classDef, level) {
   const levelData = getLevelData(planner.plan, level) ?? {};
   const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
   const primaryPlannedSpells = plannedSpells.filter((spell) => (spell.entryType ?? 'primary') === 'primary');
+  const primaryPlannedRankSpells = primaryPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0));
+  const primaryPlannedCantripSpells = primaryPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
   const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
   const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, primaryPlannedSpells, grantedSpells);
   const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
@@ -50,10 +52,10 @@ export async function buildSpellContext(planner, classDef, level) {
     : 0;
   const spellbookTotalSelectionCount = spellbookSelectionCount + spellbookCantripSelectionCount;
   const plannedSpellbookSelectionCount = hasSpellbook
-    ? primaryPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0)).length
+    ? primaryPlannedRankSpells.length
     : 0;
   const plannedSpellbookCantripCount = hasSpellbook
-    ? primaryPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0).length
+    ? primaryPlannedCantripSpells.length
     : 0;
   const showCustomSpellRankReminder = hasNewRank && !hasSpellbook;
   const dedicationSpellSections = buildDedicationSpellSections(planner, level, plannedSpells);
@@ -76,7 +78,8 @@ export async function buildSpellContext(planner, classDef, level) {
     spellSlots,
     hasNewRank,
     newRank,
-    plannedSpells: (isSpontaneous || hasSpellbook) ? primaryPlannedSpells : [],
+    plannedSpells: isSpontaneous ? primaryPlannedSpells : hasSpellbook ? primaryPlannedRankSpells : [],
+    plannedSpellbookCantripSpells: hasSpellbook ? primaryPlannedCantripSpells : [],
     dedicationSpellSections,
     highestRank,
     grantedSpells,
@@ -86,13 +89,59 @@ export async function buildSpellContext(planner, classDef, level) {
   };
 }
 
+export function buildCustomSpellEntryOptions(planner, level) {
+  const entries = [];
+
+  for (const item of planner.actor.items ?? []) {
+    if (item?.type !== 'spellcastingEntry') continue;
+    if (item?.system?.prepared?.value === 'focus') continue;
+
+    const archetypeKey = item?.flags?.['pf2e-leveler']?.archetypeSpellcastingEntry;
+    entries.push({
+      entryType: archetypeKey ? `archetype:${archetypeKey}` : `existing:${item.id}`,
+      label: item.name ?? 'Spellcasting Entry',
+      tradition: item.system?.tradition?.value ?? null,
+      prepared: item.system?.prepared?.value ?? null,
+      ability: item.system?.ability?.value ?? null,
+      abilityLabel: String(item.system?.ability?.value ?? '').toUpperCase() || null,
+      isCustom: false,
+    });
+  }
+
+  for (let currentLevel = MIN_PLAN_LEVEL; currentLevel <= level; currentLevel++) {
+    const levelData = getLevelData(planner.plan, currentLevel);
+    for (const entry of levelData?.customSpellEntries ?? []) {
+      if (!entry?.key) continue;
+      entries.push({
+        entryType: `custom:${entry.key}`,
+        customKey: entry.key,
+        label: entry.name ?? 'Spellcasting Entry',
+        tradition: entry.tradition ?? null,
+        prepared: entry.prepared ?? null,
+        ability: entry.ability ?? null,
+        abilityLabel: String(entry.ability ?? '').toUpperCase() || null,
+        isCustom: true,
+        createdAtLevel: currentLevel,
+      });
+    }
+  }
+
+  const seen = new Set();
+  return entries.filter((entry) => {
+    if (seen.has(entry.entryType)) return false;
+    seen.add(entry.entryType);
+    return true;
+  });
+}
+
 function buildDedicationSpellSections(planner, level, plannedSpells) {
   const configs = collectDedicationSpellcastingConfigs(planner, level);
   return configs.map((config) => {
     const sectionSpells = plannedSpells.filter((spell) => spell.entryType === config.entryType);
     const cantripSpells = sectionSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
+    const rankSpells = sectionSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0));
     const rankRows = config.slotRanks.map((rank) => {
-      const planned = sectionSpells.filter((spell) => Number(spell.displayRank ?? spell.rank ?? spell.baseRank ?? -1) === rank).length;
+      const planned = rankSpells.filter((spell) => Number(spell.displayRank ?? spell.rank ?? spell.baseRank ?? -1) === rank).length;
       return {
         rank,
         label: ordinalRank(rank),
@@ -105,7 +154,8 @@ function buildDedicationSpellSections(planner, level, plannedSpells) {
 
     return {
       ...config,
-      plannedSpells: sectionSpells,
+      plannedSpells: rankSpells,
+      plannedCantripSpells: cantripSpells,
       plannedCantripCount: cantripSpells.length,
       remainingCantripSelections: Math.max(0, config.cantripSelectionCount - cantripSpells.length),
       rankRows,
@@ -115,6 +165,10 @@ function buildDedicationSpellSections(planner, level, plannedSpells) {
     || section.cantripSelectionCount > 0
     || section.rankRows.length > 0,
   );
+}
+
+export function getCustomSpellEntryLabel(planner, level, entryType) {
+  return buildCustomSpellEntryOptions(planner, level).find((entry) => entry.entryType === entryType)?.label ?? null;
 }
 
 function collectDedicationSpellcastingConfigs(planner, level) {

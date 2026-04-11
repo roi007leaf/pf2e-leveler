@@ -1240,6 +1240,22 @@
   background: var(--leveler-accent-light);
 }
 
+.pf2e-leveler .wizard-item__select--selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  max-width: fit-content;
+  background: rgba(46, 125, 50, 0.24);
+  border: 1px solid var(--leveler-success);
+  color: var(--leveler-success);
+  cursor: default;
+}
+
+.pf2e-leveler .wizard-item__select--selected:hover {
+  background: rgba(46, 125, 50, 0.24);
+}
+
 .pf2e-leveler .wizard-item__name {
   font-size: var(--leveler-font-md);
   font-weight: 600;

@@ -60,6 +60,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.additionalArchetypeFeatTraits = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
     this.selectedTraits = new Set();
+    this.excludedTraits = new Set();
     this.traitLogic = 'or';
     this.lockedTraitValues = new Set();
     this.lockedFeatTypes = new Set();
@@ -160,7 +161,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       multiSelect: this.multiSelect,
       selectedCount: this.selectedFeatUuids.size,
       selectedTraits: [...this.selectedTraits],
-      selectedTraitChips: traitOptions.filter((option) => option.selected),
+      excludedTraits: [...this.excludedTraits],
+      selectedTraitChips: this._getSelectedTraitChips(traitOptions),
       traitLogic: this.traitLogic,
       traitOptions,
       allVisibleSelected: this.filteredFeats.length > 0
@@ -217,6 +219,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       multiSelect: this.multiSelect,
       selectedCount: this.selectedFeatUuids.size,
       selectedTraits: [...this.selectedTraits],
+      excludedTraits: [...this.excludedTraits],
       selectedTraitChips: [],
       traitLogic: this.traitLogic,
       traitOptions: [],
@@ -269,6 +272,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this._preTraitFeats = feats;
     feats = applyTraitFilter(feats, this.selectedTraits, (feat) => this._getTraitFilterValues(feat), this.traitLogic);
+    if (this.excludedTraits.size > 0) {
+      feats = feats.filter((feat) => {
+        const featTraits = new Set(this._getTraitFilterValues(feat).map((trait) => String(trait).toLowerCase()));
+        return ![...this.excludedTraits].some((trait) => featTraits.has(String(trait).toLowerCase()));
+      });
+    }
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
     return sortFeats(feats, this.sortMethod);
@@ -558,8 +567,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       category: this.category,
       targetLevel: this.targetLevel,
       sortMethod: this.sortMethod,
-      selectedTraitChips: this._getTraitOptions().filter((option) => option.selected),
+      selectedTraitChips: this._getSelectedTraitChips(this._getTraitOptions()),
       selectedTraits: [...this.selectedTraits],
+      excludedTraits: [...this.excludedTraits],
       traitLogic: this.traitLogic,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedFeatUuids.size,
@@ -969,6 +979,32 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     });
   }
 
+  _getSelectedTraitChips(traitOptions = this._getTraitOptions()) {
+    const labels = new Map(traitOptions.map((option) => [option.value, option.label]));
+    const chips = [];
+
+    for (const option of traitOptions) {
+      if (!option.selected) continue;
+      chips.push({
+        value: option.value,
+        label: option.label,
+        locked: option.locked,
+        excluded: false,
+      });
+    }
+
+    for (const trait of this.excludedTraits) {
+      chips.push({
+        value: trait,
+        label: labels.get(trait) ?? trait,
+        locked: this.lockedTraitValues.has(trait),
+        excluded: true,
+      });
+    }
+
+    return chips;
+  }
+
   _getVisibleTraits() {
     const traits = new Set();
     const featsToScan = this._preTraitFeats?.length > 0 ? this._preTraitFeats : this.allFeats;
@@ -976,6 +1012,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const trait of (feat.system?.traits?.value ?? [])) traits.add(String(trait).toLowerCase());
     }
     for (const trait of this.selectedTraits) traits.add(trait);
+    for (const trait of this.excludedTraits) traits.add(trait);
     for (const trait of this.lockedTraitValues) traits.add(trait);
     return [...traits].sort((a, b) => a.localeCompare(b));
   }
@@ -984,6 +1021,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const trait = String(input?.value ?? '').trim().toLowerCase();
     if (!trait) return;
     this.selectedTraits.add(trait);
+    this.excludedTraits.delete(trait);
     if (input) input.value = '';
     this._scheduleListUpdate();
   }
@@ -1021,24 +1059,41 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const traitChipContainer = root.querySelector('[data-role="selected-trait-chips"]');
     if (traitChipContainer) {
-      const selectedTraitChips = this._getTraitOptions().filter((option) => option.selected);
+      const selectedTraitChips = this._getSelectedTraitChips(this._getTraitOptions());
       traitChipContainer.style.display = selectedTraitChips.length > 0 ? '' : 'none';
       traitChipContainer.innerHTML = selectedTraitChips.map((chip) => `
-        <button type="button"
-          class="picker__source-chip ${chip.selected ? 'selected' : ''} ${chip.locked ? 'locked' : ''}"
-          data-action="toggleTraitChip"
+        <div
+          class="picker__source-chip ${chip.excluded ? 'excluded' : 'selected'} ${chip.locked ? 'locked' : ''}"
           data-trait="${chip.value}"
           ${chip.locked ? `data-tooltip="${game.i18n.localize('PF2E_LEVELER.UI.LOCKED_FILTER_HINT')}"` : ''}>
           <span>${chip.label}</span>
-          ${chip.locked ? '' : '<i class="fa-solid fa-xmark" aria-hidden="true"></i>'}
-        </button>
+          ${chip.locked ? '' : `
+            <span class="picker__chip-actions">
+              <button type="button"
+                class="picker__chip-action"
+                data-action="toggleTraitExclude"
+                data-trait="${chip.value}"
+                data-tooltip="${game.i18n.localize(chip.excluded ? 'PF2E_LEVELER.FEAT_PICKER.TRAIT_INCLUDE' : 'PF2E_LEVELER.FEAT_PICKER.TRAIT_EXCLUDE')}">
+                <i class="fa-solid ${chip.excluded ? 'fa-circle-check' : 'fa-ban'}" aria-hidden="true"></i>
+              </button>
+              <button type="button"
+                class="picker__chip-action"
+                data-action="removeTraitChip"
+                data-trait="${chip.value}"
+                data-tooltip="${game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TRAIT_REMOVE')}">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+            </span>
+          `}
+        </div>
       `).join('');
       if (this._domListeners?.signal) this._bindTraitChipListeners(root, this._domListeners.signal);
     }
 
-    for (const chip of root.querySelectorAll('[data-action="toggleTraitChip"]')) {
+    for (const chip of root.querySelectorAll('[data-role="selected-trait-chips"] .picker__source-chip')) {
       const trait = String(chip.dataset.trait ?? '').trim().toLowerCase();
       chip.classList.toggle('selected', this.selectedTraits.has(trait));
+      chip.classList.toggle('excluded', this.excludedTraits.has(trait));
       chip.classList.toggle('locked', this.lockedTraitValues.has(trait));
     }
 
@@ -1067,7 +1122,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const q = query.trim().toLowerCase();
     if (!q) { this._closeAutocomplete(el); return; }
     const traits = (this._cachedVisibleTraits ?? [])
-      .filter((t) => t.includes(q) && !this.selectedTraits.has(t) && !this.lockedTraitValues.has(t));
+      .filter((t) => t.includes(q) && !this.selectedTraits.has(t) && !this.excludedTraits.has(t) && !this.lockedTraitValues.has(t));
     if (traits.length === 0) { this._closeAutocomplete(el); return; }
     dropdown.innerHTML = traits.slice(0, 15).map((t) => {
       const idx = t.indexOf(q);
@@ -1113,6 +1168,36 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!trait || this.lockedTraitValues.has(trait)) return;
         if (this.selectedTraits.has(trait)) this.selectedTraits.delete(trait);
         else this.selectedTraits.add(trait);
+        this.excludedTraits.delete(trait);
+        this._scheduleListUpdate();
+      }, { signal });
+    });
+
+    root.querySelectorAll('[data-action="toggleTraitExclude"]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const trait = String(btn.dataset.trait ?? '').trim().toLowerCase();
+        if (!trait || this.lockedTraitValues.has(trait)) return;
+        if (this.excludedTraits.has(trait)) {
+          this.excludedTraits.delete(trait);
+          this.selectedTraits.add(trait);
+        } else {
+          this.selectedTraits.delete(trait);
+          this.excludedTraits.add(trait);
+        }
+        this._scheduleListUpdate();
+      }, { signal });
+    });
+
+    root.querySelectorAll('[data-action="removeTraitChip"]').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const trait = String(btn.dataset.trait ?? '').trim().toLowerCase();
+        if (!trait || this.lockedTraitValues.has(trait)) return;
+        this.selectedTraits.delete(trait);
+        this.excludedTraits.delete(trait);
         this._scheduleListUpdate();
       }, { signal });
     });
@@ -1134,6 +1219,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.allowedFeatUuids)) this.allowedFeatUuids = new Set(preset.allowedFeatUuids.filter((uuid) => typeof uuid === 'string' && uuid.length > 0));
     if (Array.isArray(preset.excludedFeatUuids)) this.excludedFeatUuids = new Set(preset.excludedFeatUuids.filter((uuid) => typeof uuid === 'string' && uuid.length > 0));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
+    if (Array.isArray(preset.excludedTraits)) this.excludedTraits = new Set(preset.excludedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
     if (Array.isArray(preset.extraVisibleFeatTypes)) this._extraVisibleFeatTypes = new Set(preset.extraVisibleFeatTypes);

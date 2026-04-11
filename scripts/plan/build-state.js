@@ -748,11 +748,15 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
     ...(actor?.items?.filter?.((i) => i.type === 'feat') ?? []),
     ...getAllPlannedFeats(plan, atLevel),
   ];
-  const dedications = selectedFeats.filter((feat) => isArchetypeDedication(feat));
+  const timeline = buildArchetypeFeatTimeline(actor, plan, atLevel);
+  const dedications = timeline
+    .filter((entry) => isArchetypeDedication(entry.feat))
+    .map((entry) => entry.feat);
+  const matchedByDedication = new Map();
 
   for (const dedication of dedications) {
     const dedicationSlug = getPrimaryFeatAlias(dedication);
-    if (!dedicationSlug || progress.has(dedicationSlug)) continue;
+    if (!dedicationSlug || matchedByDedication.has(dedicationSlug)) continue;
 
     const matched = new Set();
     const relatedTraits = getArchetypeAssociationTraits(dedication);
@@ -797,10 +801,77 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
       }
     }
 
+    matchedByDedication.set(dedicationSlug, matched);
+  }
+
+  const explicitlyMatched = new Set(
+    [...matchedByDedication.values()].flatMap((matched) => [...matched]),
+  );
+
+  for (const entry of timeline) {
+    const feat = entry.feat;
+    const featSlug = getPrimaryFeatAlias(feat);
+    if (!featSlug || explicitlyMatched.has(featSlug) || isArchetypeDedication(feat)) continue;
+
+    const featTraits = [
+      ...(Array.isArray(feat?.traits) ? feat.traits : []),
+      ...(feat?.system?.traits?.value ?? []),
+    ].map((trait) => String(trait).toLowerCase());
+    if (!featTraits.includes('archetype')) continue;
+
+    const candidateDedications = timeline
+      .filter((candidate) => isArchetypeDedication(candidate.feat) && compareTimelineEntries(candidate, entry) < 0)
+      .map((candidate) => getPrimaryFeatAlias(candidate.feat))
+      .filter((slug) => slug && matchedByDedication.has(slug));
+
+    if (candidateDedications.length === 0) continue;
+
+    const incompleteCandidates = candidateDedications.filter((slug) => (matchedByDedication.get(slug)?.size ?? 0) < 2);
+    const targetSlug = incompleteCandidates.at(-1) ?? null;
+    if (!targetSlug) continue;
+
+    matchedByDedication.get(targetSlug).add(featSlug);
+  }
+
+  for (const [dedicationSlug, matched] of matchedByDedication.entries()) {
     progress.set(dedicationSlug, matched.size);
   }
 
   return progress;
+}
+
+function buildArchetypeFeatTimeline(actor, plan, atLevel) {
+  const actorFeats = (actor?.items?.filter?.((i) => i.type === 'feat') ?? []).map((feat, index) => ({
+    feat,
+    level: getActorFeatLevel(feat),
+    order: index,
+  }));
+
+  const plannedFeats = [];
+  let order = actorFeats.length;
+  for (let level = 1; level <= atLevel; level++) {
+    const levelData = plan?.levels?.[level];
+    if (!levelData) continue;
+    for (const feat of (levelData.archetypeFeats ?? [])) {
+      plannedFeats.push({ feat, level, order });
+      order++;
+    }
+  }
+
+  return [...actorFeats, ...plannedFeats].sort(compareTimelineEntries);
+}
+
+function getActorFeatLevel(feat) {
+  const taken = Number(feat?.system?.level?.taken ?? feat?.system?.level?.value ?? 0);
+  if (Number.isFinite(taken)) return taken;
+  const location = String(feat?.system?.location ?? '');
+  const match = location.match(/-(\d+)$/u);
+  return match ? Number(match[1]) : 0;
+}
+
+function compareTimelineEntries(a, b) {
+  if ((a?.level ?? 0) !== (b?.level ?? 0)) return (a?.level ?? 0) - (b?.level ?? 0);
+  return (a?.order ?? 0) - (b?.order ?? 0);
 }
 
 function computeIncompleteArchetypeDedications(actor, plan, atLevel) {

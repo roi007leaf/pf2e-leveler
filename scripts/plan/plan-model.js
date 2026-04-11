@@ -260,6 +260,25 @@ export function removeLevelCustomSpell(plan, level, index) {
   return plan;
 }
 
+export function addLevelCustomSpellEntry(plan, level, entry) {
+  const levelData = ensureLevelData(plan, level);
+  if (!Array.isArray(levelData.customSpellEntries)) levelData.customSpellEntries = [];
+  levelData.customSpellEntries.push(entry);
+  return plan;
+}
+
+export function removeLevelCustomSpellEntry(plan, level, key) {
+  const customSpellEntries = plan.levels[level]?.customSpellEntries;
+  if (!Array.isArray(customSpellEntries) || !key) return plan;
+  plan.levels[level].customSpellEntries = customSpellEntries.filter((entry) => entry?.key !== key);
+  for (const levelData of Object.values(plan.levels ?? {})) {
+    if (Array.isArray(levelData?.customSpells)) {
+      levelData.customSpells = levelData.customSpells.filter((spell) => spell?.entryType !== `custom:${key}`);
+    }
+  }
+  return plan;
+}
+
 export function setLevelEquipmentSlot(plan, level, slotIndex, entry) {
   const levelData = ensureLevelData(plan, level);
   if (!Array.isArray(levelData.equipment)) levelData.equipment = [];
@@ -340,6 +359,7 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
   if (!Array.isArray(levelData.customSkillIncreases)) levelData.customSkillIncreases = [];
   if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
+  if (!Array.isArray(levelData.customSpellEntries)) levelData.customSpellEntries = [];
   if (!Array.isArray(levelData.customEquipment)) levelData.customEquipment = [];
   return levelData;
 }

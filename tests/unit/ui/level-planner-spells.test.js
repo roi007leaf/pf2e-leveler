@@ -296,6 +296,13 @@ describe('level planner spell context', () => {
     expect(context.spellbookTotalSelectionCount).toBe(4);
     expect(context.plannedSpellbookSelectionCount).toBe(2);
     expect(context.plannedSpellbookCantripCount).toBe(1);
+    expect(context.plannedSpells).toEqual([
+      expect.objectContaining({ uuid: 'spell-rank-1' }),
+      expect.objectContaining({ uuid: 'spell-rank-2' }),
+    ]);
+    expect(context.plannedSpellbookCantripSpells).toEqual([
+      expect.objectContaining({ uuid: 'spell-cantrip' }),
+    ]);
   });
 
   test('prepared spellbook classes exclude already known spells by identity in planner picks', () => {
@@ -356,6 +363,8 @@ describe('level planner spell context', () => {
         tradition: 'primal',
         cantripSelectionCount: 0,
         plannedCantripCount: 1,
+        plannedSpells: [],
+        plannedCantripSpells: [expect.objectContaining({ uuid: 'druid-cantrip' })],
         rankRows: expect.arrayContaining([
           expect.objectContaining({ rank: 1 }),
         ]),

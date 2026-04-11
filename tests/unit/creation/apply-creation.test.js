@@ -509,6 +509,131 @@ describe('applyCreation ancestry paragon', () => {
     }
   });
 
+  it('backfills missing granted feat section items with stored choices after creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const createdItems = [];
+    const actor = createMockActor({
+      items: createdItems,
+      system: {
+        skills: {
+          arcana: { rank: 1, value: 0 },
+          nature: { rank: 1, value: 0 },
+          occultism: { rank: 1, value: 0 },
+          religion: { rank: 0, value: 0 },
+        },
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const embedded = docs.map((doc, index) => ({
+        ...doc,
+        id: `created-${index}`,
+        sourceId: doc.flags?.core?.sourceId ?? doc._stats?.compendiumSource ?? doc.uuid ?? null,
+      }));
+      createdItems.push(...embedded);
+      return embedded;
+    });
+    actor.update = jest.fn(async (updates) => {
+      for (const [path, value] of Object.entries(updates)) {
+        if (path === 'system.skills.religion.rank') actor.system.skills.religion.rank = value;
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          toObject: () => ({
+            name: 'Scholar',
+            type: 'background',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [], description: { value: '' } },
+          }),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          toObject: () => ({
+            name: 'Assurance',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [], description: { value: '' } },
+          }),
+        };
+      }
+
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: { uuid: 'background-scholar', name: 'Scholar', choices: {} },
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+          featName: 'Assurance',
+          sourceName: 'Scholar -> Assurance',
+          choiceSets: [
+            {
+              flag: 'skill',
+              options: [
+                { value: 'arc', label: 'Arcana' },
+                { value: 'nat', label: 'Nature' },
+                { value: 'occ', label: 'Occultism' },
+                { value: 'rel', label: 'Religion' },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0': {
+          skill: 'rel',
+        },
+      },
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Assurance (Background: Scholar)',
+        flags: expect.objectContaining({
+          [MODULE_ID]: expect.objectContaining({
+            manualGrantedFallback: true,
+            manualGrantedFallbackSource: 'Scholar -> Assurance',
+            manualGrantedFallbackOriginalName: 'Assurance',
+          }),
+          pf2e: expect.objectContaining({
+            rulesSelections: expect.objectContaining({
+              skill: 'rel',
+            }),
+          }),
+        }),
+      }),
+    ]);
+  });
+
   it('applies a rogue level 1 skill feat during creation', async () => {
     game.settings.get = jest.fn(() => false);
 

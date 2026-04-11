@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.1.13
+
+### Character Wizard
+
+- **Scholar and similar granted-feat prompts now behave correctly** - Backgrounds and other sources that grant a follow-up feat with its own choice, such as `Scholar` granting `Assurance`, now surface that granted feat as its own `Feat Choices` section instead of silently dropping it
+- **Background skill replacement prompts recover cleanly when all authored skills are already trained** - If a background like `Scholar` would normally train one of a small set of skills but all of them are already trained, the wizard now widens the training choice to other valid skills while still keeping the granted follow-up feat restricted to the background's authored list
+- **Assurance skill choices no longer lock out already trained skills** - `Assurance` selections now allow trained skills as PF2E expects, and only stay blocked when the character already has `Assurance` for that specific skill from another source
+- **Widened feat-choice skill selections now persist after reopen** - When a feat or background skill prompt widens beyond its original authored list, the chosen skill now stays selected after reopening the wizard instead of snapping back to the original options
+- **Direct feat-granted training now shows up in Skills** - Feats that directly grant trained skills, such as `Kobold Lore` granting `Stealth` and `Thievery`, now correctly mark those skills as already granted in the wizard
+- **PF2E-owned subclass assignments no longer get duplicated by Leveler** - Subclass features such as instincts and similar class options are no longer added a second time during creation when the PF2E system already applies them
+- **Manual fallback grants are now clearly labeled if PF2E misses them** - If PF2E fails to create a granted feat that Leveler has to backfill manually, the created item is now marked with a source label such as `Assurance (Background: Scholar)` so the origin stays visible on the actor
+- **Feat choice interactions no longer force the wizard back to the top** - Selecting or changing wizard feat-choice options now preserves scroll position instead of jumping the step back to the top
+
+### Level Planner
+
+- **Archetype feat choice filters now honor PF2E level-cap rule shapes** - Planner prompts such as `Basic Trickery` now respect tuple and comparison-style ChoiceSet filters, so higher-level class feats no longer appear in selections limited to low-level feats
+- **Custom spell planning can now target a specific spellcasting entry** - The custom level plan spell section now detects existing spellcasting entries, lets you choose which entry to add planned spells to, and can also create planned spellcasting entries for later use
+- **Planned custom spellcasting entries are created before their spells are applied** - Custom spell entries added in the planner are now created during level-up apply before their selected spells and cantrips are embedded, so planned picks land on the intended entry
+- **Importing a planner file now shows a real loading state** - Importing a saved level-up plan now displays a visible overlay while the file is parsed and validated instead of doing the work silently in the background
+- **Planned spell selections now use the same chip style as the wizard** - Selected spellbook spells, cantrip expansion picks, and dedication spell choices in the level planner now render as compact spell chips instead of full-width rows, matching the character creation spell UI
+- **Spellbook cantrip expansion picks now render under the correct section** - Bonus cantrip selections such as `Cantrip Expansion` now appear in the cantrip block instead of being mixed into the main ranked spell list
+- **Dedication progress across multiple archetypes is tracked more reliably** - Dedication completion now handles longer archetype timelines more accurately, so later dedication browsing reopens when earlier dedications have actually been satisfied
+
+### Feat Picker
+
+- **Trait filters now support explicit exclusion** - Selected trait chips in the feat picker now include a `NOT` action, letting you filter out feats that contain a specific trait in addition to the existing include-based trait filtering
+
 ## 2.1.12
 
 ### Character Wizard

@@ -330,6 +330,98 @@ describe('applySpells', () => {
     ]));
   });
 
+  test('creates planned custom spellcasting entries and adds targeted custom spells into them', async () => {
+    const targetedActor = {
+      items: [
+        {
+          id: 'primary-entry',
+          type: 'spellcastingEntry',
+          name: 'Sorcerer Spells',
+          system: {
+            tradition: { value: 'arcane' },
+            prepared: { value: 'spontaneous' },
+            ability: { value: 'cha' },
+          },
+        },
+      ],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: doc.type === 'spellcastingEntry' ? `created-entry-${index}` : `created-spell-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Targeted Spell',
+      img: 'spell.png',
+      system: { level: { value: 1 }, traits: { value: ['occult'] } },
+      toObject: () => ({
+        name: 'Targeted Spell',
+        type: 'spell',
+        system: { level: { value: 1 }, traits: { value: ['occult'] } },
+      }),
+    }));
+
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        2: {
+          customSpellEntries: [
+            {
+              key: 'custom-occult',
+              name: 'Occult Sidebook',
+              tradition: 'occult',
+              prepared: 'prepared',
+              ability: 'int',
+            },
+          ],
+          customSpells: [
+            {
+              uuid: 'targeted-custom-spell',
+              name: 'Targeted Spell',
+              rank: 1,
+              entryType: 'custom:custom-occult',
+            },
+          ],
+        },
+      },
+    };
+
+    await applySpells(targetedActor, plan, 2);
+
+    expect(targetedActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Occult Sidebook',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            customSpellcastingEntry: 'custom-occult',
+          },
+        },
+        system: expect.objectContaining({
+          tradition: { value: 'occult' },
+          prepared: { value: 'prepared' },
+          ability: { value: 'int' },
+        }),
+      }),
+    ]);
+    expect(targetedActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Targeted Spell',
+        system: expect.objectContaining({
+          location: { value: 'created-entry-0' },
+        }),
+      }),
+    ]);
+  });
+
   test('basic archetype spellcasting benefits grant the standard multiclass slot progression', async () => {
     const archetypeActor = {
       items: [
@@ -451,6 +543,78 @@ describe('applySpells', () => {
     expect(archetypeActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
       expect.objectContaining({
         name: 'Read Aura',
+        system: expect.objectContaining({
+          location: { value: 'created-entry-0' },
+        }),
+      }),
+    ]);
+  });
+
+  test('creates planned custom spellcasting entries and adds targeted custom spells to them', async () => {
+    const customActor = {
+      items: [],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: doc.type === 'spellcastingEntry' ? `created-entry-${index}` : `created-item-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Mystic Bolt',
+      img: 'spell.png',
+      system: { level: { value: 1 }, traits: { value: ['arcane'] } },
+      toObject: () => ({
+        name: 'Mystic Bolt',
+        type: 'spell',
+        system: { level: { value: 1 }, traits: { value: ['arcane'] } },
+      }),
+    }));
+
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        2: {
+          customSpellEntries: [{
+            key: 'planner-entry',
+            name: 'Ritual Notes',
+            tradition: 'occult',
+            prepared: 'prepared',
+            ability: 'int',
+          }],
+          customSpells: [{
+            uuid: 'custom-spell',
+            name: 'Mystic Bolt',
+            rank: 1,
+            entryType: 'custom:planner-entry',
+          }],
+        },
+      },
+    };
+
+    await applySpells(customActor, plan, 2);
+
+    expect(customActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Ritual Notes',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            customSpellcastingEntry: 'planner-entry',
+          },
+        },
+      }),
+    ]);
+    expect(customActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Mystic Bolt',
         system: expect.objectContaining({
           location: { value: 'created-entry-0' },
         }),

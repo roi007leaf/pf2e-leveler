@@ -19,6 +19,8 @@ import {
   removeLevelCustomSkillIncrease,
   addLevelCustomSpell,
   removeLevelCustomSpell,
+  addLevelCustomSpellEntry,
+  removeLevelCustomSpellEntry,
   setLevelEquipmentSlot,
   clearLevelEquipmentSlot,
   addLevelCustomEquipment,
@@ -59,6 +61,7 @@ import {
 import { activateLevelPlannerListeners } from './listeners.js';
 import {
   buildSpellContext,
+  buildCustomSpellEntryOptions,
   buildSpellSlotDisplay,
   detectNewSpellRank,
   findFeatLevel,
@@ -288,6 +291,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this.actor = actor;
     this._compendiumCache = {};
     this._customPlanOpenLevels = new Set();
+    this._isImportingPlan = false;
     this.plan = this._loadOrCreatePlan(actor);
     const actorLevel = actor.system?.details?.level?.value ?? 1;
 
@@ -349,7 +353,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         changed = true;
       }
 
-      for (const key of ['customFeats', 'customSkillIncreases', 'customSpells']) {
+      for (const key of ['customFeats', 'customSkillIncreases', 'customSpells', 'customSpellEntries']) {
         if (!Array.isArray(plan.levels[level][key])) {
           plan.levels[level][key] = [];
           changed = true;
@@ -667,6 +671,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       hasPlan: !!this.plan,
+      isImportingPlan: this._isImportingPlan,
       unsupportedClass,
       actorClassName,
       selectedLevel: this.selectedLevel,
@@ -959,16 +964,20 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       const file = e.target.files[0];
       if (!file) return;
       try {
+        this._isImportingPlan = true;
+        await this.render(true);
         const text = await file.text();
         const plan = importPlan(text);
         this.plan = plan;
         await savePlan(this.actor, plan);
         ui.notifications.info(game.i18n.localize('PF2E_LEVELER.NOTIFICATIONS.PLAN_IMPORTED'));
-        this.render(true);
       } catch (err) {
         ui.notifications.error(
           game.i18n.format('PF2E_LEVELER.NOTIFICATIONS.IMPORT_FAILED', { error: err.message }),
         );
+      } finally {
+        this._isImportingPlan = false;
+        await this.render(true);
       }
     });
     input.click();
@@ -1113,13 +1122,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return null;
   }
 
-  _openCustomSpellPicker(rank = -1) {
+  async _openCustomSpellPicker(rank = -1, entryType = 'primary') {
     const pickerRank = rank;
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
-    const excludedSelections = (levelData.customSpells ?? []).map((spell) => ({ uuid: spell.uuid, rank: spell.rank ?? spell.baseRank ?? 0 }));
+    const excludedSelections = (levelData.customSpells ?? [])
+      .filter((spell) => (spell.entryType ?? 'primary') === entryType)
+      .map((spell) => ({ uuid: spell.uuid, rank: spell.rank ?? spell.baseRank ?? 0 }));
     const classDef = ClassRegistry.get(this.plan.classSlug);
     const currentSlots = classDef?.spellcasting?.slots?.[this.selectedLevel] ?? {};
     const levelRanks = Object.keys(currentSlots).filter((k) => k !== 'cantrips').map(Number).filter(Number.isFinite);
+    const customEntryOptions = buildCustomSpellEntryOptions(this, this.selectedLevel);
+    const selectedEntry = customEntryOptions.find((entry) => entry.entryType === entryType) ?? null;
 
     import('../spell-picker.js').then(({ SpellPicker }) => {
       const picker = new SpellPicker(
@@ -1139,6 +1152,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
               baseRank: Number(spell.system?.level?.value ?? 0),
               isCantrip,
               traits: [...(spell.system?.traits?.value ?? []), ...(spell.system?.traits?.traditions ?? [])],
+              entryType,
+              entryLabel: selectedEntry?.label ?? null,
             });
           }
           await this._savePlanAndRender();
@@ -1148,11 +1163,85 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           excludeOwnedByIdentity: false,
           multiSelect: true,
           excludedSelections,
-          preset: levelRanks.length > 0 ? { selectedRanks: levelRanks } : undefined,
+          preset: {
+            ...(levelRanks.length > 0 ? { selectedRanks: levelRanks } : {}),
+            ...(selectedEntry?.tradition ? { selectedTraditions: [selectedEntry.tradition], lockedTraditions: [selectedEntry.tradition] } : {}),
+          },
         },
       );
       picker.render(true);
     });
+  }
+
+  async _promptCustomSpellEntry() {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return;
+
+    const result = await dialogClass.prompt({
+      window: { title: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD_SPELLCASTING_ENTRY') ?? 'Add Spellcasting Entry' },
+      content: `
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.NAME') ?? 'Name'}</label>
+          <input type="text" name="entry-name" autofocus />
+        </div>
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.TRADITION') ?? 'Tradition'}</label>
+          <select name="entry-tradition">
+            <option value="arcane">Arcane</option>
+            <option value="divine">Divine</option>
+            <option value="occult">Occult</option>
+            <option value="primal">Primal</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.SPELLCASTING_TYPE') ?? 'Spellcasting Type'}</label>
+          <select name="entry-prepared">
+            <option value="prepared">Prepared</option>
+            <option value="spontaneous">Spontaneous</option>
+            <option value="innate">Innate</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.KEY_ABILITY') ?? 'Key Ability'}</label>
+          <select name="entry-ability">
+            <option value="int">INT</option>
+            <option value="wis">WIS</option>
+            <option value="cha" selected>CHA</option>
+          </select>
+        </div>
+      `,
+      ok: {
+        label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          const read = (selector) => root?.querySelector?.(selector)?.value ?? '';
+          return {
+            name: read('input[name="entry-name"]').trim(),
+            tradition: read('select[name="entry-tradition"]'),
+            prepared: read('select[name="entry-prepared"]'),
+            ability: read('select[name="entry-ability"]'),
+          };
+        },
+      },
+    });
+
+    if (!result?.name || !result?.tradition || !result?.prepared || !result?.ability) return;
+
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    addLevelCustomSpellEntry(this.plan, this.selectedLevel, {
+      key,
+      name: result.name,
+      tradition: result.tradition,
+      prepared: result.prepared,
+      ability: result.ability,
+    });
+    this._savePlanAndRender();
+  }
+
+  _removeCustomSpellEntry(key) {
+    if (!key) return;
+    removeLevelCustomSpellEntry(this.plan, this.selectedLevel, key);
+    this._savePlanAndRender();
   }
 
   _resolveSpellTradition(classDef) {

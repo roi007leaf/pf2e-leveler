@@ -220,6 +220,78 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     game.settings.get = originalGet;
   });
 
+  it('exposes importing state in planner context while a plan import is running', async () => {
+    const actor = createMockActor({
+      class: { slug: 'alchemist' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [],
+    });
+
+    const planner = new LevelPlanner(actor);
+    planner._isImportingPlan = true;
+
+    const context = await planner._prepareContext();
+
+    expect(context.isImportingPlan).toBe(true);
+  });
+
+  it('exposes existing and planned custom spellcasting entries in custom spell context', async () => {
+    const actor = createMockActor({
+      class: { slug: 'alchemist' },
+      system: {
+        details: { level: { value: 2 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          id: 'existing-entry',
+          type: 'spellcastingEntry',
+          name: 'Wand Thesis',
+          system: {
+            tradition: { value: 'arcane' },
+            prepared: { value: 'prepared' },
+            ability: { value: 'int' },
+          },
+          flags: {},
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].customSpellEntries = [
+      {
+        key: 'custom-occult',
+        name: 'Occult Notebook',
+        tradition: 'occult',
+        prepared: 'spontaneous',
+        ability: 'cha',
+      },
+    ];
+
+    const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+    expect(context.customSpellEntryOptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        entryType: 'existing:existing-entry',
+        label: 'Wand Thesis',
+        tradition: 'arcane',
+        prepared: 'prepared',
+        ability: 'int',
+        isCustom: false,
+      }),
+      expect.objectContaining({
+        entryType: 'custom:custom-occult',
+        label: 'Occult Notebook',
+        tradition: 'occult',
+        prepared: 'spontaneous',
+        ability: 'cha',
+        isCustom: true,
+      }),
+    ]));
+  });
+
   it('resolves required 2nd-level class feat uuids from classfeature subclass items', async () => {
     const originalGet = game.settings.get;
     game.settings.get = jest.fn((module, key) => (
@@ -840,6 +912,212 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('marks planner fallback skill-of-your-choice prompts as lore-capable training picks', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          nature: 'Nature',
+          intimidation: 'Intimidation',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          nature: { rank: 1 },
+          intimidation: { rank: 1 },
+          deception: { rank: 0 },
+          diplomacy: { rank: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].archetypeFeats = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+        name: 'Druid Dedication',
+        slug: 'druid-dedication',
+        choices: {
+          druidicOrder: 'Compendium.pf2e.classfeatures.Item.flame-order',
+        },
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.druid-dedication') {
+        return {
+          uuid,
+          name: 'Druid Dedication',
+          slug: 'druid-dedication',
+          system: {
+            description: {
+              value: "<p>You become trained in Nature and your order's associated skill; for each of these skills in which you were already trained, you instead become trained in a skill of your choice.</p>",
+            },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'druidicOrder',
+                prompt: 'Select a druidic order.',
+                choices: { filter: ['item:tag:druid-order', { not: 'item:tag:class-archetype' }] },
+              },
+            ],
+            traits: { value: ['archetype', 'dedication', 'multiclass', 'druid'] },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.flame-order') {
+        return {
+          uuid,
+          name: 'Flame Order',
+          system: {
+            description: {
+              value: '<p>Order Skill Intimidation</p>',
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const fallbackSets = context.archetypeFeatChoiceSets.filter((entry) => entry.flag.startsWith('levelerSkillFallback'));
+      expect(fallbackSets).toHaveLength(2);
+      expect(fallbackSets.every((entry) => entry.grantsSkillTraining === true)).toBe(true);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('builds custom feat special choice sets for Additional Lore and Multilingual', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    const originalGame = global.game;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        languages: {
+          common: 'PF2E.Actor.Creature.Language.common',
+          draconic: 'PF2E.Actor.Creature.Language.draconic',
+          elven: 'PF2E.Actor.Creature.Language.elven',
+        },
+      },
+    };
+    global.game = {
+      ...originalGame,
+      i18n: {
+        has: jest.fn((key) => key.startsWith('PF2E.Actor.Creature.Language.')),
+        localize: jest.fn((key) => ({
+          'PF2E.Actor.Creature.Language.common': 'Common',
+          'PF2E.Actor.Creature.Language.draconic': 'Draconic',
+          'PF2E.Actor.Creature.Language.elven': 'Elven',
+        }[key] ?? key)),
+      },
+      pf2e: {
+        settings: {
+          campaign: {
+            languages: {
+              common: new Set(['common', 'elven']),
+              uncommon: new Set(['draconic']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e-leveler' && key === 'gmContentGuidance') {
+            return {
+              'language:draconic': 'recommended',
+            };
+          }
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          if (scope === 'pf2e' && ['gradualBoostsVariant', 'freeArchetypeVariant', 'dualClassVariant'].includes(key)) return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          return false;
+        }),
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].customFeats = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.additional-lore',
+        name: 'Additional Lore',
+        slug: 'additional-lore',
+        choices: {},
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.multilingual',
+        name: 'Multilingual',
+        slug: 'multilingual',
+        choices: {},
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      slug: uuid.endsWith('additional-lore') ? 'additional-lore' : 'multilingual',
+      system: { rules: [] },
+    }));
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.customFeats[0].choiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerAdditionalLore',
+          choiceType: 'lore',
+          grantsSkillTraining: true,
+        }),
+      ]));
+      expect(context.customFeats[1].choiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerMultilingualLanguage',
+          choiceType: 'language',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'draconic', isRecommended: true, rarity: 'uncommon' }),
+            expect.objectContaining({ value: 'elven', rarity: 'common' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+      global.game = originalGame;
+    }
+  });
+
   it('unlocks archetype feat picker dedication filtering once a class dedication is planned', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'oracle';
@@ -971,6 +1249,70 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.showDedications).toBe(true);
     expect(preset.ignoreDedicationLock).toBe(true);
+  });
+
+  it('reopens dedication browsing after two completed dedications', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.first-dedication',
+      slug: 'first-dedication',
+      name: 'First Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication', 'first-archetype'],
+      choices: {},
+    }];
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.first-follow-up-1',
+      slug: 'first-follow-up-one',
+      name: 'First Follow Up One',
+      level: 4,
+      traits: ['archetype'],
+      choices: {},
+    }];
+    planner.plan.levels[6].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.first-follow-up-2',
+      slug: 'first-follow-up-two',
+      name: 'First Follow Up Two',
+      level: 6,
+      traits: ['archetype'],
+      choices: {},
+    }];
+    planner.plan.levels[8].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.second-dedication',
+      slug: 'second-dedication',
+      name: 'Second Dedication',
+      level: 8,
+      traits: ['archetype', 'dedication', 'second-archetype'],
+      choices: {},
+    }];
+    planner.plan.levels[10].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.second-follow-up-1',
+      slug: 'second-follow-up-one',
+      name: 'Second Follow Up One',
+      level: 10,
+      traits: ['archetype'],
+      choices: {},
+    }];
+    planner.plan.levels[12].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.second-follow-up-2',
+      slug: 'second-follow-up-two',
+      name: 'Second Follow Up Two',
+      level: 12,
+      traits: ['archetype'],
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 14);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 14, buildState);
+
+    expect(buildState.canTakeNewArchetypeDedication).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.showDedications).toBe(true);
   });
 
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {

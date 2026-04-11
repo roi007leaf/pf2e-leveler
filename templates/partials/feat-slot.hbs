@@ -67,7 +67,9 @@
         <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
       </div>
       {{#if this.selected}}
-      <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+      <button type="button" class="wizard-item__select wizard-item__select--selected" disabled>
+        <i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}
+      </button>
       {{else}}
       <button type="button" class="wizard-item__select" data-action="selectPlannedFeatChoice" data-category="{{../../category}}" data-flag="{{../flag}}" data-value="{{this.value}}">
         {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}

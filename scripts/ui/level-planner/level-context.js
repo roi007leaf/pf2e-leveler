@@ -9,6 +9,7 @@ import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
 import { debug } from '../../utils/logger.js';
 import { getAvailableLanguages } from './context.js';
+import { buildCustomSpellEntryOptions } from './spells.js';
 
 const MANUAL_SPELL_FEATS = new Set([
   'advanced-qi-spells',
@@ -42,7 +43,8 @@ export async function buildLevelContext(planner, classDef, options) {
   const customFeats = await buildCustomPlannerFeatEntries(planner, levelData.customFeats ?? []);
   const customSkillIncreaseGroups = buildCustomSkillIncreaseGroups(levelData.customSkillIncreases ?? []);
   const customAvailableSkills = buildCustomAvailableSkills(planner, levelData, level);
-  const customSpellGroups = buildCustomSpellGroups(levelData.customSpells ?? []);
+  const customSpellEntryOptions = buildCustomSpellEntryOptions(planner, level);
+  const customSpellGroups = buildCustomSpellGroups(levelData.customSpells ?? [], customSpellEntryOptions);
 
   return {
     classFeatures: getClassFeaturesForLevel(planner, level),
@@ -85,6 +87,7 @@ export async function buildLevelContext(planner, classDef, options) {
     customFeats,
     customSkillIncreaseGroups,
     customAvailableSkills,
+    customSpellEntryOptions,
     customSpellGroups,
     customEquipment: (levelData.customEquipment ?? []).map((entry, index) => ({ ...entry, index })),
     ...buildEquipmentContext(planner, level, levelData),
@@ -241,11 +244,13 @@ export function buildLoreSkillIncreaseEntry(name, currentRank = 0) {
   };
 }
 
-function buildCustomSpellGroups(customSpells) {
+function buildCustomSpellGroups(customSpells, entryOptions = []) {
+  const entryLabels = new Map(entryOptions.map((entry) => [entry.entryType, entry.label]));
   const entries = customSpells.map((spell, index) => ({
     ...spell,
     index,
     displayRank: spell.isCantrip ? 'Cantrip' : `Rank ${resolveSpellDisplayRank(spell)}`,
+    entryLabel: spell.entryLabel ?? entryLabels.get(spell.entryType ?? 'primary') ?? 'Primary Spellcasting Entry',
   }));
 
   return groupEntriesBy(entries, (entry) => entry.displayRank, (displayRank) => ({
@@ -683,6 +688,7 @@ async function buildPlannerSkillFallbackChoiceSets(planner, feat, source) {
       flag,
       prompt: 'Select a skill.',
       choiceType: 'skill',
+      grantsSkillTraining: true,
       options: buildPlannerSkillFallbackOptions(planner, feat, flag, grantedSkills.filter((entry) => entry !== skill)),
     };
   });

@@ -94,7 +94,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
     isFeatChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'feat'),
     isSpellChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'spell'),
     isWeaponChoice: cs.options.length > 0 && cs.options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
-    options: hydrateChoiceSetOptions(cs, skillState, currentChoices),
+    options: hydrateChoiceSetOptions(wizard, cs, skillState, currentChoices),
     selectedOption: findMatchingChoiceOption(cs.options, currentChoices?.[cs.flag] ?? null),
     hasSelection: !!currentChoices[cs.flag] && currentChoices[cs.flag] !== '[object Object]',
   }));
@@ -152,23 +152,32 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     return resolveDocument(wizard, uuid);
   };
 
-  const scanItem = async (item, sourceName, { skipDirectSection = false, choiceSource = null, suppressIfSatisfied = false } = {}) => {
+  const scanItem = async (item, sourceName, {
+    skipDirectSection = false,
+    choiceSource = null,
+    suppressIfSatisfied = false,
+    inheritedSkillChoiceSet = null,
+  } = {}) => {
     if (!item?.uuid || scannedItems.has(item.uuid)) return;
     scannedItems.add(item.uuid);
 
     const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
-    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
+    let parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
+    if (isAssuranceGrant(item) && inheritedSkillChoiceSet) {
+      parsedChoiceSets = constrainAssuranceChoiceSets(parsedChoiceSets, inheritedSkillChoiceSet);
+    }
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
 
     const fullySatisfied = areChoiceSetsSatisfied(parsedChoiceSets, currentChoices);
-
-    if (!skipDirectSection
+    const shouldPushSection = !skipDirectSection
       && !isSubclassSelector
       && !isHandlerManagedSelector
       && parsedChoiceSets.length > 0
       && !seenSections.has(item.uuid)
-      && !(suppressIfSatisfied && fullySatisfied)) {
+      && !(suppressIfSatisfied && fullySatisfied);
+
+    if (shouldPushSection) {
       seenSections.add(item.uuid);
       sections.push({
         slot: item.uuid,
@@ -190,9 +199,14 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
+      const preserveAsIndependentChoiceSection = isAssuranceGrant(granted);
+      const inheritedSkillChoiceSet = preserveAsIndependentChoiceSection
+        ? findGrantSourceSkillChoiceSet(parsedChoiceSets)
+        : null;
       await scanItem(granted, `${sourceName} -> ${granted.name}`, {
-        choiceSource: Object.keys(preselectedChoices).length > 0 ? { choices: preselectedChoices } : null,
-        suppressIfSatisfied: Object.keys(preselectedChoices).length > 0,
+        choiceSource: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0 ? { choices: preselectedChoices } : null,
+        suppressIfSatisfied: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0,
+        inheritedSkillChoiceSet,
       });
     }
 
@@ -532,7 +546,7 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
     if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(allRules, currentChoices))) continue;
-    const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices);
+    const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
       const set = {
@@ -540,6 +554,7 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
         prompt,
         options,
       };
+      if (shouldAllowAutoTrainedSkillSelection(sourceItem, normalizedRule)) set.allowAutoTrainedSelection = true;
       if (normalizedRule.leveler?.syntheticType) set.syntheticType = normalizedRule.leveler.syntheticType;
       if (normalizedRule.leveler?.grantsSkillTraining === true) set.grantsSkillTraining = true;
       if (Array.isArray(normalizedRule.leveler?.blockedSkills) && normalizedRule.leveler.blockedSkills.length > 0) {
@@ -746,7 +761,7 @@ function isDeityChoiceRule(rule) {
     || localizedPrompt === 'select a deity';
 }
 
-async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
+async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, sourceItem = null) {
   if (Array.isArray(rule.choices)) {
     return Promise.all(rule.choices
       .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
@@ -754,7 +769,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
   }
 
   if (isSkillChoiceSet(rule)) {
-    return resolveSkillChoiceSetOptions(wizard, rule, currentChoices);
+    return resolveSkillChoiceSetOptions(wizard, rule, currentChoices, sourceItem);
   }
 
   if (typeof rule.choices === 'string') {
@@ -795,21 +810,27 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}) {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}) {
+async function resolveSkillChoiceSetOptions(wizard, rule, currentChoices = {}, sourceItem = null) {
   const options = resolveConfigChoiceOptions('skills');
   const skillContext = await buildSkillContext(wizard);
   const skillState = createSkillStateMap(skillContext);
+  const allowAutoTrainedSelection = !!rule?.leveler?.allowAutoTrainedSelection
+    || shouldAllowAutoTrainedSkillSelection(sourceItem, rule);
   return decorateSkillChoiceOptions(options, skillState, currentChoices, {
     flag: rule?.flag ?? null,
     blockedSkills: rule?.leveler?.blockedSkills ?? [],
     blockedSourceName: rule?.leveler?.sourceName ?? null,
+    allowAutoTrainedSelection,
+    assuranceTakenSkills: allowAutoTrainedSelection ? collectAssuranceSelectedSkills(wizard, rule?.flag ?? null, currentChoices) : [],
   });
 }
 
-function hydrateChoiceSetOptions(choiceSet, skillState, currentChoices) {
+function hydrateChoiceSetOptions(wizard, choiceSet, skillState, currentChoices) {
+  const selectedValue = currentChoices?.[choiceSet.flag] ?? null;
   const baseOptions = (choiceSet.options ?? []).map((opt) => {
     const value = extractChoiceValue(opt);
     const label = extractChoiceLabel(opt) || value;
+    const selected = findMatchingChoiceOption([opt], selectedValue) != null;
     return {
       ...opt,
       value,
@@ -818,13 +839,13 @@ function hydrateChoiceSetOptions(choiceSet, skillState, currentChoices) {
       category: opt?.category ?? null,
       range: opt?.range ?? null,
       isRanged: !!opt?.isRanged,
+      selected,
     };
   });
 
   if (!isStoredSkillChoiceSet(choiceSet)) {
     return baseOptions.map((opt) => ({
       ...opt,
-      selected: currentChoices[choiceSet.flag] === opt.value,
       selectedInSkills: false,
       autoTrained: false,
       autoTrainedSource: null,
@@ -836,6 +857,10 @@ function hydrateChoiceSetOptions(choiceSet, skillState, currentChoices) {
     flag: choiceSet?.flag ?? null,
     blockedSkills: choiceSet?.blockedSkills ?? [],
     blockedSourceName: choiceSet?.sourceName ?? null,
+    allowAutoTrainedSelection: !!choiceSet?.allowAutoTrainedSelection,
+    assuranceTakenSkills: choiceSet?.allowAutoTrainedSelection
+      ? collectAssuranceSelectedSkills(wizard, choiceSet?.flag ?? null, currentChoices)
+      : [],
   });
 }
 
@@ -845,8 +870,15 @@ function isStoredSkillChoiceSet(choiceSet) {
   return isSkillChoiceSet(choiceSet);
 }
 
-function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { flag = null, blockedSkills = [], blockedSourceName = null } = {}) {
+function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
+  flag = null,
+  blockedSkills = [],
+  blockedSourceName = null,
+  allowAutoTrainedSelection = false,
+  assuranceTakenSkills = [],
+} = {}) {
   const normalizedBlockedSkills = new Set((blockedSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
+  const normalizedAssuranceTakenSkills = new Set((assuranceTakenSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
   const selectedSkills = new Set(
     Object.entries(currentChoices ?? {})
       .filter(([entryFlag]) => entryFlag !== flag)
@@ -855,6 +887,8 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
       .map((value) => normalizeSkillIdentity(value)),
   );
   const currentSelected = normalizeSkillIdentity(currentChoices?.[flag] ?? null);
+  const hasCurrentSelectedOption = !!currentSelected && (options ?? []).some((option) =>
+    getSkillOptionKeys(option).includes(currentSelected));
 
   const decorated = (options ?? [])
       .filter((option) => {
@@ -866,6 +900,7 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
     })
     .map((option) => {
       const optionKeys = getSkillOptionKeys(option);
+      const isCurrentSelection = !!findMatchingChoiceOption([option], currentChoices?.[flag] ?? null);
       const matchedState = optionKeys
         .map((key) => findMatchingSkillState(skillState, key))
         .find(Boolean) ?? null;
@@ -875,18 +910,23 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
         autoTrained: !!matchedState?.autoTrained || blockedBySyntheticGrant,
         source: matchedState?.source ?? (blockedBySyntheticGrant ? blockedSourceName : null),
       };
+      const alreadyHasAssurance = optionKeys.some((key) => normalizedAssuranceTakenSkills.has(key));
 
       return {
         ...option,
-        selected: currentChoices?.[flag] === option.value,
+        selected: isCurrentSelection,
         selectedInSkills: !!effectiveState.selected,
         autoTrained: !!effectiveState.autoTrained,
-          autoTrainedSource: effectiveState.source ?? null,
-          disabled: !!effectiveState.selected || !!effectiveState.autoTrained,
+        autoTrainedSource: effectiveState.source ?? null,
+        disabled: isCurrentSelection ? false : allowAutoTrainedSelection
+          ? alreadyHasAssurance
+          : alreadyHasAssurance || !!effectiveState.selected || !!effectiveState.autoTrained,
         };
       });
 
-  if (decorated.some((option) => option.selected) || decorated.some((option) => option.disabled !== true)) return decorated;
+  if (decorated.some((option) => option.disabled !== true) && (allowAutoTrainedSelection || hasCurrentSelectedOption || !currentSelected)) {
+    return decorated;
+  }
 
   const fallbackOptions = (resolveConfigChoiceOptions('skills') ?? []).filter((option) => {
     const optionKeys = getSkillOptionKeys(option);
@@ -900,8 +940,85 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, { 
   });
 
   return fallbackOptions.length > 0
-    ? decorateSkillChoiceOptions(fallbackOptions, skillState, currentChoices, { flag, blockedSkills, blockedSourceName })
+    ? decorateSkillChoiceOptions(fallbackOptions, skillState, currentChoices, { flag, blockedSkills, blockedSourceName, allowAutoTrainedSelection, assuranceTakenSkills })
     : decorated;
+}
+
+function collectAssuranceSelectedSkills(wizard, excludeFlag = null, currentChoices = {}) {
+  const selectedSkills = new Set();
+
+  const collectChoiceValue = (value, flag = null) => {
+    if (flag && flag === excludeFlag) return;
+    const normalized = normalizeSkillIdentity(value);
+    if (normalized) selectedSkills.add(normalized);
+  };
+
+  const maybeCollectFromChoiceSource = (source, choices = source?.choices ?? {}) => {
+    if (!isAssuranceChoiceSource(source)) return;
+    for (const [flag, value] of Object.entries(choices ?? {})) {
+      collectChoiceValue(value, flag);
+    }
+  };
+
+  maybeCollectFromChoiceSource(wizard?.data?.ancestryFeat);
+  maybeCollectFromChoiceSource(wizard?.data?.ancestryParagonFeat);
+  maybeCollectFromChoiceSource(wizard?.data?.classFeat);
+  maybeCollectFromChoiceSource(wizard?.data?.skillFeat);
+
+  for (const section of (wizard?.data?.grantedFeatSections ?? [])) {
+    if (!isAssuranceChoiceSource(section)) continue;
+    const sectionChoices = wizard?.data?.grantedFeatChoices?.[section.slot] ?? {};
+    for (const [flag, value] of Object.entries(sectionChoices)) {
+      collectChoiceValue(value, flag);
+    }
+  }
+
+  for (const [flag, value] of Object.entries(currentChoices ?? {})) {
+    collectChoiceValue(value, flag);
+  }
+
+  return [...selectedSkills];
+}
+
+function isAssuranceChoiceSource(source) {
+  const slug = String(source?.system?.slug ?? source?.slug ?? '').toLowerCase();
+  const name = String(source?.featName ?? source?.name ?? '').toLowerCase();
+  return slug === 'assurance' || name === 'assurance';
+}
+
+function shouldAllowAutoTrainedSkillSelection(sourceItem, rule) {
+  const sourceSlug = String(sourceItem?.system?.slug ?? sourceItem?.slug ?? '').toLowerCase();
+  const sourceName = String(sourceItem?.name ?? '').toLowerCase();
+  if (!isSkillChoiceSet(rule)) return false;
+  return sourceSlug === 'assurance'
+    || sourceName === 'assurance';
+}
+
+function isAssuranceGrant(item) {
+  const slug = String(item?.system?.slug ?? item?.slug ?? '').toLowerCase();
+  const name = String(item?.name ?? '').toLowerCase();
+  return slug === 'assurance' || name === 'assurance';
+}
+
+function findGrantSourceSkillChoiceSet(choiceSets) {
+  return (choiceSets ?? []).find((choiceSet) =>
+    !choiceSet?.isItemChoice
+    && isStoredSkillChoiceSet(choiceSet)
+    && Array.isArray(choiceSet.options)
+    && choiceSet.options.length > 0);
+}
+
+function constrainAssuranceChoiceSets(choiceSets, inheritedSkillChoiceSet) {
+  if (!inheritedSkillChoiceSet) return choiceSets;
+
+  return (choiceSets ?? []).map((choiceSet) => {
+    if (!isStoredSkillChoiceSet(choiceSet)) return choiceSet;
+    return {
+      ...choiceSet,
+      options: inheritedSkillChoiceSet.options.map((option) => ({ ...option })),
+      allowAutoTrainedSelection: true,
+    };
+  });
 }
 
 function matchesSkillOptionPredicate(predicate, skillState) {
@@ -1315,6 +1432,7 @@ export function findMatchingChoiceOption(options, selectedValue) {
   if (typeof selectedValue !== 'string' || selectedValue.length === 0) return null;
 
   const normalizedSelected = normalizeChoiceIdentity(selectedValue);
+  const normalizedSelectedSkill = normalizeSkillIdentity(selectedValue);
   if (!normalizedSelected) return null;
 
   return (options ?? []).find((option) => {
@@ -1330,7 +1448,9 @@ export function findMatchingChoiceOption(options, selectedValue) {
       option?.name,
     ].filter((entry) => typeof entry === 'string' && entry.length > 0));
 
-    return [...candidates].some((candidate) => normalizeChoiceIdentity(candidate) === normalizedSelected);
+    return [...candidates].some((candidate) =>
+      normalizeChoiceIdentity(candidate) === normalizedSelected
+      || (normalizedSelectedSkill && normalizeSkillIdentity(candidate) === normalizedSelectedSkill));
   }) ?? null;
 }
 
@@ -1458,13 +1578,112 @@ function matchesChoiceSetFilters(item, filters) {
 
 function matchesChoiceSetFilter(item, filter) {
   if (typeof filter === 'string') return matchesChoiceSetFilterString(item, filter);
-  if (Array.isArray(filter)) return filter.every((entry) => matchesChoiceSetFilter(item, entry));
+  if (Array.isArray(filter)) {
+    const tupleFilter = normalizeChoiceSetTupleFilter(filter);
+    if (tupleFilter) return matchesChoiceSetFilterString(item, tupleFilter);
+    return filter.every((entry) => matchesChoiceSetFilter(item, entry));
+  }
   if (!filter || typeof filter !== 'object') return true;
   if (Array.isArray(filter.or)) return filter.or.some((entry) => matchesChoiceSetFilter(item, entry));
   if (Array.isArray(filter.and)) return filter.and.every((entry) => matchesChoiceSetFilter(item, entry));
+  if (Array.isArray(filter.xor)) return filter.xor.filter((entry) => matchesChoiceSetFilter(item, entry)).length === 1;
   if ('not' in filter) return !matchesChoiceSetFilter(item, filter.not);
   if (Array.isArray(filter.nor)) return filter.nor.every((entry) => !matchesChoiceSetFilter(item, entry));
+  for (const operator of ['eq', 'ne', 'gt', 'gte', 'lt', 'lte']) {
+    if (Array.isArray(filter[operator])) return compareChoiceSetFilterOperands(item, operator, filter[operator]);
+  }
   return true;
+}
+
+function normalizeChoiceSetTupleFilter(filter) {
+  if (!Array.isArray(filter) || filter.length !== 2) return null;
+
+  const [path, value] = filter;
+  if (typeof path !== 'string' || Array.isArray(value) || (value && typeof value === 'object')) return null;
+
+  const normalizedPath = path.trim().toLowerCase();
+  if (!normalizedPath.startsWith('item:')) return null;
+  if (!CHOICE_SET_TUPLE_FILTER_PATHS.has(normalizedPath)) return null;
+
+  return `${normalizedPath}:${String(value)}`;
+}
+
+const CHOICE_SET_TUPLE_FILTER_PATHS = new Set([
+  'item:damage:type',
+  'item:tag',
+  'item:trait',
+  'item:type',
+  'item:level',
+  'item:slug',
+  'item:category',
+  'item:rarity',
+  'item:ancestry',
+]);
+
+function compareChoiceSetFilterOperands(item, operator, operands) {
+  if (!Array.isArray(operands) || operands.length !== 2) return true;
+
+  const left = resolveChoiceSetFilterOperand(item, operands[0]);
+  const right = resolveChoiceSetFilterOperand(item, operands[1]);
+
+  if (left == null || right == null) return true;
+
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  const useNumericCompare = Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+
+  const leftValue = useNumericCompare ? leftNumber : String(left).toLowerCase();
+  const rightValue = useNumericCompare ? rightNumber : String(right).toLowerCase();
+
+  switch (operator) {
+    case 'eq': return leftValue === rightValue;
+    case 'ne': return leftValue !== rightValue;
+    case 'gt': return leftValue > rightValue;
+    case 'gte': return leftValue >= rightValue;
+    case 'lt': return leftValue < rightValue;
+    case 'lte': return leftValue <= rightValue;
+    default: return true;
+  }
+}
+
+function resolveChoiceSetFilterOperand(item, operand) {
+  if (typeof operand !== 'string') return operand;
+  if (!operand.startsWith('item:')) return operand;
+
+  const parts = operand.split(':');
+  const [, field, ...rest] = parts;
+
+  if (field === 'damage' && rest[0] === 'type') return item.damageTypes ?? [];
+  if (parts.length < 3 && field !== 'level') {
+    switch (field) {
+      case 'melee': return !isRangedWeapon(item);
+      case 'ranged': return isRangedWeapon(item);
+      case 'thrown-melee': return isThrownMeleeWeapon(item);
+      case 'magical': return !!item.isMagical || (item.traits ?? []).includes('magical');
+      default: return operand;
+    }
+  }
+
+  switch (field) {
+    case 'tag':
+      return (item.otherTags ?? []).map((tag) => String(tag).toLowerCase());
+    case 'trait':
+      return (item.traits ?? []).map((trait) => String(trait).toLowerCase());
+    case 'type':
+      return String(item.type ?? '').toLowerCase();
+    case 'level':
+      return Number(item.level ?? 0);
+    case 'slug':
+      return String(item.slug ?? '').toLowerCase();
+    case 'category':
+      return String(item.category ?? '').toLowerCase();
+    case 'rarity':
+      return String(item.rarity ?? 'common').toLowerCase();
+    case 'ancestry':
+      return String(item.ancestrySlug ?? '').toLowerCase();
+    default:
+      return operand;
+  }
 }
 
 function matchesChoiceSetFilterString(item, filter) {

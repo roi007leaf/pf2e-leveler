@@ -182,7 +182,18 @@ export function activateLevelPlannerListeners(planner, html) {
 
   el.querySelectorAll('[data-action="openCustomSpellPicker"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      planner._openCustomSpellPicker(Number(btn.dataset.rank));
+      planner._openCustomSpellPicker(Number(btn.dataset.rank), btn.dataset.entryType ?? 'primary');
+    });
+  });
+
+  el.querySelector('[data-action="addCustomSpellEntry"]')?.addEventListener('click', () => {
+    planner._promptCustomSpellEntry();
+  });
+
+  el.querySelectorAll('[data-action="removeCustomSpellEntry"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      planner._removeCustomSpellEntry(btn.dataset.key);
     });
   });
 

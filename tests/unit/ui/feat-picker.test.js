@@ -666,6 +666,38 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Attack Feat']);
   });
 
+  test('excluded trait filters out feats containing that trait', () => {
+    const attackFeat = createFeat({
+      name: 'Attack Feat',
+      uuid: 'attack-feat',
+      slug: 'attack-feat',
+    });
+    attackFeat.system.traits.value = ['attack'];
+
+    const concentrateFeat = createFeat({
+      name: 'Concentrate Feat',
+      uuid: 'concentrate-feat',
+      slug: 'concentrate-feat',
+    });
+    concentrateFeat.system.traits.value = ['concentrate'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn());
+    picker.allFeats = [attackFeat, concentrateFeat];
+    picker.excludedTraits = new Set(['attack']);
+
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Concentrate Feat']);
+  });
+
+  test('excluded trait preset initializes exclusion filter state', () => {
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn(), {
+      preset: {
+        excludedTraits: ['attack'],
+      },
+    });
+
+    expect([...picker.excludedTraits]).toEqual(['attack']);
+  });
+
   test('search filters by feat title instead of matching trait text', () => {
     const matchingName = createFeat({
       name: 'Skill Training',

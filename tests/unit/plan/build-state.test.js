@@ -787,4 +787,77 @@ describe('computeBuildState', () => {
     expect(state.archetypeDedicationProgress.get('some-dedication')).toBe(2);
     expect(state.canTakeNewArchetypeDedication).toBe(true);
   });
+
+  test('multiple completed dedications reopen taking another dedication', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.first-dedication',
+              name: 'First Dedication',
+              slug: 'first-dedication',
+              traits: ['archetype', 'dedication', 'first-archetype'],
+            },
+          ],
+        },
+        4: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.first-follow-up-1',
+              name: 'First Follow Up One',
+              slug: 'first-follow-up-one',
+              traits: ['archetype'],
+            },
+          ],
+        },
+        6: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.first-follow-up-2',
+              name: 'First Follow Up Two',
+              slug: 'first-follow-up-two',
+              traits: ['archetype'],
+            },
+          ],
+        },
+        8: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.second-dedication',
+              name: 'Second Dedication',
+              slug: 'second-dedication',
+              traits: ['archetype', 'dedication', 'second-archetype'],
+            },
+          ],
+        },
+        10: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.second-follow-up-1',
+              name: 'Second Follow Up One',
+              slug: 'second-follow-up-one',
+              traits: ['archetype'],
+            },
+          ],
+        },
+        12: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.second-follow-up-2',
+              name: 'Second Follow Up Two',
+              slug: 'second-follow-up-two',
+              traits: ['archetype'],
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 14);
+    expect(state.archetypeDedicationProgress.get('first-dedication')).toBe(2);
+    expect(state.archetypeDedicationProgress.get('second-dedication')).toBe(2);
+    expect(state.incompleteArchetypeDedications.size).toBe(0);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+  });
 });

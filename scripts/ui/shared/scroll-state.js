@@ -9,8 +9,13 @@ export function captureScrollState(root, selectors) {
 export function restoreScrollState(root, state, selectors) {
   if (!state || !root?.querySelector) return;
 
-  for (const [key, selector] of Object.entries(selectors)) {
-    const element = root.querySelector(selector);
-    if (element) element.scrollTop = state[key] ?? 0;
-  }
+  const apply = () => {
+    for (const [key, selector] of Object.entries(selectors)) {
+      const element = root.querySelector(selector);
+      if (element) element.scrollTop = state[key] ?? 0;
+    }
+  };
+
+  apply();
+  requestAnimationFrame(() => apply());
 }

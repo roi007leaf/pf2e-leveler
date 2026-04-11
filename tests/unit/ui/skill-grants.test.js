@@ -148,6 +148,46 @@ describe('CharacterWizard skills step grants', () => {
     expect(wizard.data.lores).toEqual(['Legal Lore', 'Elf Lore']);
   });
 
+  it('marks multiple direct ancestry-feat granted skills as auto-trained in the skills step', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'wizard', uuid: 'class-uuid', name: 'Wizard' };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-kobold-lore',
+      name: 'Kobold Lore',
+      grantedSkills: ['stealth', 'thievery'],
+      choiceSets: [],
+      grantedLores: [],
+      choices: {},
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getCachedDocument = jest.fn(async () => null);
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slug: 'stealth',
+        autoTrained: true,
+        source: 'Kobold Lore',
+      }),
+      expect.objectContaining({
+        slug: 'thievery',
+        autoTrained: true,
+        source: 'Kobold Lore',
+      }),
+    ]));
+  });
+
+  it('parses multiple skills from direct trained-in feat wording', () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const skills = wizard._parseGrantedSkills([], `
+      <p>You become trained in Stealth and Thievery. If you would automatically become trained in one of those skills, you instead become trained in a skill of your choice.</p>
+    `);
+
+    expect(skills).toEqual(['stealth', 'thievery']);
+  });
+
   it('parses martial-style subclass lore training text from descriptions', () => {
     const wizard = new CharacterWizard(createMockActor());
 

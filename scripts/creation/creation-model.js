@@ -396,30 +396,30 @@ export function setSelectedLoreSkills(data, lores) {
   return data;
 }
 
-export function setAncestryFeat(data, feat, choiceSets = [], grantedLores = []) {
+export function setAncestryFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.ancestryFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
     : null;
   return data;
 }
 
-export function setAncestryParagonFeat(data, feat, choiceSets = [], grantedLores = []) {
+export function setAncestryParagonFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.ancestryParagonFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
     : null;
   return data;
 }
 
-export function setClassFeat(data, feat, choiceSets = [], grantedLores = []) {
+export function setClassFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.classFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
     : null;
   return data;
 }
 
-export function setSkillFeat(data, feat, choiceSets = [], grantedLores = []) {
+export function setSkillFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.skillFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedLores, choices: {} }
+    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
     : null;
   return data;
 }
