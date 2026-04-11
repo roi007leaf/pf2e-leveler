@@ -1,0 +1,670 @@
+{
+  "PF2E_LEVELER": {
+    "MODULE_TITLE": "PF2e 升级规划器",
+    "UI": {
+      "OPEN_PLANNER": "规划等级",
+      "LEVEL": "等级 {level}",
+      "COMPLETE": "已完成",
+      "WARNING": "有警告",
+      "INCOMPLETE": "未完成",
+      "EMPTY": "无需选择",
+      "NO_PLAN": "尚未创建计划。选择一个职业以开始。",
+      "NO_CLASS": "为你的角色分配一个职业以开始规划。",
+      "UNSUPPORTED_CLASS": "{className} 尚不受支持。",
+      "SAVE": "保存计划",
+      "CLEAR": "清空计划",
+      "CLEAR_LEVEL": "清空等级",
+      "EXPORT": "导出计划",
+      "IMPORT": "导入计划",
+      "CONFIRM_CLEAR": "确定要清空此计划吗？所有选择都将丢失。",
+      "CONFIRM_CLEAR_LEVEL": "确定要清空等级 {level} 吗？该等级的所有选择都将丢失。",
+      "SELECT_CLASS": "选择职业",
+      "SELECT_SUBCLASS": "选择子职业",
+      "APPLY": "应用选择",
+      "CONFIRM_APPLY_TITLE": "应用升级计划",
+      "CONFIRM_APPLY": "应用等级 {level} 的计划选择？",
+      "UNSET": "点击以选择",
+      "PLANNED": "已规划",
+      "MANUAL_SPELL_NOTE": "此专长赋予一个聚能法术——应用后你需要在角色卡上手动选择具体法术。",
+      "APPLIED": "已应用",
+      "CURRENT": "当前",
+      "CHANGE": "更改",
+      "REMOVE": "移除",
+      "SHOW": "显示",
+      "HIDE": "隐藏",
+      "SELECTED": "已选择",
+      "PRIMARY": "主要",
+      "MAKE_PRIMARY": "设为主要",
+      "GRANTED_BY_FEAT": "由 {featName} 赋予",
+      "SET_BY_FEAT": "设定来源：{featName}",
+      "UNKNOWN_FEAT_SOURCE": "专长",
+      "SELECT_ADOPTED_ANCESTRY": "选择此专长赋予的族裔。",
+      "SELECT_ANCESTRY": "选择族裔",
+      "CUSTOM_LEVEL_PLAN_HINT": "使用此区域进行常规职业进度之外的额外规划。自定义选择仍会影响规划器的感知、先决条件和升级应用。",
+      "ADD_CUSTOM_FEAT": "添加自定义专长",
+      "ADD_CUSTOM_SPELL": "添加自定义法术",
+      "ADD_CUSTOM_CANTRIP": "添加自定义戏法",
+      "GRANTED_ITEMS": "赋予的物品：",
+      "PARTIALLY_APPLIED": "部分已应用",
+      "PARTIAL_BOOST_PENDING": "部分提升：需要两次提升才能获得 +1",
+      "PARTIAL_BOOST_COMPLETING": "此提升将完成一个待定的 +1 部分提升",
+      "PARTIAL_BOOST_SELECTED": "完成一个 +1 部分提升",
+      "CUSTOM_SPELL_RANK_REMINDER": "此职业在此等级获得新的法术环阶。使用自定义计划记录你预计在该环阶需要的法术。",
+      "LOCKED_FILTER_HINT": "此筛选器在该选择器中已锁定，无法更改。",
+      "NOT_SELECTED": "未选择",
+      "BROWSE": "浏览…",
+      "ADD": "添加",
+      "NAME": "名称",
+      "NEXT_LEVEL": "下一等级",
+      "FINISH_PLANNING": "完成规划",
+      "SEQUENTIAL_PROGRESS": "正在规划等级 {current}（共 {target}）"
+    },
+    "SECTIONS": {
+      "CLASS_FEATURES": "职业特性",
+      "ABILITY_BOOSTS": "属性提升",
+      "CLASS_FEAT": "职业专长",
+      "SKILL_FEAT": "技能专长",
+      "GENERAL_FEAT": "通用专长",
+      "ANCESTRY_FEAT": "族裔专长",
+      "SKILL_INCREASE": "技能提升",
+      "ARCHETYPE_FEAT": "免费变体专长",
+      "MYTHIC_FEAT": "神话专长",
+      "SPELLCASTING": "施法",
+      "DUAL_CLASS_FEAT": "双职业专长",
+      "ABP_POTENCY": "技能效力（ABP）",
+      "CLASS_SPECIFIC": "职业选项",
+      "CUSTOM_LEVEL_PLAN": "自定义等级计划",
+      "CUSTOM_FEATS": "自定义专长",
+      "CUSTOM_SKILL_INCREASES": "自定义技能提升",
+      "CUSTOM_SPELLS": "自定义法术",
+      "CUSTOM_EQUIPMENT": "自定义装备",
+      "EQUIPMENT": "装备（表格 10-10）"
+    },
+    "EQUIPMENT": {
+      "ADD": "添加装备",
+      "CURRENCY_BUDGET": "货币预算：{gp} gp",
+      "SLOT_EMPTY": "等级 {max} 物品栏位（空）"
+    },
+    "ITEM_PICKER": {
+      "EQUIPMENT": "装备",
+      "CATEGORY": "类别",
+      "QUANTITY": "数量",
+      "SEARCH": "搜索装备…",
+      "TOTAL": "总计",
+      "REMAINING": "剩余",
+      "SHOWING_PARTIAL": "显示 200 个，共"
+    },
+    "STARTING_WEALTH": {
+      "PERMANENT_ITEMS": "永久物品",
+      "SLOT_LABEL": "等级 {maxLevel} 物品栏位（空）",
+      "ITEM_LEVEL": "Lv",
+      "CURRENCY_BUDGET": "货币（{gp} gp）",
+      "NOT_PERMANENT": "只有永久物品（武器、护甲、盾牌、装备）可以填充此栏位。",
+      "LEVEL_TOO_HIGH": "此物品等级为 {item}，但栏位最高允许等级 {max}。"
+    },
+    "FEAT_PICKER": {
+      "OPTIONS": "选项",
+      "TITLE": "选择专长",
+      "SEARCH": "搜索专长…",
+      "ALL_SKILLS": "所有技能",
+      "SKILL_FILTER": "按技能筛选…",
+      "NO_RESULTS": "未找到专长",
+      "FILTER_LEVEL": "最高等级",
+      "LEVEL_RANGE": "等级范围",
+      "ANY_LEVEL": "任意等级",
+      "MIN_LEVEL": "最低 {level}",
+      "MAX_LEVEL": "最高 {level}",
+      "FILTER_RARITY": "稀有度",
+      "SORT": "排序",
+      "PREREQUISITES": "先决条件",
+      "PREREQ_MET": "先决条件已满足",
+      "PREREQ_UNMET": "先决条件未满足",
+      "PREREQ_UNKNOWN": "无法验证先决条件",
+      "PREREQ_UNVERIFIED": "未验证",
+      "PREREQ_UNVERIFIED_HINT": "此先决条件无法自动验证。除非另一个先决条件明确未满足，否则你仍可选择此专长。",
+      "PREREQ_UNMET_BLOCKED": "此专长已被阻止，因为一项或多项先决条件明确未满足。",
+      "ARCHETYPE_DEDICATION_LOCK": "请先从当前变体中选择两个其他专长来完成入门",
+      "ARCHETYPE_UNLOCK": "入门 Lv {level}+",
+      "ARCHETYPE_UNLOCK_HINT": "从等级 {level} 起可通过入门选择。",
+      "SUBCLASS_LIMITATION": "子职业/变体限制",
+      "SUBCLASS_LIMITATION_HINT": "此专长是你所选子职业或职业变体限制所要求的。",
+      "SEND_TO_CHAT": "发送到聊天",
+      "SELECT": "选择",
+      "LEVEL": "Lv {level}",
+      "TAKEN": "已选取",
+      "TAKEN_AT_LEVEL": "在等级 {level} 选取",
+      "ALREADY_TAKEN": "此专长不能被多次选取",
+      "ELIGIBLE_ONLY": "仅限符合条件",
+      "HIDE_UNMET": "隐藏先决条件明确未满足的专长",
+      "DEDICATIONS": "入门",
+      "SKILL_FEATS": "技能专长",
+      "SHOW_ARCHETYPE": "显示变体专长",
+      "HIDE_SKILL_FEATS": "隐藏技能专长",
+      "FEAT_TYPES": "专长类型",
+      "TYPE_CLASS": "职业",
+      "TYPE_ANCESTRY": "族裔",
+      "TYPE_BONUS": "额外",
+      "TYPE_GENERAL": "通用",
+      "TYPE_SKILL": "技能",
+      "TYPE_ARCHETYPE": "变体",
+      "TYPE_MYTHIC": "神话",
+      "TYPE_OTHER": "其他",
+      "SELECT_ALL": "全选",
+      "DESELECT_ALL": "取消全选",
+      "ADD_SELECTED": "添加所选",
+      "SELECTED_COUNT": "已选 {count} 个"
+    },
+    "BOOSTS": {
+      "TITLE": "选择 {count} 个属性提升",
+      "CURRENT": "当前：+{mod}",
+      "PARTIAL": "部分提升（+0.5）",
+      "ALREADY_SELECTED": "已提升"
+    },
+    "SKILLS": {
+      "TITLE": "选择技能提升",
+      "UNTRAINED": "未受训",
+      "TRAINED": "受训",
+      "EXPERT": "专家",
+      "MASTER": "大师",
+      "LEGENDARY": "传奇",
+      "MAX_RANK": "此等级的最高熟练度",
+      "BOOSTED_BY_FEAT": "由专长提升"
+    },
+    "SPELLS": {
+      "RANK": "环阶",
+      "SLOTS": "法术位",
+      "NEW_RANK": "新增：{rank} 环法术！",
+      "TRADITION_FILTER": "魔法根源",
+      "ATTUNEMENT_SLOTS": "{selected}/{count} 精魄",
+      "FOCUS_POOL": "聚能池：{count}",
+      "ADD": "添加法术",
+      "PLANNED": "已规划的法术",
+      "SEARCH": "搜索法术…",
+      "NO_RESULTS": "未找到法术",
+      "FILTER_RARITY": "稀有度",
+      "SORT": "排序",
+      "TRAIT_FILTER": "输入特征以筛选…",
+      "GRANTED": "赋予的法术",
+      "SPELLBOOK": "法术书（{selected}/{count} 个新法术）",
+      "SPELLBOOK_CANTRIPS": "戏法扩展（{selected}/{count} 个额外戏法）",
+      "ADD_TO_SPELLBOOK": "添加法术",
+      "ADD_TO_SPELLBOOK_HINT": "将法术添加到法术书",
+      "ADD_CANTRIP_TO_SPELLBOOK": "添加戏法",
+      "ADD_CANTRIP_TO_SPELLBOOK_HINT": "将戏法添加到法术书",
+      "ADD_SELECTED": "添加所选",
+      "SELECT": "选择",
+      "SELECT_ALL": "全选",
+      "DESELECT_ALL": "取消全选",
+      "SELECTED_COUNT": "已选 {count} 个",
+      "ALREADY_SELECTED": "已选择",
+      "FOCUS": "聚能法术",
+      "FOCUS_CANTRIPS": "聚能戏法",
+      "NEW_FOCUS": "新增！",
+      "SORT_RANK_DESC": "环阶（从高到低）",
+      "SORT_RANK_ASC": "环阶（从低到高）",
+      "SORT_ALPHA_ASC": "字母顺序（A-Z）",
+      "SORT_ALPHA_DESC": "字母顺序（Z-A）",
+      "RANK_FILTER": "法术环阶",
+      "RANK_NUMBER": "{rank} 环",
+      "CANTRIP": "戏法",
+      "CATEGORY_FILTER": "类别",
+      "CATEGORY_SPELL": "法术",
+      "CATEGORY_CANTRIP": "戏法",
+      "CATEGORY_FOCUS": "聚能",
+      "CATEGORY_RITUAL": "仪式"
+    },
+    "CREATION": {
+      "TITLE": "角色创建",
+      "LOADING": "正在加载角色构建数据…",
+      "BUTTON": "创建角色",
+      "EDIT_BUTTON": "编辑角色创建",
+      "SEARCH": "搜索…",
+      "HERITAGE_GROUP_ANCESTRY": "族裔传承",
+      "HERITAGE_GROUP_VERSATILE": "通用传承",
+      "CHANGE": "更改",
+      "BACK": "返回",
+      "NEXT": "下一步",
+      "CREATE": "创建角色",
+      "EXPORT": "导出",
+      "IMPORT": "导入",
+      "CONFIRM_TITLE": "创建角色",
+      "CONFIRM_BODY": "将所有选择应用到此角色？这将添加族裔、传承、背景、职业、专长及其他选择。",
+      "CREATION_COMPLETE": "角色创建成功！",
+      "BOOSTS_HINT": "选择 4 个不同的属性进行提升。",
+      "SKILLS_HINT": "选择 {count} 个额外技能进行受训。",
+      "LANGUAGES_HINT": "选择 {count} 种额外语言。",
+      "GRANTED_LANGUAGES": "赋予的语言",
+      "GRANTED_LORES": "赋予的学识技能",
+      "ADDITIONAL_LANGUAGES": "额外语言",
+      "NO_LANGUAGES": "没有可用的额外语言选择。",
+      "LORE_SKILLS": "学识技能",
+      "SPELLS_HINT": "选择你的初始法术。",
+      "AUTO_TRAINED": "职业",
+      "DIVINE_FONT_HEAL": "治疗",
+      "DIVINE_FONT_HARM": "伤害",
+      "KEY_ABILITY": "关键",
+      "TOTAL": "总计",
+      "ANCESTRY_SUGGESTION": "族裔建议",
+      "SELECTED_TACTICS": "已选战术（{selected}/{count}）",
+      "SELECTED_IKONS": "已选神迹（{selected}/{count}）",
+      "SELECTED_IMPULSES": "已选脉冲（{selected}/{count}）",
+      "SELECTED_APPARITIONS": "已选精魄（{selected}/{count}）",
+      "WIZARD": {
+        "IMPLEMENT": "器物",
+        "TACTICS": "战术",
+        "TACTICS_HINT": "为你的指挥册选择五个初始战术。",
+        "AVAILABLE_TACTICS": "可用战术（{selected}/{count}）",
+        "IKONS": "神迹",
+        "IKONS_HINT": "选择三个初始神迹。",
+        "AVAILABLE_IKONS": "可用神迹（{selected}/{count}）",
+        "INNOVATION_DETAILS": "发明详情",
+        "INNOVATION_DETAILS_HINT": "选择你的发明的基础物品和初始改造。",
+        "INNOVATION_BASE_FIRST": "请先选择发明的基础物品。",
+        "INNOVATION_ITEM": "发明物品",
+        "INNOVATION_MODIFICATION": "发明改造",
+        "KINETIC_GATE": "元素之门",
+        "KINETIC_GATE_HINT": "选择你以单门还是双门开始，然后选择你的初始脉冲。",
+        "GATE_MODE": "门模式",
+        "SECOND_ELEMENT": "第二元素",
+        "IMPULSES": "脉冲（{selected}/{count}）",
+        "IMPULSES_LABEL": "脉冲",
+        "SUBCONSCIOUS_MIND": "潜意识心灵",
+        "ARCANE_THESIS": "奥术论题",
+        "APPARITIONS": "精魄",
+        "APPARITIONS_HINT": "选择两个要调谐的精魄，然后将其中一个标记为你的主要精魄。",
+        "AVAILABLE_APPARITIONS": "可用精魄（{selected}/{count}）",
+        "SANCTIFICATION": "神圣化",
+        "REQUIRES": "需要",
+        "ALLOWS": "允许",
+        "SANCTIFICATION_SUFFIX": "以下神圣化：",
+        "DIVINE_FONT": "神圣之泉",
+        "DIVINE_FONT_HINT": "选择你的神圣之泉。这决定你引导治疗还是伤害法术。",
+        "GRANTED_FEAT_CHOICE": "赋予的专长选择",
+        "CURRICULUM_SPELLS": "课程法术",
+        "FOCUS_SPELLS": "聚能法术",
+        "REMINDER_PREFIX": "创建后出现提示时，请确保选择",
+        "REMINDER_SUBCLASS_SUFFIX": "作为你的子职业选择。",
+        "REMINDER_IMPLEMENT_SUFFIX": "作为你的器物。",
+        "REMINDER_TACTICS_PREFIX": "创建后出现提示时，请确保选择你选定的指挥官战术：",
+        "REMINDER_IKONS_PREFIX": "创建后出现提示时，请确保选择你选定的神迹：",
+        "REMINDER_INNOVATION_PREFIX": "创建后出现提示时，请确保选择你的发明家发明详情：",
+        "REMINDER_KINETIC_PREFIX": "创建后出现提示时，请确保选择你的元素之门选项：",
+        "REMINDER_SUBCONSCIOUS_SUFFIX": "作为你的潜意识心灵。",
+        "REMINDER_THESIS_SUFFIX": "作为你的奥术论题。",
+        "REMINDER_WITH": "以及",
+        "REMINDER_PERIOD": "。"
+      },
+      "APPLY_OVERLAY": {
+        "EYEBROW": "正在创建角色",
+        "CURRENT_PROMPT": "当前 PF2E 提示",
+        "PROMPT": "提示",
+        "USE": "使用",
+        "SOURCE": "来源",
+        "USE_IN_PROMPTS": "在 PF2E 提示中使用这些",
+        "WIZARD_SELECTION_MISSING": "创建向导选择缺失"
+      },
+      "PENDING_TITLE": "创建后的额外选择",
+      "PENDING_HINT": "PF2e 系统将在角色创建后提示你进行以下选择：",
+      "FEAT_CHOICES": "专长选择",
+      "AUTO_TRAINED_CLASS": "职业",
+      "AUTO_TRAINED_BACKGROUND": "背景",
+      "INTELLIGENCE_BONUS_HINT_SINGLE": "智力在此等级提高了你的调整值。在下方选择 1 个额外的受训技能和 1 种额外语言。",
+      "INTELLIGENCE_BONUS_HINT_MULTI": "智力在此等级提高了你的调整值。在下方选择 {count} 个额外的受训技能和 {count} 种额外语言。",
+      "INTELLIGENCE_BONUS_SKILLS": "智力额外技能（{selected}/{count}）",
+      "INTELLIGENCE_BONUS_LANGUAGES": "智力额外语言（{selected}/{count}）",
+      "STEPS": {
+        "ANCESTRY": "族裔",
+        "HERITAGE": "传承",
+        "MIXED_ANCESTRY": "混血族裔",
+        "BACKGROUND": "背景",
+        "CLASS": "职业",
+        "SUBCLASS": "子职业",
+        "SUBCLASSCHOICES": "选项",
+        "DEITY": "神祇",
+        "SANCTIFICATION": "神圣化",
+        "BOOSTS": "属性提升",
+        "LANGUAGES": "语言",
+        "SKILLS": "技能",
+        "FEATS": "专长",
+        "SPELLS": "法术",
+        "EQUIPMENT": "装备",
+        "SUMMARY": "总结"
+      },
+      "CHAT": {
+        "CHARACTER": "角色",
+        "CHOICES": "选择",
+        "STARTING_BENEFITS": "初始增益",
+        "CHARACTER_CREATED": "角色已创建",
+        "CHARACTER_READY": "{actorName} 已就绪",
+        "IMPLEMENT": "器物",
+        "TACTICS": "战术",
+        "IKONS": "神迹",
+        "INNOVATION_ITEM": "发明物品",
+        "INNOVATION_MOD": "发明改造",
+        "KINETIC_GATE": "元素之门",
+        "DUAL_GATE": "双门",
+        "SINGLE_GATE": "单门",
+        "SECOND_ELEMENT": "第二元素",
+        "IMPULSES": "脉冲",
+        "SUBCONSCIOUS_MIND": "潜意识心灵",
+        "ARCANE_THESIS": "奥术论题",
+        "APPARITIONS": "精魄",
+        "NONE": "无",
+        "FOCUS_SPELL": "聚能法术",
+        "FOCUS_SPELLS": "聚能法术",
+        "GRANTED_FEAT_CHOICE": "赋予的专长选择",
+        "EQUIPMENT": "起始装备"
+      }
+    },
+    "SUMMARY": {
+      "BOOSTS": "提升",
+      "CLASS": "职业",
+      "SKILL": "技能",
+      "GENERAL": "通用",
+      "ANCESTRY": "族裔",
+      "SKILL_INCREASE": "技能+",
+      "ARCHETYPE": "变体",
+      "MYTHIC": "神话",
+      "POTENCY": "效力",
+      "DUAL_CLASS": "双职业",
+      "SPELLS": "法术"
+    },
+    "ABP": {
+      "NEW_POTENCY": "新增 +1 技能效力",
+      "UPGRADE_TO_2": "将一个技能效力升级为 +2",
+      "UPGRADE_TO_3": "将一个技能效力升级为 +3",
+      "NOTE": "技能效力加值会在你于角色卡选择技能时由 ABP 系统自动应用。"
+    },
+    "REMINDERS": {
+      "TITLE": "需要操作",
+      "HEADER": "{actorName}（等级 {level}）有需要手动处理的选择：",
+      "OK": "知道了"
+    },
+    "MESSAGES": {
+      "GLOBAL_HEADER": "{actorName} 已升至等级 {targetLevel}！",
+      "FEATS_SELECTED": "已选专长：",
+      "NO_FEATS": "无",
+      "SKILL_INCREASE": "技能提升：",
+      "BOOSTS_APPLIED": "属性提升：{boosts}",
+      "SPELLS_ADDED": "已添加法术："
+    },
+    "ALCHEMIST": {
+      "NAME": "炼金术士",
+      "RESEARCH_FIELD": "研究领域",
+      "SUBCLASS": {
+        "BOMBER": "爆破手",
+        "CHIRURGEON": "外科医师",
+        "MUTAGENIST": "突变学家",
+        "TOXICOLOGIST": "毒理学家"
+      }
+    },
+    "ANIMIST": {
+      "NAME": "灵媒",
+      "PRACTICE": "灵媒修行",
+      "APPARITIONS": "精魄调谐",
+      "PRIMARY_APPARITION": "主要精魄",
+      "SUBCLASS": {
+        "LITURGIST": "祭仪师",
+        "MEDIUM": "通灵者",
+        "SEER": "先见者",
+        "SHAMAN": "萨满"
+      },
+      "APPARITION": {
+        "CRAFTER": "密室工匠",
+        "CUSTODIAN": "林园守护者",
+        "ECHO": "遗失时刻的回响",
+        "IMPOSTOR": "暗处冒名者",
+        "LURKER": "噬暗潜伏者",
+        "MONARCH": "精类宫廷之主",
+        "REVELER": "失落欢愉的狂欢者",
+        "STALKER": "暗枝潜行者",
+        "STEWARD": "石火管事",
+        "VANGUARD": "怒涛先锋",
+        "WITNESS": "远古战场的见证者",
+        "SHEPHERD": "迷风牧者",
+        "SPEAKER": "嘶语者"
+      }
+    },
+    "SORCERER": {
+      "NAME": "术士"
+    },
+    "BARBARIAN": {
+      "NAME": "野蛮人"
+    },
+    "BARD": {
+      "NAME": "吟游诗人"
+    },
+    "CHAMPION": {
+      "NAME": "神卫"
+    },
+    "CLERIC": {
+      "NAME": "牧师"
+    },
+    "COMMANDER": {
+      "NAME": "指挥官"
+    },
+    "DAREDEVIL": {
+      "NAME": "冒险家"
+    },
+    "DRUID": {
+      "NAME": "德鲁伊"
+    },
+    "EXEMPLAR": {
+      "NAME": "神源者"
+    },
+    "FIGHTER": {
+      "NAME": "战士"
+    },
+    "GUARDIAN": {
+      "NAME": "守护者"
+    },
+    "GUNSLINGER": {
+      "NAME": "枪手"
+    },
+    "INVENTOR": {
+      "NAME": "发明家"
+    },
+    "INVESTIGATOR": {
+      "NAME": "调查员"
+    },
+    "KINETICIST": {
+      "NAME": "操念使"
+    },
+    "MAGUS": {
+      "NAME": "魔战士"
+    },
+    "MONK": {
+      "NAME": "武僧"
+    },
+    "ORACLE": {
+      "NAME": "先知"
+    },
+    "PSYCHIC": {
+      "NAME": "灵能者"
+    },
+    "RANGER": {
+      "NAME": "游侠"
+    },
+    "ROGUE": {
+      "NAME": "游荡者"
+    },
+    "SLAYER": {
+      "NAME": "杀手"
+    },
+    "SUMMONER": {
+      "NAME": "召唤师"
+    },
+    "SWASHBUCKLER": {
+      "NAME": "浪客"
+    },
+    "THAUMATURGE": {
+      "NAME": "奇术师"
+    },
+    "WITCH": {
+      "NAME": "女巫"
+    },
+    "WIZARD": {
+      "NAME": "法师"
+    },
+    "PREREQUISITES": {
+      "MET": "所有先决条件已满足",
+      "UNMET": "先决条件未满足",
+      "DETAILS": "先决条件：{details}"
+    },
+    "NOTIFICATIONS": {
+      "APPLIED": "{actorName} 等级 {level} 的选择已成功应用",
+      "APPLY_FAILED": "应用选择失败：{error}",
+      "NO_PLAN_FOR_LEVEL": "未找到等级 {level} 的计划",
+      "PLAN_SAVED": "升级计划已保存",
+      "PLAN_CLEARED": "升级计划已清空",
+      "PLAN_EXPORTED": "计划导出成功",
+      "PLAN_IMPORTED": "计划导入成功",
+      "CREATION_EXPORTED": "角色创建计划导出成功",
+      "CREATION_IMPORTED": "角色创建计划导入成功",
+      "IMPORT_FAILED": "导入计划失败：{error}",
+      "INVALID_BOOST_COUNT": "请精确选择 {count} 个属性提升",
+      "MISSING_CLASS": "角色必须分配一个职业",
+      "LEVEL_UP_START": "{actorName} 正在升至等级 {targetLevel}…",
+      "LEVEL_UP_COMPLETE": "{actorName} 升级完成！"
+    },
+    "SETTINGS": {
+      "SHOW_BUTTON": {
+        "NAME": "显示规划按钮",
+        "HINT": "在角色卡上显示「规划等级」按钮"
+      },
+      "AUTO_APPLY": {
+        "NAME": "升级时自动应用",
+        "HINT": "当角色升级时自动提示应用已规划的选择"
+      },
+      "SHOW_PREREQUISITES": {
+        "NAME": "显示先决条件",
+        "HINT": "在选择器中显示专长的先决条件验证状态"
+      },
+      "IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK": {
+        "NAME": "忽略免费变体入门锁定",
+        "HINT": "使用免费变体可选规则时，允许在免费变体栏位中选择新的入门专长，无需先从当前变体中选取两个其他专长。"
+      },
+      "ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT": {
+        "NAME": "强制子职业入门要求",
+        "HINT": "启用后，子职业或职业变体文本（如「你必须在 2 级职业专长中选择 X 入门」）将限制 2 级职业专长选择器和验证为该入门。"
+      },
+      "HIDE_UNCOMMON": {
+        "NAME": "隐藏罕见专长",
+        "HINT": "默认在专长选择器中隐藏罕见及更高稀有度的专长"
+      },
+      "HIDE_RARE": {
+        "NAME": "隐藏稀有专长",
+        "HINT": "默认在专长选择器中隐藏稀有专长"
+      },
+      "PLAYER_RARITY": {
+        "UNCOMMON_NAME": "玩家可使用罕见选项",
+        "UNCOMMON_HINT": "允许非 GM 用户在角色创建和升级工具中查看和选择罕见内容。",
+        "RARE_NAME": "玩家可使用稀有选项",
+        "RARE_HINT": "允许非 GM 用户在角色创建和升级工具中查看和选择稀有内容。",
+        "UNIQUE_NAME": "玩家可使用独特选项",
+        "UNIQUE_HINT": "允许非 GM 用户在角色创建和升级工具中查看和选择独特内容。"
+      },
+      "PLAYER_COMPENDIUM_ACCESS": {
+        "NAME": "玩家内容来源",
+        "LABEL": "配置玩家来源",
+        "HINT": "选择非 GM 用户在角色创建和升级工具中可访问的合集来源。",
+        "ENABLED_NAME": "限制玩家内容来源",
+        "ENABLED_HINT": "将非 GM 用户限制为玩家内容来源中选定的合集来源。"
+      },
+      "FEAT_SORT": {
+        "NAME": "默认专长排序",
+        "HINT": "专长选择器中默认的排序方式",
+        "LEVEL_DESC": "等级（从高到低）",
+        "LEVEL_ASC": "等级（从低到高）",
+        "ALPHA_ASC": "字母顺序（A-Z）",
+        "ALPHA_DESC": "字母顺序（Z-A）"
+      },
+      "STARTING_WEALTH": {
+        "MODE_NAME": "起始财富模式",
+        "MODE_HINT": "起始装备预算的确定方式。「物品+货币」使用表格 10-10 的永久物品栏位和货币额度。「总金额」使用表格 10-10 的固定金币值。「自定义」使用手动金币限额。",
+        "DISABLED": "禁用",
+        "ITEMS_AND_CURRENCY": "物品+货币（表格 10-10）",
+        "LUMP_SUM": "总金额（表格 10-10）",
+        "CUSTOM": "自定义金币限额"
+      },
+      "EQUIPMENT_GOLD_LIMIT": {
+        "NAME": "自定义金币限额",
+        "HINT": "自定义财富模式的金币预算。仅在起始财富模式设为「自定义」时生效。",
+        "EXCEEDED": "此物品将超出起始装备预算 {limit} gp。",
+        "EXCEEDED_TOOLTIP": "总花费超出了设定的金币限额。"
+      },
+      "ANCESTRAL_PARAGON": {
+        "NAME": "族裔楷模可选规则",
+        "HINT": "启用族裔楷模可选规则。角色以 2 个族裔专长开始，并在每个奇数等级（3、5、7、9、11、13、15、17、19）获得额外的族裔专长。这与族裔楷模通用专长不同。"
+      },
+      "ADDITIONAL_COMPENDIUMS": {
+        "NAME": "额外专长合集",
+        "HINT": "以逗号分隔的额外合集键列表，用于搜索专长（例如 'my-module.my-feats'）"
+      },
+      "COMPENDIUM_MANAGER": {
+        "NAME": "自定义合集分类",
+        "LABEL": "配置分类",
+        "HINT": "选择规划器和角色创建向导使用的每个 PF2E 内容类别的额外合集。",
+        "BUILT_IN": "内置默认包",
+        "NO_PACKS": "未找到此类别的匹配合集。",
+        "ALL": "全部",
+        "DESELECT_ALL": "取消全选",
+        "ALL_DISABLED": "此类别没有可用的自定义合集。",
+        "PACKAGE": "模组包",
+        "SEARCH": "筛选来源…",
+        "SUMMARY": "内容来源",
+        "CATEGORIES_VIEW": "按类别浏览",
+        "PACK_ASSIGNMENTS_VIEW": "分配合集",
+        "PACK_ASSIGNMENTS_TITLE": "合集类别分配",
+        "PACK_ASSIGNMENTS_HINT": "使用此视图精确决定哪些合集提供给每个 PF2E 内容类别。单个合集可属于多个类别。内置默认保持锁定，自动检测的匹配仅作为初始建议。",
+        "PACK_SEARCH_PLACEHOLDER": "搜索合集或类别…",
+        "SOURCE_COLUMN": "合集",
+        "CATEGORY_COLUMN": "类别",
+        "AUTO_DETECTED": "自动",
+        "NO_PACK_ASSIGNMENTS": "没有匹配该搜索的合集。",
+        "CANCEL": "取消",
+        "SAVE": "保存更改",
+        "SAVING": "保存中…",
+        "SAVED": "自定义合集分类已保存",
+        "INDEXING_TITLE": "正在重新索引合集",
+        "INDEXING_HINT": "PF2E 升级规划器正在为更新后的来源选择重建专长、物品和法术索引。"
+      },
+      "COMPENDIUM_CATEGORIES": {
+        "ANCESTRIES": "族裔",
+        "HERITAGES": "传承",
+        "BACKGROUNDS": "背景",
+        "CLASSES": "职业",
+        "FEATS": "专长",
+        "CLASS_FEATURES": "职业特性",
+        "SPELLS": "法术",
+        "EQUIPMENT": "物品与装备",
+        "ACTIONS": "动作",
+        "DEITIES": "神祇",
+        "SKILLS": "技能",
+        "LANGUAGES": "语言"
+      },
+      "CONTENT_GUIDANCE": {
+        "NAME": "建议的角色选项",
+        "LABEL": "配置建议",
+        "HINT": "为玩家标记角色选项为建议、不推荐或禁止。建议的选项显示星标并排在顶部。不推荐的选项保留警告标记但不被阻止。禁止的选项对玩家隐藏。",
+        "SAVED": "内容引导已保存。",
+        "INTRO": "将选项标记为建议、不推荐或禁止。建议的选项在选择器中获得星标并排在顶部。不推荐的选项仍可用但显示警告标记。禁止的选项对非 GM 用户隐藏。",
+        "SEARCH": "搜索选项…",
+        "RECOMMENDED": "建议",
+        "NOT_RECOMMENDED": "不推荐",
+        "DISALLOWED": "禁止",
+        "DEFAULT": "默认",
+        "BADGE_SUGGESTED": "建议",
+        "BADGE_NOT_RECOMMENDED": "不推荐",
+        "BADGE_DISALLOWED": "禁止",
+        "BULK_RARITY": "按稀有度批量操作",
+        "BULK_RECOMMENDED": "建议",
+        "BULK_NOT_RECOMMENDED": "警告",
+        "BULK_DISALLOWED": "禁止",
+        "BULK_DEFAULT": "清除",
+        "CLEAR_ALL": "清空标签页",
+        "COUNT": "已标记 {count} 个"
+      }
+    }
+  }
+}
