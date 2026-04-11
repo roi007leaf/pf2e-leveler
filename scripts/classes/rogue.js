@@ -22,7 +22,7 @@ export const ROGUE = {
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Debilitating Strike', key: 'debilitating-strike' },
     { level: 9, name: 'Rogue Resilience', key: 'rogue-resilience' },
-    { level: 11, name: 'Rogue Expertise', key: 'rogue-expertise' },
+    { level: 11, name: 'Rogue Expertise', key: 'rogue-expertise', proficiencies: { classdc: 2 } },
     { level: 13, name: 'Greater Rogue Reflexes', key: 'greater-rogue-reflexes' },
     { level: 13, name: 'Light Armor Expertise', key: 'light-armor-expertise' },
     { level: 13, name: 'Master Tricks', key: 'master-tricks' },
@@ -31,7 +31,7 @@ export const ROGUE = {
     { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },
     { level: 17, name: 'Agile Mind', key: 'agile-mind' },
     { level: 19, name: 'Light Armor Mastery', key: 'light-armor-mastery' },
-    { level: 19, name: 'Master Strike', key: 'master-strike' },
+    { level: 19, name: 'Master Strike', key: 'master-strike', proficiencies: { classdc: 3 } },
   ],
 
   spellcasting: null,

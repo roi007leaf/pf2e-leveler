@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.1.14
+
+### Character Wizard
+
+- **Imported creation plans now handle replacement skill training more safely** - If a widened background or feat skill choice selects a replacement skill outside the source item's original authored list, Leveler now applies that replacement training directly without writing an invalid rules selection back onto the PF2E item
+- **Backfilled granted feats such as `Assurance` now keep their stored choice when imported plans use replacement skill training** - Imported creation plans that combine replacement skill training with granted follow-up feats no longer lose or corrupt the granted feat's own selected option during creation
+
+### Sheet Integration
+
+- **The `Plan Levels` button now recovers if the class registry was not populated during startup** - Characters with valid PF2E class items no longer lose the planner button just because the local class registry ended up empty after an update or reload
+- **Custom compendium classes can now open the planner more reliably** - If a class is not one of Leveler's built-in class definitions, the module now derives a temporary class definition from the actor's owned class item so custom class actors can still show the planner button and bootstrap a plan
+
+### Level Planner
+
+- **Custom planned spells now use the same compact chip style as the main spell sections** - Custom spell and cantrip selections in the planner now render as the same compact spell chips used by the normal planned spell UI instead of oversized pill rows
+- **Custom planned spells are now grouped by spellcasting entry** - The custom spell section now organizes planned spells under each spellcasting entry first, then splits them into `Cantrip`, `Rank 1`, and higher-rank groups so it is easier to see where each spell will be added
+
+### Class Progression
+
+- **Future proficiency checks now handle more class-specific progression features correctly** - The planner now reads explicit proficiency progression metadata from class features, which fixes prerequisite checks for progression features whose names do not follow the generic `Perception Mastery` / `Class DC Expertise` pattern
+- **Fighter level 7 Perception progression is now recognized correctly** - `Battlefield Surveyor` now upgrades Perception to `Master` in planned build state, so feats like `Bloodsense` no longer fail their level 7 Perception prerequisite incorrectly
+- **Additional class progression metadata was aligned with AoN class tables** - Ambiguous progression features such as investigator sense upgrades, class DC progression features, and corrected `Reflex Expertise` entries for classes like `Inventor` and `Thaumaturge` are now tracked more accurately in the planner
+
 ## 2.1.13
 
 ### Character Wizard

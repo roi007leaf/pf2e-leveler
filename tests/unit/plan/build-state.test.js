@@ -1,6 +1,8 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
+import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
 import {
@@ -15,6 +17,8 @@ beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
   ClassRegistry.register(DRUID);
+  ClassRegistry.register(FIGHTER);
+  ClassRegistry.register(INVESTIGATOR);
 });
 
 describe('computeBuildState', () => {
@@ -389,7 +393,40 @@ describe('computeBuildState', () => {
     expect(state.proficiencies.fortitude).toBe(PROFICIENCY_RANKS.TRAINED);
     expect(state.proficiencies.reflex).toBe(PROFICIENCY_RANKS.TRAINED);
     expect(state.proficiencies.will).toBe(PROFICIENCY_RANKS.EXPERT);
-    expect(state.proficiencies.classdc).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.proficiencies.classdc).toBe(PROFICIENCY_RANKS.EXPERT);
+  });
+
+  test('applies fighter battlefield surveyor as perception mastery at level 7', () => {
+    mockActor.system.perception = { rank: PROFICIENCY_RANKS.EXPERT };
+    const fighterPlan = createPlan('fighter');
+
+    const state = computeBuildState(mockActor, fighterPlan, 7);
+
+    expect(state.proficiencies.perception).toBe(PROFICIENCY_RANKS.MASTER);
+  });
+
+  test('applies explicit fighter class DC progression metadata', () => {
+    mockActor.system.attributes = {
+      classDC: { rank: PROFICIENCY_RANKS.TRAINED },
+    };
+    const fighterPlan = createPlan('fighter');
+
+    expect(computeBuildState(mockActor, fighterPlan, 11).proficiencies.classdc).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(computeBuildState(mockActor, fighterPlan, 19).proficiencies.classdc).toBe(PROFICIENCY_RANKS.LEGENDARY);
+  });
+
+  test('applies explicit investigator perception and reflex progression metadata', () => {
+    mockActor.system.perception = { rank: PROFICIENCY_RANKS.TRAINED };
+    mockActor.system.saves = {
+      fortitude: { rank: PROFICIENCY_RANKS.TRAINED },
+      reflex: { rank: PROFICIENCY_RANKS.EXPERT },
+      will: { rank: PROFICIENCY_RANKS.TRAINED },
+    };
+    const investigatorPlan = createPlan('investigator');
+
+    expect(computeBuildState(mockActor, investigatorPlan, 7).proficiencies.perception).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(computeBuildState(mockActor, investigatorPlan, 13).proficiencies.perception).toBe(PROFICIENCY_RANKS.MASTER);
+    expect(computeBuildState(mockActor, investigatorPlan, 15).proficiencies.reflex).toBe(PROFICIENCY_RANKS.MASTER);
   });
 
   test('collects weapon proficiency categories from actor data', () => {

@@ -1,4 +1,5 @@
 import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES } from '../../constants.js';
+import { ensureActorClassRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
 import {
@@ -288,6 +289,8 @@ const MANUAL_SPELL_FEATS = new Set([
 export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, options = {}) {
     super();
+    ensureClassRegistry();
+    ensureActorClassRegistered(actor);
     this.actor = actor;
     this._compendiumCache = {};
     this._customPlanOpenLevels = new Set();
@@ -624,6 +627,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _resolveClassSlug(actor) {
+    ensureClassRegistry();
+    ensureActorClassRegistered(actor);
     const actorClass = actor.class;
     if (!actorClass) return null;
 

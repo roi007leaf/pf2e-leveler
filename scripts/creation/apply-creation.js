@@ -367,8 +367,8 @@ export function getAdditionalSelectedSkills(data) {
 
   for (const container of containers) {
     for (const choiceSet of (container.choiceSets ?? [])) {
-      if (!choiceSet?.grantsSkillTraining) continue;
       const selectedValue = container.choices?.[choiceSet.flag];
+      if (!choiceSet?.grantsSkillTraining && !isReplacementSkillTrainingChoice(choiceSet, selectedValue)) continue;
       const skill = resolveSelectedSkillChoice(choiceSet, selectedValue);
       if (skill) skills.add(skill);
     }
@@ -378,12 +378,54 @@ export function getAdditionalSelectedSkills(data) {
 }
 
 function applyStoredChoices(itemData, choices = {}) {
-  const entries = Object.entries(choices).filter(([, value]) => typeof value === 'string' && value !== '[object Object]');
+  const entries = Object.entries(choices)
+    .filter(([, value]) => typeof value === 'string' && value !== '[object Object]')
+    .filter(([flag, value]) => isApplicableStoredChoice(itemData, flag, value));
   if (entries.length === 0) return;
 
   itemData.flags ??= {};
   itemData.flags.pf2e ??= {};
   itemData.flags.pf2e.rulesSelections = Object.fromEntries(entries);
+}
+
+function isApplicableStoredChoice(itemData, flag, value) {
+  const choiceRule = findChoiceRuleByFlag(itemData, flag);
+  if (!choiceRule) return true;
+  if (!isSkillChoiceRule(choiceRule)) return true;
+
+  const normalizedValue = normalizeSkillChoice(value);
+  if (!normalizedValue) return true;
+
+  const options = getRuleChoiceOptions(choiceRule);
+  if (options.length === 0) return true;
+
+  return options.some((option) => normalizeSkillChoice(option?.value ?? option?.label) === normalizedValue);
+}
+
+function findChoiceRuleByFlag(itemData, targetFlag) {
+  const rules = itemData?.system?.rules ?? [];
+  for (const [index, rule] of rules.entries()) {
+    if (rule?.key !== 'ChoiceSet') continue;
+    if (getChoiceSetFlag(rule, index) === targetFlag) return rule;
+  }
+  return null;
+}
+
+function getChoiceSetFlag(rule, index = 0) {
+  if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
+  if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
+  return typeof index === 'number' ? `choiceSet${index + 1}` : null;
+}
+
+function isSkillChoiceRule(rule) {
+  if (!rule || rule.key !== 'ChoiceSet') return false;
+  if (rule?.choices?.config === 'skills') return true;
+  return Array.isArray(rule?.choices) && rule.choices.length > 0
+    && rule.choices.every((option) => !!normalizeSkillChoice(option?.value ?? option?.label));
+}
+
+function getRuleChoiceOptions(rule) {
+  return Array.isArray(rule?.choices) ? rule.choices : [];
 }
 
 function getStoredChoiceSelections(data, uuid) {
@@ -486,6 +528,13 @@ function resolveSelectedSkillChoice(choiceSet, selectedValue) {
   return null;
 }
 
+function isReplacementSkillTrainingChoice(choiceSet, selectedValue) {
+  if (!isStoredSkillChoiceSet(choiceSet)) return false;
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') return false;
+  if (findMatchingChoiceOption(choiceSet.options ?? [], selectedValue)) return false;
+  return !!resolveSelectedSkillChoice(choiceSet, selectedValue);
+}
+
 function normalizeSkillChoice(value) {
   const normalized = String(value ?? '')
     .trim()
@@ -547,6 +596,14 @@ function normalizeSkillChoice(value) {
   }
 
   return null;
+}
+
+function isStoredSkillChoiceSet(choiceSet) {
+  if (choiceSet?.grantsSkillTraining === true) return true;
+  if (choiceSet?.syntheticType === 'skill-training-fallback') return true;
+
+  const options = Array.isArray(choiceSet?.options) ? choiceSet.options : [];
+  return options.length > 0 && options.every((option) => !!normalizeSkillChoice(option?.value ?? option?.label));
 }
 
 function isSpellChoiceOption(option, uuid) {

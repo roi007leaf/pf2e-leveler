@@ -23,7 +23,7 @@ export const DAREDEVIL = {
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Perception Mastery', key: 'perception-mastery' },
     { level: 9, name: 'Stunt Flexibility', key: 'stunt-flexibility' },
-    { level: 11, name: 'Daredevil Expertise', key: 'daredevil-expertise' },
+    { level: 11, name: 'Daredevil Expertise', key: 'daredevil-expertise', proficiencies: { classdc: 2 } },
     { level: 13, name: 'Light Armor Expertise', key: 'light-armor-expertise' },
     { level: 13, name: 'Weapon Mastery', key: 'weapon-mastery' },
     { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },

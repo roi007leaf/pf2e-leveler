@@ -23,7 +23,7 @@ export const MONK = {
     { level: 7, name: 'Path to Perfection', key: 'path-to-perfection' },
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Metal Strikes', key: 'metal-strikes' },
-    { level: 9, name: 'Monk Expertise', key: 'monk-expertise' },
+    { level: 9, name: 'Monk Expertise', key: 'monk-expertise', proficiencies: { classdc: 2 } },
     { level: 11, name: 'Incredible Movement', key: 'incredible-movement' },
     { level: 11, name: 'Second Path to Perfection', key: 'second-path-to-perfection' },
     { level: 13, name: 'Graceful Mastery', key: 'graceful-mastery' },

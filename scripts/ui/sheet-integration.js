@@ -1,4 +1,5 @@
 import { MODULE_ID } from '../constants.js';
+import { ensureActorClassRegistered, ensureClassRegistry } from '../classes/ensure.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { localize } from '../utils/i18n.js';
 import { LevelPlanner } from './level-planner/index.js';
@@ -10,9 +11,11 @@ export function registerSheetIntegration() {
   Hooks.on('renderSpellPreparationSheetPF2e', onRenderSpellPreparationSheet);
 }
 
-function isSupportedClass(actor) {
+export function isSupportedClass(actor) {
   const actorClass = actor.class;
   if (!actorClass) return false;
+  ensureClassRegistry();
+  ensureActorClassRegistered(actor);
   return ClassRegistry.has(actorClass.slug);
 }
 

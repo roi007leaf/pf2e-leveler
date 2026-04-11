@@ -33,6 +33,62 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     loadFeats.mockResolvedValue([]);
   });
 
+  it('re-registers default classes when the registry is empty at planner bootstrap', () => {
+    ClassRegistry.clear();
+
+    const actor = createMockActor({
+      class: { slug: 'druid', name: 'Druid' },
+      system: {
+        details: {
+          level: { value: 1 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+    });
+
+    const planner = new LevelPlanner(actor);
+
+    expect(ClassRegistry.has('druid')).toBe(true);
+    expect(planner.plan.classSlug).toBe('druid');
+  });
+
+  it('bootstraps plans for custom classes from the actor class item when the registry has no built-in entry', () => {
+    ClassRegistry.clear();
+
+    const actor = createMockActor({
+      class: {
+        slug: 'eldamon-trainer',
+        name: 'Eldamon Trainer',
+        system: {
+          hp: 8,
+          keyAbility: { value: ['cha'] },
+          trainedSkills: { value: ['diplomacy'], additional: 3 },
+          classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+          skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+          generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+          ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+          skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+          items: {},
+        },
+      },
+      system: {
+        details: {
+          level: { value: 1 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+    });
+
+    const planner = new LevelPlanner(actor);
+
+    expect(ClassRegistry.has('eldamon-trainer')).toBe(true);
+    expect(planner.plan.classSlug).toBe('eldamon-trainer');
+    expect(planner.plan.levels[2]).toEqual(expect.objectContaining({
+      classFeats: [],
+      skillFeats: [],
+    }));
+  });
+
   it('seeds obvious boosts and feats into a new plan for higher-level characters', () => {
     const actor = createMockActor({
       system: {

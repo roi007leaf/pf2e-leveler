@@ -15,7 +15,7 @@ export const THAUMATURGE = {
   abilityBoostSchedule: [5, 10, 15, 20],
 
   classFeatures: [
-    { level: 3, name: 'Lightning Reflexes', key: 'lightning-reflexes' },
+    { level: 3, name: 'Reflex Expertise', key: 'reflex-expertise' },
     { level: 5, name: 'Second Implement', key: 'second-implement' },
     { level: 5, name: 'Weapon Expertise', key: 'weapon-expertise' },
     { level: 7, name: 'Disciplined Mind', key: 'disciplined-mind' },
@@ -23,7 +23,7 @@ export const THAUMATURGE = {
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Intensify Vulnerability', key: 'intensify-vulnerability' },
     { level: 9, name: 'Perception Expertise', key: 'perception-expertise' },
-    { level: 9, name: 'Thaumaturgic Expertise', key: 'thaumaturgic-expertise' },
+    { level: 9, name: 'Thaumaturgic Expertise', key: 'thaumaturgic-expertise', proficiencies: { classdc: 2 } },
     { level: 11, name: 'Medium Armor Expertise', key: 'medium-armor-expertise' },
     { level: 11, name: 'Second Adept', key: 'second-adept' },
     { level: 13, name: 'Perfected Mind', key: 'perfected-mind' },
@@ -32,7 +32,7 @@ export const THAUMATURGE = {
     { level: 15, name: 'Greater Weapon Specialization', key: 'greater-weapon-specialization' },
     { level: 15, name: 'Third Implement', key: 'third-implement' },
     { level: 17, name: 'Implement Paragon', key: 'implement-paragon' },
-    { level: 17, name: 'Thaumaturgic Mastery', key: 'thaumaturgic-mastery' },
+    { level: 17, name: 'Thaumaturgic Mastery', key: 'thaumaturgic-mastery', proficiencies: { classdc: 3 } },
     { level: 19, name: 'Medium Armor Mastery', key: 'medium-armor-mastery' },
     { level: 19, name: 'Unlimited Esoterica', key: 'unlimited-esoterica' },
   ],

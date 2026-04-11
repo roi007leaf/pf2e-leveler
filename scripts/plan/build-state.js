@@ -573,12 +573,19 @@ function computeEquipmentState(actor) {
 }
 
 function applyClassFeatureProficiency(proficiencies, feature) {
+  applyExplicitFeatureProficiencies(proficiencies, feature?.proficiencies);
+
   const key = String(feature.key ?? '');
   const name = String(feature.name ?? '').toLowerCase();
 
   if (key.includes('perception-legend') || name.includes('perception legend')) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.LEGENDARY);
-  } else if (key.includes('perception-mastery') || name.includes('perception mastery') || key.includes('perception-mastery')) {
+  } else if (
+    key.includes('perception-mastery')
+    || key.includes('battlefield-surveyor')
+    || name.includes('perception mastery')
+    || name.includes('battlefield surveyor')
+  ) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.MASTER);
   } else if (key.includes('perception-expertise') || key.includes('perception-expert') || name.includes('perception expertise') || name.includes('perception expert')) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.EXPERT);
@@ -639,6 +646,36 @@ function applyClassFeatureProficiency(proficiencies, feature) {
     proficiencies.classdc = Math.max(proficiencies.classdc, PROFICIENCY_RANKS.MASTER);
   } else if (key.includes('class-dc-expertise') || name.includes('class dc expertise')) {
     proficiencies.classdc = Math.max(proficiencies.classdc, PROFICIENCY_RANKS.EXPERT);
+  }
+}
+
+function applyExplicitFeatureProficiencies(proficiencies, updates) {
+  if (!updates || typeof updates !== 'object') return;
+
+  for (const [key, rawRank] of Object.entries(updates)) {
+    if (!(key in proficiencies)) continue;
+
+    const rank = normalizeTrackedProficiencyRank(rawRank);
+    if (rank === null) continue;
+
+    proficiencies[key] = Math.max(proficiencies[key], rank);
+  }
+}
+
+function normalizeTrackedProficiencyRank(rank) {
+  if (Number.isFinite(rank)) return Number(rank);
+
+  switch (String(rank ?? '').trim().toLowerCase()) {
+    case 'trained':
+      return PROFICIENCY_RANKS.TRAINED;
+    case 'expert':
+      return PROFICIENCY_RANKS.EXPERT;
+    case 'master':
+      return PROFICIENCY_RANKS.MASTER;
+    case 'legendary':
+      return PROFICIENCY_RANKS.LEGENDARY;
+    default:
+      return null;
   }
 }
 

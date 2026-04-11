@@ -2,35 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { registerSettings, migrateWealthSettings } from '../settings.js';
 import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { ALCHEMIST } from '../classes/alchemist.js';
-import { ANIMIST } from '../classes/animist.js';
-import { BARBARIAN } from '../classes/barbarian.js';
-import { BARD } from '../classes/bard.js';
-import { CHAMPION } from '../classes/champion.js';
-import { CLERIC } from '../classes/cleric.js';
-import { COMMANDER } from '../classes/commander.js';
-import { DAREDEVIL } from '../classes/daredevil.js';
-import { DRUID } from '../classes/druid.js';
-import { EXEMPLAR } from '../classes/exemplar.js';
-import { FIGHTER } from '../classes/fighter.js';
-import { GUARDIAN } from '../classes/guardian.js';
-import { GUNSLINGER } from '../classes/gunslinger.js';
-import { INVENTOR } from '../classes/inventor.js';
-import { INVESTIGATOR } from '../classes/investigator.js';
-import { KINETICIST } from '../classes/kineticist.js';
-import { MAGUS } from '../classes/magus.js';
-import { MONK } from '../classes/monk.js';
-import { ORACLE } from '../classes/oracle.js';
-import { PSYCHIC } from '../classes/psychic.js';
-import { RANGER } from '../classes/ranger.js';
-import { ROGUE } from '../classes/rogue.js';
-import { SLAYER } from '../classes/slayer.js';
-import { SORCERER } from '../classes/sorcerer.js';
-import { SUMMONER } from '../classes/summoner.js';
-import { SWASHBUCKLER } from '../classes/swashbuckler.js';
-import { THAUMATURGE } from '../classes/thaumaturge.js';
-import { WITCH } from '../classes/witch.js';
-import { WIZARD } from '../classes/wizard.js';
+import { ensureClassRegistry } from '../classes/ensure.js';
 import { registerSheetIntegration } from '../ui/sheet-integration.js';
 import { info } from '../utils/logger.js';
 
@@ -56,12 +28,7 @@ async function onReady() {
 }
 
 function registerClasses() {
-  [
-    ALCHEMIST, ANIMIST, BARBARIAN, BARD, CHAMPION, CLERIC, COMMANDER, DAREDEVIL, DRUID,
-    EXEMPLAR, FIGHTER, GUARDIAN, GUNSLINGER, INVENTOR, INVESTIGATOR, KINETICIST,
-    MAGUS, MONK, ORACLE, PSYCHIC, RANGER, ROGUE, SLAYER, SORCERER, SUMMONER,
-    SWASHBUCKLER, THAUMATURGE, WITCH, WIZARD,
-  ].forEach((cls) => ClassRegistry.register(cls));
+  ensureClassRegistry();
   info(`Registered ${ClassRegistry.getAll().length} classes`);
 }
 

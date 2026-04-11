@@ -21,7 +21,7 @@ export const ORACLE = {
     { level: 9, name: 'Magical Fortitude', key: 'magical-fortitude' },
     { level: 11, name: 'Divine Access', key: 'divine-access' },
     { level: 11, name: 'Major Curse', key: 'major-curse' },
-    { level: 11, name: 'Oracular Senses', key: 'oracular-senses' },
+    { level: 11, name: 'Oracular Senses', key: 'oracular-senses', proficiencies: { perception: 2 } },
     { level: 11, name: 'Weapon Expertise', key: 'weapon-expertise' },
     { level: 13, name: 'Light Armor Expertise', key: 'light-armor-expertise' },
     { level: 13, name: "Premonition's Reflexes", key: 'premonitions-reflexes' },

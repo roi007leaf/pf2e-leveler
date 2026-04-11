@@ -880,20 +880,29 @@
               </div>
               {{/if}}
               {{#each customSpellGroups}}
-              <div class="picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 var(--leveler-spacing-sm);">
-                {{#each this.entries}}
-                <div class="tag tag--muted" style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px;">
-                  {{#if this.img}}
-                  <img src="{{this.img}}" alt="" style="width: 20px; height: 20px; border-radius: 4px; object-fit: cover;">
-                  {{/if}}
-                  <button type="button" data-action="viewFeat" data-uuid="{{this.uuid}}" style="background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer;">
-                    {{this.name}}
-                  </button>
-                  <span class="tag tag--muted tag--tiny">{{this.entryLabel}}</span>
-                  <button type="button" data-action="removeCustomSpell" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}" style="background: none; border: 0; padding: 0; color: inherit; cursor: pointer;">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
+              <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">
+                <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                  <i class="section-header__icon fa-solid fa-book"></i>
+                  {{this.label}}
+                </div>
+                <div class="feat-slot__requirements" style="margin-bottom: var(--leveler-spacing-xs);">
+                  {{#if this.tradition}}<span class="tag tag--muted tag--tiny">{{this.tradition}}</span>{{/if}}
+                  {{#if this.prepared}}<span class="tag tag--muted tag--tiny">{{this.prepared}}</span>{{/if}}
+                  {{#if this.abilityLabel}}<span class="tag tag--muted tag--tiny">{{this.abilityLabel}}</span>{{/if}}
+                  {{#if this.isCustom}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.UI.PLANNED_ENTRY"}}</span>{{/if}}
+                </div>
+                {{#each this.rankGroups}}
+                <div class="picker__filter-label" style="margin-top: var(--leveler-spacing-sm);">{{this.label}}</div>
+                <div class="wizard-spell-chips">
+                  {{#each this.entries}}
+                  <span class="wizard-spell-chip">
+                    {{#if this.img}}
+                    <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+                    {{/if}}
+                    <span class="wizard-spell-chip__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                    <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCustomSpell" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                  </span>
+                  {{/each}}
                 </div>
                 {{/each}}
               </div>

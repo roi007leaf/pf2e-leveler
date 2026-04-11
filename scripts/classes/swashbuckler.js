@@ -25,7 +25,7 @@ export const SWASHBUCKLER = {
     { level: 7, name: 'Vivacious Speed', key: 'vivacious-speed' },
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Exemplary Finisher', key: 'exemplary-finisher' },
-    { level: 9, name: 'Swashbuckler Expertise', key: 'swashbuckler-expertise' },
+    { level: 9, name: 'Swashbuckler Expertise', key: 'swashbuckler-expertise', proficiencies: { classdc: 2 } },
     { level: 11, name: 'Continuous Flair', key: 'continuous-flair' },
     { level: 11, name: 'Perception Mastery', key: 'perception-mastery' },
     { level: 11, name: 'Vivacious Speed', key: 'vivacious-speed' },

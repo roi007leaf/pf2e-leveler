@@ -19,7 +19,7 @@ export const ALCHEMIST = {
     { level: 5, name: 'Powerful Alchemy', key: 'powerful-alchemy' },
     { level: 7, name: 'Alchemical Weapon Expertise', key: 'alchemical-weapon-expertise' },
     { level: 7, name: 'Will Expertise', key: 'will-expertise' },
-    { level: 9, name: 'Alchemical Expertise', key: 'alchemical-expertise' },
+    { level: 9, name: 'Alchemical Expertise', key: 'alchemical-expertise', proficiencies: { classdc: 2 } },
     { level: 9, name: 'Double Brew', key: 'double-brew' },
     { level: 9, name: 'Perception Expertise', key: 'perception-expertise' },
     { level: 11, name: 'Advanced Vials', key: 'advanced-vials' },
@@ -30,7 +30,7 @@ export const ALCHEMIST = {
     { level: 15, name: 'Alchemical Weapon Mastery', key: 'alchemical-weapon-mastery' },
     { level: 15, name: 'Explosion Dodger', key: 'explosion-dodger' },
     { level: 17, name: 'Abundant Vials', key: 'abundant-vials' },
-    { level: 17, name: 'Alchemical Mastery', key: 'alchemical-mastery' },
+    { level: 17, name: 'Alchemical Mastery', key: 'alchemical-mastery', proficiencies: { classdc: 3 } },
     { level: 19, name: 'Medium Armor Mastery', key: 'medium-armor-mastery' },
   ],
 

@@ -17,10 +17,10 @@ export const PSYCHIC = {
   classFeatures: [
     { level: 3, name: 'Signature Spells', key: 'signature-spells' },
     { level: 5, name: 'Clarity of Focus', key: 'clarity-of-focus' },
-    { level: 5, name: 'Precognitive Reflexes', key: 'precognitive-reflexes' },
+    { level: 5, name: 'Precognitive Reflexes', key: 'precognitive-reflexes', proficiencies: { reflex: 2 } },
     { level: 7, name: 'Expert Spellcaster', key: 'expert-spellcaster' },
     { level: 9, name: 'Fortitude Expertise', key: 'fortitude-expertise' },
-    { level: 11, name: 'Extrasensory Perception', key: 'extrasensory-perception' },
+    { level: 11, name: 'Extrasensory Perception', key: 'extrasensory-perception', proficiencies: { perception: 2 } },
     { level: 11, name: 'Walls of Will', key: 'walls-of-will' },
     { level: 11, name: 'Weapon Expertise', key: 'weapon-expertise' },
     { level: 13, name: 'Personal Barrier', key: 'personal-barrier' },

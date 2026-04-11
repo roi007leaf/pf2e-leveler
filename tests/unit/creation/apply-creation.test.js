@@ -247,6 +247,45 @@ describe('getAdditionalSelectedSkills', () => {
 
     expect(skills).toEqual(['athletics']);
   });
+
+  it('collects widened replacement skill choices from non-synthetic skill sections', () => {
+    const skills = getAdditionalSelectedSkills({
+      grantedFeatSections: [
+        {
+          slot: 'background-scholar',
+          choiceSets: [
+            {
+              flag: 'skill',
+              options: [
+                { value: 'arc', label: 'Arcana' },
+                { value: 'nat', label: 'Nature' },
+                { value: 'occ', label: 'Occultism' },
+                { value: 'rel', label: 'Religion' },
+              ],
+            },
+            {
+              flag: 'assurance',
+              allowAutoTrainedSelection: true,
+              options: [
+                { value: 'arc', label: 'Arcana' },
+                { value: 'nat', label: 'Nature' },
+                { value: 'occ', label: 'Occultism' },
+                { value: 'rel', label: 'Religion' },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'background-scholar': {
+          skill: 'intimidation',
+          assurance: 'arcana',
+        },
+      },
+    });
+
+    expect(skills).toEqual(['intimidation']);
+  });
 });
 
 describe('applyCreation ancestry paragon', () => {
@@ -627,6 +666,187 @@ describe('applyCreation ancestry paragon', () => {
           pf2e: expect.objectContaining({
             rulesSelections: expect.objectContaining({
               skill: 'rel',
+            }),
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it('skips invalid widened Scholar skill selections on the background item while still training the replacement skill and backfilling Assurance', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const createdItems = [];
+    const actor = createMockActor({
+      items: createdItems,
+      system: {
+        skills: {
+          arcana: { rank: 1, value: 0 },
+          nature: { rank: 1, value: 0 },
+          occultism: { rank: 1, value: 0 },
+          religion: { rank: 1, value: 0 },
+          intimidation: { rank: 0, value: 0 },
+        },
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const embedded = docs.map((doc, index) => ({
+        ...doc,
+        id: `created-${index}`,
+        sourceId: doc.flags?.core?.sourceId ?? doc._stats?.compendiumSource ?? doc.uuid ?? null,
+      }));
+      createdItems.push(...embedded);
+      return embedded;
+    });
+    actor.update = jest.fn(async (updates) => {
+      if ('system.skills.intimidation.rank' in updates) {
+        actor.system.skills.intimidation.rank = updates['system.skills.intimidation.rank'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          toObject: () => ({
+            name: 'Scholar',
+            type: 'background',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              description: { value: '' },
+              rules: [
+                {
+                  key: 'ChoiceSet',
+                  flag: 'skill',
+                  prompt: 'Select a skill.',
+                  choices: [
+                    { value: 'arc', label: 'Arcana' },
+                    { value: 'nat', label: 'Nature' },
+                    { value: 'occ', label: 'Occultism' },
+                    { value: 'rel', label: 'Religion' },
+                  ],
+                },
+                {
+                  key: 'GrantItem',
+                  uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+                },
+              ],
+            },
+          }),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          toObject: () => ({
+            name: 'Assurance',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              description: { value: '' },
+              rules: [
+                {
+                  key: 'ChoiceSet',
+                  flag: 'assurance',
+                  prompt: 'Select a skill.',
+                  choices: { config: 'skills' },
+                },
+              ],
+            },
+          }),
+        };
+      }
+
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: { uuid: 'background-scholar', name: 'Scholar', choices: {} },
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [
+        {
+          slot: 'background-scholar',
+          featName: 'Scholar',
+          sourceName: 'Scholar',
+          choiceSets: [
+            {
+              flag: 'skill',
+              prompt: 'Select a skill.',
+              options: [
+                { value: 'arc', label: 'Arcana' },
+                { value: 'nat', label: 'Nature' },
+                { value: 'occ', label: 'Occultism' },
+                { value: 'rel', label: 'Religion' },
+              ],
+            },
+          ],
+        },
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+          featName: 'Assurance',
+          sourceName: 'Scholar -> Assurance',
+          choiceSets: [
+            {
+              flag: 'assurance',
+              prompt: 'Select a skill.',
+              options: [
+                { value: 'arc', label: 'Arcana' },
+                { value: 'nat', label: 'Nature' },
+                { value: 'occ', label: 'Occultism' },
+                { value: 'rel', label: 'Religion' },
+              ],
+              allowAutoTrainedSelection: true,
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'background-scholar': {
+          skill: 'intimidation',
+        },
+        'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0': {
+          assurance: 'arcana',
+        },
+      },
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({ 'system.skills.intimidation.rank': 1 });
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Scholar',
+        flags: expect.not.objectContaining({
+          pf2e: expect.anything(),
+        }),
+      }),
+    ]);
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Assurance (Background: Scholar)',
+        flags: expect.objectContaining({
+          pf2e: expect.objectContaining({
+            rulesSelections: expect.objectContaining({
+              assurance: 'arcana',
             }),
           }),
         }),

@@ -249,13 +249,27 @@ function buildCustomSpellGroups(customSpells, entryOptions = []) {
   const entries = customSpells.map((spell, index) => ({
     ...spell,
     index,
-    displayRank: spell.isCantrip ? 'Cantrip' : `Rank ${resolveSpellDisplayRank(spell)}`,
+    displayRank: resolveSpellDisplayRank(spell),
     entryLabel: spell.entryLabel ?? entryLabels.get(spell.entryType ?? 'primary') ?? 'Primary Spellcasting Entry',
   }));
 
-  return groupEntriesBy(entries, (entry) => entry.displayRank, (displayRank) => ({
-    label: displayRank,
-    sort: /^Rank\s+(\d+)$/i.test(displayRank) ? Number(displayRank.match(/^Rank\s+(\d+)$/i)?.[1] ?? 0) : -1,
+  return groupEntriesBy(entries, (entry) => entry.entryType ?? 'primary', (entryType) => {
+    const option = entryOptions.find((entry) => entry.entryType === entryType);
+    return {
+      label: option?.label ?? entryLabels.get(entryType) ?? 'Primary Spellcasting Entry',
+      tradition: option?.tradition ?? null,
+      prepared: option?.prepared ?? null,
+      abilityLabel: option?.abilityLabel ?? null,
+      isCustom: option?.isCustom ?? false,
+      entryType,
+      rankGroups: [],
+    };
+  }).map((entryGroup) => ({
+    ...entryGroup,
+    rankGroups: groupEntriesBy(entryGroup.entries, (entry) => entry.displayRank, (displayRank) => ({
+      label: displayRank === 0 ? 'Cantrip' : `Rank ${displayRank}`,
+      sort: Number.isFinite(displayRank) ? displayRank : 999,
+    })),
   }));
 }
 
