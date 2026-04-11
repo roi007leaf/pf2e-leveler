@@ -2917,7 +2917,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('surfaces granted Assurance choice sections from backgrounds and keeps trained skills selectable', async () => {
+  it('does not surface manual Assurance when the selected Scholar skill is still one of the authored Scholar skills', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -2936,6 +2936,11 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     wizard.data.background = {
       uuid: 'background-scholar',
       name: 'Scholar',
+    };
+    wizard.data.grantedFeatChoices = {
+      'background-scholar': {
+        skill: 'occ',
+      },
     };
     wizard._getClassTrainedSkills = jest.fn(async () => ['arcana']);
     wizard._getCachedDocument = jest.fn(async (uuid) => {
@@ -2991,24 +2996,190 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          featName: 'Assurance',
-          sourceName: 'Scholar -> Assurance',
-        }),
-      ]));
+      expect(wizard.data.grantedFeatSections.some((section) => section.featName === 'Assurance')).toBe(false);
 
       const context = await wizard._buildFeatChoicesContext();
       const assuranceSection = context.featChoiceSections.find((section) => section.featName === 'Assurance');
-      expect(assuranceSection).toBeTruthy();
-      expect(assuranceSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
-      expect(assuranceSection.choiceSets[0].options).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          value: 'arc',
-          autoTrained: true,
-          autoTrainedSource: 'Class',
-          disabled: false,
-        }),
+      expect(assuranceSection).toBeUndefined();
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('does not surface manual Assurance when an authored Scholar skill is still available', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arc: 'PF2E.SkillArc',
+          nat: 'PF2E.SkillNat',
+          occ: 'PF2E.SkillOcc',
+          rel: 'PF2E.SkillRel',
+        },
+      },
+    };
+
+    wizard.data.background = {
+      uuid: 'background-scholar',
+      name: 'Scholar',
+    };
+    wizard.data.skills = ['nature', 'occultism'];
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana']);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          type: 'background',
+          system: {
+            slug: 'scholar',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: [
+                  { value: 'arc', label: 'PF2E.SkillArc' },
+                  { value: 'nat', label: 'PF2E.SkillNat' },
+                  { value: 'occ', label: 'PF2E.SkillOcc' },
+                  { value: 'rel', label: 'PF2E.SkillRel' },
+                ],
+              },
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          type: 'feat',
+          system: {
+            slug: 'assurance',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      await wizard._refreshGrantedFeatChoiceSections();
+      const context = await wizard._buildFeatChoicesContext();
+
+      expect(context.featChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
+      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
+      expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'rel', disabled: false }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('hides manual Assurance after selecting an authored Scholar skill', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arc: 'PF2E.SkillArc',
+          nat: 'PF2E.SkillNat',
+          occ: 'PF2E.SkillOcc',
+          rel: 'PF2E.SkillRel',
+        },
+      },
+    };
+
+    wizard.data.background = {
+      uuid: 'background-scholar',
+      name: 'Scholar',
+    };
+    wizard.data.skills = ['nature', 'occultism'];
+    wizard.data.grantedFeatChoices = {
+      'background-scholar': {
+        skill: 'rel',
+      },
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana']);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          type: 'background',
+          system: {
+            slug: 'scholar',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: [
+                  { value: 'arc', label: 'PF2E.SkillArc' },
+                  { value: 'nat', label: 'PF2E.SkillNat' },
+                  { value: 'occ', label: 'PF2E.SkillOcc' },
+                  { value: 'rel', label: 'PF2E.SkillRel' },
+                ],
+              },
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          type: 'feat',
+          system: {
+            slug: 'assurance',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      await wizard._refreshGrantedFeatChoiceSections();
+      const context = await wizard._buildFeatChoicesContext();
+
+      expect(context.featChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
+      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'rel', selected: true, disabled: false }),
       ]));
     } finally {
       global.CONFIG = originalConfig;
@@ -3125,7 +3296,109 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('keeps a selected widened Scholar skill visible after refreshing feat choice sections', async () => {
+  it('surfaces manual Assurance when Scholar widens to an off-list replacement skill', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'PF2E.SkillAcr',
+          arc: 'PF2E.SkillArc',
+          ath: 'PF2E.SkillAth',
+          cra: 'PF2E.SkillCra',
+          dec: 'PF2E.SkillDec',
+          dip: 'PF2E.SkillDip',
+          itm: 'PF2E.SkillItm',
+          med: 'PF2E.SkillMed',
+          nat: 'PF2E.SkillNat',
+          occ: 'PF2E.SkillOcc',
+          prf: 'PF2E.SkillPrf',
+          rel: 'PF2E.SkillRel',
+          soc: 'PF2E.SkillSoc',
+          ste: 'PF2E.SkillSte',
+          sur: 'PF2E.SkillSur',
+          thi: 'PF2E.SkillThi',
+        },
+      },
+    };
+
+    wizard.data.background = {
+      uuid: 'background-scholar',
+      name: 'Scholar',
+    };
+    wizard.data.skills = ['nature', 'occultism', 'religion'];
+    wizard.data.grantedFeatChoices = {
+      'background-scholar': {
+        skill: 'ath',
+      },
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => ['arcana']);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-scholar') {
+        return {
+          uuid,
+          name: 'Scholar',
+          type: 'background',
+          system: {
+            slug: 'scholar',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: [
+                  { value: 'arc', label: 'PF2E.SkillArc' },
+                  { value: 'nat', label: 'PF2E.SkillNat' },
+                  { value: 'occ', label: 'PF2E.SkillOcc' },
+                  { value: 'rel', label: 'PF2E.SkillRel' },
+                ],
+              },
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          type: 'feat',
+          system: {
+            slug: 'assurance',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'skill',
+                prompt: 'Select a skill.',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      await wizard._refreshGrantedFeatChoiceSections();
+      const context = await wizard._buildFeatChoicesContext();
+      const assuranceSection = context.featChoiceSections.find((section) => section.featName === 'Assurance');
+
+      expect(assuranceSection).toBeTruthy();
+      expect(assuranceSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('falls back to the remaining authored Scholar skill instead of preserving an off-list widened selection', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -3219,9 +3492,15 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
 
       expect(scholarSection).toBeTruthy();
+      expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
-        expect.objectContaining({ value: 'ath', selected: true, disabled: false }),
-        expect.objectContaining({ value: 'acr', disabled: false }),
+        expect.objectContaining({ value: 'rel', selected: false, disabled: false }),
+        expect.objectContaining({ value: 'arc', disabled: true }),
+        expect.objectContaining({ value: 'nat', disabled: true }),
+        expect.objectContaining({ value: 'occ', disabled: true }),
+      ]));
+      expect(scholarSection.choiceSets[0].options).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'ath' }),
       ]));
     } finally {
       global.CONFIG = originalConfig;

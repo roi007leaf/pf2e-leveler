@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.16
+
+### Character Wizard
+
+- **Manual `Assurance` now only appears for true replacement-skill cases from `Scholar`-style backgrounds** - If a background like `Scholar` can still use one of its original authored skills, the extra manual `Assurance` section is now hidden; it only appears when the background has to widen to an off-list replacement skill
+
 ## 2.1.15
 
 ### Sheet Integration

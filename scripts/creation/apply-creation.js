@@ -285,6 +285,7 @@ async function ensureGrantedFeatSectionsApplied(actor, data) {
   for (const section of (data.grantedFeatSections ?? [])) {
     const uuid = section?.slot;
     if (typeof uuid !== 'string' || uuid.length === 0) continue;
+    if (!shouldApplyManualGrantedSection(data, section)) continue;
     if (actorHasItemSource(actor, uuid)) continue;
 
     await applyMissingGrantedFeatSection(actor, data, section);
@@ -478,6 +479,45 @@ function formatManualGrantedSourceSuffix(data, sourceName) {
 
   if (typedSource) return `${typedSource[0]}: ${typedSource[1]}`;
   return primary;
+}
+
+function shouldApplyManualGrantedSection(data, section) {
+  if (!isAssuranceSection(section)) return true;
+
+  const sourceSection = findManualGrantedSourceSection(data, section);
+  if (!sourceSection) return true;
+
+  const sourceChoices = data?.grantedFeatChoices?.[sourceSection.slot] ?? {};
+  const sourceChoiceSet = (sourceSection.choiceSets ?? []).find((choiceSet) =>
+    Array.isArray(choiceSet?.options) && choiceSet.options.length > 0 && choiceSet.flag,
+  );
+  if (!sourceChoiceSet) return true;
+
+  const selectedValue = sourceChoices?.[sourceChoiceSet.flag];
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') {
+    return false;
+  }
+
+  return !findMatchingChoiceOption(sourceChoiceSet.options ?? [], selectedValue);
+}
+
+function isAssuranceSection(section) {
+  const featName = String(section?.featName ?? '').trim().toLowerCase();
+  const sourceName = String(section?.sourceName ?? '').trim().toLowerCase();
+  return featName === 'assurance' || sourceName.endsWith('-> assurance');
+}
+
+function findManualGrantedSourceSection(data, section) {
+  const sourceName = String(section?.sourceName ?? '').trim();
+  if (!sourceName.includes('->')) return null;
+
+  const [primarySource] = sourceName.split('->').map((part) => part.trim()).filter(Boolean);
+  if (!primarySource) return null;
+
+  return (data?.grantedFeatSections ?? []).find((candidate) =>
+    candidate !== section
+    && String(candidate?.featName ?? '').trim() === primarySource,
+  ) ?? null;
 }
 
 async function resolveAncestryFromMixedChoice(value) {

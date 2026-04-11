@@ -199,10 +199,12 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
-      const preserveAsIndependentChoiceSection = isAssuranceGrant(granted);
-      const inheritedSkillChoiceSet = preserveAsIndependentChoiceSection
+      const inheritedSkillChoiceSet = isAssuranceGrant(granted)
         ? findGrantSourceSkillChoiceSet(parsedChoiceSets)
         : null;
+      const preserveAsIndependentChoiceSection = isAssuranceGrant(granted)
+        && await shouldPreserveIndependentAssuranceSection(wizard, inheritedSkillChoiceSet, currentChoices);
+      if (isAssuranceGrant(granted) && !preserveAsIndependentChoiceSection) continue;
       await scanItem(granted, `${sourceName} -> ${granted.name}`, {
         choiceSource: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0 ? { choices: preselectedChoices } : null,
         suppressIfSatisfied: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0,
@@ -887,8 +889,6 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
       .map((value) => normalizeSkillIdentity(value)),
   );
   const currentSelected = normalizeSkillIdentity(currentChoices?.[flag] ?? null);
-  const hasCurrentSelectedOption = !!currentSelected && (options ?? []).some((option) =>
-    getSkillOptionKeys(option).includes(currentSelected));
 
   const decorated = (options ?? [])
       .filter((option) => {
@@ -924,7 +924,7 @@ function decorateSkillChoiceOptions(options, skillState, currentChoices = {}, {
         };
       });
 
-  if (decorated.some((option) => option.disabled !== true) && (allowAutoTrainedSelection || hasCurrentSelectedOption || !currentSelected)) {
+  if (decorated.some((option) => option.disabled !== true)) {
     return decorated;
   }
 
@@ -1019,6 +1019,77 @@ function constrainAssuranceChoiceSets(choiceSets, inheritedSkillChoiceSet) {
       allowAutoTrainedSelection: true,
     };
   });
+}
+
+async function shouldPreserveIndependentAssuranceSection(wizard, inheritedSkillChoiceSet, currentChoices = {}) {
+  if (!inheritedSkillChoiceSet || !isStoredSkillChoiceSet(inheritedSkillChoiceSet)) return true;
+
+  const selectedValue = currentChoices?.[inheritedSkillChoiceSet.flag];
+  if (typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]') {
+    if (findMatchingChoiceOption(inheritedSkillChoiceSet.options ?? [], selectedValue)) return false;
+  }
+
+  const skillContext = await buildSkillContext(wizard);
+  const skillState = createSkillStateMap(skillContext);
+  const decoratedOptions = decorateAuthoredSkillChoiceOptions(inheritedSkillChoiceSet.options ?? [], skillState, currentChoices, {
+    flag: inheritedSkillChoiceSet.flag ?? null,
+    blockedSkills: inheritedSkillChoiceSet.blockedSkills ?? [],
+    blockedSourceName: inheritedSkillChoiceSet.sourceName ?? null,
+    allowAutoTrainedSelection: !!inheritedSkillChoiceSet.allowAutoTrainedSelection,
+    assuranceTakenSkills: [],
+  });
+
+  return !decoratedOptions.some((option) => option.disabled !== true);
+}
+
+function decorateAuthoredSkillChoiceOptions(options, skillState, currentChoices = {}, {
+  flag = null,
+  blockedSkills = [],
+  blockedSourceName = null,
+  allowAutoTrainedSelection = false,
+  assuranceTakenSkills = [],
+} = {}) {
+  const normalizedBlockedSkills = new Set((blockedSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
+  const normalizedAssuranceTakenSkills = new Set((assuranceTakenSkills ?? []).map((skill) => normalizeSkillIdentity(skill)));
+  const selectedSkills = new Set(
+    Object.entries(currentChoices ?? {})
+      .filter(([entryFlag]) => entryFlag !== flag)
+      .map(([, value]) => value)
+      .filter((value) => typeof value === 'string' && value !== '[object Object]')
+      .map((value) => normalizeSkillIdentity(value)),
+  );
+
+  return (options ?? [])
+    .filter((option) => {
+      if (!matchesSkillOptionPredicate(option?.predicate, skillState)) return false;
+      const optionKeys = getSkillOptionKeys(option);
+      if (optionKeys.some((key) => hasMatchingSkillIdentity(selectedSkills, key))) return false;
+      return true;
+    })
+    .map((option) => {
+      const optionKeys = getSkillOptionKeys(option);
+      const matchedState = optionKeys
+        .map((key) => findMatchingSkillState(skillState, key))
+        .find(Boolean) ?? null;
+      const blockedBySyntheticGrant = optionKeys.some((key) => normalizedBlockedSkills.has(key));
+      const effectiveState = {
+        selected: !!matchedState?.selected,
+        autoTrained: !!matchedState?.autoTrained || blockedBySyntheticGrant,
+        source: matchedState?.source ?? (blockedBySyntheticGrant ? blockedSourceName : null),
+      };
+      const alreadyHasAssurance = optionKeys.some((key) => normalizedAssuranceTakenSkills.has(key));
+
+      return {
+        ...option,
+        selected: false,
+        selectedInSkills: !!effectiveState.selected,
+        autoTrained: !!effectiveState.autoTrained,
+        autoTrainedSource: effectiveState.source ?? null,
+        disabled: allowAutoTrainedSelection
+          ? alreadyHasAssurance
+          : alreadyHasAssurance || !!effectiveState.selected || !!effectiveState.autoTrained,
+      };
+    });
 }
 
 function matchesSkillOptionPredicate(predicate, skillState) {
