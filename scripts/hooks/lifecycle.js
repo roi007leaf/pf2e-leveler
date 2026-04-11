@@ -1,9 +1,9 @@
-import { MODULE_ID } from '../constants.js';
 import { registerSettings, migrateWealthSettings } from '../settings.js';
 import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { ensureClassRegistry } from '../classes/ensure.js';
 import { registerSheetIntegration } from '../ui/sheet-integration.js';
+import { ensureLevelerTemplatesLoaded } from '../ui/template-preload.js';
 import { info } from '../utils/logger.js';
 
 export function registerLifecycleHooks() {
@@ -18,7 +18,7 @@ async function onInit() {
   await migrateLegacyFeatCompendiumsSetting();
   registerClasses();
   registerHandlebarsHelpers();
-  await preloadTemplates();
+  await ensureLevelerTemplatesLoaded();
 }
 
 async function onReady() {
@@ -70,16 +70,3 @@ function registerHandlebarsHelper(name, fn) {
   Handlebars.registerHelper(name, fn);
 }
 
-async function preloadTemplates() {
-  const partials = {
-    featSlot: `modules/${MODULE_ID}/templates/partials/feat-slot.hbs`,
-    boostSelector: `modules/${MODULE_ID}/templates/partials/boost-selector.hbs`,
-    skillSelector: `modules/${MODULE_ID}/templates/partials/skill-selector.hbs`,
-    prerequisiteTag: `modules/${MODULE_ID}/templates/partials/prerequisite-tag.hbs`,
-    levelSidebarItem: `modules/${MODULE_ID}/templates/partials/level-sidebar-item.hbs`,
-    levelDetail: `modules/${MODULE_ID}/templates/partials/level-detail.hbs`,
-    alchemistPanel: `modules/${MODULE_ID}/templates/partials/alchemist-panel.hbs`,
-    animistPanel: `modules/${MODULE_ID}/templates/partials/animist-panel.hbs`,
-  };
-  await foundry.applications.handlebars.loadTemplates(partials);
-}

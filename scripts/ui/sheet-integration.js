@@ -2,6 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { ensureActorClassRegistered, ensureClassRegistry } from '../classes/ensure.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { localize } from '../utils/i18n.js';
+import { ensureLevelerTemplatesLoaded } from './template-preload.js';
 import { LevelPlanner } from './level-planner/index.js';
 import { CharacterWizard } from './character-wizard/index.js';
 
@@ -71,7 +72,8 @@ function onRenderCharacterSheet(sheet, html) {
   }
 }
 
-function openPlanner(actor) {
+async function openPlanner(actor) {
+  await ensureLevelerTemplatesLoaded();
   const existing = Object.values(ui.windows).find(
     (w) => w instanceof LevelPlanner && w.actor.id === actor.id,
   );
@@ -83,6 +85,7 @@ function openPlanner(actor) {
 }
 
 async function openWizard(actor) {
+  await ensureLevelerTemplatesLoaded();
   const existing = Object.values(ui.windows).find(
     (w) => w instanceof CharacterWizard && w.actor.id === actor.id,
   );

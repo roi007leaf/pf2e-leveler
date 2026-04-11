@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.15
+
+### Sheet Integration
+
+- **The `Plan Levels` button now self-recovers when the built-in class registry is empty** - Characters with valid built-in PF2E classes no longer lose planner access after an update or reload just because the runtime class registry failed to populate during startup
+- **Custom compendium classes can now open the planner directly from the sheet** - If a character uses a class from a custom compendium, Leveler now derives a temporary class definition from the actor's class item so the planner button appears and the initial plan can bootstrap correctly
+- **Planner and wizard windows now reload missing Handlebars partials before rendering** - Opening the planner or character wizard now ensures shared partial templates such as `featSlot` are loaded even if the initial startup preload was missed, preventing render failures like `The partial featSlot could not be found`
+
 ## 2.1.14
 
 ### Character Wizard
