@@ -7,6 +7,11 @@
 - **Archetype spellcasting is now derived from feat data instead of one-off slug mappings** - Spell-giving dedications now persist parsed spellcasting metadata onto planned feats, so planner display, validation, and apply all use the same generic archetype spellcasting definition instead of relying on hardcoded feat-specific overrides
 - **Direct archetype cantrip grants now honor feat-authored counts and rarity limits** - Dedications that grant specific cantrip picks, such as `Spellshot Dedication`, now derive their cantrip selection counts and rarity restrictions from the feat text and carry those limits consistently through the planner and apply flow
 - **Direct archetype ranked-spell grants now create the correct planned spell requirements** - Dedications that grant ranked spells of your choice on the dedication itself now expose the proper per-rank spell-pick counts in the planner instead of assuming all archetype rank picks come only from later `Basic/Expert/Master Spellcasting` feats
+- **Archetype spellcasting progression now separates current slot capacity from newly due spell picks** - Taking a spellcasting archetype feat late no longer underfills the archetype entry's available ranks, while validation still only requires the new spell selections that become due at the current level
+
+### Character Wizard
+
+- **Imported character creation plans now open `Feat Choices` much faster when the imported choice data is already present** - The wizard now reuses hydrated imported feat-choice sections instead of immediately rebuilding all granted feat choice data from compendiums on first render
 
 ## 3.0.0
 
