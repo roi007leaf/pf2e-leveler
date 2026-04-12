@@ -340,6 +340,13 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
+  test('parses plural save proficiency prerequisites', () => {
+    const result = parsePrerequisite('Expert in Reflex Saves');
+    expect(result.type).toBe('proficiency');
+    expect(result.key).toBe('reflex');
+    expect(result.minRank).toBe(2);
+  });
+
   test('treats curse-state prerequisites as unknown legacy text', () => {
     const result = parsePrerequisite('You are cursed or have previously been cursed.');
     expect(result.type).toBe('unknown');

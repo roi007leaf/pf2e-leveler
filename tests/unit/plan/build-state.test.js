@@ -2,6 +2,7 @@ import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
+import { GUARDIAN } from '../../../scripts/classes/guardian.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
@@ -18,6 +19,7 @@ beforeAll(() => {
   ClassRegistry.register(ALCHEMIST);
   ClassRegistry.register(DRUID);
   ClassRegistry.register(FIGHTER);
+  ClassRegistry.register(GUARDIAN);
   ClassRegistry.register(INVESTIGATOR);
 });
 
@@ -264,6 +266,31 @@ describe('computeBuildState', () => {
     expect(state.classFeatures.has('field-discovery')).toBe(true);
     expect(state.classFeatures.has('powerful-alchemy')).toBe(true);
     expect(state.classFeatures.has('double-brew')).toBe(false);
+  });
+
+  test('includes linked granted feature aliases from owned class-feature items', () => {
+    const guardianActor = createMockActor({
+      class: { slug: 'guardian', name: 'Guardian' },
+      items: [
+        {
+          type: 'feat',
+          slug: 'guardians-techniques',
+          name: "Guardian's Techniques",
+          system: {
+            category: 'classfeature',
+            level: { value: 1, taken: 1 },
+            description: {
+              value: '<p>You gain the @UUID[Compendium.pf2e.actionspf2e.Item.intercept-attack]{Intercept Attack} reaction.</p>',
+            },
+          },
+        },
+      ],
+    });
+
+    const guardianPlan = createPlan('guardian');
+    const state = computeBuildState(guardianActor, guardianPlan, 12);
+    expect(state.classFeatures.has('guardians-techniques')).toBe(true);
+    expect(state.classFeatures.has('intercept-attack')).toBe(true);
   });
 
   test('ancestry and heritage from actor', () => {

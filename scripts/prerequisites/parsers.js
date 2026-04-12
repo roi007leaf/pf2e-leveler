@@ -72,11 +72,19 @@ const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
+  'perception save': 'perception',
+  'perception saves': 'perception',
   'class dc': 'classdc',
   classdc: 'classdc',
   fortitude: 'fortitude',
+  'fortitude save': 'fortitude',
+  'fortitude saves': 'fortitude',
   reflex: 'reflex',
+  'reflex save': 'reflex',
+  'reflex saves': 'reflex',
   will: 'will',
+  'will save': 'will',
+  'will saves': 'will',
 };
 
 export function parsePrerequisite(text) {

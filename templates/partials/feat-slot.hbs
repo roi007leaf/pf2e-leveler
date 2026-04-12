@@ -51,7 +51,7 @@
   {{#if (eq this.choiceType "skill")}}
   <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
     {{#each this.options}}
-    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../../category}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../../category}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-grants-skill-training="{{#if ../grantsSkillTraining}}true{{else}}false{{/if}}" {{#if this.disabled}}disabled{{/if}}>
       <span class="skill-btn__name">{{this.label}}</span>
     </button>
     {{/each}}

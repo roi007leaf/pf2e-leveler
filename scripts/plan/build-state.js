@@ -60,7 +60,7 @@ export function computeBuildState(actor, plan, atLevel) {
     canTakeNewArchetypeDedication: canTakeNewArchetypeDedication(actor, plan, atLevel),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
-    classFeatures: computeClassFeatures(classDef, atLevel),
+    classFeatures: computeClassFeatures(actor, classDef, atLevel),
     senses: computeSenses(actor),
   };
 }
@@ -741,17 +741,67 @@ function slugifySense(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
-function computeClassFeatures(classDef, atLevel) {
-  if (!classDef?.classFeatures) return new Set();
-
+function computeClassFeatures(actor, classDef, atLevel) {
   const features = new Set();
-  for (const feature of classDef.classFeatures) {
-    if (feature.level <= atLevel) {
-      features.add(feature.key);
-      if (feature.name) features.add(slugify(feature.name));
+
+  for (const feature of classDef?.classFeatures ?? []) {
+    if (feature.level > atLevel) continue;
+    if (feature.key) features.add(feature.key);
+    if (feature.name) features.add(slugify(feature.name));
+  }
+
+  for (const item of getOwnedItems(actor)) {
+    if (!isOwnedClassFeatureItem(item, atLevel)) continue;
+
+    const itemSlug = String(item?.slug ?? '').trim().toLowerCase();
+    const itemNameSlug = slugify(item?.name ?? '');
+    if (itemSlug) features.add(itemSlug);
+    if (itemNameSlug) features.add(itemNameSlug);
+
+    for (const alias of extractLinkedFeatureAliases(item?.system?.description?.value ?? item?.description ?? '')) {
+      features.add(alias);
     }
   }
+
   return features;
+}
+
+function isOwnedClassFeatureItem(item, atLevel) {
+  if (!item || !['feat', 'action', 'classfeature'].includes(String(item?.type ?? '').toLowerCase())) return false;
+
+  const category = String(item?.system?.category?.value ?? item?.system?.category ?? '').trim().toLowerCase();
+  if (item?.type !== 'classfeature' && !['classfeature', 'class-feature'].includes(category)) return false;
+
+  const level = Number(item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level ?? 0);
+  return Number.isFinite(level) ? level <= atLevel : true;
+}
+
+function extractLinkedFeatureAliases(html) {
+  const aliases = new Set();
+  const text = String(html ?? '');
+  if (!text) return aliases;
+
+  const uuidLinkPattern = /@UUID\[[^\]]+\]\{([^}]+)\}/gu;
+  const anchorPattern = /<a\b[^>]*data-uuid="[^"]+"[^>]*>([\s\S]*?)<\/a>/giu;
+
+  for (const match of text.matchAll(uuidLinkPattern)) {
+    const slug = slugify(stripHtml(match[1]));
+    if (slug) aliases.add(slug);
+  }
+
+  for (const match of text.matchAll(anchorPattern)) {
+    const slug = slugify(stripHtml(match[1]));
+    if (slug) aliases.add(slug);
+  }
+
+  return aliases;
+}
+
+function stripHtml(value) {
+  return String(value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function computeClassArchetypeDedications(actor, plan, atLevel) {

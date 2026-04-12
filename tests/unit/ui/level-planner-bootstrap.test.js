@@ -1060,6 +1060,305 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('rebuilds granted-feat skill selections into planned skill rules', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acrobatics: 'Acrobatics',
+          athletics: 'Athletics',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+          intimidation: 'Intimidation',
+          medicine: 'Medicine',
+          performance: 'Performance',
+          survival: 'Survival',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          level: { value: 1 },
+          xp: { value: 0, max: 1000 },
+        },
+        skills: {
+          acrobatics: { rank: 0, value: 0 },
+          survival: { rank: 0, value: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].classFeats = [
+      {
+        uuid: 'feat-root',
+        name: 'Spellshot Dedication',
+        slug: 'spellshot-dedication',
+        choices: {
+          grantedSkill: 'survival',
+        },
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Spellshot Dedication',
+          slug: 'spellshot-dedication',
+          system: {
+            description: { value: '' },
+            traits: { value: ['archetype', 'dedication', 'gunslinger'] },
+            rules: [{ key: 'GrantItem', uuid: 'feat-granted' }],
+          },
+        };
+      }
+      if (uuid === 'feat-granted') {
+        return {
+          uuid,
+          name: 'Granted Skill Choice',
+          system: {
+            description: { value: '' },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'grantedSkill',
+              prompt: 'Select a skill.',
+              choices: { config: 'skills' },
+              leveler: { grantsSkillTraining: true },
+            }],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.classFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'grantedSkill',
+          grantsSkillTraining: true,
+        }),
+      ]));
+      expect(planner.plan.levels[2].classFeats[0].dynamicSkillRules).toEqual(expect.arrayContaining([
+        expect.objectContaining({ skill: 'survival', source: 'choice:grantedskill' }),
+      ]));
+
+      const state = computeBuildState(actor, planner.plan, 2);
+      expect(state.skills.survival).toBe(1);
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('blocks granted dedication skill choices already selected from same-level intelligence bonus skills', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acrobatics: 'Acrobatics',
+          athletics: 'Athletics',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+          intimidation: 'Intimidation',
+          medicine: 'Medicine',
+          performance: 'Performance',
+          survival: 'Survival',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          level: { value: 1 },
+          xp: { value: 0, max: 1000 },
+        },
+        skills: {
+          acrobatics: { rank: 0, value: 0 },
+          athletics: { rank: 0, value: 0 },
+          deception: { rank: 0, value: 0 },
+          diplomacy: { rank: 0, value: 0 },
+          intimidation: { rank: 0, value: 0 },
+          medicine: { rank: 0, value: 0 },
+          performance: { rank: 0, value: 0 },
+          survival: { rank: 0, value: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].intBonusSkills = ['survival'];
+    planner.plan.levels[2].classFeats = [
+      {
+        uuid: 'feat-root',
+        name: 'Spellshot Dedication',
+        slug: 'spellshot-dedication',
+        choices: {},
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Spellshot Dedication',
+          slug: 'spellshot-dedication',
+          system: {
+            description: { value: '' },
+            traits: { value: ['archetype', 'dedication', 'gunslinger'] },
+            rules: [{ key: 'GrantItem', uuid: 'feat-granted' }],
+          },
+        };
+      }
+      if (uuid === 'feat-granted') {
+        return {
+          uuid,
+          name: 'Spellshot Skill Choice',
+          system: {
+            description: { value: '' },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'grantedSkill',
+              prompt: 'Select a skill.',
+              choices: { config: 'skills' },
+              leveler: { grantsSkillTraining: true },
+            }],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const grantedSkillSet = context.classFeat.grantChoiceSets.find((entry) => entry.flag === 'grantedSkill');
+      expect(grantedSkillSet).toBeTruthy();
+      expect(grantedSkillSet.options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'survival', disabled: true }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('blocks authored skill-choice arrays already selected from same-level intelligence bonus skills', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acrobatics: 'Acrobatics',
+          athletics: 'Athletics',
+          deception: 'Deception',
+          diplomacy: 'Diplomacy',
+          intimidation: 'Intimidation',
+          medicine: 'Medicine',
+          performance: 'Performance',
+          survival: 'Survival',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          level: { value: 1 },
+          xp: { value: 0, max: 1000 },
+        },
+        skills: {
+          acrobatics: { rank: 0, value: 0 },
+          athletics: { rank: 0, value: 0 },
+          deception: { rank: 0, value: 0 },
+          diplomacy: { rank: 0, value: 0 },
+          intimidation: { rank: 0, value: 0 },
+          medicine: { rank: 0, value: 0 },
+          performance: { rank: 0, value: 0 },
+          survival: { rank: 0, value: 0 },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.selectedLevel = 2;
+    planner.plan.levels[2].intBonusSkills = ['survival'];
+    planner.plan.levels[2].classFeats = [
+      {
+        uuid: 'spellshot-main',
+        name: 'Spellshot Dedication',
+        slug: 'spellshot-dedication',
+        choices: {},
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid !== 'spellshot-main') return null;
+      return {
+        uuid,
+        name: 'Spellshot Dedication',
+        slug: 'spellshot-dedication',
+        system: {
+          description: { value: '' },
+          traits: { value: ['archetype', 'dedication', 'gunslinger'] },
+          rules: [{
+            key: 'ChoiceSet',
+            flag: 'skill',
+            prompt: 'Select a skill.',
+            choices: [
+              { value: 'acrobatics', label: 'Acrobatics' },
+              { value: 'athletics', label: 'Athletics' },
+              { value: 'deception', label: 'Deception' },
+              { value: 'diplomacy', label: 'Diplomacy' },
+              { value: 'intimidation', label: 'Intimidation' },
+              { value: 'medicine', label: 'Medicine' },
+              { value: 'performance', label: 'Performance' },
+              { value: 'survival', label: 'Survival' },
+            ],
+            leveler: { grantsSkillTraining: true },
+          }],
+        },
+      };
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const skillSet = context.classFeatChoiceSets.find((entry) => entry.flag === 'skill');
+      expect(skillSet).toBeTruthy();
+      expect(skillSet.options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'survival', disabled: true }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('builds custom feat special choice sets for Additional Lore and Multilingual', async () => {
     const originalConfig = global.CONFIG;
     const originalFromUuid = global.fromUuid;

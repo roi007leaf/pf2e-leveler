@@ -36,7 +36,9 @@ export async function applyFeats(actor, plan, level) {
   const levelData = plan.levels[level];
   if (!levelData) return [];
 
-  const itemsToCreate = [];
+  const candidates = [];
+  const existingSources = getActorFeatSources(actor);
+  const pendingSources = new Set();
 
   for (const key of FEAT_KEYS) {
     const feats = levelData[key];
@@ -46,11 +48,19 @@ export async function applyFeats(actor, plan, level) {
     for (const featEntry of feats) {
       const item = await resolveFeat(featEntry.uuid);
       if (!item) continue;
+      const sourceId = getItemSourceId(item);
+      if (sourceId && (existingSources.has(sourceId) || pendingSources.has(sourceId))) continue;
 
       const featData = prepareForCreation(item, featEntry, group, level);
-      itemsToCreate.push(featData);
+      candidates.push({ featData, sourceId });
+      if (sourceId) pendingSources.add(sourceId);
     }
   }
+
+  const grantedSources = await collectGrantedFeatSources(candidates.map((entry) => entry.featData));
+  const itemsToCreate = candidates
+    .filter((entry) => !(entry.sourceId && grantedSources.has(entry.sourceId)))
+    .map((entry) => entry.featData);
 
   if (itemsToCreate.length === 0) return [];
 
@@ -165,4 +175,70 @@ function prepareForCreation(item, featEntry, group, level) {
     data.flags.pf2e.rulesSelections = Object.fromEntries(choiceEntries.map(([key, value]) => [key, String(value)]));
   }
   return data;
+}
+
+function getActorFeatSources(actor) {
+  const items = Array.isArray(actor?.items)
+    ? actor.items
+    : Array.isArray(actor?.items?.contents)
+      ? actor.items.contents
+      : [];
+
+  return new Set(
+    items
+      .map((item) => getItemSourceId(item))
+      .filter(Boolean),
+  );
+}
+
+function getItemSourceId(item) {
+  return item?.sourceId
+    ?? item?.flags?.core?.sourceId
+    ?? item?._stats?.compendiumSource
+    ?? null;
+}
+
+async function collectGrantedFeatSources(items) {
+  const grantedSources = new Set();
+  const visited = new Set();
+
+  for (const item of items) {
+    await collectGrantedFeatSourcesFromItem(item, grantedSources, visited);
+  }
+
+  return grantedSources;
+}
+
+async function collectGrantedFeatSourcesFromItem(item, grantedSources, visited) {
+  const itemKey = getItemSourceId(item);
+  if (itemKey && visited.has(itemKey)) return;
+  if (itemKey) visited.add(itemKey);
+
+  for (const rule of item?.system?.rules ?? []) {
+    if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+    const grantedUuid = resolveGrantRuleUuid(rule.uuid, item?.flags?.pf2e?.rulesSelections ?? {});
+    if (!grantedUuid) continue;
+
+    const granted = await resolveFeat(grantedUuid);
+    if (!granted) continue;
+
+    const grantedSourceId = getItemSourceId(granted);
+    if (grantedSourceId) grantedSources.add(grantedSourceId);
+
+    const grantedData = typeof granted.toObject === 'function' ? granted.toObject() : granted;
+    await collectGrantedFeatSourcesFromItem(grantedData, grantedSources, visited);
+  }
+}
+
+function resolveGrantRuleUuid(uuid, selections) {
+  const raw = String(uuid ?? '').trim();
+  if (!raw) return null;
+  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+
+  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+    const value = selections?.[flag];
+    return typeof value === 'string' ? value : '';
+  });
+
+  return resolved.includes('{item|') ? null : resolved;
 }

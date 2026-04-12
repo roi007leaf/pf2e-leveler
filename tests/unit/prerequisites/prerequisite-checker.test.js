@@ -204,6 +204,18 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('meets plural save proficiency prerequisite wording', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'Expert in Reflex Saves' }] } },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      proficiencies: { ...buildState.proficiencies, reflex: 2 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
   test('meets class HP prerequisite for lower-HP classes', () => {
     const feat = {
       system: {
@@ -549,6 +561,22 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, {
       ...buildState,
       classFeatures: new Set(['rage', 'mighty-rage']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('meets linked granted class feature prerequisite aliases', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Intercept Attack class feature' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      classFeatures: new Set(['guardians-techniques', 'intercept-attack']),
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);

@@ -215,4 +215,98 @@ describe('applyFeats', () => {
       'system.resources.focus.value': 2,
     });
   });
+
+  test('skips creating feats already present on the actor by source id', async () => {
+    mockActor.items = [{
+      type: 'feat',
+      sourceId: 'feat-spellshot',
+      system: { level: { value: 2 } },
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid !== 'feat-spellshot') return null;
+      return {
+        uuid,
+        name: 'Spellshot Dedication',
+        flags: { core: { sourceId: uuid } },
+        system: { level: { value: 2 }, location: null },
+        toObject: jest.fn(() => ({
+          name: 'Spellshot Dedication',
+          flags: { core: { sourceId: uuid } },
+          system: { level: { value: 2 }, location: null },
+        })),
+      };
+    });
+
+    const plan = {
+      levels: {
+        2: {
+          classFeats: [{ uuid: 'feat-spellshot', name: 'Spellshot Dedication', slug: 'spellshot-dedication' }],
+        },
+      },
+    };
+
+    const result = await applyFeats(mockActor, plan, 2);
+    expect(result).toEqual([]);
+    expect(mockActor.createEmbeddedDocuments).not.toHaveBeenCalled();
+  });
+
+  test('skips manually creating feats already granted by another selected feat in same batch', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Granting Feature',
+          flags: { core: { sourceId: uuid } },
+          system: {
+            level: { value: 2 },
+            location: null,
+            rules: [{ key: 'GrantItem', uuid: 'feat-spellshot' }],
+          },
+          toObject: jest.fn(() => ({
+            name: 'Granting Feature',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              level: { value: 2 },
+              location: null,
+              rules: [{ key: 'GrantItem', uuid: 'feat-spellshot' }],
+            },
+          })),
+        };
+      }
+
+      if (uuid === 'feat-spellshot') {
+        return {
+          uuid,
+          name: 'Spellshot Dedication',
+          flags: { core: { sourceId: uuid } },
+          system: { level: { value: 2 }, location: null, rules: [] },
+          toObject: jest.fn(() => ({
+            name: 'Spellshot Dedication',
+            flags: { core: { sourceId: uuid } },
+            system: { level: { value: 2 }, location: null, rules: [] },
+          })),
+        };
+      }
+
+      return null;
+    });
+
+    const plan = {
+      levels: {
+        2: {
+          classFeats: [
+            { uuid: 'feat-root', name: 'Granting Feature', slug: 'granting-feature' },
+            { uuid: 'feat-spellshot', name: 'Spellshot Dedication', slug: 'spellshot-dedication' },
+          ],
+        },
+      },
+    };
+
+    await applyFeats(mockActor, plan, 2);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Granting Feature' }),
+    ]);
+  });
 });

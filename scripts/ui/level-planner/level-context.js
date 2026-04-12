@@ -365,7 +365,7 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
 
   const specialChoiceSets = buildPlannerSpecialChoiceSets(feat, source);
   const combined = dedupePlannerChoiceSets([...choiceSets, ...dedicationFallbackSets, ...fallbackSets, ...specialChoiceSets]);
-  syncPlannerChoiceSetSkillRules(feat, combined);
+  syncPlannerChoiceSetSkillRules(feat, [...combined, ...(feat?.grantChoiceSets ?? [])]);
   if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
     debug('Planner druid dedication choice sets built', {
       level: planner.selectedLevel,
@@ -382,7 +382,7 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   return combined
     .map((entry) => ({
       ...entry,
-      options: hydratePlannerChoiceOptions(entry, feat),
+      options: hydratePlannerChoiceOptions(planner, entry, feat),
       choiceType: entry.choiceType ?? (entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item'),
     }))
     .filter((entry) => entry.choiceType === 'lore' || entry.options.length > 0);
@@ -421,18 +421,25 @@ function buildPlannerSpecialChoiceSets(feat, source) {
   return special;
 }
 
-function hydratePlannerChoiceOptions(entry, feat) {
+function hydratePlannerChoiceOptions(planner, entry, feat) {
   const selectedValue = String(feat?.choices?.[entry.flag] ?? '');
   const options = (entry.options ?? []).map((option) => ({
     ...option,
     selected: String(option?.value ?? '') === selectedValue,
   }));
 
-  if (entry?.grantsSkillTraining !== true || !selectedValue || options.some((option) => option.selected)) return options;
-  if (SKILLS.includes(selectedValue)) return options;
+  const isSkillChoiceSet = (entry.choiceType === 'skill')
+    || options.every((option) => SKILLS.includes(String(option?.value ?? '').toLowerCase()));
+
+  const hydratedOptions = entry?.grantsSkillTraining === true && isSkillChoiceSet
+    ? decoratePlannerSkillChoiceOptions(planner, entry, feat, options)
+    : options;
+
+  if (!selectedValue || hydratedOptions.some((option) => option.selected)) return hydratedOptions;
+  if (SKILLS.includes(selectedValue)) return hydratedOptions;
 
   return [
-    ...options,
+    ...hydratedOptions,
     {
       value: selectedValue,
       label: localizeSkillSlug(selectedValue),
@@ -498,8 +505,6 @@ async function collectGrantPreviewEntries({
       : [];
     const choiceSets = dedupePlannerChoiceSets([...parsedChoiceSets, ...fallbackChoiceSets, ...dedicationChoiceSets]);
     for (const choiceSet of choiceSets) {
-      const selectedValue = storedChoices?.[choiceSet.flag];
-      if (typeof selectedValue === 'string' && selectedValue.length > 0 && selectedValue !== '[object Object]') continue;
       if (grantChoiceSets.some((entry) => getChoiceSetSignature(entry) === getChoiceSetSignature(choiceSet))) continue;
       grantChoiceSets.push({
         ...choiceSet,
@@ -551,6 +556,7 @@ function createPlannerChoiceWizard(planner) {
     _compendiumCache: planner._compendiumCache ?? (planner._compendiumCache = {}),
     data: {
       deity: planner.actor?.items?.find?.((item) => item.type === 'deity') ?? null,
+      skills: collectPlannerSelectedSkills(planner),
     },
     _getCachedDocument: (uuid) => fromUuid(uuid).catch(() => null),
     _loadCompendium: async (key) => loadCompendium(wizard, key),
@@ -647,7 +653,9 @@ async function buildPlannerChoiceSetSkillContext(planner) {
   for (const level of Object.keys(planner.plan?.levels ?? {})) {
     const numericLevel = Number(level);
     if (!Number.isFinite(numericLevel) || numericLevel > Number(planner.selectedLevel ?? 0)) continue;
-    for (const skill of planner.plan?.levels?.[level]?.bonusSkills ?? []) selectedSkills.add(skill);
+    for (const skill of planner.plan?.levels?.[level]?.intBonusSkills ?? []) {
+      if (SKILLS.includes(skill)) selectedSkills.add(skill);
+    }
   }
 
   return SKILLS.map((slug) => ({
@@ -656,6 +664,47 @@ async function buildPlannerChoiceSetSkillContext(planner) {
     selected: selectedSkills.has(slug),
     autoTrained: autoTrainedSkills.has(slug),
   }));
+}
+
+function collectPlannerSelectedSkills(planner) {
+  const selectedSkills = new Set();
+
+  for (const level of Object.keys(planner.plan?.levels ?? {})) {
+    const numericLevel = Number(level);
+    if (!Number.isFinite(numericLevel) || numericLevel > Number(planner.selectedLevel ?? 0)) continue;
+
+    for (const skill of planner.plan?.levels?.[level]?.intBonusSkills ?? []) {
+      if (SKILLS.includes(skill)) selectedSkills.add(skill);
+    }
+  }
+
+  return [...selectedSkills];
+}
+
+function decoratePlannerSkillChoiceOptions(planner, entry, feat, options) {
+  const selected = String(feat?.choices?.[entry?.flag] ?? '').trim().toLowerCase();
+  const priorState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
+  const selectedIntSkills = new Set(collectPlannerSelectedSkills(planner));
+  const selectedElsewhere = new Set(
+    Object.entries(feat?.choices ?? {})
+      .filter(([flag, value]) => flag !== entry?.flag && typeof value === 'string' && value !== '[object Object]')
+      .map(([, value]) => String(value).trim().toLowerCase()),
+  );
+  const blockedSkills = new Set((entry?.blockedSkills ?? []).map((skill) => String(skill).trim().toLowerCase()));
+
+  return options.map((option) => {
+    const value = String(option?.value ?? '').trim().toLowerCase();
+    const selectedHere = value === selected;
+    const trainedBeforeLevel = (priorState.skills?.[value] ?? 0) >= 1;
+    const selectedByIntBonus = selectedIntSkills.has(value);
+    const disabled = !selectedHere
+      && (trainedBeforeLevel || selectedByIntBonus || selectedElsewhere.has(value) || blockedSkills.has(value));
+
+    return {
+      ...option,
+      disabled,
+    };
+  });
 }
 
 function extractGrantPreselectedChoices(rule) {

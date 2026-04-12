@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.0.0
+
+### Compatibility
+
+- **Added Foundry VTT v14 support** - Leveler now supports Foundry Virtual Tabletop v14
+
+### Level Planner
+
+- **Granted feat skill choices now respect same-level Intelligence bonus skill picks** - If you already reserve a skill such as `Survival` from an Intelligence increase at that level, planner skill-choice prompts like `Spellshot Dedication` now block that same skill instead of letting it be selected twice
+- **Granted feat skill selections now persist more reliably after reopen** - Nested granted-feat choice prompts now keep their selected trained skill in planner state, so reopening or rerendering the planner no longer loses those picks
+- **Granted skill-choice buttons now sync their training rules correctly** - Choosing a trained skill from a granted feat prompt now updates the planned build state immediately instead of behaving like an unrelated item choice
+- **Save-rank prerequisite checks now recognize PF2E wording like `Expert in Reflex Saves`** - Planner feat prerequisite checks now normalize singular and plural save wording properly, so feats such as `Evasiveness` no longer fail when the actor already has the required save proficiency
+- **Guardian prerequisite checks now recognize `Intercept Attack` from `Guardian's Techniques`** - Class-feature prerequisite matching now understands linked granted actions and features embedded inside owned class-feature descriptions, so Guardian feats like `Armored Counterattack` no longer fail that requirement incorrectly
+
+### Level-Up Apply
+
+- **PF2E-owned granted dedications are no longer duplicated during planner apply** - When a selected feat already grants another feat through `GrantItem`, Leveler now skips manually creating that same feat again, preventing duplicates such as extra copies of `Spellshot Dedication`
+- **Same-batch feat dedupe is now more precise** - Manual feat creation now dedupes against real source IDs instead of over-treating transient runtime UUIDs as the same source, avoiding false skips while still blocking duplicate granted feats
+
 ## 2.1.17
 
 ### Feat Picker
