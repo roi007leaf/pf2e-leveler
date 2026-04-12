@@ -3,6 +3,12 @@ import { ClassRegistry } from '../classes/registry.js';
 import { capitalize } from '../utils/pf2e-api.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../data/subclass-spells.js';
 import { debug, warn } from '../utils/logger.js';
+import {
+  classUsesPhysicalSpellbook,
+  collectArchetypeSpellcastingConfigs,
+  ensureActorHasSpellbook,
+  normalizeSpellcastingFeatRecord,
+} from '../utils/spellcasting-support.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
@@ -14,16 +20,17 @@ export async function applySpells(actor, plan, level) {
   const addedSpells = [];
   const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
   const customEntries = await ensureCustomPlannedSpellcastingEntries(actor, plan, level);
+  const levelData = plan.levels[level];
 
   if (classDef?.spellcasting) {
     const slots = classDef.spellcasting.slots[level];
     if (slots) {
       const entries = await ensureSpellcastingEntries(actor, classDef);
+      if (classUsesPhysicalSpellbook(classDef.slug)) await ensureActorHasSpellbook(actor);
       entries.archetypes = archetypeEntries;
       entries.custom = customEntries;
       await updateSpellSlots(actor, entries, slots, classDef, level);
 
-      const levelData = plan.levels[level];
       const planned = await addPlannedSpells(actor, entries, levelData);
       addedSpells.push(...planned);
 
@@ -35,6 +42,9 @@ export async function applySpells(actor, plan, level) {
 
       await updateDivineFont(actor, plan, level);
     }
+  } else if (Object.keys(archetypeEntries).length > 0 || Object.keys(customEntries).length > 0) {
+    const planned = await addPlannedSpells(actor, { archetypes: archetypeEntries, custom: customEntries }, levelData);
+    addedSpells.push(...planned);
   }
   return addedSpells;
 }
@@ -134,13 +144,14 @@ async function ensureSpellcastingEntries(actor, classDef) {
 }
 
 async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
-  const configs = collectArchetypeSpellcastingConfigs(actor, plan, level);
+  const configs = getArchetypeSpellcastingEntryConfigs(actor, plan, level);
   if (configs.length === 0) return {};
 
   const updates = [];
   const entriesByType = {};
   for (const config of configs) {
     const entry = await findOrCreateEntry(actor, config);
+    if (config.requiresSpellbook) await ensureActorHasSpellbook(actor);
     entriesByType[`archetype:${config.flagValue}`] = entry;
     const update = buildArchetypeSpellcastingSlotUpdate(entry, config);
     if (update) updates.push(update);
@@ -218,44 +229,16 @@ function buildEntryData(config) {
   };
 }
 
-function collectArchetypeSpellcastingConfigs(actor, plan, level) {
+function getArchetypeSpellcastingEntryConfigs(actor, plan, level) {
   const feats = collectArchetypeSpellcastingFeats(actor, plan, level);
-  if (feats.length === 0) return [];
-
-  const seen = new Set();
-  const configs = [];
-
-  for (const dedication of feats) {
-    const traits = (dedication.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-    if (!traits.includes('dedication')) continue;
-
-    const classSlug = traits.find((trait) => {
-      const classDef = ClassRegistry.get(trait);
-      return !!classDef?.spellcasting;
-    });
-    if (!classSlug || seen.has(classSlug)) continue;
-
-    const classDef = ClassRegistry.get(classSlug);
-    if (!classDef?.spellcasting) continue;
-
-    const relatedFeats = feats.filter((feat) =>
-      (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes(classSlug),
-    );
-
-    configs.push({
-      name: `${capitalize(classSlug)} Dedication Spells`,
-      tradition: resolveArchetypeTradition(actor, classDef, classSlug),
-      prepared: classDef.spellcasting.type,
-      ability: resolveActorSpellAbility(actor, classDef),
-      flagKey: 'archetypeSpellcastingEntry',
-      flagValue: classSlug,
-      cantripCount: 2,
-      slotRanks: getArchetypeSpellcastingSlotRanks(relatedFeats, level),
-    });
-    seen.add(classSlug);
-  }
-
-  return configs;
+  return collectArchetypeSpellcastingConfigs(feats, level, {
+    resolveTradition: (classDef, classSlug) => resolveArchetypeTradition(actor, classDef, classSlug),
+    resolveAbility: (classDef) => resolveActorSpellAbility(actor, classDef),
+  }).map((config) => ({
+    ...config,
+    flagKey: 'archetypeSpellcastingEntry',
+    flagValue: config.classSlug,
+  }));
 }
 
 function collectCustomSpellcastingEntryConfigs(plan, level) {
@@ -292,60 +275,12 @@ function collectPlannedArchetypeSpellcastingFeats(plan, level) {
     for (const key of FEAT_KEYS) {
       const feats = levelData[key] ?? [];
       for (const feat of feats) {
-        results.push({ ...feat, __plannedGroup: key });
+        results.push({ ...feat, __plannedGroup: key, level: feat?.level ?? Number(rawLevel) });
       }
     }
   }
 
   return results;
-}
-
-function normalizeSpellcastingFeatRecord(feat) {
-  const traits = new Set((feat?.system?.traits?.value ?? feat?.traits ?? []).map((trait) => String(trait).toLowerCase()));
-  const slug = typeof feat?.slug === 'string' ? feat.slug : '';
-  const name = typeof feat?.name === 'string' ? feat.name : '';
-  const nameAndSlug = `${name} ${slug}`.toLowerCase();
-  const description = String(feat?.system?.description?.value ?? feat?.description ?? '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-
-  if (feat?.__plannedGroup === 'archetypeFeats') {
-    traits.add('archetype');
-  }
-  if (nameAndSlug.includes('dedication')) {
-    traits.add('dedication');
-  }
-  for (const classDef of ClassRegistry.getAll()) {
-    if (!classDef?.slug || !classDef?.spellcasting) continue;
-    const classSlug = classDef.slug.toLowerCase();
-    const className = String(classDef.name ?? '').toLowerCase();
-    if (nameAndSlug.includes(classSlug)) {
-      traits.add(classDef.slug);
-      continue;
-    }
-    if (description && (description.includes(`counts as ${className} dedication`) || description.includes(`counts as ${classSlug} dedication`))) {
-      traits.add(classDef.slug);
-      continue;
-    }
-    if (description && (description.includes(`counts as the ${className} dedication`) || description.includes(`counts as the ${classSlug} dedication`))) {
-      traits.add(classDef.slug);
-    }
-  }
-
-  return {
-    ...feat,
-    name,
-    slug,
-    system: {
-      ...(feat?.system ?? {}),
-      traits: {
-        ...(feat?.system?.traits ?? {}),
-        value: [...traits],
-      },
-    },
-  };
 }
 
 function resolveArchetypeTradition(actor, classDef, classSlug) {
@@ -363,40 +298,16 @@ function resolveArchetypeTradition(actor, classDef, classSlug) {
   return existingEntry?.system?.tradition?.value ?? 'arcane';
 }
 
-function getArchetypeSpellcastingSlotRanks(feats, level) {
-  const namesAndSlugs = feats.map((feat) => `${String(feat?.name ?? '').toLowerCase()} ${String(feat?.slug ?? '').toLowerCase()}`);
-  const hasBasic = namesAndSlugs.some((value) => value.includes('basic') && value.includes('spellcasting'));
-  const hasExpert = namesAndSlugs.some((value) => value.includes('expert') && value.includes('spellcasting'));
-  const hasMaster = namesAndSlugs.some((value) => value.includes('master') && value.includes('spellcasting'));
-
-  const ranks = [];
-  if (hasBasic) {
-    if (level >= 4) ranks.push(1);
-    if (level >= 6) ranks.push(2);
-    if (level >= 8) ranks.push(3);
-  }
-  if (hasExpert) {
-    if (level >= 12) ranks.push(4);
-    if (level >= 14) ranks.push(5);
-    if (level >= 16) ranks.push(6);
-  }
-  if (hasMaster) {
-    if (level >= 18) ranks.push(7);
-    if (level >= 20) ranks.push(8);
-  }
-
-  return [...new Set(ranks)].sort((a, b) => a - b);
-}
-
 function buildArchetypeSpellcastingSlotUpdate(entry, config) {
   if (!entry?.id) return null;
 
   const update = { _id: entry.id };
   update['system.slots.slot0.max'] = Number(config.cantripCount ?? 0);
   update['system.slots.slot0.value'] = Number(config.cantripCount ?? 0);
+  const enabledRanks = new Set(config.totalSlotRanks ?? config.slotRanks ?? []);
 
   for (let rank = 1; rank <= 10; rank += 1) {
-    const enabled = config.slotRanks?.includes(rank) === true;
+    const enabled = enabledRanks.has(rank);
     update[`system.slots.slot${rank}.max`] = enabled ? 1 : 0;
     update[`system.slots.slot${rank}.value`] = enabled ? 1 : 0;
   }

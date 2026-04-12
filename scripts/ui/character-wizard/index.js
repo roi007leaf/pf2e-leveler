@@ -125,7 +125,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._activeSystemPrompt = null;
     this._backgroundSkillFilters = new Set();
     this._backgroundAttributeFilters = new Set();
-    this._featChoiceDataDirty = true;
+    this._featChoiceDataDirty = !this._hasReusableFeatChoiceData(this.data);
     this._applyPromptRowsCache = null;
     this._compendiumSourceFilters = {};
     this._spellLayoutObserver = null;
@@ -135,6 +135,32 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._cachedHasClassFeatAtLevel1 = null;
     this._cachedRequiredClassBoostSelections = 0;
     this._cachedBoostStepComplete = null;
+  }
+
+  _hasReusableFeatChoiceData(data = this.data) {
+    if (!data || typeof data !== 'object') return false;
+
+    const directFeatContainers = [
+      data.ancestryFeat,
+      data.ancestryParagonFeat,
+      data.classFeat,
+      data.skillFeat,
+    ];
+
+    for (const feat of directFeatContainers) {
+      if (!feat?.uuid) continue;
+      if (!Array.isArray(feat.choiceSets)) return false;
+      if (!Array.isArray(feat.grantedSkills)) return false;
+      if (!Array.isArray(feat.grantedLores)) return false;
+    }
+
+    if (!Array.isArray(data.grantedFeatSections)) return false;
+    for (const section of data.grantedFeatSections) {
+      if (!section?.slot) return false;
+      if (!Array.isArray(section.choiceSets)) return false;
+    }
+
+    return true;
   }
 
   _preloadCompendiums() {
@@ -1152,6 +1178,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const nextPrompt = this._detectActiveSystemPrompt();
       if ((nextPrompt?.title ?? null) === (this._activeSystemPrompt?.title ?? null)) return;
       this._activeSystemPrompt = nextPrompt;
+      nextPrompt?.app?.bringToTop?.();
       if (this.isApplying) this.render({ parts: ['wizard'] });
     }, 350);
   }
@@ -1167,7 +1194,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const currentTitle = this.title;
     const candidates = windows
       .filter((app) => app && app.title && app.title !== currentTitle)
-      .map((app) => ({ title: String(app.title).trim() }))
+      .map((app) => ({ app, title: String(app.title).trim() }))
       .filter((entry) => entry.title.length > 0);
     return candidates.at(-1) ?? null;
   }
@@ -1220,7 +1247,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const text = await file.text();
         this.data = importCreationData(text);
         this.classHandler = getClassHandler(this.data.class?.slug);
-        this._featChoiceDataDirty = true;
+        this._featChoiceDataDirty = !this._hasReusableFeatChoiceData(this.data);
         this._applyPromptRowsCache = null;
         await saveCreationData(this.actor, this.data);
         ui.notifications.info(localize('NOTIFICATIONS.CREATION_IMPORTED'));

@@ -121,7 +121,8 @@ function isFeatIndexEntry(entry) {
   const category = String(
     (typeof rawCategory === 'object' && rawCategory !== null ? rawCategory.value : rawCategory) ?? '',
   ).toLowerCase();
-  return type === 'feat' && category !== 'classfeature' && category !== 'class-feature';
+  return type === 'feat'
+    && !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(category);
 }
 
 async function loadCompendiumFeats(key) {
@@ -135,7 +136,11 @@ async function loadCompendiumFeats(key) {
     const sourcePackage = compendium.metadata?.packageName ?? compendium.metadata?.package ?? '';
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
     const feats = collection
-      .filter((item) => item.type === 'feat' && String(item.system.category?.value ?? item.system.category ?? '') !== 'classfeature')
+      .filter((item) => {
+        const category = String(item.system.category?.value ?? item.system.category ?? '').toLowerCase();
+        return item.type === 'feat'
+          && !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(category);
+      })
       .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
       .map((item) => {
         item.sourcePack = key;

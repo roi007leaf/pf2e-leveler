@@ -5,6 +5,7 @@ import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { computeBuildState } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
+import { collectArchetypeSpellcastingConfigs } from '../utils/spellcasting-support.js';
 import {
   doesFeatMatchRequiredSecondLevelClassFeat,
   getRequiredSecondLevelClassFeatForActor,
@@ -244,14 +245,16 @@ function validateDedicationSpellSelections(plan, level, plannedSpells) {
   for (const config of configs) {
     const sectionSpells = plannedSpells.filter((spell) => spell.entryType === config.entryType);
     const plannedCantrips = sectionSpells.filter((spell) => spell?.isCantrip === true || spell?.rank === 0).length;
-    if (plannedCantrips < config.cantripCount) {
-      return { severity: 'error', message: `${config.cantripCount - plannedCantrips} ${config.name} cantrip(s) not yet selected` };
+    if (plannedCantrips < config.cantripSelectionCount) {
+      return { severity: 'error', message: `${config.cantripSelectionCount - plannedCantrips} ${config.name} cantrip(s) not yet selected` };
     }
 
-    for (const rank of config.slotRanks) {
+    for (const [rawRank, rawCount] of Object.entries(config.rankSelectionCounts ?? {})) {
+      const rank = Number(rawRank);
+      const requiredCount = Number(rawCount ?? 0);
       const plannedAtRank = sectionSpells.filter((spell) => Number(spell?.rank ?? spell?.baseRank ?? -1) === rank).length;
-      if (plannedAtRank < 1) {
-        return { severity: 'error', message: `1 ${config.name} ${ordinal(rank)}-rank spell not yet selected` };
+      if (plannedAtRank < requiredCount) {
+        return { severity: 'error', message: `${requiredCount - plannedAtRank} ${config.name} ${ordinal(rank)}-rank spell(s) not yet selected` };
       }
     }
   }
@@ -266,90 +269,10 @@ function collectDedicationSpellcastingConfigs(plan, level) {
     const levelData = plan.levels[currentLevel];
     if (!levelData) continue;
     for (const key of featKeys) {
-      feats.push(...(levelData[key] ?? []));
+      feats.push(...((levelData[key] ?? []).map((feat) => ({ ...feat, level: feat?.level ?? currentLevel }))));
     }
   }
-
-  const seen = new Set();
-  const configs = [];
-  for (const feat of feats) {
-    const traits = (feat?.traits ?? feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-    const combined = `${String(feat?.name ?? '').toLowerCase()} ${String(feat?.slug ?? '').toLowerCase()} ${traits.join(' ')}`;
-    if (!(traits.includes('dedication') || combined.includes('dedication'))) continue;
-
-    const classSlug = ClassRegistry.getAll()
-      .find((candidate) => candidate?.spellcasting && combined.includes(String(candidate.slug).toLowerCase()))
-      ?.slug ?? null;
-    if (!classSlug || seen.has(classSlug)) continue;
-
-    const relatedFeats = feats.filter((entry) => {
-      const entryTraits = (entry?.traits ?? entry?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-      const entryCombined = `${String(entry?.name ?? '').toLowerCase()} ${String(entry?.slug ?? '').toLowerCase()} ${entryTraits.join(' ')}`;
-      return entryTraits.includes(classSlug) || entryCombined.includes(classSlug);
-    });
-    const dedicationLevel = getFirstFeatSelectionLevel(relatedFeats.filter((entry) => {
-      const entryTraits = (entry?.traits ?? entry?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
-      const entryCombined = `${String(entry?.name ?? '').toLowerCase()} ${String(entry?.slug ?? '').toLowerCase()} ${entryTraits.join(' ')}`;
-      return entryTraits.includes('dedication') || entryCombined.includes('dedication');
-    }));
-
-    configs.push({
-      entryType: `archetype:${classSlug}`,
-      name: `${classSlug.charAt(0).toUpperCase()}${classSlug.slice(1)} Dedication Spells`,
-      cantripCount: dedicationLevel === level ? 2 : 0,
-      slotRanks: getNewDedicationSpellcastingSlotRanks(relatedFeats, level),
-    });
-    seen.add(classSlug);
-  }
-
-  return configs;
-}
-
-function getDedicationSpellcastingSlotRanks(feats, level) {
-  const namesAndSlugs = feats.map((feat) => `${String(feat?.name ?? '').toLowerCase()} ${String(feat?.slug ?? '').toLowerCase()}`);
-  const hasBasic = namesAndSlugs.some((value) => value.includes('basic') && value.includes('spellcasting'));
-  const hasExpert = namesAndSlugs.some((value) => value.includes('expert') && value.includes('spellcasting'));
-  const hasMaster = namesAndSlugs.some((value) => value.includes('master') && value.includes('spellcasting'));
-
-  const ranks = [];
-  if (hasBasic) {
-    if (level >= 4) ranks.push(1);
-    if (level >= 6) ranks.push(2);
-    if (level >= 8) ranks.push(3);
-  }
-  if (hasExpert) {
-    if (level >= 12) ranks.push(4);
-    if (level >= 14) ranks.push(5);
-    if (level >= 16) ranks.push(6);
-  }
-  if (hasMaster) {
-    if (level >= 18) ranks.push(7);
-    if (level >= 20) ranks.push(8);
-  }
-  return [...new Set(ranks)].sort((a, b) => a - b);
-}
-
-function getNewDedicationSpellcastingSlotRanks(feats, level) {
-  const current = new Set(getDedicationSpellcastingSlotRanks(feats, level));
-  const previous = new Set(getDedicationSpellcastingSlotRanks(feats, Math.max(0, level - 1)));
-  return [...current].filter((rank) => !previous.has(rank)).sort((a, b) => a - b);
-}
-
-function getFirstFeatSelectionLevel(feats) {
-  const levels = feats
-    .map((feat) => getFeatSelectionLevel(feat))
-    .filter((level) => Number.isFinite(level));
-  return levels.length > 0 ? Math.min(...levels) : null;
-}
-
-function getFeatSelectionLevel(feat) {
-  const directLevel = Number(feat?.level);
-  if (Number.isFinite(directLevel) && directLevel > 0) return directLevel;
-
-  const systemLevel = Number(feat?.system?.level?.taken ?? feat?.system?.level?.value);
-  if (Number.isFinite(systemLevel) && systemLevel > 0) return systemLevel;
-
-  return null;
+  return collectArchetypeSpellcastingConfigs(feats, level);
 }
 
 function ordinal(rank) {

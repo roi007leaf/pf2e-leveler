@@ -46,6 +46,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedTraits = new Set();
     this.traitLogic = 'or';
     this.selectedRarities = getAllowedRaritiesForCurrentUser();
+    this.lockedRarities = new Set();
     this.selectedSourcePackages = new Set();
     this._sourceFilterInitialized = false;
     this.searchText = '';
@@ -765,7 +766,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getLockedRarities() {
     const allowed = getAllowedRaritiesForCurrentUser();
-    return ['common', 'uncommon', 'rare', 'unique'].filter((r) => !allowed.has(r));
+    return ['common', 'uncommon', 'rare', 'unique'].filter((r) => !allowed.has(r) || this.lockedRarities.has(r));
   }
 
   _allSelected(selected, available) {
@@ -781,6 +782,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.lockedRanks)) this.lockedRanks = new Set(preset.lockedRanks);
     if (Array.isArray(preset.lockedTraditions)) this.lockedTraditions = new Set(preset.lockedTraditions.map((t) => String(t).toLowerCase()));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
+    if (Array.isArray(preset.selectedRarities)) this.selectedRarities = new Set(preset.selectedRarities.map((rarity) => String(rarity).toLowerCase()));
+    if (Array.isArray(preset.lockedRarities)) this.lockedRarities = new Set(preset.lockedRarities.map((rarity) => String(rarity).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
   }
 

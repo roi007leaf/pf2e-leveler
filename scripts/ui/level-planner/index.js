@@ -33,6 +33,7 @@ import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled, isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../../utils/feat-aliases.js';
+import { extractFeatSpellcastingMetadata, FEAT_SPELLCASTING_METADATA_VERSION } from '../../utils/spellcasting-support.js';
 import { localize } from '../../utils/i18n.js';
 import { debug } from '../../utils/logger.js';
 import { FeatPicker } from '../feat-picker.js';
@@ -82,6 +83,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
 const FEAT_SKILL_RULES_VERSION = 3;
 const FEAT_ALIASES_VERSION = 1;
+const FEAT_SPELLCASTING_VERSION = FEAT_SPELLCASTING_METADATA_VERSION;
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -426,6 +428,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         }
       }
     }
+
+    outerSpellcasting: for (const levelData of Object.values(plan.levels)) {
+      for (const key of SKILL_RULES_FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.spellcastingMetadataVersion !== FEAT_SPELLCASTING_VERSION) {
+            this._needsSpellcastingMetadataBackfill = true;
+            break outerSpellcasting;
+          }
+        }
+      }
+    }
   }
 
   async _backfillFeatSkillRules() {
@@ -474,6 +487,33 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           }
           feat.aliasesResolved = true;
           feat.aliasesVersion = FEAT_ALIASES_VERSION;
+        }
+      }
+    }
+    await savePlan(this.actor, this.plan);
+  }
+
+  async _backfillFeatSpellcastingMetadata() {
+    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+    for (const levelData of Object.values(this.plan.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.spellcastingMetadataVersion === FEAT_SPELLCASTING_VERSION) continue;
+          if (!feat.uuid) {
+            feat.spellcastingMetadata = null;
+            feat.spellcastingMetadataVersion = FEAT_SPELLCASTING_VERSION;
+            continue;
+          }
+          try {
+            const doc = await fromUuid(feat.uuid);
+            feat.spellcastingMetadata = doc ? extractFeatSpellcastingMetadata({
+              ...doc,
+              aliases: Array.isArray(feat.aliases) ? feat.aliases : [],
+            }) : null;
+          } catch {
+            feat.spellcastingMetadata = null;
+          }
+          feat.spellcastingMetadataVersion = FEAT_SPELLCASTING_VERSION;
         }
       }
     }
@@ -607,6 +647,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         aliases: getDedicationAliasesFromDescription(feat),
         aliasesResolved: true,
         aliasesVersion: FEAT_ALIASES_VERSION,
+        spellcastingMetadata: extractFeatSpellcastingMetadata(feat),
+        spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
         skillRules: extractDirectFeatSkillRules(feat),
         skillRulesResolved: false,
         skillRulesVersion: 0,
@@ -705,6 +747,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._needsFeatAliasesBackfill) {
       this._needsFeatAliasesBackfill = false;
       await this._backfillFeatAliases();
+    }
+    if (this._needsSpellcastingMetadataBackfill) {
+      this._needsSpellcastingMetadataBackfill = false;
+      await this._backfillFeatSpellcastingMetadata();
     }
     this._buildStateCache = new Map();
     const options = this._getVariantOptions();
@@ -1064,17 +1110,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _openSpellPicker(rank, entryType = 'primary') {
     const classDef = ClassRegistry.get(this.plan.classSlug);
-    if (!classDef?.spellcasting) return;
+    const isArchetypeEntry = typeof entryType === 'string' && entryType.startsWith('archetype:');
+    if (!classDef?.spellcasting && !isArchetypeEntry) return;
 
     const availableTraditions = this._getAvailableSpellPickerTraditions(classDef, entryType);
     const tradition = availableTraditions.length === 1 ? availableTraditions[0] : 'any';
-    const resolvedEntryType = entryType === 'primary' && classDef.spellcasting.type === 'dual' ? 'animist' : entryType;
+    const resolvedEntryType = entryType === 'primary' && classDef?.spellcasting?.type === 'dual' ? 'animist' : entryType;
     const pickerRank = rank;
     const levelData = getLevelData(this.plan, this.selectedLevel) ?? {};
     const sectionSpells = (levelData.spells ?? []).filter((spell) => (spell.entryType ?? 'primary') === resolvedEntryType);
     const excludedUuids = sectionSpells.map((spell) => spell.uuid);
     const excludedSelections = sectionSpells.map((spell) => ({ uuid: spell.uuid, rank: spell.rank }));
-    const currentSlots = classDef.spellcasting.slots?.[this.selectedLevel] ?? {};
+    const currentSlots = classDef?.spellcasting?.slots?.[this.selectedLevel] ?? {};
     const maxRank = rank === -1 ? this._getHighestRank(currentSlots) : null;
     const currentRankSelections = sectionSpells.filter((spell) => !this._isPlannedCantripSpell(spell));
     const currentCantripSelections = sectionSpells.filter((spell) => this._isPlannedCantripSpell(spell));
@@ -1084,6 +1131,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (maxSelect != null && maxSelect <= 0) return;
 
     import('../spell-picker.js').then(({ SpellPicker }) => {
+      const dedicationLimits = typeof resolvedEntryType === 'string' && resolvedEntryType.startsWith('archetype:')
+        ? getDedicationSelectionLimitsForPlanner(this, this.selectedLevel, resolvedEntryType)
+        : null;
       const picker = new SpellPicker(
         this.actor,
         tradition,
@@ -1118,6 +1168,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             ...(availableTraditions.length > 0 ? {
               selectedTraditions: availableTraditions,
               lockedTraditions: availableTraditions,
+            } : {}),
+            ...(Array.isArray(rank > 0 ? dedicationLimits?.rankRaritySelections?.[rank] : dedicationLimits?.selectedRarities) ? {
+              selectedRarities: rank > 0 ? dedicationLimits.rankRaritySelections[rank] : dedicationLimits.selectedRarities,
+            } : {}),
+            ...(Array.isArray(rank > 0 ? dedicationLimits?.rankLockedRarities?.[rank] : dedicationLimits?.lockedRarities) ? {
+              lockedRarities: rank > 0 ? dedicationLimits.rankLockedRarities[rank] : dedicationLimits.lockedRarities,
             } : {}),
           },
         },
@@ -1159,7 +1215,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       if (rank === 0) return Math.max(0, Number(limits.cantripSelectionCount ?? 0) - currentCantripSelections.length);
       if (rank > 0) {
         const currentAtRank = currentRankSelections.filter((spell) => Number(spell.rank ?? spell.baseRank ?? -1) === rank).length;
-        return Math.max(0, 1 - currentAtRank);
+        const requiredAtRank = Number(limits.rankSelectionCounts?.[rank] ?? 0);
+        return Math.max(0, requiredAtRank - currentAtRank);
       }
       return null;
     }
@@ -1418,6 +1475,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           aliases,
           aliasesResolved: true,
           aliasesVersion: FEAT_ALIASES_VERSION,
+          spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
+          spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
           skillRules,
           skillRulesResolved: true,
           skillRulesVersion: FEAT_SKILL_RULES_VERSION,
@@ -1472,6 +1531,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             aliases,
             aliasesResolved: true,
             aliasesVersion: FEAT_ALIASES_VERSION,
+            spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
+            spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
             skillRules,
             skillRulesResolved: true,
             skillRulesVersion: FEAT_SKILL_RULES_VERSION,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.1
+
+### Level Planner
+
+- **Archetype spellcasting is now derived from feat data instead of one-off slug mappings** - Spell-giving dedications now persist parsed spellcasting metadata onto planned feats, so planner display, validation, and apply all use the same generic archetype spellcasting definition instead of relying on hardcoded feat-specific overrides
+- **Direct archetype cantrip grants now honor feat-authored counts and rarity limits** - Dedications that grant specific cantrip picks, such as `Spellshot Dedication`, now derive their cantrip selection counts and rarity restrictions from the feat text and carry those limits consistently through the planner and apply flow
+- **Direct archetype ranked-spell grants now create the correct planned spell requirements** - Dedications that grant ranked spells of your choice on the dedication itself now expose the proper per-rank spell-pick counts in the planner instead of assuming all archetype rank picks come only from later `Basic/Expert/Master Spellcasting` feats
+
 ## 3.0.0
 
 ### Compatibility

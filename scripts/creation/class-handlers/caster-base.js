@@ -3,6 +3,7 @@ import { BaseClassHandler } from './base.js';
 import { resolveSubclassSpells } from '../../data/subclass-spells.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { capitalize } from '../../utils/pf2e-api.js';
+import { classUsesPhysicalSpellbook, ensureActorHasSpellbook } from '../../utils/spellcasting-support.js';
 
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
@@ -179,6 +180,10 @@ export class CasterBaseHandler extends BaseClassHandler {
     }
 
     if (!entry) return;
+
+    if (classUsesPhysicalSpellbook(classDef?.slug)) {
+      await ensureActorHasSpellbook(actor);
+    }
 
     const actorLevel = Number(actor.system?.details?.level?.value ?? 1);
     const currentSlots = classDef?.spellcasting?.slots?.[actorLevel] ?? classDef?.spellcasting?.slots?.[1] ?? null;
