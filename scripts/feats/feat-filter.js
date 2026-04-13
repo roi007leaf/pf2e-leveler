@@ -51,6 +51,8 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
       return (queries.some((q) => traits.includes(q)) && !traits.includes('archetype'))
         || (includeDedications && (isAdditionalArchetypeFeat || hasDedicationPrerequisite) && !isSkillFeat)
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
+    case 'dualClass':
+      return queries.some((q) => traits.includes(q)) && !traits.includes('archetype');
     case 'ancestry':
       return queries.some((q) => traits.includes(q));
     case 'skill':
@@ -264,6 +266,7 @@ function buildCategoryQuery(category, actor, buildState) {
     case 'custom':
       return '';
     case 'class':
+    case 'dualClass':
       return buildState?.class?.slug || actor?.class?.slug || '';
     case 'ancestry': {
       if (buildState?.ancestryTraits instanceof Set && buildState.ancestryTraits.size > 0) {

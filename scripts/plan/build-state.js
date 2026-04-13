@@ -1,7 +1,7 @@
 import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
-import { slugify } from '../utils/pf2e-api.js';
+import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
 import { evaluatePredicate } from '../utils/predicate.js';
 
@@ -31,11 +31,20 @@ const CLASS_SUBCLASS_TYPES = {
 
 export function computeBuildState(actor, plan, atLevel) {
   const classDef = ClassRegistry.get(plan.classSlug);
+  const dualClassSlug = getTrackedDualClassSlug(plan);
+  const dualClassDef = dualClassSlug ? ClassRegistry.get(dualClassSlug) : null;
+  const classes = computeTrackedClasses([
+    { classDef, slug: plan.classSlug },
+    { classDef: dualClassDef, slug: dualClassSlug },
+  ]);
 
   return {
     level: atLevel,
     classSlug: plan.classSlug,
-    class: computeClassState(classDef, plan.classSlug),
+    dualClassSlug,
+    class: classes[0] ?? computeClassState(classDef, plan.classSlug),
+    dualClass: classes[1] ?? null,
+    classes,
     ancestrySlug: actor?.ancestry?.slug ?? null,
     heritageSlug: actor?.heritage?.slug ?? null,
     heritageAliases: computeHeritageAliases(actor),
@@ -46,23 +55,36 @@ export function computeBuildState(actor, plan, atLevel) {
     skills: computeSkills(actor, plan, atLevel, classDef),
     languages: computeLanguages(actor),
     lores: computeLoreSkills(actor, plan, atLevel),
-    proficiencies: computeProficiencies(actor, classDef, atLevel),
+    proficiencies: computeProficiencies(actor, [classDef, dualClassDef], atLevel),
     weaponProficiencies: computeWeaponProficiencies(actor),
     equipment: computeEquipmentState(actor),
     feats: computeFeats(actor, plan, atLevel),
     featAliasSources: computeFeatAliasSources(actor, plan, atLevel),
     deity: computeDeityState(actor),
     divineFont: computeDivineFontState(actor),
-    spellcasting: computeSpellcastingState(actor, plan, atLevel, classDef),
+    spellcasting: computeSpellcastingState(actor, plan, atLevel, [classDef, dualClassDef]),
     archetypeDedications: computeArchetypeDedications(actor, plan, atLevel),
     archetypeDedicationProgress: computeArchetypeDedicationProgress(actor, plan, atLevel),
     incompleteArchetypeDedications: computeIncompleteArchetypeDedications(actor, plan, atLevel),
     canTakeNewArchetypeDedication: canTakeNewArchetypeDedication(actor, plan, atLevel),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
-    classFeatures: computeClassFeatures(actor, classDef, atLevel),
+    classFeatures: computeClassFeatures(actor, [classDef, dualClassDef], atLevel),
     senses: computeSenses(actor),
   };
+}
+
+function getTrackedDualClassSlug(plan) {
+  if (!isDualClassEnabled()) return null;
+  const dualClassSlug = String(plan?.dualClassSlug ?? '').trim().toLowerCase();
+  if (!dualClassSlug || dualClassSlug === String(plan?.classSlug ?? '').trim().toLowerCase()) return null;
+  return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
+}
+
+function computeTrackedClasses(entries) {
+  return entries
+    .filter((entry) => entry?.classDef && entry?.slug)
+    .map((entry) => computeClassState(entry.classDef, entry.slug));
 }
 
 function computeWeaponProficiencies(actor) {
@@ -91,11 +113,18 @@ function readWeaponProficiencyRank(source, key) {
 }
 
 function computeClassState(classDef, classSlug) {
+  const traditions = new Set();
+  const tradition = classDef?.spellcasting?.tradition ?? null;
+  if (typeof tradition === 'string' && tradition.length > 0 && !['bloodline', 'patron'].includes(tradition)) {
+    traditions.add(tradition);
+  }
+
   return {
     slug: classSlug ?? classDef?.slug ?? null,
     hp: classDef?.hp ?? null,
     keyAbility: classDef?.keyAbility ?? [],
     subclassType: CLASS_SUBCLASS_TYPES[classSlug ?? classDef?.slug ?? ''] ?? null,
+    traditions,
   };
 }
 
@@ -185,7 +214,8 @@ function computeDivineFontState(actor) {
   return null;
 }
 
-function computeSpellcastingState(actor, plan, atLevel, classDef) {
+function computeSpellcastingState(actor, plan, atLevel, classDefs) {
+  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
   const entries = getOwnedItems(actor).filter((item) => item?.type === 'spellcastingEntry');
   const spells = getOwnedItems(actor).filter((item) => item?.type === 'spell');
   const traditions = new Set(
@@ -196,9 +226,11 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
   const spellNames = new Set();
   const spellTraits = new Set();
 
-  const classTradition = classDef?.spellcasting?.tradition ?? null;
-  if (typeof classTradition === 'string' && !['bloodline', 'patron'].includes(classTradition)) {
-    traditions.add(classTradition);
+  for (const classDef of trackedClassDefs) {
+    const classTradition = classDef?.spellcasting?.tradition ?? null;
+    if (typeof classTradition === 'string' && !['bloodline', 'patron'].includes(classTradition)) {
+      traditions.add(classTradition);
+    }
   }
 
   for (const tradition of collectPlannedDedicationTraditions(actor, plan, atLevel)) {
@@ -234,7 +266,7 @@ function computeSpellcastingState(actor, plan, atLevel, classDef) {
       const max = Number(slot.max ?? slot.value ?? 0);
       return Number.isFinite(max) && max > 0;
     });
-  }) || !!classDef?.spellcasting?.slots;
+  }) || trackedClassDefs.some((classDef) => !!classDef?.spellcasting?.slots);
 
   const focusMax = actor?.system?.resources?.focus?.max ?? 0;
 
@@ -513,7 +545,8 @@ function getPlannedFeatSkillRules(feat) {
   return [...base, ...dynamic];
 }
 
-function computeProficiencies(actor, classDef, atLevel) {
+function computeProficiencies(actor, classDefs, atLevel) {
+  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
   const proficiencies = {
     perception: actor?.system?.perception?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
     fortitude: actor?.system?.saves?.fortitude?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
@@ -522,9 +555,11 @@ function computeProficiencies(actor, classDef, atLevel) {
     classdc: actor?.system?.attributes?.classDC?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
   };
 
-  for (const feature of classDef?.classFeatures ?? []) {
-    if (feature.level > atLevel) continue;
-    applyClassFeatureProficiency(proficiencies, feature);
+  for (const classDef of trackedClassDefs) {
+    for (const feature of classDef?.classFeatures ?? []) {
+      if (feature.level > atLevel) continue;
+      applyClassFeatureProficiency(proficiencies, feature);
+    }
   }
 
   return proficiencies;
@@ -741,13 +776,16 @@ function slugifySense(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
-function computeClassFeatures(actor, classDef, atLevel) {
+function computeClassFeatures(actor, classDefs, atLevel) {
+  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
   const features = new Set();
 
-  for (const feature of classDef?.classFeatures ?? []) {
-    if (feature.level > atLevel) continue;
-    if (feature.key) features.add(feature.key);
-    if (feature.name) features.add(slugify(feature.name));
+  for (const classDef of trackedClassDefs) {
+    for (const feature of classDef?.classFeatures ?? []) {
+      if (feature.level > atLevel) continue;
+      if (feature.key) features.add(feature.key);
+      if (feature.name) features.add(slugify(feature.name));
+    }
   }
 
   for (const item of getOwnedItems(actor)) {

@@ -469,6 +469,21 @@ describe('matchClassIdentity', () => {
     );
     expect(result.met).toBe(false);
   });
+
+  test('meets subclass tradition prerequisite from the secondary dual class', () => {
+    const result = matchClassIdentity(
+      { type: 'classIdentity', subclassType: 'school', tradition: 'arcane', text: 'school that grants arcane spells' },
+      {
+        class: { subclassType: 'research field', traditions: new Set() },
+        classes: [
+          { subclassType: 'research field', traditions: new Set() },
+          { subclassType: 'school', traditions: new Set(['arcane']) },
+        ],
+        spellcasting: { traditions: new Set(['arcane']) },
+      },
+    );
+    expect(result.met).toBe(true);
+  });
 });
 
 describe('matchEquipmentState', () => {

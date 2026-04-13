@@ -55,6 +55,28 @@
       </div>
 
       <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
+        <div class="picker__toggle-list">
+          <button type="button" class="picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
+            <i class="fa-solid fa-filter"></i>
+            {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
+          </button>
+          {{#if showDedicationToggle}}
+          <button type="button" class="picker__prereq-toggle {{#if showDedications}}active{{/if}}" data-action="toggleDedications">
+            <i class="fa-solid fa-book-bookmark"></i>
+            {{localize "PF2E_LEVELER.FEAT_PICKER.DEDICATIONS"}}
+          </button>
+          {{/if}}
+          {{#if showGeneralSkillToggle}}
+          <button type="button" class="picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+            {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
+          </button>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
         <select data-action="sortFeats" class="picker__select">
           <option value="LEVEL_DESC" {{#if (eq sortMethod "LEVEL_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
@@ -131,22 +153,6 @@
             {{this.label}}
           </button>
           {{/each}}
-        </div>
-      </div>
-
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
-        <div class="picker__toggle-list">
-          <button type="button" class="picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
-            <i class="fa-solid fa-filter"></i>
-            {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
-          </button>
-          {{#if showGeneralSkillToggle}}
-          <button type="button" class="picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-            {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
-          </button>
-          {{/if}}
         </div>
       </div>
 
@@ -227,11 +233,11 @@
             <div class="prereq-tags">
               {{#each this.prereqResults}}
               {{#if (eq this.met true)}}
-                <span class="tag tag--success" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-check"></i> {{titleCase this.text}}</span>
+                <span class="tag tag--success" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-check"></i> {{{this.displayHtml}}}</span>
               {{else if (eq this.met false)}}
-                <span class="tag tag--error" data-tooltip="{{titleCase this.text}}"><i class="fa-solid fa-xmark"></i> {{titleCase this.text}}</span>
+                <span class="tag tag--error" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-xmark"></i> {{{this.displayHtml}}}</span>
               {{else}}
-                <span class="tag tag--muted" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}"><i class="fa-solid fa-question"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED"}}: {{titleCase this.text}}</span>
+                <span class="tag tag--muted" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}"><i class="fa-solid fa-question"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED"}}: {{{this.displayHtml}}}</span>
               {{/if}}
               {{/each}}
             </div>

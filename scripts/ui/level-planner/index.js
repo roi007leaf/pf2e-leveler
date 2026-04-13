@@ -290,6 +290,16 @@ const MANUAL_SPELL_FEATS = new Set([
   'masterful-warden',
 ]);
 
+function buildClassStateForSlug(classSlug) {
+  const classDef = ClassRegistry.get(classSlug);
+  return {
+    slug: classSlug ?? classDef?.slug ?? null,
+    hp: classDef?.hp ?? null,
+    keyAbility: classDef?.keyAbility ?? [],
+    subclassType: null,
+  };
+}
+
 export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, options = {}) {
     super();
@@ -335,6 +345,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const options = this._getVariantOptions();
     const actorLevel = Number(this.actor?.system?.details?.level?.value ?? 1);
     let changed = false;
+
+    if (!Object.hasOwn(plan, 'dualClassSlug')) {
+      plan.dualClassSlug = null;
+      changed = true;
+    }
 
     // Migrate per-level apparitions (old format) to plan-level cumulative list
     if (!plan.apparitions && classDef.apparitions) {
@@ -773,6 +788,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       unsupportedClass,
       actorClassName,
       selectedLevel: this.selectedLevel,
+      dualClassEnabled: options.dualClass,
+      dualClassOptions: this._buildDualClassOptions(),
+      selectedDualClassSlug: this.plan?.dualClassSlug ?? '',
       sidebarLevels: this._buildSidebarLevels(classDef, options),
       availableClasses: ClassRegistry.getAll(),
       sequentialMode: isSequential,
@@ -1443,6 +1461,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   async _openFeatPicker(category, level) {
     const categoryMap = {
       classFeats: 'class',
+      dualClassFeats: 'dualClass',
       skillFeats: 'skill',
       generalFeats: 'general',
       ancestryFeats: 'ancestry',
@@ -1452,14 +1471,21 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     const buildState = computeBuildState(this.actor, this.plan, level);
+    const pickerBuildState = category === 'dualClassFeats'
+      ? this._buildDualClassPickerState(buildState)
+      : buildState;
+    if (category === 'dualClassFeats' && !pickerBuildState) {
+      ui.notifications?.warn?.(game.i18n.localize('PF2E_LEVELER.NOTIFICATIONS.DUAL_CLASS_REQUIRED'));
+      return;
+    }
     const pickerCategory = categoryMap[category] ?? 'class';
-    const preset = await this._buildFeatPickerPreset(category, level, buildState);
+    const preset = await this._buildFeatPickerPreset(category, level, pickerBuildState ?? buildState);
 
     const picker = new FeatPicker(
       this.actor,
       pickerCategory,
       level,
-      buildState,
+      pickerBuildState ?? buildState,
       async (feat) => {
         const slug = feat.slug ?? feat.uuid ?? null;
         const skillRules = await extractFeatSkillRules(feat);
@@ -1579,6 +1605,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           maxLevel: level,
         };
       }
+      case 'dualClassFeats':
+        return {
+          selectedFeatTypes: ['class'],
+          lockedFeatTypes: ['class'],
+          maxLevel: level,
+        };
       case 'skillFeats':
         return {
           selectedFeatTypes: ['skill'],
@@ -1646,6 +1678,44 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     else this._customPlanOpenLevels.add(level);
     this._capturePlannerScroll();
     this.render(true);
+  }
+
+  _buildDualClassOptions() {
+    const primaryClassSlug = String(this.plan?.classSlug ?? '').toLowerCase();
+    return ClassRegistry.getAll()
+      .filter((classDef) => String(classDef?.slug ?? '').toLowerCase() !== primaryClassSlug)
+      .map((classDef) => ({
+        value: classDef.slug,
+        label: classDef.name ?? classDef.slug,
+        selected: classDef.slug === this.plan?.dualClassSlug,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  _buildDualClassPickerState(buildState) {
+    const dualClassSlug = String(this.plan?.dualClassSlug ?? '').trim().toLowerCase();
+    if (!dualClassSlug) return null;
+    if (!ClassRegistry.has(dualClassSlug)) return null;
+
+    return {
+      ...buildState,
+      classSlug: dualClassSlug,
+      class: buildClassStateForSlug(dualClassSlug),
+    };
+  }
+
+  async _setDualClassSlug(classSlug) {
+    const normalized = String(classSlug ?? '').trim().toLowerCase() || null;
+    const nextSlug = normalized && ClassRegistry.has(normalized) ? normalized : null;
+    if (this.plan.dualClassSlug === nextSlug) return;
+
+    this.plan.dualClassSlug = nextSlug;
+    for (const levelData of Object.values(this.plan.levels ?? {})) {
+      if (Array.isArray(levelData?.dualClassFeats)) {
+        levelData.dualClassFeats = [];
+      }
+    }
+    await this._savePlanAndRender();
   }
 
   _isCustomPlanOpen(level = this.selectedLevel) {

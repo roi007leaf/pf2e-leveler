@@ -545,6 +545,49 @@
   text-overflow: ellipsis;
 }
 
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-left: 3px solid transparent;
+  padding-left: 9px;
+}
+
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item.rank-bg-untrained {
+  border-left-color: var(--leveler-rank-untrained);
+}
+
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item.rank-bg-trained {
+  border-left-color: var(--leveler-rank-trained);
+}
+
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item.rank-bg-expert {
+  border-left-color: var(--leveler-rank-expert);
+}
+
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item.rank-bg-master {
+  border-left-color: var(--leveler-rank-master);
+}
+
+.pf2e-leveler .picker__trait-autocomplete li.picker__skill-autocomplete-item.rank-bg-legendary {
+  border-left-color: var(--leveler-rank-legendary);
+}
+
+.pf2e-leveler .picker__skill-autocomplete-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf2e-leveler .picker__skill-autocomplete-rank {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .pf2e-leveler .picker__trait-autocomplete li:hover,
 .pf2e-leveler .picker__trait-autocomplete li.highlighted {
   background: rgba(198, 161, 91, 0.18);

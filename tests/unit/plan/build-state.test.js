@@ -30,12 +30,35 @@ describe('computeBuildState', () => {
   beforeEach(() => {
     mockActor = createMockActor();
     plan = createPlan('alchemist');
+    global._testSettings = {};
   });
 
   test('returns basic state at level 2', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.level).toBe(2);
     expect(state.classSlug).toBe('alchemist');
+  });
+
+  test('includes the secondary class in tracked classes when dual class is enabled', () => {
+    global._testSettings = {
+      pf2e: { dualClassVariant: true },
+      'pf2e-leveler': { enableDualClassSupport: true },
+    };
+    plan.dualClassSlug = 'fighter';
+    const state = computeBuildState(mockActor, plan, 2);
+    expect(state.dualClassSlug).toBe('fighter');
+    expect(state.dualClass?.slug).toBe('fighter');
+    expect(state.classes.map((entry) => entry.slug)).toEqual(['alchemist', 'fighter']);
+  });
+
+  test('uses the best proficiency progression across primary and dual classes', () => {
+    global._testSettings = {
+      pf2e: { dualClassVariant: true },
+      'pf2e-leveler': { enableDualClassSupport: true },
+    };
+    plan.dualClassSlug = 'fighter';
+    const state = computeBuildState(mockActor, plan, 7);
+    expect(state.proficiencies.perception).toBe(PROFICIENCY_RANKS.MASTER);
   });
 
   test('applies ability boosts', () => {

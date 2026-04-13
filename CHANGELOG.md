@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.1.0
+
+### Feat Picker
+
+- **Trait and skill filters now open browseable dropdowns on focus** - The feat picker now shows available traits and skills immediately when those filter fields are focused, instead of requiring typed input before suggestions appear
+- **Skill filter suggestions now show current proficiency with mastery colors** - Skill autocomplete entries now display the actor's current proficiency rank using the same rank color scheme already used elsewhere in Leveler, making it easier to filter against trained, expert, master, and legendary skills at a glance
+- **`Eligible Only` can now be enabled by default** - A new client setting lets you open feat pickers with the `Eligible Only` filter already active, so unmet options stay hidden without having to toggle that filter every time
+- **The `Options` section now appears directly under trait filters** - Feat picker filter layout was adjusted so the most commonly used toggles sit closer to the trait controls instead of lower in the sidebar
+- **Dedication toggle state now matches the actual filtered results on first render** - Class and archetype feat pickers no longer show the `Dedications` button as off while still rendering dedication feats in the results list
+- **Prerequisite rank words now use mastery colors inside feat tags** - Proficiency requirements such as `Trained`, `Expert`, `Master`, and `Legendary` are now colorized inside prerequisite tags to match PF2E Leveler's existing mastery color language
+
+### Compendium Manager
+
+- **Pack assignments can now be auto-filled in one click** - The `Assign Packs` view now includes an `Apply Auto` action that fills draft category assignments from Leveler's auto-detected compendium matches instead of requiring each category to be assigned manually
+- **`Apply Auto` now confirms before overwriting draft assignments** - Using the auto-assignment action now prompts for confirmation first so existing draft pack selections are not replaced accidentally
+
 ## 3.0.1
 
 ### Level Planner

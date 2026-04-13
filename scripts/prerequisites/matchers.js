@@ -115,18 +115,23 @@ export function matchProficiency(parsed, buildState) {
 }
 
 export function matchClassHp(parsed, buildState) {
-  const classHp = buildState.class?.hp;
   const conModifier = buildState.attributes?.con ?? 0;
+  const classHps = getTrackedClasses(buildState)
+    .map((entry) => entry?.hp)
+    .filter((hp) => Number.isFinite(hp));
 
-  if (!Number.isFinite(classHp)) {
+  if (classHps.length === 0) {
     return { met: null, text: parsed.text };
   }
 
-  const currentValue = parsed.includesConModifier ? classHp + conModifier : classHp;
-  const threshold = parsed.includesConModifier ? parsed.maxHp + conModifier : parsed.maxHp;
-
   return {
-    met: parsed.comparator === 'lte' ? currentValue <= threshold : null,
+    met: parsed.comparator === 'lte'
+      ? classHps.some((classHp) => {
+        const currentValue = parsed.includesConModifier ? classHp + conModifier : classHp;
+        const threshold = parsed.includesConModifier ? parsed.maxHp + conModifier : parsed.maxHp;
+        return currentValue <= threshold;
+      })
+      : null,
     text: parsed.text,
   };
 }
@@ -203,23 +208,29 @@ export function matchSpellcastingState(parsed, buildState) {
 }
 
 export function matchClassIdentity(parsed, buildState) {
-  const subclassType = normalizeText(buildState.class?.subclassType);
   const expectedSubclassType = normalizeText(parsed.subclassType);
   const traditions = buildState.spellcasting?.traditions ?? new Set();
+  const trackedClasses = getTrackedClasses(buildState);
 
-  if (expectedSubclassType && subclassType && expectedSubclassType !== subclassType) {
+  if (expectedSubclassType && trackedClasses.length > 0 && !trackedClasses.some((entry) => normalizeText(entry?.subclassType) === expectedSubclassType)) {
     return { met: false, text: parsed.text };
   }
 
   if (parsed.tradition) {
+    const perClassTraditionMatch = trackedClasses.some((entry) => {
+      const subclassType = normalizeText(entry?.subclassType);
+      const classTraditions = entry?.traditions instanceof Set ? entry.traditions : new Set();
+      if (expectedSubclassType && subclassType !== expectedSubclassType) return false;
+      return classTraditions.has(parsed.tradition);
+    });
     return {
-      met: traditions.has(parsed.tradition),
+      met: perClassTraditionMatch || traditions.has(parsed.tradition),
       text: parsed.text,
     };
   }
 
   return {
-    met: expectedSubclassType ? expectedSubclassType === subclassType : null,
+    met: expectedSubclassType ? trackedClasses.some((entry) => normalizeText(entry?.subclassType) === expectedSubclassType) : null,
     text: parsed.text,
   };
 }
@@ -237,9 +248,9 @@ export function matchSense(parsed, buildState) {
 }
 
 export function matchSubclassSpell(parsed, buildState) {
-  const subclassType = normalizeText(buildState.class?.subclassType);
   const expectedType = normalizeText(parsed.subclassType);
-  if (!expectedType || subclassType !== expectedType) {
+  const trackedClasses = getTrackedClasses(buildState);
+  if (!expectedType || !trackedClasses.some((entry) => normalizeText(entry?.subclassType) === expectedType)) {
     return { met: false, text: parsed.text };
   }
   return {
@@ -319,6 +330,13 @@ function normalizeWeaponFamily(value) {
   return String(value ?? '')
     .trim()
     .toLowerCase();
+}
+
+function getTrackedClasses(buildState) {
+  if (Array.isArray(buildState?.classes) && buildState.classes.length > 0) {
+    return buildState.classes;
+  }
+  return buildState?.class ? [buildState.class] : [];
 }
 
 function getWeaponFamilyAliases(family) {

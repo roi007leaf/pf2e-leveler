@@ -21,6 +21,8 @@
       "CONFIRM_CLEAR": "Are you sure you want to clear this plan? All selections will be lost.",
       "CONFIRM_CLEAR_LEVEL": "Are you sure you want to clear level {level}? All selections on this level will be lost.",
       "SELECT_CLASS": "Select Class",
+      "SECOND_CLASS": "Second Class",
+      "SELECT_SECOND_CLASS": "Select Second Class",
       "SELECT_SUBCLASS": "Select Subclass",
       "APPLY": "Apply Selections",
       "CONFIRM_APPLY_TITLE": "Apply Level-Up Plan",
@@ -68,6 +70,7 @@
     },
     "SECTIONS": {
       "CLASS_FEATURES": "Class Features",
+      "DUAL_CLASS": "Dual Class",
       "ABILITY_BOOSTS": "Ability Boosts",
       "CLASS_FEAT": "Class Feat",
       "SKILL_FEAT": "Skill Feat",
@@ -483,7 +486,8 @@
       "INVALID_BOOST_COUNT": "Please select exactly {count} ability boosts",
       "MISSING_CLASS": "Character must have a class assigned",
       "LEVEL_UP_START": "{actorName} is leveling up to {targetLevel}...",
-      "LEVEL_UP_COMPLETE": "{actorName} level-up complete!"
+      "LEVEL_UP_COMPLETE": "{actorName} level-up complete!",
+      "DUAL_CLASS_REQUIRED": "Select a second class before choosing dual class feats."
     },
     "SETTINGS": {
       "SHOW_BUTTON": {
@@ -537,6 +541,10 @@
         "ALPHA_ASC": "Alphabetical (A-Z)",
         "ALPHA_DESC": "Alphabetical (Z-A)"
       },
+      "DEFAULT_ELIGIBLE_ONLY": {
+        "NAME": "Default Feat Picker to Eligible Only",
+        "HINT": "Open feat pickers with the Eligible Only filter enabled by default."
+      },
       "STARTING_WEALTH": {
         "MODE_NAME": "Starting Wealth Mode",
         "MODE_HINT": "How starting equipment budget is determined. Items + Currency uses Table 10-10 with permanent item slots and a currency allowance. Lump Sum uses the flat gold value from Table 10-10. Custom uses a manual gold limit.",
@@ -554,6 +562,10 @@
       "ANCESTRAL_PARAGON": {
         "NAME": "Ancestry Paragon Variant Rule",
         "HINT": "Enable the Ancestry Paragon variant rule. Characters start with 2 ancestry feats and gain an additional ancestry feat at every odd level (3, 5, 7, 9, 11, 13, 15, 17, 19). This is separate from the Ancestry Paragon general feat."
+      },
+      "DUAL_CLASS_SUPPORT": {
+        "NAME": "Enable Dual Class Support",
+        "HINT": "Enable PF2E Leveler's dual class planner support when the PF2E dual class variant rule is active."
       },
       "ADDITIONAL_COMPENDIUMS": {
         "NAME": "Additional Feat Compendiums",
@@ -575,6 +587,10 @@
         "PACK_ASSIGNMENTS_VIEW": "Assign Packs",
         "PACK_ASSIGNMENTS_TITLE": "Pack Category Assignments",
         "PACK_ASSIGNMENTS_HINT": "Use this view to decide exactly which compendiums feed each PF2E content category. A single compendium can belong to multiple categories. Built-in defaults stay locked, and auto-detected matches are only a starting suggestion.",
+        "APPLY_AUTO_ASSIGNMENTS": "Apply Auto",
+        "APPLY_AUTO_CONFIRM_TITLE": "Apply Auto Assignments",
+        "APPLY_AUTO_CONFIRM_BODY": "Replace the current draft pack assignments with the auto-detected category matches?",
+        "APPLY_AUTO_CONFIRM_YES": "Apply Auto",
         "PACK_SEARCH_PLACEHOLDER": "Search compendiums or categories...",
         "SOURCE_COLUMN": "Compendium",
         "CATEGORY_COLUMN": "Categories",

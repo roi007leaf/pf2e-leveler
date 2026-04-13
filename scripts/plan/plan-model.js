@@ -11,6 +11,7 @@ export function createPlan(classSlug, options = {}) {
   return {
     version: CURRENT_VERSION,
     classSlug,
+    dualClassSlug: options.dualClassSlug ?? null,
     levels: buildEmptyLevels(classDef, options),
   };
 }

@@ -81,6 +81,14 @@
               data-action="search-pack-assignments"
               {{#if ../isSaving}}disabled{{/if}}
             >
+            <button
+              type="button"
+              class="compendium-manager__button compendium-manager__button--ghost compendium-manager__button--small"
+              data-action="apply-auto-assignments"
+              {{#if ../isSaving}}disabled{{/if}}
+            >
+              {{applyAutoAssignmentsLabel}}
+            </button>
           </div>
         </header>
 

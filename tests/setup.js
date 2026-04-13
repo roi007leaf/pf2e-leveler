@@ -16,6 +16,7 @@ global.game = {
           autoApplyOnLevelUp: true,
           showPrerequisites: true,
           enforcePrerequisites: true,
+          enableDualClassSupport: true,
           hideUncommonFeats: false,
           featSortMethod: 'LEVEL_DESC',
           customCompendiums: {},

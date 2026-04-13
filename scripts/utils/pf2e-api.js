@@ -1,3 +1,5 @@
+import { MODULE_ID } from '../constants.js';
+
 export function isFreeArchetypeEnabled() {
   return game.settings.get('pf2e', 'freeArchetypeVariant');
 }
@@ -23,7 +25,11 @@ export function isStaminaEnabled() {
 }
 
 export function isDualClassEnabled() {
-  try { return game.settings.get('pf2e', 'dualClassVariant'); } catch { return false; }
+  try {
+    return game.settings.get('pf2e', 'dualClassVariant') && game.settings.get(MODULE_ID, 'enableDualClassSupport');
+  } catch {
+    return false;
+  }
 }
 
 export function isAncestralParagonEnabled() {

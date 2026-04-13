@@ -59,6 +59,24 @@
           </button>
         </div>
 
+        {{#if dualClassEnabled}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-users"></i>
+            {{localize "PF2E_LEVELER.SECTIONS.DUAL_CLASS"}}
+          </div>
+          <div class="level-section__body">
+            <label class="feat-picker__label" for="pf2e-leveler-dual-class-select">{{localize "PF2E_LEVELER.UI.SECOND_CLASS"}}</label>
+            <select id="pf2e-leveler-dual-class-select" class="feat-picker__select" data-action="selectDualClass">
+              <option value="">{{localize "PF2E_LEVELER.UI.SELECT_SECOND_CLASS"}}</option>
+              {{#each dualClassOptions}}
+              <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+          </div>
+        </div>
+        {{/if}}
+
         {{#if classFeatures.length}}
         <div class="level-section">
           <div class="section-header">

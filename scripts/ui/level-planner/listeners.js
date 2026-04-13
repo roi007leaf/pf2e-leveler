@@ -51,6 +51,10 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="selectDualClass"]')?.addEventListener('change', (event) => {
+    planner._setDualClassSlug(event.currentTarget.value);
+  });
+
   el.querySelectorAll('[data-action="selectAdoptedAncestry"]').forEach((button) => {
     button.addEventListener('click', () => {
       const levelData = getLevelData(planner.plan, planner.selectedLevel);

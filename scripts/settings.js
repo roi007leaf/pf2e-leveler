@@ -131,6 +131,15 @@ export function registerSettings() {
     },
   });
 
+  game.settings.register(MODULE_ID, 'defaultEligibleOnly', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.DEFAULT_ELIGIBLE_ONLY.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.DEFAULT_ELIGIBLE_ONLY.HINT'),
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   game.settings.register(MODULE_ID, 'startingWealthMode', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_HINT'),
@@ -162,6 +171,16 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: false,
+    requiresReload: true,
+  });
+
+  game.settings.register(MODULE_ID, 'enableDualClassSupport', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.DUAL_CLASS_SUPPORT.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.DUAL_CLASS_SUPPORT.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
     requiresReload: true,
   });
 

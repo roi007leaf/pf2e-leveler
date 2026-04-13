@@ -26,5 +26,6 @@ export function importPlan(jsonString) {
     throw new Error('Invalid plan format');
   }
   plan.apparitions ??= [];
+  plan.dualClassSlug ??= null;
   return plan;
 }

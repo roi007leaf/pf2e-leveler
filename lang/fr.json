@@ -501,6 +501,10 @@
         "ALPHA_ASC": "Alphabetique (A-Z)",
         "ALPHA_DESC": "Alphabetique (Z-A)"
       },
+      "DEFAULT_ELIGIBLE_ONLY": {
+        "NAME": "Ouvrir les selecteurs de dons sur Eligible seulement",
+        "HINT": "Ouvre les selecteurs de dons avec le filtre Eligible seulement active par defaut."
+      },
       "STARTING_WEALTH": {
         "MODE_NAME": "Mode de richesse de depart",
         "MODE_HINT": "Comment le budget d'equipement de depart est determine. Objets + Monnaie utilise la Table 10-10 avec des emplacements d'objets permanents et une allocation de monnaie. Somme forfaitaire utilise la valeur en or de la Table 10-10. Personnalise utilise une limite d'or manuelle.",
@@ -539,6 +543,10 @@
         "PACK_ASSIGNMENTS_VIEW": "Assigner les packs",
         "PACK_ASSIGNMENTS_TITLE": "Affectation des categories par pack",
         "PACK_ASSIGNMENTS_HINT": "Utilisez cette vue pour definir precisement quels compendiums alimentent chaque categorie de contenu PF2E. Un meme compendium peut appartenir a plusieurs categories. Les compendiums par defaut restent verrouilles, et les correspondances detectees automatiquement ne sont qu'une suggestion de depart.",
+        "APPLY_AUTO_ASSIGNMENTS": "Appliquer Auto",
+        "APPLY_AUTO_CONFIRM_TITLE": "Appliquer les affectations auto",
+        "APPLY_AUTO_CONFIRM_BODY": "Remplacer les affectations de packs en brouillon actuelles par les correspondances detectees automatiquement ?",
+        "APPLY_AUTO_CONFIRM_YES": "Appliquer Auto",
         "PACK_SEARCH_PLACEHOLDER": "Rechercher des compendiums ou des categories...",
         "SOURCE_COLUMN": "Compendium",
         "CATEGORY_COLUMN": "Categories",

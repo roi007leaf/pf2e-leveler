@@ -48,6 +48,18 @@ describe('filterFeatsByCategory', () => {
     ]);
   });
 
+  test('filters dual class feats by the selected secondary class and excludes dedications', () => {
+    const dualClassFeats = [
+      makeFeat('Reactive Shield', 1, ['fighter']),
+      makeFeat('Fighter Dedication', 2, ['archetype', 'dedication']),
+      makeFeat('Quick Bomber', 1, ['alchemist']),
+    ];
+    const result = filterFeatsByCategory(dualClassFeats, 'dualClass', 'fighter', 5);
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Reactive Shield' }),
+    ]);
+  });
+
   test('class feat filtering includes additional archetype feats unlocked by an owned dedication', async () => {
     const dedication = {
       ...makeFeat('Archaeologist Dedication', 2, ['archetype', 'dedication']),
@@ -459,6 +471,24 @@ describe('filterFeatsByCategory', () => {
     expect(result).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'Elven Lore' }),
     ]));
+  });
+
+  test('getFeatsForSelection uses the secondary class for dual class feat queries', () => {
+    const feats = [
+      makeFeat('Reactive Shield', 1, ['fighter']),
+      makeFeat('Alchemical Familiar', 1, ['alchemist']),
+      makeFeat('Fighter Dedication', 2, ['archetype', 'dedication']),
+    ];
+
+    const result = getFeatsForSelection(feats, 'dualClass', { class: { slug: 'alchemist' } }, 2, {
+      buildState: {
+        class: { slug: 'fighter' },
+      },
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({ name: 'Reactive Shield' }),
+    ]);
   });
 });
 
