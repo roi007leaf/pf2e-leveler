@@ -66,7 +66,7 @@
   justify-content: center;
   padding: 24px;
   overflow: auto;
-    background: rgba(10, 12, 16, 0.66);
+  background: rgba(10, 12, 16, 0.66);
   backdrop-filter: blur(2px);
 }
 
@@ -76,8 +76,8 @@
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-      radial-gradient(circle at top left, rgba(198, 161, 91, 0.16), transparent 40%),
-      linear-gradient(180deg, rgba(33, 37, 43, 0.98), rgba(20, 23, 29, 0.98));
+    radial-gradient(circle at top left, rgba(198, 161, 91, 0.16), transparent 40%),
+    linear-gradient(180deg, rgba(33, 37, 43, 0.98), rgba(20, 23, 29, 0.98));
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
   overflow: hidden;
 }
@@ -189,7 +189,7 @@
   padding: 0;
 }
 
-#pf2e-leveler-wizard .window-content > [data-application-part="wizard"] {
+#pf2e-leveler-wizard .window-content > [data-application-part='wizard'] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -198,7 +198,7 @@
   min-height: 0;
 }
 
-#pf2e-leveler-wizard [data-application-part="wizard"].pf2e-leveler.character-wizard {
+#pf2e-leveler-wizard [data-application-part='wizard'].pf2e-leveler.character-wizard {
   position: absolute;
   inset: 0;
 }
@@ -1420,6 +1420,7 @@
   background: var(--leveler-bg-surface);
   border: 1px solid var(--leveler-border);
   cursor: pointer;
+  position: relative;
   transition: all 0.15s ease;
 }
 
@@ -1428,13 +1429,64 @@
   border-color: var(--leveler-accent);
 }
 
+.pf2e-leveler .boost-cell--option.boost-cell--flaw-option {
+  background: rgba(198, 40, 40, 0.1);
+  border-color: rgba(198, 40, 40, 0.35);
+}
+
+.pf2e-leveler .boost-cell--option.boost-cell--flaw-option:hover {
+  background: rgba(198, 40, 40, 0.16);
+  border-color: var(--leveler-error);
+}
+
+.pf2e-leveler .boost-cell--option.boost-cell--flaw-option::before {
+  content: '-';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--leveler-error);
+  font-size: 0.75rem;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+
 .pf2e-leveler .boost-cell--option.boost-cell--selected {
   background: rgba(46, 125, 50, 0.3);
   border-color: var(--leveler-success);
 }
 
+.pf2e-leveler .boost-cell--option.boost-cell--selected.boost-cell--flaw-option {
+  background: linear-gradient(
+    90deg,
+    rgba(198, 40, 40, 0.16) 0 50%,
+    rgba(46, 125, 50, 0.3) 50% 100%
+  );
+}
+
+.pf2e-leveler .boost-cell--option.boost-cell--selected.boost-cell--flaw-option::before,
+.pf2e-leveler .boost-cell--option.boost-cell--selected.boost-cell--flaw-option::after {
+  inset: auto;
+  top: 50%;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.pf2e-leveler .boost-cell--option.boost-cell--selected.boost-cell--flaw-option::before {
+  left: calc(50% - 0.7rem);
+}
+
+.pf2e-leveler .boost-cell--option.boost-cell--selected.boost-cell--flaw-option::after {
+  left: calc(50% + 0.1rem);
+  display: block;
+}
+
 .pf2e-leveler .boost-cell--selected::after {
   content: '+';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--leveler-success);
 }
 
@@ -1496,8 +1548,12 @@
   z-index: 5;
   padding: 12px var(--leveler-spacing-lg) var(--leveler-spacing-lg);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(20, 23, 29, 0), rgba(20, 23, 29, 0.92) 22%, rgba(20, 23, 29, 0.98));
+  background: linear-gradient(
+    180deg,
+    rgba(20, 23, 29, 0),
+    rgba(20, 23, 29, 0.92) 22%,
+    rgba(20, 23, 29, 0.98)
+  );
 }
 
 .pf2e-leveler .wizard-nav__spacer {

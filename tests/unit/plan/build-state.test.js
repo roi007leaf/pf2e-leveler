@@ -4,7 +4,11 @@ import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { GUARDIAN } from '../../../scripts/classes/guardian.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
-import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
+import {
+  MIXED_ANCESTRY_CHOICE_FLAG,
+  MIXED_ANCESTRY_UUID,
+  PROFICIENCY_RANKS,
+} from '../../../scripts/constants.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
@@ -232,9 +236,13 @@ describe('computeBuildState', () => {
   });
 
   test('includes custom feats, custom skill increases, and custom spells in build state awareness', () => {
-    plan.levels[2].customFeats = [{ uuid: 'z', name: 'Secret Technique', slug: 'secret-technique' }];
+    plan.levels[2].customFeats = [
+      { uuid: 'z', name: 'Secret Technique', slug: 'secret-technique' },
+    ];
     plan.levels[2].customSkillIncreases = [{ skill: 'athletics', toRank: 2 }];
-    plan.levels[2].customSpells = [{ uuid: 'spell-z', name: 'Mystic Bolt', slug: 'mystic-bolt', traits: ['evocation'] }];
+    plan.levels[2].customSpells = [
+      { uuid: 'spell-z', name: 'Mystic Bolt', slug: 'mystic-bolt', traits: ['evocation'] },
+    ];
 
     const state = computeBuildState(mockActor, plan, 2);
 
@@ -261,14 +269,16 @@ describe('computeBuildState', () => {
   });
 
   test('collects planned feat choice aliases for prerequisite checks', () => {
-    plan.levels[2].classFeats = [{
-      uuid: 'feat-order-explorer',
-      slug: 'order-explorer',
-      name: 'Order Explorer',
-      choices: {
-        druidicOrder: 'wave-order',
+    plan.levels[2].classFeats = [
+      {
+        uuid: 'feat-order-explorer',
+        slug: 'order-explorer',
+        name: 'Order Explorer',
+        choices: {
+          druidicOrder: 'wave-order',
+        },
       },
-    }];
+    ];
 
     const state = computeBuildState(mockActor, plan, 6);
 
@@ -303,7 +313,8 @@ describe('computeBuildState', () => {
             category: 'classfeature',
             level: { value: 1, taken: 1 },
             description: {
-              value: '<p>You gain the @UUID[Compendium.pf2e.actionspf2e.Item.intercept-attack]{Intercept Attack} reaction.</p>',
+              value:
+                '<p>You gain the @UUID[Compendium.pf2e.actionspf2e.Item.intercept-attack]{Intercept Attack} reaction.</p>',
             },
           },
         },
@@ -349,6 +360,25 @@ describe('computeBuildState', () => {
 
     const state = computeBuildState(mockActor, plan, 1);
     expect(state.ancestryTraits.has('intelligent-weapon')).toBe(true);
+  });
+
+  test('includes ancestry item trait values when ancestry slug is missing', () => {
+    mockActor.ancestry = {
+      slug: null,
+      name: 'Person',
+      system: {
+        traits: {
+          value: ['human', 'beast-folk'],
+        },
+      },
+    };
+    mockActor.system.details.ancestry = { trait: null };
+
+    const state = computeBuildState(mockActor, plan, 1);
+
+    expect(state.ancestryTraits.has('person')).toBe(true);
+    expect(state.ancestryTraits.has('human')).toBe(true);
+    expect(state.ancestryTraits.has('beast-folk')).toBe(true);
   });
 
   test('includes focus-pool in feats when actor has focus pool', () => {
@@ -461,8 +491,12 @@ describe('computeBuildState', () => {
     };
     const fighterPlan = createPlan('fighter');
 
-    expect(computeBuildState(mockActor, fighterPlan, 11).proficiencies.classdc).toBe(PROFICIENCY_RANKS.EXPERT);
-    expect(computeBuildState(mockActor, fighterPlan, 19).proficiencies.classdc).toBe(PROFICIENCY_RANKS.LEGENDARY);
+    expect(computeBuildState(mockActor, fighterPlan, 11).proficiencies.classdc).toBe(
+      PROFICIENCY_RANKS.EXPERT,
+    );
+    expect(computeBuildState(mockActor, fighterPlan, 19).proficiencies.classdc).toBe(
+      PROFICIENCY_RANKS.LEGENDARY,
+    );
   });
 
   test('applies explicit investigator perception and reflex progression metadata', () => {
@@ -474,9 +508,15 @@ describe('computeBuildState', () => {
     };
     const investigatorPlan = createPlan('investigator');
 
-    expect(computeBuildState(mockActor, investigatorPlan, 7).proficiencies.perception).toBe(PROFICIENCY_RANKS.EXPERT);
-    expect(computeBuildState(mockActor, investigatorPlan, 13).proficiencies.perception).toBe(PROFICIENCY_RANKS.MASTER);
-    expect(computeBuildState(mockActor, investigatorPlan, 15).proficiencies.reflex).toBe(PROFICIENCY_RANKS.MASTER);
+    expect(computeBuildState(mockActor, investigatorPlan, 7).proficiencies.perception).toBe(
+      PROFICIENCY_RANKS.EXPERT,
+    );
+    expect(computeBuildState(mockActor, investigatorPlan, 13).proficiencies.perception).toBe(
+      PROFICIENCY_RANKS.MASTER,
+    );
+    expect(computeBuildState(mockActor, investigatorPlan, 15).proficiencies.reflex).toBe(
+      PROFICIENCY_RANKS.MASTER,
+    );
   });
 
   test('collects weapon proficiency categories from actor data', () => {
@@ -782,7 +822,9 @@ describe('computeBuildState', () => {
               name: 'Holistic Care',
               slug: 'holistic-care',
               traits: ['archetype', 'skill'],
-              system: { prerequisites: { value: [{ value: 'trained in Diplomacy, Treat Condition' }] } },
+              system: {
+                prerequisites: { value: [{ value: 'trained in Diplomacy, Treat Condition' }] },
+              },
             },
           ],
         },

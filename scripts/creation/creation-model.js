@@ -52,7 +52,15 @@ function clearBoostsForPrefix(data, prefix) {
 }
 
 export function setAncestry(data, item) {
-  data.ancestry = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
+  data.ancestry = item
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug ?? null,
+        traits: cloneTraitList(item),
+      }
+    : null;
   data.heritage = null;
   data.mixedAncestry = null;
   data.languages = [];
@@ -65,8 +73,19 @@ export function setAncestry(data, item) {
 }
 
 export function setHeritage(data, item) {
-  data.heritage = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
-  if ((item?.slug ?? null) !== 'mixed-ancestry' && (item?.uuid ?? null) !== 'pf2e-leveler.synthetic.heritage.mixed-ancestry') {
+  data.heritage = item
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug ?? null,
+        traits: cloneTraitList(item),
+      }
+    : null;
+  if (
+    (item?.slug ?? null) !== 'mixed-ancestry' &&
+    (item?.uuid ?? null) !== 'pf2e-leveler.synthetic.heritage.mixed-ancestry'
+  ) {
     data.mixedAncestry = null;
   }
   data.ancestryFeat = null;
@@ -78,13 +97,26 @@ export function setHeritage(data, item) {
 
 export function setMixedAncestry(data, item) {
   data.mixedAncestry = item
-    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null }
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug ?? null,
+        traits: cloneTraitList(item),
+      }
     : null;
   return data;
 }
 
+function cloneTraitList(item) {
+  const traits = Array.isArray(item?.traits) ? item.traits : item?.system?.traits?.value;
+  return Array.isArray(traits) ? [...traits] : [];
+}
+
 export function setBackground(data, item) {
-  data.background = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null } : null;
+  data.background = item
+    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug ?? null }
+    : null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   clearBoostsForPrefix(data, 'background');
@@ -94,15 +126,15 @@ export function setBackground(data, item) {
 export function setClass(data, item) {
   data.class = item
     ? {
-      uuid: item.uuid,
-      name: item.name,
-      img: item.img,
-      slug: item.slug,
-      sourcePack: item.sourcePack ?? null,
-      sourcePackage: item.sourcePackage ?? null,
-      keyAbility: Array.isArray(item.keyAbility) ? [...item.keyAbility] : null,
-      subclassTag: typeof item.subclassTag === 'string' ? item.subclassTag : null,
-    }
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        sourcePack: item.sourcePack ?? null,
+        sourcePackage: item.sourcePackage ?? null,
+        keyAbility: Array.isArray(item.keyAbility) ? [...item.keyAbility] : null,
+        subclassTag: typeof item.subclassTag === 'string' ? item.subclassTag : null,
+      }
     : null;
   data.subclass = null;
   data.implement = null;
@@ -166,15 +198,15 @@ export function toggleIkon(data, item, max = 3) {
 export function setInnovationItem(data, item) {
   data.innovationItem = item
     ? {
-      uuid: item.uuid,
-      name: item.name,
-      img: item.img,
-      slug: item.slug,
-      category: item.category ?? null,
-      traits: item.traits ?? [],
-      usage: item.usage ?? null,
-      range: item.range ?? null,
-    }
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        category: item.category ?? null,
+        traits: item.traits ?? [],
+        usage: item.usage ?? null,
+        range: item.range ?? null,
+      }
     : null;
   data.innovationModification = null;
   return data;
@@ -223,12 +255,12 @@ export function toggleKineticImpulse(data, item, max = 2) {
 export function setSubconsciousMind(data, item) {
   data.subconsciousMind = item
     ? {
-      uuid: item.uuid,
-      name: item.name,
-      img: item.img,
-      slug: item.slug,
-      keyAbility: item.keyAbility ?? null,
-    }
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        keyAbility: item.keyAbility ?? null,
+      }
     : null;
 
   if (data.class?.slug === 'psychic') {
@@ -239,9 +271,7 @@ export function setSubconsciousMind(data, item) {
 }
 
 export function setThesis(data, item) {
-  data.thesis = item
-    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
-    : null;
+  data.thesis = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug } : null;
   return data;
 }
 
@@ -269,8 +299,31 @@ export function setPrimaryApparition(data, uuid) {
   return data;
 }
 
-export function setSubclass(data, item, tradition, spellUuids, grantedSkills, grantedLores, choiceSets, curriculum) {
-  data.subclass = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug, tradition, spellUuids, grantedSkills, grantedLores, choiceSets, choices: {}, curriculum } : null;
+export function setSubclass(
+  data,
+  item,
+  tradition,
+  spellUuids,
+  grantedSkills,
+  grantedLores,
+  choiceSets,
+  curriculum,
+) {
+  data.subclass = item
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        tradition,
+        spellUuids,
+        grantedSkills,
+        grantedLores,
+        choiceSets,
+        choices: {},
+        curriculum,
+      }
+    : null;
   data.innovationItem = null;
   data.innovationModification = null;
   data.kineticGateMode = null;
@@ -331,14 +384,14 @@ export function setDeity(data, item) {
   const normalizedFont = normalizeDivineFontList(item?.font ?? []);
   data.deity = item
     ? {
-      uuid: item.uuid,
-      name: item.name,
-      img: item.img,
-      font: normalizedFont,
-      sanctification: item.sanctification ?? {},
-      domains: item.domains ?? { primary: [], alternate: [] },
-      skill: item.skill ?? null,
-    }
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        font: normalizedFont,
+        sanctification: item.sanctification ?? {},
+        domains: item.domains ?? { primary: [], alternate: [] },
+        skill: item.skill ?? null,
+      }
     : null;
   // Auto-set sanctification / divine font if deity only allows one option
   const font = normalizedFont;
@@ -370,7 +423,9 @@ function normalizeDivineFontList(fonts) {
 }
 
 function normalizeDivineFont(value) {
-  const normalized = String(value ?? '').trim().toLowerCase();
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
   if (['healing', 'heal'].includes(normalized)) return 'healing';
   if (['harmful', 'harming', 'harm'].includes(normalized)) return 'harmful';
   return normalized || null;
@@ -396,40 +451,93 @@ export function setSelectedLoreSkills(data, lores) {
   return data;
 }
 
-export function setAncestryFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
+export function setAncestryFeat(
+  data,
+  feat,
+  choiceSets = [],
+  grantedSkills = [],
+  grantedLores = [],
+) {
   data.ancestryFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
     : null;
   return data;
 }
 
-export function setAncestryParagonFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
+export function setAncestryParagonFeat(
+  data,
+  feat,
+  choiceSets = [],
+  grantedSkills = [],
+  grantedLores = [],
+) {
   data.ancestryParagonFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
     : null;
   return data;
 }
 
 export function setClassFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.classFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
     : null;
   return data;
 }
 
 export function setSkillFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.skillFeat = feat
-    ? { uuid: feat.uuid, name: feat.name, slug: feat.slug, img: feat.img, choiceSets, grantedSkills, grantedLores, choices: {} }
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
     : null;
   return data;
 }
 
 export function setFeatChoice(data, slot, flag, value) {
-  const target = slot === 'ancestry' ? data.ancestryFeat
-    : slot === 'ancestryParagon' ? data.ancestryParagonFeat
-      : slot === 'class' ? data.classFeat
-        : slot === 'skill' ? data.skillFeat
-        : null;
+  const target =
+    slot === 'ancestry'
+      ? data.ancestryFeat
+      : slot === 'ancestryParagon'
+        ? data.ancestryParagonFeat
+        : slot === 'class'
+          ? data.classFeat
+          : slot === 'skill'
+            ? data.skillFeat
+            : null;
   if (target) {
     if (!target.choices) target.choices = {};
     target.choices[flag] = value;
@@ -460,7 +568,14 @@ export function addEquipment(data, item, quantity = 1) {
   } else {
     const price = item.system?.price?.value ?? null;
     const pricePer = Number(item.system?.price?.per ?? 1) || 1;
-    data.equipment.push({ uuid: item.uuid, name: item.name, img: item.img, quantity, price, pricePer });
+    data.equipment.push({
+      uuid: item.uuid,
+      name: item.name,
+      img: item.img,
+      quantity,
+      price,
+      pricePer,
+    });
   }
   return data;
 }

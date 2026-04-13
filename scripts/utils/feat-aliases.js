@@ -1,10 +1,17 @@
 import { slugify } from './pf2e-api.js';
 
+function getAuthoredDescription(feat) {
+  return feat?._source?.system?.description?.value
+    ?? feat?.system?.description?.value
+    ?? feat?.description
+    ?? '';
+}
+
 export function getDedicationAliasesFromDescription(feat) {
   const overrides = getDedicationAliasOverrides(feat);
   if (overrides.length > 0) return overrides;
 
-  const description = String(feat?.system?.description?.value ?? feat?.description ?? '')
+  const description = String(getAuthoredDescription(feat))
     .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gi, '$1')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')

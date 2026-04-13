@@ -35,6 +35,13 @@ export function normalizeSpellcastingDescription(value) {
     .trim();
 }
 
+function getAuthoredDescription(feat) {
+  return feat?._source?.system?.description?.value
+    ?? feat?.system?.description?.value
+    ?? feat?.description
+    ?? '';
+}
+
 function parseCountToken(token) {
   const normalized = String(token ?? '').trim().toLowerCase();
   if (!normalized) return null;
@@ -147,9 +154,7 @@ function buildLockedRarities(selectedRarity) {
 export function extractFeatSpellcastingMetadata(feat) {
   if (!feat) return null;
 
-  const description = normalizeSpellcastingDescription(
-    feat?.system?.description?.value ?? feat?.description ?? '',
-  );
+  const description = normalizeSpellcastingDescription(getAuthoredDescription(feat));
   const classSlug = resolveMetadataClassSlug(feat, description);
   if (!classSlug) return null;
 

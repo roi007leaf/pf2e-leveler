@@ -1,17 +1,42 @@
 import { PROFICIENCY_RANK_NAMES, SKILLS } from '../constants.js';
 import { slugify } from '../utils/pf2e-api.js';
 
+const RANK_NAME_ALIASES = {
+  untrained: 'untrained',
+  trained: 'trained',
+  expert: 'expert',
+  master: 'master',
+  legendary: 'legendary',
+  qualifie: 'trained',
+  qualifiee: 'trained',
+  maitre: 'master',
+  legendaire: 'legendary',
+  inexperimente: 'untrained',
+  inexperimentee: 'untrained',
+};
+
+const RANK_NAME_PATTERN = [
+  ...PROFICIENCY_RANK_NAMES,
+  'qualifi(?:e|é)(?:e)?',
+  'ma(?:i|î)tre',
+  'l(?:e|é)gendaire',
+  'inexp(?:e|é)riment(?:e|é)(?:e)?',
+].join('|');
+const RANK_CONNECTOR_PATTERN = '(?:in|en)';
+const OR_WORD_PATTERN = '(?:or|ou)';
+const AND_WORD_PATTERN = '(?:and|et)';
+
 const RANK_PATTERN = new RegExp(
-  `(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+(.+)`,
-  'i',
+  `(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(.+)`,
+  'iu',
 );
 const RANK_WITH_EITHER_PATTERN = new RegExp(
-  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+(.+?)\\s+as\\s+well\\s+as\\s+either\\s+(.+)$`,
-  'i',
+  `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(.+?)\\s+as\\s+well\\s+as\\s+either\\s+(.+)$`,
+  'iu',
 );
 const ANY_SKILL_PATTERN = new RegExp(
-  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+at\\s+least\\s+one\\s+skill\\b`,
-  'i',
+  `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(?:at\\s+least\\s+one\\s+skill|au\\s+moins\\s+une\\s+comp(?:e|é)tences?)\\b`,
+  'iu',
 );
 
 const ABILITY_NAMES = {
@@ -23,13 +48,11 @@ const ABILITY_NAMES = {
   charisma: 'cha',
 };
 
-const ABILITY_PATTERN = new RegExp(
-  `(${Object.keys(ABILITY_NAMES).join('|')})\\s+([+-]?\\d+)`,
-  'i',
-);
+const ABILITY_PATTERN = new RegExp(`(${Object.keys(ABILITY_NAMES).join('|')})\\s+([+-]?\\d+)`, 'i');
 
 const LEVEL_PATTERN = /(\d+)(?:st|nd|rd|th)\s+level/i;
-const CLASS_HP_PATTERN = /class granting no more hit points per level than\s+(\d+)\s*\+\s*your\s+constitution\s+modifier/i;
+const CLASS_HP_PATTERN =
+  /class granting no more hit points per level than\s+(\d+)\s*\+\s*your\s+constitution\s+modifier/i;
 const FOLLOW_DEITY_PATTERN = /^you follow a deity$/i;
 const DEITY_IS_PATTERN = /^deity is\s+(.+)$/i;
 const DEITY_DOMAIN_PATTERN = /^deity with (?:the\s+)?(.+?)\s+domain$/i;
@@ -39,8 +62,10 @@ const FOCUS_SPELLS_PATTERN = /^ability to cast focus spells$/i;
 const SPECIFIC_SPELL_WITH_SLOT_PATTERN = /^able to cast\s+(.+?)\s+with a spell slot$/i;
 const SPELL_SLOTS_PATTERN = /^(?:ability|able) to cast spells (?:from|using) spell slots$/i;
 const SPELL_TRAIT_PATTERN = /^able to cast at least one\s+(.+?)\s+spell$/i;
-const SPELLCASTING_TRADITION_PATTERN = /^ability to cast\s+(arcane|divine|occult|primal)\s+spells?$/i;
-const SUBCLASS_TRADITION_PATTERN = /(bloodline|mystery|patron|order|conscious mind)\s+that\s+grants?\s+(arcane|divine|occult|primal)\s+spells?/i;
+const SPELLCASTING_TRADITION_PATTERN =
+  /^ability to cast\s+(arcane|divine|occult|primal)\s+spells?$/i;
+const SUBCLASS_TRADITION_PATTERN =
+  /(bloodline|mystery|patron|order|conscious mind)\s+that\s+grants?\s+(arcane|divine|occult|primal)\s+spells?/i;
 const CLASS_FEATURE_PATTERN = /^(.+?)\s+class feature$/i;
 const BACKGROUND_PATTERN = /^(.+?)\s+background$/i;
 const HERITAGE_PATTERN = /^(.+?)\s+heritage$/i;
@@ -50,24 +75,31 @@ const WEARING_ARMOR_PATTERN = /^wearing\s+(.+?)\s+armor$/i;
 const WIELDING_WEAPON_PATTERN = /^wielding\s+(?:an?\s+)?(.+?)\s+weapon$/i;
 const WIELDING_WEAPON_GROUP_PATTERN = /^wielding\s+(?:an?\s+)?weapon in the\s+(.+?)\s+group$/i;
 const WIELDING_WEAPON_TRAIT_PATTERN = /^wielding\s+(?:an?\s+)?weapon with the\s+(.+?)\s+trait$/i;
-const NARRATIVE_MEMBERSHIP_PATTERN = /^(member of|you were|you are or were|worshipper of|follower of)\b/i;
+const NARRATIVE_MEMBERSHIP_PATTERN =
+  /^(member of|you were|you are or were|worshipper of|follower of)\b/i;
 const NARRATIVE_ATTENDANCE_PATTERN = /^(attended|studied at|graduated from)\b/i;
 const NARRATIVE_DEATH_PATTERN = /\b(dead|died|mummified)\b/i;
 const NARRATIVE_INITIATION_PATTERN = /\b(initiates you into|earned the trust of)\b/i;
 const ACTION_CAPABILITY_PATTERN = /\bskill to\b/i;
 const WEAPON_TYPE_PROFICIENCY_PATTERN = /^trained in at least one type of\b/i;
 const WEAPON_FAMILY_PROFICIENCY_PATTERN = new RegExp(
-  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+at\\s+least\\s+one\\s+(.+)$`,
-  'i',
+  `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(?:at\\s+least\\s+one|au\\s+moins\\s+une)\\s+(.+)$`,
+  'iu',
 );
-const WEAPON_NAME_PROFICIENCY_PATTERN = /^trained in\s+(?:an?\s+)?(.+)$/i;
+const WEAPON_NAME_PROFICIENCY_PATTERN = new RegExp(
+  `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(?:an?\\s+)?(.+)$`,
+  'iu',
+);
 const COMPANION_PROHIBITION_PATTERN = /\byou\s+do(?:\s+not|n't)\s+have\b.*\bcompanion\b/i;
-const ALIGNMENT_PATTERN = /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neutral|chaotic|good|evil))?\s+alignment$/i;
+const ALIGNMENT_PATTERN =
+  /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neutral|chaotic|good|evil))?\s+alignment$/i;
 const CURSE_STATE_PATTERN = /\bcursed\b/i;
 const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\s+trick\b/i;
-const MULTIPLE_ANCESTRY_FEATS_PATTERN = /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
+const MULTIPLE_ANCESTRY_FEATS_PATTERN =
+  /^ability\s+to\s+select\s+ancestry\s+feats?\s+from\s+multiple\s+ancestries\b/i;
 const SUBCLASS_SPELL_PATTERN = /^(?:a\s+)?(bloodline|mystery|patron)\s+spell$/i;
-const SENSE_PATTERN = /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
+const SENSE_PATTERN =
+  /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
 const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
@@ -85,6 +117,25 @@ const PROFICIENCY_SUBJECT_ALIASES = {
   will: 'will',
   'will save': 'will',
   'will saves': 'will',
+};
+
+const FALLBACK_SKILL_ALIASES = {
+  acrobaties: 'acrobatics',
+  arcanes: 'arcana',
+  athletisme: 'athletics',
+  artisanat: 'crafting',
+  duperie: 'deception',
+  diplomatie: 'diplomacy',
+  intimidation: 'intimidation',
+  medecine: 'medicine',
+  nature: 'nature',
+  occultisme: 'occultism',
+  representation: 'performance',
+  religion: 'religion',
+  societe: 'society',
+  discretion: 'stealth',
+  survie: 'survival',
+  vol: 'thievery',
 };
 
 export function parsePrerequisite(text) {
@@ -227,7 +278,7 @@ function tryParseRankRequirement(text, fullText = text) {
 
   const anySkillMatch = text.match(ANY_SKILL_PATTERN);
   if (anySkillMatch) {
-    const rankName = anySkillMatch[1].toLowerCase();
+    const rankName = normalizeRankName(anySkillMatch[1]);
     const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
     if (minRank >= 0) {
       return { type: 'anySkill', minRank, text: fullText };
@@ -242,13 +293,13 @@ function tryParseRankRequirement(text, fullText = text) {
   const match = normalizedText.match(RANK_PATTERN);
   if (!match) return null;
 
-  const rankName = match[1].toLowerCase();
-  const subject = match[2].trim().toLowerCase();
+  const rankName = normalizeRankName(match[1]);
+  const subject = normalizeRequirementText(match[2]);
   const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
 
   if (minRank < 0) return null;
 
-  const skillSlug = SKILLS.find((s) => s === subject || subject.includes(s));
+  const skillSlug = resolveSkillSlug(subject);
   if (skillSlug) {
     return { type: 'skill', skill: skillSlug, minRank, text: fullText };
   }
@@ -277,7 +328,7 @@ function tryParseWeaponFamilyProficiency(text, fullText = text) {
   const match = text.match(WEAPON_FAMILY_PROFICIENCY_PATTERN);
   if (!match) return null;
 
-  const rankName = match[1].toLowerCase();
+  const rankName = normalizeRankName(match[1]);
   const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
   if (minRank < 0) return null;
 
@@ -472,11 +523,16 @@ function tryParseDivineFontRequirement(text, fullText = text) {
 }
 
 function slugifySense(value) {
-  return String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '-');
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '-');
 }
 
 function normalizeDivineFont(value) {
-  const normalized = String(value ?? '').trim().toLowerCase();
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
   if (['heal', 'healing'].includes(normalized)) return 'healing';
   if (['harm', 'harming', 'harmful'].includes(normalized)) return 'harmful';
   return null;
@@ -597,9 +653,7 @@ function tryParseLanguageRequirement(text, fullText = text) {
   const match = text.match(LANGUAGE_LIST_PATTERN);
   if (!match) return null;
 
-  const languages = splitLanguageList(match[1])
-    .map(normalizeLanguageKeyword)
-    .filter(Boolean);
+  const languages = splitLanguageList(match[1]).map(normalizeLanguageKeyword).filter(Boolean);
 
   if (languages.length === 0) return null;
 
@@ -615,7 +669,9 @@ function tryParseFeatRequirement(text) {
     return { type: 'unknown', text };
   }
 
-  const parentheticalMatch = String(text ?? '').trim().match(/^(.+?)\s*\(([^()]+)\)\s*$/u);
+  const parentheticalMatch = String(text ?? '')
+    .trim()
+    .match(/^(.+?)\s*\(([^()]+)\)\s*$/u);
   if (parentheticalMatch) {
     const baseRequirement = tryParseFeatRequirement(parentheticalMatch[1].trim());
     const choiceRequirement = tryParseFeatRequirement(parentheticalMatch[2].trim());
@@ -638,7 +694,9 @@ function tryParseFeatRequirement(text) {
 }
 
 function tryParseRankWithEitherNode(text) {
-  const match = String(text ?? '').trim().match(RANK_WITH_EITHER_PATTERN);
+  const match = String(text ?? '')
+    .trim()
+    .match(RANK_WITH_EITHER_PATTERN);
   if (!match) return null;
 
   const rankName = match[1];
@@ -654,14 +712,18 @@ function tryParseRankWithEitherNode(text) {
       {
         kind: 'any',
         text: `either ${match[3].trim()}`,
-        children: alternativeSubjects.map((subject) => parsePrerequisiteNode(`${rankName} in ${subject}`)),
+        children: alternativeSubjects.map((subject) =>
+          parsePrerequisiteNode(`${rankName} in ${subject}`),
+        ),
       },
     ],
   };
 }
 
 function tryParseRankWithAlternativeSubjects(text) {
-  const match = String(text ?? '').trim().match(RANK_PATTERN);
+  const match = String(text ?? '')
+    .trim()
+    .match(RANK_PATTERN);
   if (!match) return null;
 
   const rankName = match[1];
@@ -671,7 +733,7 @@ function tryParseRankWithAlternativeSubjects(text) {
   if (RANK_PATTERN.test(subjectsText)) return null;
 
   const hasComma = subjectsText.includes(',');
-  const hasOr = /\bor\b/i.test(subjectsText);
+  const hasOr = new RegExp(`\\b${OR_WORD_PATTERN}\\b`, 'i').test(subjectsText);
   if (!hasComma && !hasOr) return null;
 
   const subjects = splitCommaOrList(subjectsText);
@@ -708,15 +770,24 @@ function looksLikeDescriptiveRequirement(text) {
 }
 
 export function parseAllPrerequisites(feat) {
-  const prereqs = feat?.system?.prerequisites?.value;
-  if (!prereqs || !Array.isArray(prereqs)) return [];
-  return prereqs.map((p) => parsePrerequisite(p.value));
+  return getPrerequisiteEntries(feat).map((entry) => parsePrerequisite(entry.value));
 }
 
 export function parseAllPrerequisiteNodes(feat) {
-  const prereqs = feat?.system?.prerequisites?.value;
-  if (!prereqs || !Array.isArray(prereqs)) return [];
-  return prereqs.map((p) => parsePrerequisiteNode(p.value));
+  return getPrerequisiteEntries(feat).map((entry) => parsePrerequisiteNode(entry.value));
+}
+
+function getPrerequisiteEntries(feat) {
+  const sourceEntries = normalizePrerequisiteEntries(feat?._source?.system?.prerequisites?.value);
+  if (sourceEntries.length > 0) return sourceEntries;
+  return normalizePrerequisiteEntries(feat?.system?.prerequisites?.value);
+}
+
+function normalizePrerequisiteEntries(prereqs) {
+  if (!Array.isArray(prereqs)) return [];
+  return prereqs.filter(
+    (entry) => typeof entry?.value === 'string' && entry.value.trim().length > 0,
+  );
 }
 
 function splitClauses(text, separator) {
@@ -755,9 +826,9 @@ function splitOnOr(text) {
     if (char === ')') depth = Math.max(0, depth - 1);
 
     if (
-      depth === 0
-      && normalized.slice(index).match(/^ or /i)
-      && !/\bor better$/i.test(current)
+      depth === 0 &&
+      normalized.slice(index).match(/^ (?:or|ou) /i) &&
+      !/\bor better$/i.test(current)
     ) {
       pushClause(clauses, current);
       current = '';
@@ -779,7 +850,7 @@ function pushClause(clauses, text) {
 
 function parseAlternatives(text) {
   return String(text ?? '')
-    .split(/\s+or\s+/i)
+    .split(/\s+(?:or|ou)\s+/i)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -801,17 +872,22 @@ function normalizeLanguageKeyword(value) {
 
 function splitLanguageList(text) {
   return String(text ?? '')
-    .split(/\s*(?:,| and )\s*/i)
+    .split(/\s*(?:,|\band\b|\bet\b)\s*/i)
     .map((part) => part.trim())
     .filter(Boolean);
 }
 
 function tryParseLanguageNode(text) {
-  const match = String(text ?? '').trim().match(LANGUAGE_LIST_PATTERN);
+  const match = String(text ?? '')
+    .trim()
+    .match(LANGUAGE_LIST_PATTERN);
   if (!match) return null;
 
   const listText = match[1].trim();
-  const mode = /\bor\b/i.test(listText) ? 'any' : /\b(?:and|,)\b/i.test(listText) ? 'all' : 'leaf';
+  const hasOr = new RegExp(`\\b${OR_WORD_PATTERN}\\b`, 'i').test(listText);
+  const hasAnd =
+    new RegExp(`\\b${AND_WORD_PATTERN}\\b`, 'i').test(listText) || listText.includes(',');
+  const mode = hasOr ? 'any' : hasAnd ? 'all' : 'leaf';
   const languages = splitLanguageAlternatives(listText)
     .map(normalizeLanguageKeyword)
     .filter(Boolean);
@@ -840,23 +916,25 @@ function tryParseLanguageNode(text) {
 
 function splitLanguageAlternatives(text) {
   return String(text ?? '')
-    .split(/\s*(?:,| and | or )\s*/i)
+    .split(/\s*(?:,|\band\b|\bet\b|\bor\b|\bou\b)\s*/i)
     .map((part) => part.trim())
     .filter(Boolean);
 }
 
 function splitCommaOrList(text) {
   return String(text ?? '')
-    .split(/\s*(?:,| or )\s*/i)
-    .map((part) => part.trim().replace(/^(?:or|and)\s+/i, ''))
+    .split(/\s*(?:,|\bor\b|\bou\b)\s*/i)
+    .map((part) => part.trim().replace(/^(?:or|and|ou|et)\s+/i, ''))
     .filter(Boolean);
 }
 
 function shouldPreserveOrPhrase(text) {
-  return WEARING_ARMOR_PATTERN.test(text)
-    || WIELDING_WEAPON_PATTERN.test(text)
-    || COMPANION_PROHIBITION_PATTERN.test(text)
-    || CURSE_STATE_PATTERN.test(text);
+  return (
+    WEARING_ARMOR_PATTERN.test(text) ||
+    WIELDING_WEAPON_PATTERN.test(text) ||
+    COMPANION_PROHIBITION_PATTERN.test(text) ||
+    CURSE_STATE_PATTERN.test(text)
+  );
 }
 
 function stripTrailingParenthetical(text) {
@@ -880,18 +958,22 @@ function stripTrailingParenthetical(text) {
 }
 
 function looksLikeWeaponNameProficiency(text) {
-  const match = String(text ?? '').trim().match(WEAPON_NAME_PROFICIENCY_PATTERN);
+  const match = String(text ?? '')
+    .trim()
+    .match(WEAPON_NAME_PROFICIENCY_PATTERN);
   if (!match) return false;
 
-  const subject = match[1].trim().toLowerCase();
+  const subject = normalizeRequirementText(match[2] ?? match[1]);
   if (!subject) return false;
   if (subject.includes(' at least one ')) return false;
   if (subject.includes(' to ')) return false;
   if (subject.endsWith(' lore')) return false;
-  if (SKILLS.includes(subject)) return false;
+  if (resolveSkillSlug(subject)) return false;
   if (Object.prototype.hasOwnProperty.call(PROFICIENCY_SUBJECT_ALIASES, subject)) return false;
 
-  return /\b(sabre|sabres|sword|swords|axe|axes|bow|bows|firearm|firearms|gun|guns|hammer|hammers|spear|spears|polearm|polearms|weapon|weapons)\b/i.test(subject);
+  return /\b(sabre|sabres|sword|swords|axe|axes|bow|bows|firearm|firearms|gun|guns|hammer|hammers|spear|spears|polearm|polearms|weapon|weapons)\b/i.test(
+    subject,
+  );
 }
 
 function looksLikeWeaponFamilyRequirement(subject) {
@@ -900,10 +982,75 @@ function looksLikeWeaponFamilyRequirement(subject) {
 }
 
 function normalizeWeaponFamilyRequirement(subject) {
-  const normalized = String(subject ?? '').trim().toLowerCase();
+  const normalized = String(subject ?? '')
+    .trim()
+    .toLowerCase();
   if (normalized.endsWith('crossbows')) return 'crossbow';
   if (normalized.endsWith('bows')) return 'bow';
   if (normalized.endsWith('firearms')) return 'firearm';
   if (normalized.endsWith('weapons')) return normalized.replace(/\s+weapons$/u, '');
   return normalized;
+}
+
+function normalizeRankName(value) {
+  const normalized = normalizeRequirementText(value).replace(/\s+/g, '');
+  return RANK_NAME_ALIASES[normalized] ?? normalized;
+}
+
+function resolveSkillSlug(subject) {
+  const normalized = normalizeRequirementToken(subject);
+  if (!normalized) return null;
+
+  if (SKILLS.includes(normalized)) return normalized;
+
+  const aliases = getSkillAliasLookup();
+  const exact = aliases.get(normalized);
+  if (exact) return exact;
+
+  return SKILLS.find((skill) => normalized.includes(normalizeRequirementToken(skill))) ?? null;
+}
+
+function getSkillAliasLookup() {
+  const lookup = new Map();
+
+  for (const skill of SKILLS) {
+    lookup.set(normalizeRequirementToken(skill), skill);
+  }
+
+  const configSkills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  for (const [slug, rawEntry] of Object.entries(configSkills)) {
+    const canonicalSlug = SKILLS.includes(slug) ? slug : null;
+    if (!canonicalSlug) continue;
+
+    const rawLabel =
+      typeof rawEntry === 'string'
+        ? rawEntry
+        : (rawEntry?.label ?? rawEntry?.short ?? rawEntry?.long ?? null);
+    const localizedLabel =
+      rawLabel && game?.i18n?.has?.(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+
+    for (const candidate of [slug, rawLabel, localizedLabel]) {
+      const normalized = normalizeRequirementToken(candidate);
+      if (normalized) lookup.set(normalized, canonicalSlug);
+    }
+  }
+
+  for (const [alias, slug] of Object.entries(FALLBACK_SKILL_ALIASES)) {
+    lookup.set(normalizeRequirementToken(alias), slug);
+  }
+
+  return lookup;
+}
+
+function normalizeRequirementText(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeRequirementToken(value) {
+  return normalizeRequirementText(value).replace(/[^a-z0-9]+/g, '');
 }

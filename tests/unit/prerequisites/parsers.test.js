@@ -1,4 +1,9 @@
-import { parsePrerequisite, parsePrerequisiteNode, parseAllPrerequisites, parseAllPrerequisiteNodes } from '../../../scripts/prerequisites/parsers.js';
+import {
+  parsePrerequisite,
+  parsePrerequisiteNode,
+  parseAllPrerequisites,
+  parseAllPrerequisiteNodes,
+} from '../../../scripts/prerequisites/parsers.js';
 
 describe('parsePrerequisite', () => {
   test('parses skill rank requirement', () => {
@@ -33,6 +38,13 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('skill');
     expect(result.skill).toBe('crafting');
     expect(result.minRank).toBe(4);
+  });
+
+  test('parses French skill rank requirement', () => {
+    const result = parsePrerequisite('qualifi\u00e9 en Arcanes');
+    expect(result.type).toBe('skill');
+    expect(result.skill).toBe('arcana');
+    expect(result.minRank).toBe(1);
   });
 
   test('parses proficiency in non-skill subject', () => {
@@ -94,7 +106,9 @@ describe('parsePrerequisite', () => {
   });
 
   test('parses class HP prerequisite with Constitution modifier text', () => {
-    const result = parsePrerequisite('Class granting no more Hit Points per level than 10 + your Constitution modifier');
+    const result = parsePrerequisite(
+      'Class granting no more Hit Points per level than 10 + your Constitution modifier',
+    );
     expect(result.type).toBe('classHp');
     expect(result.comparator).toBe('lte');
     expect(result.maxHp).toBe(10);
@@ -243,7 +257,9 @@ describe('parsePrerequisite', () => {
   });
 
   test('parses requirements with trailing parenthetical clarifier', () => {
-    const result = parsePrerequisite('trained in Religion (or another skill associated with your deity)');
+    const result = parsePrerequisite(
+      'trained in Religion (or another skill associated with your deity)',
+    );
     expect(result.type).toBe('skill');
     expect(result.skill).toBe('religion');
   });
@@ -278,7 +294,9 @@ describe('parsePrerequisite', () => {
   });
 
   test('treats descriptive sentence prerequisites as unknown instead of feat slugs', () => {
-    const result = parsePrerequisite('Class granting no more Hit Points per level than your Constitution modifier.');
+    const result = parsePrerequisite(
+      'Class granting no more Hit Points per level than your Constitution modifier.',
+    );
     expect(result.type).toBe('unknown');
   });
 
@@ -298,12 +316,16 @@ describe('parsePrerequisite', () => {
   });
 
   test('treats narrative death-history prerequisites as unknown instead of feat slugs', () => {
-    const result = parsePrerequisite('you are dead and were mummified (by natural or ritualistic means)');
+    const result = parsePrerequisite(
+      'you are dead and were mummified (by natural or ritualistic means)',
+    );
     expect(result.type).toBe('unknown');
   });
 
   test('treats narrative initiation prerequisites as unknown instead of feat slugs', () => {
-    const result = parsePrerequisite('must have earned the trust of a saumen kar who initiates you into the archetype');
+    const result = parsePrerequisite(
+      'must have earned the trust of a saumen kar who initiates you into the archetype',
+    );
     expect(result.type).toBe('unknown');
   });
 
@@ -331,7 +353,9 @@ describe('parsePrerequisite', () => {
   });
 
   test('treats negative companion prerequisites as unknown instead of feat slugs', () => {
-    const result = parsePrerequisite("you don't have an animal companion, construct companion, or other companion that functions similarly");
+    const result = parsePrerequisite(
+      "you don't have an animal companion, construct companion, or other companion that functions similarly",
+    );
     expect(result.type).toBe('unknown');
   });
 
@@ -354,11 +378,13 @@ describe('parsePrerequisite', () => {
 
   test('keeps narrative membership prerequisites with internal or wording as a single unknown node', () => {
     const result = parsePrerequisiteNode('You are or were a crew member of the Nightwave');
-    expect(result).toEqual(expect.objectContaining({
-      kind: 'leaf',
-      type: 'unknown',
-      text: 'You are or were a crew member of the Nightwave',
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'unknown',
+        text: 'You are or were a crew member of the Nightwave',
+      }),
+    );
   });
 
   test('treats signature trick prerequisites as unknown legacy text', () => {
@@ -377,10 +403,7 @@ describe('parseAllPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [
-            { value: 'trained in Athletics' },
-            { value: 'Strength 14' },
-          ],
+          value: [{ value: 'trained in Athletics' }, { value: 'Strength 14' }],
         },
       },
     };
@@ -398,25 +421,56 @@ describe('parseAllPrerequisites', () => {
   test('returns empty array for null feat', () => {
     expect(parseAllPrerequisites(null)).toEqual([]);
   });
+
+  test('prefers raw source prerequisite text over translated system text', () => {
+    const feat = {
+      _source: {
+        system: {
+          prerequisites: {
+            value: [{ value: 'trained in Arcana, Nature, Occultism, or Religion' }],
+          },
+        },
+      },
+      system: {
+        prerequisites: {
+          value: [{ value: 'qualifié en Arcanes, Nature, Occultisme ou Religion' }],
+        },
+      },
+    };
+
+    const results = parseAllPrerequisites(feat);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual(
+      expect.objectContaining({
+        type: 'skill',
+        skill: 'arcana',
+        minRank: 1,
+      }),
+    );
+  });
 });
 
 describe('parsePrerequisiteNode', () => {
   test('wraps a simple prerequisite as a leaf node', () => {
     const result = parsePrerequisiteNode('trained in Athletics');
-    expect(result).toEqual(expect.objectContaining({
-      kind: 'leaf',
-      type: 'skill',
-      skill: 'athletics',
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'skill',
+        skill: 'athletics',
+      }),
+    );
   });
 
   test('parses generic any-skill requirement as a leaf node', () => {
     const result = parsePrerequisiteNode('trained in at least one skill');
-    expect(result).toEqual(expect.objectContaining({
-      kind: 'leaf',
-      type: 'anySkill',
-      minRank: 1,
-    }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'anySkill',
+        minRank: 1,
+      }),
+    );
   });
 
   test('parses feat prerequisites with selected parenthetical choice as an all node', () => {
@@ -440,67 +494,129 @@ describe('parsePrerequisiteNode', () => {
     const result = parsePrerequisiteNode('trained in Arcana or trained in Religion');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }),
+    );
   });
 
   test('parses trained-in-x-as-well-as-either-y-z wording as a composite node', () => {
-    const result = parsePrerequisiteNode('trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion');
+    const result = parsePrerequisiteNode(
+      'trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion',
+    );
     expect(result.kind).toBe('all');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'diplomacy' }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'diplomacy' }),
+    );
     expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'any' }));
     expect(result.children[1].children).toHaveLength(4);
-    expect(result.children[1].children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
-    expect(result.children[1].children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }));
-    expect(result.children[1].children[2]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }));
-    expect(result.children[1].children[3]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+    expect(result.children[1].children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }),
+    );
+    expect(result.children[1].children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }),
+    );
+    expect(result.children[1].children[2]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }),
+    );
+    expect(result.children[1].children[3]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }),
+    );
   });
 
   test('parses language or-language wording as an any node', () => {
     const result = parsePrerequisiteNode('Erutaki or Jotun language');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['erutaki'] }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['jotun'] }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['erutaki'] }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'language', languages: ['jotun'] }),
+    );
   });
 
   test('parses mixed ability or spell-slot prerequisites as alternatives', () => {
     const result = parsePrerequisiteNode('Charisma +2 or ability to cast spells from spell slots');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }),
+    );
   });
 
   test('parses mixed ability or spell-slot prerequisites with using-slots wording as alternatives', () => {
     const result = parsePrerequisiteNode('Charisma +2 or able to cast spells using spell slots');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'ability', ability: 'cha' }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'spellcastingState', spellSlots: true }),
+    );
   });
 
   test('parses "trained in Arcana, Nature, Occultism, or Religion" as any-of-skills node', () => {
     const result = parsePrerequisiteNode('trained in Arcana, Nature, Occultism, or Religion');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(4);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }));
-    expect(result.children[2]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }));
-    expect(result.children[3]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }),
+    );
+    expect(result.children[2]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }),
+    );
+    expect(result.children[3]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }),
+    );
   });
 
   test('parses "expert in Athletics or Acrobatics" as any-of-skills node', () => {
     const result = parsePrerequisiteNode('expert in Athletics or Acrobatics');
     expect(result.kind).toBe('any');
     expect(result.children).toHaveLength(2);
-    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'athletics', minRank: 2 }));
-    expect(result.children[1]).toEqual(expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'acrobatics', minRank: 2 }));
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'athletics', minRank: 2 }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'acrobatics', minRank: 2 }),
+    );
+  });
+
+  test('parses French trained-in-skill-list wording as any-of-skills node', () => {
+    const result = parsePrerequisiteNode(
+      'qualifi\u00e9 en Arcanes, Nature, Occultisme ou Religion',
+    );
+    expect(result.kind).toBe('any');
+    expect(result.children).toHaveLength(4);
+    expect(result.children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }),
+    );
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'nature' }),
+    );
+    expect(result.children[2]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'occultism' }),
+    );
+    expect(result.children[3]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'religion' }),
+    );
   });
 
   test('does not expand rank-with-alternatives when subjects contain parenthetical', () => {
-    const result = parsePrerequisiteNode('trained in Religion (or another skill associated with your deity)');
+    const result = parsePrerequisiteNode(
+      'trained in Religion (or another skill associated with your deity)',
+    );
     expect(result.kind).toBe('leaf');
     expect(result.type).toBe('skill');
     expect(result.skill).toBe('religion');
@@ -521,7 +637,9 @@ describe('parsePrerequisiteNode', () => {
   });
 
   test('does not split unsupported companion prohibition text into fake or alternatives', () => {
-    const result = parsePrerequisiteNode("you don't have an animal companion, construct companion, or other companion that functions similarly");
+    const result = parsePrerequisiteNode(
+      "you don't have an animal companion, construct companion, or other companion that functions similarly",
+    );
     expect(result.kind).toBe('leaf');
     expect(result.type).toBe('unknown');
   });
@@ -538,9 +656,7 @@ describe('parseAllPrerequisiteNodes', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [
-            { value: 'Champion Dedication; 4th level' },
-          ],
+          value: [{ value: 'Champion Dedication; 4th level' }],
         },
       },
     };
@@ -548,5 +664,30 @@ describe('parseAllPrerequisiteNodes', () => {
     const results = parseAllPrerequisiteNodes(feat);
     expect(results).toHaveLength(1);
     expect(results[0].kind).toBe('all');
+  });
+
+  test('prefers raw source prerequisite nodes over translated system text', () => {
+    const feat = {
+      _source: {
+        system: {
+          prerequisites: {
+            value: [{ value: 'trained in Arcana, Nature, Occultism, or Religion' }],
+          },
+        },
+      },
+      system: {
+        prerequisites: {
+          value: [{ value: 'qualifié en Arcanes, Nature, Occultisme ou Religion' }],
+        },
+      },
+    };
+
+    const results = parseAllPrerequisiteNodes(feat);
+    expect(results).toHaveLength(1);
+    expect(results[0].kind).toBe('any');
+    expect(results[0].children).toHaveLength(4);
+    expect(results[0].children[0]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'arcana' }),
+    );
   });
 });

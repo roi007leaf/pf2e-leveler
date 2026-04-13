@@ -1,5 +1,13 @@
-import { CharacterWizard, buildCompendiumSourceOptions, filterStepContextByCompendiumSource } from '../../../scripts/ui/character-wizard/index.js';
-import { loadBackgrounds, loadHeritages, loadRawHeritages } from '../../../scripts/ui/character-wizard/loaders.js';
+import {
+  CharacterWizard,
+  buildCompendiumSourceOptions,
+  filterStepContextByCompendiumSource,
+} from '../../../scripts/ui/character-wizard/index.js';
+import {
+  loadBackgrounds,
+  loadHeritages,
+  loadRawHeritages,
+} from '../../../scripts/ui/character-wizard/loaders.js';
 import { saveCreationData } from '../../../scripts/creation/creation-store.js';
 import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 
@@ -25,6 +33,9 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         name: 'Human',
         slug: 'human',
         img: 'human.png',
+        system: {
+          traits: { value: ['human', 'humanoid'] },
+        },
       },
       heritage: {
         uuid: 'Compendium.test.heritages.Item.versatile',
@@ -66,32 +77,51 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       ],
     });
 
-    global.fromUuid = jest.fn((uuid) => Promise.resolve({
-      uuid,
-      type: 'feat',
-      name: uuid.endsWith('natural-ambition') ? 'Natural Ambition' : 'Reactive Shield',
-      slug: uuid.endsWith('natural-ambition') ? 'natural-ambition' : 'reactive-shield',
-      img: 'resolved.png',
-      system: {
-        rules: [],
-        description: { value: '' },
-      },
-    }));
+    global.fromUuid = jest.fn((uuid) =>
+      Promise.resolve({
+        uuid,
+        type: 'feat',
+        name: uuid.endsWith('natural-ambition') ? 'Natural Ambition' : 'Reactive Shield',
+        slug: uuid.endsWith('natural-ambition') ? 'natural-ambition' : 'reactive-shield',
+        img: 'resolved.png',
+        system: {
+          rules: [],
+          description: { value: '' },
+        },
+      }),
+    );
 
     const wizard = new CharacterWizard(actor);
     await wizard._recoverCreationDataFromActor();
 
-    expect(wizard.data.ancestry).toEqual(expect.objectContaining({ slug: 'human', name: 'Human' }));
-    expect(wizard.data.background).toEqual(expect.objectContaining({ slug: 'acolyte', name: 'Acolyte' }));
-    expect(wizard.data.class).toEqual(expect.objectContaining({ slug: 'fighter', name: 'Fighter' }));
-    expect(wizard.data.ancestryFeat).toEqual(expect.objectContaining({ slug: 'natural-ambition', name: 'Natural Ambition' }));
-    expect(wizard.data.classFeat).toEqual(expect.objectContaining({ slug: 'reactive-shield', name: 'Reactive Shield' }));
-    expect(saveCreationData).toHaveBeenCalledWith(actor, expect.objectContaining({
-      ancestry: expect.objectContaining({ slug: 'human' }),
-      class: expect.objectContaining({ slug: 'fighter' }),
-      ancestryFeat: expect.objectContaining({ slug: 'natural-ambition' }),
-      classFeat: expect.objectContaining({ slug: 'reactive-shield' }),
-    }));
+    expect(wizard.data.ancestry).toEqual(
+      expect.objectContaining({
+        slug: 'human',
+        name: 'Human',
+        traits: ['human', 'humanoid'],
+      }),
+    );
+    expect(wizard.data.background).toEqual(
+      expect.objectContaining({ slug: 'acolyte', name: 'Acolyte' }),
+    );
+    expect(wizard.data.class).toEqual(
+      expect.objectContaining({ slug: 'fighter', name: 'Fighter' }),
+    );
+    expect(wizard.data.ancestryFeat).toEqual(
+      expect.objectContaining({ slug: 'natural-ambition', name: 'Natural Ambition' }),
+    );
+    expect(wizard.data.classFeat).toEqual(
+      expect.objectContaining({ slug: 'reactive-shield', name: 'Reactive Shield' }),
+    );
+    expect(saveCreationData).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({
+        ancestry: expect.objectContaining({ slug: 'human' }),
+        class: expect.objectContaining({ slug: 'fighter' }),
+        ancestryFeat: expect.objectContaining({ slug: 'natural-ambition' }),
+        classFeat: expect.objectContaining({ slug: 'reactive-shield' }),
+      }),
+    );
   });
 
   it('requires a second ancestry feat at level 1 when ancestry paragon is enabled', async () => {
@@ -102,11 +132,21 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
-    wizard.data.ancestryFeat = { uuid: 'feat-1', name: 'Natural Ambition', choiceSets: [], choices: {} };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-1',
+      name: 'Natural Ambition',
+      choiceSets: [],
+      choices: {},
+    };
 
     expect(wizard._isStepComplete('feats')).toBe(false);
 
-    wizard.data.ancestryParagonFeat = { uuid: 'feat-2', name: 'General Training', choiceSets: [], choices: {} };
+    wizard.data.ancestryParagonFeat = {
+      uuid: 'feat-2',
+      name: 'General Training',
+      choiceSets: [],
+      choices: {},
+    };
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
@@ -136,7 +176,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       },
       {
         uuid: 'feat-1',
-        name: 'Til Ragnarok\'s End',
+        name: "Til Ragnarok's End",
         type: 'feat',
         traits: ['elf'],
       },
@@ -165,7 +205,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       },
       {
         uuid: 'feat-1',
-        name: 'Til Ragnarok\'s End',
+        name: "Til Ragnarok's End",
         type: 'feat',
         slug: 'til-ragnaroks-end',
       },
@@ -230,7 +270,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       },
       {
         uuid: 'feat-1',
-        name: 'Til Ragnarok\'s End',
+        name: "Til Ragnarok's End",
         type: 'feat',
         slug: 'til-ragnaroks-end',
       },
@@ -358,7 +398,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       },
       {
         uuid: 'feat-1',
-        name: 'Til Ragnarok\'s End',
+        name: "Til Ragnarok's End",
         type: 'feat',
         slug: 'til-ragnaroks-end',
       },
@@ -426,8 +466,16 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
-    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
-    wizard.data.mixedAncestry = { uuid: 'Compendium.pf2e.ancestries.Item.kholo', slug: 'kholo', name: 'Kholo' };
+    wizard.data.heritage = {
+      uuid: MIXED_ANCESTRY_UUID,
+      slug: 'mixed-ancestry',
+      name: 'Mixed Ancestry',
+    };
+    wizard.data.mixedAncestry = {
+      uuid: 'Compendium.pf2e.ancestries.Item.kholo',
+      slug: 'kholo',
+      name: 'Kholo',
+    };
 
     const buildState = await wizard._buildCreationFeatBuildState();
 
@@ -436,15 +484,58 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(buildState.ancestryTraits.has('gnoll')).toBe(true);
   });
 
+  it('includes ancestry item trait values in the creation feat build state when the ancestry has no slug', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Item.person',
+      slug: null,
+      name: 'Person',
+      traits: ['human', 'beast-folk'],
+    };
+    wizard.data.class = { uuid: 'class-fighter', slug: 'fighter', name: 'Fighter' };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.ancestryTraits.has('person')).toBe(true);
+    expect(buildState.ancestryTraits.has('human')).toBe(true);
+    expect(buildState.ancestryTraits.has('beast-folk')).toBe(true);
+  });
+
   it('shows a dedicated mixed ancestry step when Mixed Ancestry heritage is selected', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
-    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
+    wizard.data.heritage = {
+      uuid: MIXED_ANCESTRY_UUID,
+      slug: 'mixed-ancestry',
+      name: 'Mixed Ancestry',
+    };
     wizard.data.mixedAncestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
     wizard._loadAncestries = jest.fn(async () => [
-      { uuid: 'ancestry-human', slug: 'human', name: 'Human', type: 'ancestry', rarity: 'common', traits: ['human'] },
-      { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf', type: 'ancestry', rarity: 'common', traits: ['elf'] },
-      { uuid: 'ancestry-kitsune', slug: 'kitsune', name: 'Kitsune', type: 'ancestry', rarity: 'uncommon', traits: ['kitsune'] },
+      {
+        uuid: 'ancestry-human',
+        slug: 'human',
+        name: 'Human',
+        type: 'ancestry',
+        rarity: 'common',
+        traits: ['human'],
+      },
+      {
+        uuid: 'ancestry-elf',
+        slug: 'elf',
+        name: 'Elf',
+        type: 'ancestry',
+        rarity: 'common',
+        traits: ['elf'],
+      },
+      {
+        uuid: 'ancestry-kitsune',
+        slug: 'kitsune',
+        name: 'Kitsune',
+        type: 'ancestry',
+        rarity: 'uncommon',
+        traits: ['kitsune'],
+      },
     ]);
 
     expect(wizard.visibleSteps).toContain('mixedAncestry');
@@ -461,17 +552,30 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     wizard._isBooting = false;
     wizard.currentStep = 2;
     wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
-    wizard.data.heritage = { uuid: MIXED_ANCESTRY_UUID, slug: 'mixed-ancestry', name: 'Mixed Ancestry' };
+    wizard.data.heritage = {
+      uuid: MIXED_ANCESTRY_UUID,
+      slug: 'mixed-ancestry',
+      name: 'Mixed Ancestry',
+    };
     wizard._loadAncestries = jest.fn(async () => [
-      { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf', type: 'ancestry', rarity: 'common', traits: ['elf'] },
+      {
+        uuid: 'ancestry-elf',
+        slug: 'elf',
+        name: 'Elf',
+        type: 'ancestry',
+        rarity: 'common',
+        traits: ['elf'],
+      },
       { uuid: 'ancestry-bad', slug: 'bad', type: 'ancestry', rarity: 'common', traits: [] },
     ]);
 
-    await expect(wizard._prepareContext()).resolves.toEqual(expect.objectContaining({
-      browserStep: expect.objectContaining({
-        items: expect.any(Array),
+    await expect(wizard._prepareContext()).resolves.toEqual(
+      expect.objectContaining({
+        browserStep: expect.objectContaining({
+          items: expect.any(Array),
+        }),
       }),
-    }));
+    );
   });
 
   it('keeps the feat step incomplete when a level 1 class feat is required but not selected yet', () => {
@@ -487,12 +591,22 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       slug: 'fighter',
       name: 'Fighter',
     };
-    wizard.data.ancestryFeat = { uuid: 'feat-elven-lore', name: 'Elven Lore', choiceSets: [], choices: {} };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-elven-lore',
+      name: 'Elven Lore',
+      choiceSets: [],
+      choices: {},
+    };
     wizard._cachedHasClassFeatAtLevel1 = true;
 
     expect(wizard._isStepComplete('feats')).toBe(false);
 
-    wizard.data.classFeat = { uuid: 'feat-reactive-shield', name: 'Reactive Shield', choiceSets: [], choices: {} };
+    wizard.data.classFeat = {
+      uuid: 'feat-reactive-shield',
+      name: 'Reactive Shield',
+      choiceSets: [],
+      choices: {},
+    };
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
@@ -509,11 +623,21 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       slug: 'rogue',
       name: 'Rogue',
     };
-    wizard.data.ancestryFeat = { uuid: 'feat-elven-lore', name: 'Elven Lore', choiceSets: [], choices: {} };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-elven-lore',
+      name: 'Elven Lore',
+      choiceSets: [],
+      choices: {},
+    };
 
     expect(wizard._isStepComplete('feats')).toBe(false);
 
-    wizard.data.skillFeat = { uuid: 'feat-steady-balance', name: 'Steady Balance', choiceSets: [], choices: {} };
+    wizard.data.skillFeat = {
+      uuid: 'feat-steady-balance',
+      name: 'Steady Balance',
+      choiceSets: [],
+      choices: {},
+    };
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
@@ -561,11 +685,13 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       ],
     });
 
-    expect(options).toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: 'pf2e', selected: true }),
-      expect.objectContaining({ key: 'battlezoo-dragons-battle-dragons-pf2e', selected: true }),
-      expect.objectContaining({ key: 'pf2e-leveler', label: 'PF2E Leveler', selected: true }),
-    ]));
+    expect(options).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'pf2e', selected: true }),
+        expect.objectContaining({ key: 'battlezoo-dragons-battle-dragons-pf2e', selected: true }),
+        expect.objectContaining({ key: 'pf2e-leveler', label: 'PF2E Leveler', selected: true }),
+      ]),
+    );
   });
 
   it('filters step option arrays by selected compendium sources without touching unrelated data', () => {
@@ -575,9 +701,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
           { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
           { uuid: 'b', sourcePack: 'module.beta', sourceLabel: 'Beta Pack' },
         ],
-        selectedCantrips: [
-          { uuid: 'x', name: 'Keep Me' },
-        ],
+        selectedCantrips: [{ uuid: 'x', name: 'Keep Me' }],
       },
       [
         { key: 'module.alpha', label: 'Alpha Pack', selected: true },
@@ -588,8 +712,6 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(filtered.items).toEqual([
       { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
     ]);
-    expect(filtered.selectedCantrips).toEqual([
-      { uuid: 'x', name: 'Keep Me' },
-    ]);
+    expect(filtered.selectedCantrips).toEqual([{ uuid: 'x', name: 'Keep Me' }]);
   });
 });

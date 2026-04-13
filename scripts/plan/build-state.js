@@ -1,4 +1,11 @@
-import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, PROFICIENCY_RANKS } from '../constants.js';
+import {
+  ANCESTRY_TRAIT_ALIASES,
+  ATTRIBUTES,
+  MIXED_ANCESTRY_CHOICE_FLAG,
+  MIXED_ANCESTRY_UUID,
+  SKILLS,
+  PROFICIENCY_RANKS,
+} from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
@@ -76,8 +83,17 @@ export function computeBuildState(actor, plan, atLevel) {
 
 function getTrackedDualClassSlug(plan) {
   if (!isDualClassEnabled()) return null;
-  const dualClassSlug = String(plan?.dualClassSlug ?? '').trim().toLowerCase();
-  if (!dualClassSlug || dualClassSlug === String(plan?.classSlug ?? '').trim().toLowerCase()) return null;
+  const dualClassSlug = String(plan?.dualClassSlug ?? '')
+    .trim()
+    .toLowerCase();
+  if (
+    !dualClassSlug ||
+    dualClassSlug ===
+      String(plan?.classSlug ?? '')
+        .trim()
+        .toLowerCase()
+  )
+    return null;
   return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
 }
 
@@ -115,7 +131,11 @@ function readWeaponProficiencyRank(source, key) {
 function computeClassState(classDef, classSlug) {
   const traditions = new Set();
   const tradition = classDef?.spellcasting?.tradition ?? null;
-  if (typeof tradition === 'string' && tradition.length > 0 && !['bloodline', 'patron'].includes(tradition)) {
+  if (
+    typeof tradition === 'string' &&
+    tradition.length > 0 &&
+    !['bloodline', 'patron'].includes(tradition)
+  ) {
     traditions.add(tradition);
   }
 
@@ -132,6 +152,11 @@ function computeAncestryTraits(actor, plan, atLevel) {
   const traits = new Set();
 
   addAncestryTraitAliases(traits, actor?.system?.details?.ancestry?.trait ?? null);
+  addAncestryItemTraits(traits, actor?.ancestry ?? null);
+  addAncestryItemTraits(
+    traits,
+    getOwnedItems(actor).find((item) => item?.type === 'ancestry') ?? null,
+  );
 
   for (const value of [
     actor?.ancestry?.slug ?? null,
@@ -142,9 +167,10 @@ function computeAncestryTraits(actor, plan, atLevel) {
     addAncestryTraitAliases(traits, value);
   }
 
-  const mixedAncestrySelection = actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG]
-    ?? actor?.heritage?.flags?.['pf2e-leveler']?.mixedAncestrySelection
-    ?? null;
+  const mixedAncestrySelection =
+    actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG] ??
+    actor?.heritage?.flags?.['pf2e-leveler']?.mixedAncestrySelection ??
+    null;
   if (actor?.heritage?.uuid === MIXED_ANCESTRY_UUID || actor?.heritage?.slug === 'mixed-ancestry') {
     addAncestryTraitAliases(traits, mixedAncestrySelection);
   }
@@ -153,9 +179,10 @@ function computeAncestryTraits(actor, plan, atLevel) {
     if (item?.type !== 'feat') continue;
     const featSlug = slugify(item?.slug ?? item?.name ?? '');
     if (featSlug !== 'adopted-ancestry') continue;
-    const selected = item?.flags?.pf2e?.rulesSelections?.adoptedAncestry
-      ?? item?.flags?.pf2e?.rulesSelections?.ancestry
-      ?? null;
+    const selected =
+      item?.flags?.pf2e?.rulesSelections?.adoptedAncestry ??
+      item?.flags?.pf2e?.rulesSelections?.ancestry ??
+      null;
     addAncestryTraitAliases(traits, selected);
   }
 
@@ -188,12 +215,7 @@ function computeHeritageAliases(actor) {
   const heritage = actor?.heritage ?? null;
   const heritageDoc = getOwnedItems(actor).find((item) => item?.type === 'heritage') ?? null;
 
-  for (const candidate of [
-    heritage?.slug,
-    heritage?.name,
-    heritageDoc?.slug,
-    heritageDoc?.name,
-  ]) {
+  for (const candidate of [heritage?.slug, heritage?.name, heritageDoc?.slug, heritageDoc?.name]) {
     const normalized = normalizeEquipmentValue(candidate);
     if (normalized) aliases.add(slugify(normalized));
   }
@@ -205,17 +227,26 @@ function computeDivineFontState(actor) {
   for (const item of getOwnedItems(actor)) {
     if (item?.type !== 'spellcastingEntry') continue;
 
-    const normalizedName = String(item?.name ?? '').trim().toLowerCase();
+    const normalizedName = String(item?.name ?? '')
+      .trim()
+      .toLowerCase();
     if (!normalizedName.includes('divine font')) continue;
     if (/\bhealing\b/.test(normalizedName) || /\bheal\b/.test(normalizedName)) return 'healing';
-    if (/\bharmful\b/.test(normalizedName) || /\bharming\b/.test(normalizedName) || /\bharm\b/.test(normalizedName)) return 'harmful';
+    if (
+      /\bharmful\b/.test(normalizedName) ||
+      /\bharming\b/.test(normalizedName) ||
+      /\bharm\b/.test(normalizedName)
+    )
+      return 'harmful';
   }
 
   return null;
 }
 
 function computeSpellcastingState(actor, plan, atLevel, classDefs) {
-  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
+  const trackedClassDefs = Array.isArray(classDefs)
+    ? classDefs.filter(Boolean)
+    : [classDefs].filter(Boolean);
   const entries = getOwnedItems(actor).filter((item) => item?.type === 'spellcastingEntry');
   const spells = getOwnedItems(actor).filter((item) => item?.type === 'spell');
   const traditions = new Set(
@@ -258,15 +289,16 @@ function computeSpellcastingState(actor, plan, atLevel, classDefs) {
     }
   }
 
-  const hasSpellSlots = entries.some((item) => {
-    const systemSlots = item?.system?.slots;
-    if (!systemSlots || typeof systemSlots !== 'object') return false;
-    return Object.values(systemSlots).some((slot) => {
-      if (!slot || typeof slot !== 'object') return false;
-      const max = Number(slot.max ?? slot.value ?? 0);
-      return Number.isFinite(max) && max > 0;
-    });
-  }) || trackedClassDefs.some((classDef) => !!classDef?.spellcasting?.slots);
+  const hasSpellSlots =
+    entries.some((item) => {
+      const systemSlots = item?.system?.slots;
+      if (!systemSlots || typeof systemSlots !== 'object') return false;
+      return Object.values(systemSlots).some((slot) => {
+        if (!slot || typeof slot !== 'object') return false;
+        const max = Number(slot.max ?? slot.value ?? 0);
+        return Number.isFinite(max) && max > 0;
+      });
+    }) || trackedClassDefs.some((classDef) => !!classDef?.spellcasting?.slots);
 
   const focusMax = actor?.system?.resources?.focus?.max ?? 0;
 
@@ -287,27 +319,43 @@ function collectPlannedDedicationTraditions(actor, plan, atLevel) {
   const actorFeatSlugs = new Set(
     getOwnedItems(actor)
       .filter((item) => item?.type === 'feat')
-      .map((item) => String(item?.slug ?? '').trim().toLowerCase())
+      .map((item) =>
+        String(item?.slug ?? '')
+          .trim()
+          .toLowerCase(),
+      )
       .filter(Boolean),
   );
 
   for (const feat of feats) {
-    const slug = String(feat?.slug ?? '').trim().toLowerCase();
-    const name = String(feat?.name ?? '').trim().toLowerCase();
-    const traits = (feat?.traits ?? feat?.system?.traits?.value ?? []).map((trait) => String(trait).trim().toLowerCase());
+    const slug = String(feat?.slug ?? '')
+      .trim()
+      .toLowerCase();
+    const name = String(feat?.name ?? '')
+      .trim()
+      .toLowerCase();
+    const traits = (feat?.traits ?? feat?.system?.traits?.value ?? []).map((trait) =>
+      String(trait).trim().toLowerCase(),
+    );
     const combined = `${slug} ${name} ${traits.join(' ')}`;
     const isDedication = traits.includes('dedication') || combined.includes('dedication');
     if (!isDedication) continue;
 
-    const classSlug = ClassRegistry.getAll()
-      .find((candidate) => candidate?.spellcasting && combined.includes(String(candidate.slug).toLowerCase()))
-      ?.slug ?? null;
+    const classSlug =
+      ClassRegistry.getAll().find(
+        (candidate) =>
+          candidate?.spellcasting && combined.includes(String(candidate.slug).toLowerCase()),
+      )?.slug ?? null;
     if (!classSlug) continue;
     if (actorFeatSlugs.has(slug)) continue;
 
     const dedicationClass = ClassRegistry.get(classSlug);
     const tradition = dedicationClass?.spellcasting?.tradition ?? null;
-    if (typeof tradition === 'string' && tradition.length > 0 && !['bloodline', 'patron'].includes(tradition)) {
+    if (
+      typeof tradition === 'string' &&
+      tradition.length > 0 &&
+      !['bloodline', 'patron'].includes(tradition)
+    ) {
       traditions.add(tradition);
     }
   }
@@ -403,7 +451,10 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
 
     if (level === atLevel && !includeCurrentLevelSkillIncrease) continue;
 
-    for (const inc of [...(levelData.skillIncreases ?? []), ...(levelData.customSkillIncreases ?? [])]) {
+    for (const inc of [
+      ...(levelData.skillIncreases ?? []),
+      ...(levelData.customSkillIncreases ?? []),
+    ]) {
       if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
         skills[inc.skill] = inc.toRank;
       }
@@ -431,10 +482,10 @@ function computeLoreSkills(actor, plan, atLevel) {
     if (!slug) continue;
 
     const rank = Number(
-      item?.system?.proficient?.value
-      ?? item?.system?.proficiency?.value
-      ?? item?.system?.rank
-      ?? 1,
+      item?.system?.proficient?.value ??
+        item?.system?.proficiency?.value ??
+        item?.system?.rank ??
+        1,
     );
 
     if (!Number.isFinite(rank)) continue;
@@ -445,15 +496,28 @@ function computeLoreSkills(actor, plan, atLevel) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
     for (const skill of levelData.intBonusSkills ?? []) {
-      const loreSlug = String(skill ?? '').trim().toLowerCase();
+      const loreSlug = String(skill ?? '')
+        .trim()
+        .toLowerCase();
       if (!loreSlug || SKILLS.includes(loreSlug)) continue;
       lores[loreSlug] = Math.max(lores[loreSlug] ?? 0, 1);
     }
 
-    for (const key of ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']) {
+    for (const key of [
+      'classFeats',
+      'skillFeats',
+      'generalFeats',
+      'ancestryFeats',
+      'archetypeFeats',
+      'mythicFeats',
+      'dualClassFeats',
+      'customFeats',
+    ]) {
       for (const feat of levelData[key] ?? []) {
         for (const rule of [...(feat?.dynamicLoreRules ?? []), ...(feat?.loreRules ?? [])]) {
-          const skill = String(rule?.skill ?? '').trim().toLowerCase();
+          const skill = String(rule?.skill ?? '')
+            .trim()
+            .toLowerCase();
           if (!skill || SKILLS.includes(skill)) continue;
           const rank = Number(rule?.value ?? 0);
           if (!Number.isFinite(rank) || rank <= 0) continue;
@@ -462,8 +526,13 @@ function computeLoreSkills(actor, plan, atLevel) {
       }
     }
 
-    for (const inc of [...(levelData.skillIncreases ?? []), ...(levelData.customSkillIncreases ?? [])]) {
-      const skill = String(inc?.skill ?? '').trim().toLowerCase();
+    for (const inc of [
+      ...(levelData.skillIncreases ?? []),
+      ...(levelData.customSkillIncreases ?? []),
+    ]) {
+      const skill = String(inc?.skill ?? '')
+        .trim()
+        .toLowerCase();
       if (!skill || SKILLS.includes(skill)) continue;
       const rank = Number(inc?.toRank ?? 0);
       if (!Number.isFinite(rank) || rank <= 0) continue;
@@ -510,7 +579,16 @@ export function applyActorSkillRankRules(skills, actor, atLevel) {
 }
 
 export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = level) {
-  const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+  const FEAT_KEYS = [
+    'classFeats',
+    'skillFeats',
+    'generalFeats',
+    'ancestryFeats',
+    'archetypeFeats',
+    'mythicFeats',
+    'dualClassFeats',
+    'customFeats',
+  ];
   const levelData = plan?.levels?.[level];
   if (!levelData) return skills;
 
@@ -520,9 +598,10 @@ export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = l
         if (!matchesRuleAtLevel(rule, atLevel)) continue;
         if (!SKILLS.includes(rule.skill)) continue;
         const currentRank = skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED;
-        const valueSource = currentRank >= PROFICIENCY_RANKS.TRAINED && rule.valueIfAlreadyTrained != null
-          ? rule.valueIfAlreadyTrained
-          : rule.value;
+        const valueSource =
+          currentRank >= PROFICIENCY_RANKS.TRAINED && rule.valueIfAlreadyTrained != null
+            ? rule.valueIfAlreadyTrained
+            : rule.value;
         const value = evaluateRuleNumericValue(valueSource, atLevel, feat);
         if (!Number.isFinite(value)) continue;
         skills[rule.skill] = Math.max(currentRank, value);
@@ -531,7 +610,10 @@ export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = l
       for (const [flag, selected] of Object.entries(feat?.choices ?? {})) {
         if (!/^levelerSkillFallback\d+$/i.test(flag)) continue;
         if (!SKILLS.includes(selected)) continue;
-        skills[selected] = Math.max(skills[selected] ?? PROFICIENCY_RANKS.UNTRAINED, PROFICIENCY_RANKS.TRAINED);
+        skills[selected] = Math.max(
+          skills[selected] ?? PROFICIENCY_RANKS.UNTRAINED,
+          PROFICIENCY_RANKS.TRAINED,
+        );
       }
     }
   }
@@ -546,7 +628,9 @@ function getPlannedFeatSkillRules(feat) {
 }
 
 function computeProficiencies(actor, classDefs, atLevel) {
-  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
+  const trackedClassDefs = Array.isArray(classDefs)
+    ? classDefs.filter(Boolean)
+    : [classDefs].filter(Boolean);
   const proficiencies = {
     perception: actor?.system?.perception?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
     fortitude: actor?.system?.saves?.fortitude?.rank ?? PROFICIENCY_RANKS.UNTRAINED,
@@ -580,7 +664,9 @@ function computeEquipmentState(actor) {
     if (!isEquippedItem(item)) continue;
 
     if (item?.type === 'armor') {
-      const armorCategory = normalizeEquipmentValue(item?.system?.category?.value ?? item?.category);
+      const armorCategory = normalizeEquipmentValue(
+        item?.system?.category?.value ?? item?.category,
+      );
       if (armorCategory) equipment.armorCategories.add(armorCategory);
       if (isShieldItem(item)) equipment.hasShield = true;
       continue;
@@ -619,38 +705,60 @@ function applyClassFeatureProficiency(proficiencies, feature) {
   if (key.includes('perception-legend') || name.includes('perception legend')) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.LEGENDARY);
   } else if (
-    key.includes('perception-mastery')
-    || key.includes('battlefield-surveyor')
-    || name.includes('perception mastery')
-    || name.includes('battlefield surveyor')
+    key.includes('perception-mastery') ||
+    key.includes('battlefield-surveyor') ||
+    name.includes('perception mastery') ||
+    name.includes('battlefield surveyor')
   ) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.MASTER);
-  } else if (key.includes('perception-expertise') || key.includes('perception-expert') || name.includes('perception expertise') || name.includes('perception expert')) {
+  } else if (
+    key.includes('perception-expertise') ||
+    key.includes('perception-expert') ||
+    name.includes('perception expertise') ||
+    name.includes('perception expert')
+  ) {
     proficiencies.perception = Math.max(proficiencies.perception, PROFICIENCY_RANKS.EXPERT);
   }
 
   if (key.includes('fortitude-legend') || name.includes('fortitude legend')) {
     proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.LEGENDARY);
-  } else if (key.includes('fortress-of-will') || key.includes('greater-fortitude') || key.includes('fortitude-mastery') || name.includes('fortitude mastery')) {
+  } else if (
+    key.includes('fortress-of-will') ||
+    key.includes('greater-fortitude') ||
+    key.includes('fortitude-mastery') ||
+    name.includes('fortitude mastery')
+  ) {
     proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.MASTER);
-  } else if (key.includes('fortitude-expertise') || key.includes('fortitude-expert') || name.includes('fortitude expertise') || name.includes('fortitude expert') || key.includes('magical-fortitude')) {
+  } else if (
+    key.includes('fortitude-expertise') ||
+    key.includes('fortitude-expert') ||
+    name.includes('fortitude expertise') ||
+    name.includes('fortitude expert') ||
+    key.includes('magical-fortitude')
+  ) {
     proficiencies.fortitude = Math.max(proficiencies.fortitude, PROFICIENCY_RANKS.EXPERT);
   }
 
   if (key.includes('reflex-legend') || name.includes('reflex legend')) {
     proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.LEGENDARY);
-  } else if (key.includes('greater-natural-reflexes') || key.includes('greater-rogue-reflexes') || key.includes('tempered-reflexes') || key.includes('reflex-mastery') || name.includes('reflex mastery')) {
+  } else if (
+    key.includes('greater-natural-reflexes') ||
+    key.includes('greater-rogue-reflexes') ||
+    key.includes('tempered-reflexes') ||
+    key.includes('reflex-mastery') ||
+    name.includes('reflex mastery')
+  ) {
     proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.MASTER);
   } else if (
-    key.includes('reflex-expertise')
-    || key.includes('reflex-expert')
-    || name.includes('reflex expertise')
-    || name.includes('reflex expert')
-    || key.includes('lightning-reflexes')
-    || key.includes('evasive-reflexes')
-    || key.includes('natural-reflexes')
-    || key.includes('shared-reflexes')
-    || key.includes('premonitions-reflexes')
+    key.includes('reflex-expertise') ||
+    key.includes('reflex-expert') ||
+    name.includes('reflex expertise') ||
+    name.includes('reflex expert') ||
+    key.includes('lightning-reflexes') ||
+    key.includes('evasive-reflexes') ||
+    key.includes('natural-reflexes') ||
+    key.includes('shared-reflexes') ||
+    key.includes('premonitions-reflexes')
   ) {
     proficiencies.reflex = Math.max(proficiencies.reflex, PROFICIENCY_RANKS.EXPERT);
   }
@@ -658,24 +766,24 @@ function applyClassFeatureProficiency(proficiencies, feature) {
   if (key.includes('will-legend') || name.includes('will legend')) {
     proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.LEGENDARY);
   } else if (
-    key.includes('greater-dogged-will')
-    || key.includes('prodigious-will')
-    || key.includes('will-of-the-pupil')
-    || key.includes('majestic-will')
-    || key.includes('walls-of-will')
-    || key.includes('divine-will')
-    || key.includes('indomitable-will')
-    || key.includes('wild-willpower')
-    || name.includes('will mastery')
+    key.includes('greater-dogged-will') ||
+    key.includes('prodigious-will') ||
+    key.includes('will-of-the-pupil') ||
+    key.includes('majestic-will') ||
+    key.includes('walls-of-will') ||
+    key.includes('divine-will') ||
+    key.includes('indomitable-will') ||
+    key.includes('wild-willpower') ||
+    name.includes('will mastery')
   ) {
     proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.MASTER);
   } else if (
-    key.includes('will-expertise')
-    || key.includes('will-expert')
-    || key.includes('dogged-will')
-    || key.includes('commanding-will')
-    || name.includes('will expertise')
-    || name.includes('will expert')
+    key.includes('will-expertise') ||
+    key.includes('will-expert') ||
+    key.includes('dogged-will') ||
+    key.includes('commanding-will') ||
+    name.includes('will expertise') ||
+    name.includes('will expert')
   ) {
     proficiencies.will = Math.max(proficiencies.will, PROFICIENCY_RANKS.EXPERT);
   }
@@ -703,7 +811,11 @@ function applyExplicitFeatureProficiencies(proficiencies, updates) {
 function normalizeTrackedProficiencyRank(rank) {
   if (Number.isFinite(rank)) return Number(rank);
 
-  switch (String(rank ?? '').trim().toLowerCase()) {
+  switch (
+    String(rank ?? '')
+      .trim()
+      .toLowerCase()
+  ) {
     case 'trained':
       return PROFICIENCY_RANKS.TRAINED;
     case 'expert':
@@ -773,11 +885,16 @@ function computeSenses(actor) {
 }
 
 function slugifySense(value) {
-  return String(value ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-');
 }
 
 function computeClassFeatures(actor, classDefs, atLevel) {
-  const trackedClassDefs = Array.isArray(classDefs) ? classDefs.filter(Boolean) : [classDefs].filter(Boolean);
+  const trackedClassDefs = Array.isArray(classDefs)
+    ? classDefs.filter(Boolean)
+    : [classDefs].filter(Boolean);
   const features = new Set();
 
   for (const classDef of trackedClassDefs) {
@@ -791,12 +908,16 @@ function computeClassFeatures(actor, classDefs, atLevel) {
   for (const item of getOwnedItems(actor)) {
     if (!isOwnedClassFeatureItem(item, atLevel)) continue;
 
-    const itemSlug = String(item?.slug ?? '').trim().toLowerCase();
+    const itemSlug = String(item?.slug ?? '')
+      .trim()
+      .toLowerCase();
     const itemNameSlug = slugify(item?.name ?? '');
     if (itemSlug) features.add(itemSlug);
     if (itemNameSlug) features.add(itemNameSlug);
 
-    for (const alias of extractLinkedFeatureAliases(item?.system?.description?.value ?? item?.description ?? '')) {
+    for (const alias of extractLinkedFeatureAliases(
+      item?.system?.description?.value ?? item?.description ?? '',
+    )) {
       features.add(alias);
     }
   }
@@ -805,12 +926,18 @@ function computeClassFeatures(actor, classDefs, atLevel) {
 }
 
 function isOwnedClassFeatureItem(item, atLevel) {
-  if (!item || !['feat', 'action', 'classfeature'].includes(String(item?.type ?? '').toLowerCase())) return false;
+  if (!item || !['feat', 'action', 'classfeature'].includes(String(item?.type ?? '').toLowerCase()))
+    return false;
 
-  const category = String(item?.system?.category?.value ?? item?.system?.category ?? '').trim().toLowerCase();
-  if (item?.type !== 'classfeature' && !['classfeature', 'class-feature'].includes(category)) return false;
+  const category = String(item?.system?.category?.value ?? item?.system?.category ?? '')
+    .trim()
+    .toLowerCase();
+  if (item?.type !== 'classfeature' && !['classfeature', 'class-feature'].includes(category))
+    return false;
 
-  const level = Number(item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level ?? 0);
+  const level = Number(
+    item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level ?? 0,
+  );
   return Number.isFinite(level) ? level <= atLevel : true;
 }
 
@@ -925,12 +1052,23 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
           ...(feat?.system?.traits?.value ?? []),
         ].map((trait) => String(trait).toLowerCase());
         const isArchetypeFeat = featTraits.includes('archetype');
-        if (!featSlug || featSlug === dedicationSlug || matched.has(featSlug) || isArchetypeDedication(feat) || !isArchetypeFeat) continue;
+        if (
+          !featSlug ||
+          featSlug === dedicationSlug ||
+          matched.has(featSlug) ||
+          isArchetypeDedication(feat) ||
+          !isArchetypeFeat
+        )
+          continue;
 
         const featArchetypeTraits = getArchetypeAssociationTraits(feat);
         const prereqText = getArchetypePrerequisiteText(feat);
-        const matchesByTrait = featArchetypeTraits.size > 0 && [...featArchetypeTraits].some((trait) => relatedTraits.has(trait));
-        const matchesByPrereq = prereqText.length > 0 && [...relatedPhrases].some((phrase) => prereqText.includes(phrase));
+        const matchesByTrait =
+          featArchetypeTraits.size > 0 &&
+          [...featArchetypeTraits].some((trait) => relatedTraits.has(trait));
+        const matchesByPrereq =
+          prereqText.length > 0 &&
+          [...relatedPhrases].some((phrase) => prereqText.includes(phrase));
         if (!matchesByTrait && !matchesByPrereq) continue;
 
         matched.add(featSlug);
@@ -943,7 +1081,13 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
     if (dedications.length === 1 && matched.size < 2) {
       for (const feat of selectedFeats) {
         const featSlug = getPrimaryFeatAlias(feat);
-        if (!featSlug || featSlug === dedicationSlug || matched.has(featSlug) || isArchetypeDedication(feat)) continue;
+        if (
+          !featSlug ||
+          featSlug === dedicationSlug ||
+          matched.has(featSlug) ||
+          isArchetypeDedication(feat)
+        )
+          continue;
         const featTraits = [
           ...(Array.isArray(feat?.traits) ? feat.traits : []),
           ...(feat?.system?.traits?.value ?? []),
@@ -972,13 +1116,18 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
     if (!featTraits.includes('archetype')) continue;
 
     const candidateDedications = timeline
-      .filter((candidate) => isArchetypeDedication(candidate.feat) && compareTimelineEntries(candidate, entry) < 0)
+      .filter(
+        (candidate) =>
+          isArchetypeDedication(candidate.feat) && compareTimelineEntries(candidate, entry) < 0,
+      )
       .map((candidate) => getPrimaryFeatAlias(candidate.feat))
       .filter((slug) => slug && matchedByDedication.has(slug));
 
     if (candidateDedications.length === 0) continue;
 
-    const incompleteCandidates = candidateDedications.filter((slug) => (matchedByDedication.get(slug)?.size ?? 0) < 2);
+    const incompleteCandidates = candidateDedications.filter(
+      (slug) => (matchedByDedication.get(slug)?.size ?? 0) < 2,
+    );
     const targetSlug = incompleteCandidates.at(-1) ?? null;
     if (!targetSlug) continue;
 
@@ -993,18 +1142,20 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
 }
 
 function buildArchetypeFeatTimeline(actor, plan, atLevel) {
-  const actorFeats = (actor?.items?.filter?.((i) => i.type === 'feat') ?? []).map((feat, index) => ({
-    feat,
-    level: getActorFeatLevel(feat),
-    order: index,
-  }));
+  const actorFeats = (actor?.items?.filter?.((i) => i.type === 'feat') ?? []).map(
+    (feat, index) => ({
+      feat,
+      level: getActorFeatLevel(feat),
+      order: index,
+    }),
+  );
 
   const plannedFeats = [];
   let order = actorFeats.length;
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan?.levels?.[level];
     if (!levelData) continue;
-    for (const feat of (levelData.archetypeFeats ?? [])) {
+    for (const feat of levelData.archetypeFeats ?? []) {
       plannedFeats.push({ feat, level, order });
       order++;
     }
@@ -1028,11 +1179,7 @@ function compareTimelineEntries(a, b) {
 
 function computeIncompleteArchetypeDedications(actor, plan, atLevel) {
   const progress = computeArchetypeDedicationProgress(actor, plan, atLevel);
-  return new Set(
-    [...progress.entries()]
-      .filter(([, count]) => count < 2)
-      .map(([slug]) => slug),
-  );
+  return new Set([...progress.entries()].filter(([, count]) => count < 2).map(([slug]) => slug));
 }
 
 function canTakeNewArchetypeDedication(actor, plan, atLevel) {
@@ -1060,7 +1207,7 @@ function getFeatAliases(feat) {
     addFeatChoiceAlias(aliases, selected);
   }
 
-  for (const alias of (feat?.aliases ?? [])) {
+  for (const alias of feat?.aliases ?? []) {
     if (typeof alias === 'string' && alias.length > 0) aliases.add(alias);
   }
 
@@ -1072,7 +1219,8 @@ function getFeatAliases(feat) {
 }
 
 function addFeatChoiceAlias(target, selected) {
-  if (typeof selected !== 'string' || selected.length === 0 || selected === '[object Object]') return;
+  if (typeof selected !== 'string' || selected.length === 0 || selected === '[object Object]')
+    return;
   if (selected.startsWith('Compendium.')) return;
 
   const normalized = slugify(selected);
@@ -1097,7 +1245,15 @@ function isArchetypeDedication(feat) {
 }
 
 function getArchetypeAssociationTraits(feat) {
-  const genericTraits = new Set(['archetype', 'dedication', 'class', 'multiclass', 'general', 'skill', 'mythic']);
+  const genericTraits = new Set([
+    'archetype',
+    'dedication',
+    'class',
+    'multiclass',
+    'general',
+    'skill',
+    'mythic',
+  ]);
   const traits = [
     ...(Array.isArray(feat?.traits) ? feat.traits : []),
     ...(feat?.system?.traits?.value ?? []),
@@ -1115,16 +1271,21 @@ function getArchetypeAssociationTraits(feat) {
 
 function getArchetypeAssociationPhrases(feat) {
   const phrases = new Set();
-  const name = String(feat?.name ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? '')
+    .trim()
+    .toLowerCase();
   if (name) {
     phrases.add(name);
     phrases.add(name.replace(/\s+dedication$/u, '').trim());
   }
 
-  const slug = String(feat?.slug ?? '').trim().toLowerCase();
+  const slug = String(feat?.slug ?? '')
+    .trim()
+    .toLowerCase();
   if (slug) {
     phrases.add(slug.replace(/-/g, ' '));
-    if (slug.endsWith('-dedication')) phrases.add(slug.replace(/-dedication$/u, '').replace(/-/g, ' '));
+    if (slug.endsWith('-dedication'))
+      phrases.add(slug.replace(/-dedication$/u, '').replace(/-/g, ' '));
   }
 
   for (const trait of getArchetypeAssociationTraits(feat)) {
@@ -1136,7 +1297,11 @@ function getArchetypeAssociationPhrases(feat) {
 
 function getArchetypePrerequisiteText(feat) {
   return (feat?.system?.prerequisites?.value ?? [])
-    .map((entry) => String(entry?.value ?? entry ?? '').trim().toLowerCase())
+    .map((entry) =>
+      String(entry?.value ?? entry ?? '')
+        .trim()
+        .toLowerCase(),
+    )
     .filter(Boolean)
     .join(' ; ');
 }
@@ -1151,7 +1316,15 @@ function isClassArchetypeDedication(feat) {
 }
 
 function getClassArchetypeTrait(feat) {
-  const genericTraits = new Set(['archetype', 'dedication', 'class', 'multiclass', 'general', 'skill', 'mythic']);
+  const genericTraits = new Set([
+    'archetype',
+    'dedication',
+    'class',
+    'multiclass',
+    'general',
+    'skill',
+    'mythic',
+  ]);
   const traits = [
     ...(Array.isArray(feat?.traits) ? feat.traits : []),
     ...(feat?.system?.traits?.value ?? []),
@@ -1232,6 +1405,12 @@ function addAncestryTraitAliases(target, slug) {
   if (!normalized) return;
   const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
   for (const alias of aliases) target.add(alias);
+}
+
+function addAncestryItemTraits(target, item) {
+  const traits = Array.isArray(item?.traits) ? item.traits : item?.system?.traits?.value;
+  if (!Array.isArray(traits)) return;
+  for (const trait of traits) addAncestryTraitAliases(target, trait);
 }
 
 function collectDeityDomains(value) {

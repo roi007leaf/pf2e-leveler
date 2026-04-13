@@ -975,7 +975,7 @@
             {{else if (eq this.type "flaw")}}
               <span class="boost-cell boost-cell--flaw">-</span>
             {{else if (eq this.type "option")}}
-              <button type="button" class="boost-cell boost-cell--option {{#if this.selected}}boost-cell--selected{{/if}} {{#if this.locked}}boost-cell--locked{{/if}}"
+              <button type="button" class="boost-cell boost-cell--option {{#if this.selected}}boost-cell--selected{{/if}} {{#if this.locked}}boost-cell--locked{{/if}} {{#if this.hasFlaw}}boost-cell--flaw-option{{/if}}"
                 data-action="toggleBoost" data-attr="{{this.key}}" data-source="{{this.source}}" {{#if this.locked}}disabled{{/if}}>
               </button>
             {{else}}

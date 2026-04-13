@@ -66,4 +66,56 @@ describe('CharacterWizard boosts completion', () => {
 
     expect(wizard._isStepComplete('boosts')).toBe(false);
   });
+
+  it('keeps flawed ancestry abilities selectable when they are part of a boost choice', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', name: 'Merfolk' };
+    wizard.data.boosts = {
+      ancestry: [],
+      background: [],
+      class: [],
+      free: [],
+    };
+
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid !== 'ancestry-uuid') return null;
+
+      return {
+        name: 'Merfolk',
+        system: {
+          boosts: {
+            0: { value: ['dex'] },
+            1: { value: ['cha'] },
+            2: { value: ['str', 'dex', 'con', 'int', 'wis', 'cha'] },
+          },
+          flaws: {
+            0: { value: ['con'] },
+          },
+        },
+      };
+    });
+
+    const context = await wizard._buildBoostContext();
+    const ancestryRow = context.boostRows.find((row) => row.source === 'ancestry');
+    const conCell = ancestryRow.cells.find((cell) => cell.key === 'con');
+
+    expect(conCell).toMatchObject({
+      key: 'con',
+      type: 'option',
+      hasFlaw: true,
+      source: 'ancestry',
+      selected: false,
+      locked: false,
+    });
+
+    wizard._saveAndRender = jest.fn();
+    wizard._toggleBoost('con', 'ancestry');
+
+    expect(wizard.data.boosts.ancestry).toEqual(['con']);
+
+    const selectedContext = await wizard._buildBoostContext();
+    const conTotal = selectedContext.summary.find((cell) => cell.key === 'con');
+
+    expect(conTotal.mod).toBe(0);
+  });
 });

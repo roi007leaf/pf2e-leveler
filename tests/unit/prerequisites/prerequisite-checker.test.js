@@ -8,7 +8,15 @@ describe('checkPrerequisites', () => {
     heritageSlug: 'charhide-goblin',
     heritageAliases: new Set(['charhide-goblin', 'charhide-goblin-heritage']),
     deity: null,
-    spellcasting: { hasAny: false, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(), focusPool: false, focusPointsMax: 0 },
+    spellcasting: {
+      hasAny: false,
+      hasSpellSlots: false,
+      spellNames: new Set(),
+      spellTraits: new Set(),
+      traditions: new Set(),
+      focusPool: false,
+      focusPointsMax: 0,
+    },
     attributes: { str: 2, dex: 1, con: 1, int: 3, wis: 0, cha: 0 },
     skills: { athletics: 2, crafting: 1, stealth: 0 },
     languages: new Set(['common', 'osiriani', 'sphinx']),
@@ -41,6 +49,45 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, buildState);
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
+  });
+
+  test('uses raw source prerequisite text when translated system text is not parseable', () => {
+    const feat = {
+      _source: {
+        system: {
+          prerequisites: {
+            value: [{ value: 'trained in Arcana, Nature, Occultism, or Religion' }],
+          },
+        },
+      },
+      system: {
+        prerequisites: {
+          value: [{ value: 'qualifié en Arcanes, Nature, Occultisme ou Religion' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: { ...buildState.skills, arcana: 3 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results.some((entry) => entry.met === true)).toBe(true);
+  });
+
+  test('meets French-only translated skill prerequisites when actor has matching skill', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'qualifi\u00e9 en Arcanes, Nature, Occultisme ou Religion' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: { ...buildState.skills, arcana: 3 },
+    });
+    expect(result.met).toBe(true);
+    expect(result.results.some((entry) => entry.met === true)).toBe(true);
   });
 
   test('feat with met generic any-skill prerequisite', () => {
@@ -97,10 +144,7 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [
-            { value: 'trained in Athletics' },
-            { value: 'Quick Bomber' },
-          ],
+          value: [{ value: 'trained in Athletics' }, { value: 'Quick Bomber' }],
         },
       },
     };
@@ -113,10 +157,7 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [
-            { value: 'trained in Athletics' },
-            { value: 'Power Attack' },
-          ],
+          value: [{ value: 'trained in Athletics' }, { value: 'Power Attack' }],
         },
       },
     };
@@ -220,7 +261,12 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [{ value: 'Class granting no more Hit Points per level than 10 + your Constitution modifier' }],
+          value: [
+            {
+              value:
+                'Class granting no more Hit Points per level than 10 + your Constitution modifier',
+            },
+          ],
         },
       },
     };
@@ -307,7 +353,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: true, focusPointsMax: 1 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: false,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['occult']),
+        focusPool: true,
+        focusPointsMax: 1,
+      },
     });
     expect(result.met).toBe(true);
   });
@@ -322,7 +376,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: false, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: true, focusPointsMax: 1 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: false,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['occult']),
+        focusPool: true,
+        focusPointsMax: 1,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -354,7 +416,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['divine']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -370,7 +440,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['occult']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -386,7 +464,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(['animate-dead']), spellTraits: new Set(['necromancy']), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(['animate-dead']),
+        spellTraits: new Set(['necromancy']),
+        traditions: new Set(['divine']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -402,7 +488,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['occult']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -418,7 +512,15 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(['necromancy']), traditions: new Set(['divine']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(['necromancy']),
+        traditions: new Set(['divine']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results[0].met).toBe(true);
@@ -435,7 +537,15 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, {
       ...buildState,
       attributes: { ...buildState.attributes, cha: 0 },
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['occult']), focusPool: false, focusPointsMax: 0 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['occult']),
+        focusPool: false,
+        focusPointsMax: 0,
+      },
     });
     expect(result.met).toBe(true);
     expect(result.results).toHaveLength(2);
@@ -452,7 +562,15 @@ describe('checkPrerequisites', () => {
     const result = checkPrerequisites(feat, {
       ...buildState,
       class: { slug: 'sorcerer', hp: 6, subclassType: 'bloodline' },
-      spellcasting: { hasAny: true, hasSpellSlots: true, spellNames: new Set(), spellTraits: new Set(), traditions: new Set(['divine']), focusPool: true, focusPointsMax: 1 },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['divine']),
+        focusPool: true,
+        focusPointsMax: 1,
+      },
     });
     expect(result.met).toBe(true);
   });
@@ -640,7 +758,12 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [{ value: 'trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion' }],
+          value: [
+            {
+              value:
+                'trained in Diplomacy as well as either Arcana, Nature, Occultism, or Religion',
+            },
+          ],
         },
       },
     };
@@ -677,7 +800,12 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [{ value: "you don't have an animal companion, construct companion, or other companion that functions similarly" }],
+          value: [
+            {
+              value:
+                "you don't have an animal companion, construct companion, or other companion that functions similarly",
+            },
+          ],
         },
       },
     };
@@ -726,7 +854,12 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [{ value: 'must have earned the trust of a saumen kar who initiates you into the archetype' }],
+          value: [
+            {
+              value:
+                'must have earned the trust of a saumen kar who initiates you into the archetype',
+            },
+          ],
         },
       },
     };
@@ -813,10 +946,7 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [
-            { value: 'evil alignment' },
-            { value: 'trained in Religion' },
-          ],
+          value: [{ value: 'evil alignment' }, { value: 'trained in Religion' }],
         },
       },
     };

@@ -1,6 +1,9 @@
 import { MODULE_ID } from '../constants.js';
 import { warn } from '../utils/logger.js';
-import { discoverCompendiumsByCategory, getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import {
+  discoverCompendiumsByCategory,
+  getCompendiumKeysForCategory,
+} from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 
 let cachedFeats = null;
@@ -10,8 +13,11 @@ export async function loadFeats() {
   if (cachedFeats) return cachedFeats;
 
   const keys = await getAdditionalCompendiumKeys();
-  const featGroups = await Promise.all(keys.map((key) => loadCompendiumFeats(key)));
-  const allFeats = dedupeByUuid(featGroups.flat());
+  const [featGroups, worldFeats] = await Promise.all([
+    Promise.all(keys.map((key) => loadCompendiumFeats(key))),
+    loadWorldFeats(),
+  ]);
+  const allFeats = dedupeByUuid([...featGroups.flat(), ...worldFeats]);
 
   cachedFeats = allFeats;
   return cachedFeats;
@@ -33,7 +39,9 @@ async function getAdditionalCompendiumKeys() {
   }
 
   const discoveredKeys = (discovered?.feats ?? []).map((pack) => pack.key).filter(Boolean);
-  return [...new Set([...baseKeys, ...officialDiscoveredKeys, ...discoveredKeys, ...rawDiscoveredKeys])];
+  return [
+    ...new Set([...baseKeys, ...officialDiscoveredKeys, ...discoveredKeys, ...rawDiscoveredKeys]),
+  ];
 }
 
 async function discoverRawFeatPackKeys() {
@@ -60,7 +68,9 @@ function getStoredRawFeatPackKeys(packs) {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed?.signature !== buildRawFeatPackSignature(packs)) return null;
-    return Array.isArray(parsed.keys) ? parsed.keys.filter((key) => typeof key === 'string' && key.length > 0) : null;
+    return Array.isArray(parsed.keys)
+      ? parsed.keys.filter((key) => typeof key === 'string' && key.length > 0)
+      : null;
   } catch {
     return null;
   }
@@ -70,10 +80,13 @@ function storeRawFeatPackKeys(packs, keys) {
   const storage = getStorage();
   if (!storage) return;
   try {
-    storage.setItem(RAW_FEAT_DISCOVERY_STORAGE_KEY, JSON.stringify({
-      signature: buildRawFeatPackSignature(packs),
-      keys,
-    }));
+    storage.setItem(
+      RAW_FEAT_DISCOVERY_STORAGE_KEY,
+      JSON.stringify({
+        signature: buildRawFeatPackSignature(packs),
+        keys,
+      }),
+    );
   } catch {
     // Ignore storage failures; cache discovery can always fall back to a fresh scan.
   }
@@ -82,7 +95,10 @@ function storeRawFeatPackKeys(packs, keys) {
 function buildRawFeatPackSignature(packs) {
   return packs
     .filter((pack) => isItemPack(pack))
-    .map((pack) => `${pack.collection ?? pack.metadata?.id ?? ''}:${pack.metadata?.packageName ?? pack.metadata?.package ?? ''}`)
+    .map(
+      (pack) =>
+        `${pack.collection ?? pack.metadata?.id ?? ''}:${pack.metadata?.packageName ?? pack.metadata?.package ?? ''}`,
+    )
     .sort()
     .join('|');
 }
@@ -110,19 +126,28 @@ function getAllPacks() {
 }
 
 function isItemPack(pack) {
-  return pack?.documentName === 'Item'
-    || pack?.metadata?.type === 'Item'
-    || pack?.metadata?.documentName === 'Item';
+  return (
+    pack?.documentName === 'Item' ||
+    pack?.metadata?.type === 'Item' ||
+    pack?.metadata?.documentName === 'Item'
+  );
 }
 
 function isFeatIndexEntry(entry) {
-  const type = String(entry?.type ?? entry?.system?.type ?? '').toLowerCase();
-  const rawCategory = entry?.system?.category;
+  return isEligibleFeatDocument(entry);
+}
+
+function isEligibleFeatDocument(item) {
+  const type = String(item?.type ?? item?.system?.type ?? '').toLowerCase();
+  const rawCategory = item?.system?.category ?? item?.category;
   const category = String(
-    (typeof rawCategory === 'object' && rawCategory !== null ? rawCategory.value : rawCategory) ?? '',
+    (typeof rawCategory === 'object' && rawCategory !== null ? rawCategory.value : rawCategory) ??
+      '',
   ).toLowerCase();
-  return type === 'feat'
-    && !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(category);
+  return (
+    type === 'feat' &&
+    !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(category)
+  );
 }
 
 async function loadCompendiumFeats(key) {
@@ -137,9 +162,15 @@ async function loadCompendiumFeats(key) {
     const sourcePackageLabel = getSourceOwnerLabel(sourcePackage);
     const feats = collection
       .filter((item) => {
-        const category = String(item.system.category?.value ?? item.system.category ?? '').toLowerCase();
-        return item.type === 'feat'
-          && !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(category);
+        const category = String(
+          item.system.category?.value ?? item.system.category ?? '',
+        ).toLowerCase();
+        return (
+          item.type === 'feat' &&
+          !['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(
+            category,
+          )
+        );
       })
       .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
       .map((item) => {
@@ -153,6 +184,21 @@ async function loadCompendiumFeats(key) {
     warn(`Failed to load compendium ${key}: ${err.message}`);
     return [];
   }
+}
+
+function loadWorldFeats() {
+  const sourcePackage = 'world';
+  const sourcePackageLabel = getWorldSourceLabel();
+
+  return getAllWorldItems()
+    .filter((item) => isEligibleFeatDocument(item))
+    .filter((item) => isRarityAllowedForCurrentUser(item.system?.traits?.rarity ?? 'common'))
+    .map((item) => {
+      item.sourcePack = item.sourcePack ?? null;
+      item.sourcePackage = item.sourcePackage ?? sourcePackage;
+      item.sourcePackageLabel = item.sourcePackageLabel ?? sourcePackageLabel;
+      return item;
+    });
 }
 
 function dedupeByUuid(items) {
@@ -173,10 +219,23 @@ export function invalidateCache() {
   cachedFeats = null;
 }
 
+function getAllWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
+}
+
 function getSourceOwnerLabel(packageKey) {
   if (!packageKey) return '';
-  if (game.system?.id === packageKey) return compactSourceOwnerLabel(game.system.title ?? packageKey);
+  if (game.system?.id === packageKey)
+    return compactSourceOwnerLabel(game.system.title ?? packageKey);
   return compactSourceOwnerLabel(game.modules?.get?.(packageKey)?.title ?? packageKey);
+}
+
+function getWorldSourceLabel() {
+  return compactSourceOwnerLabel(game.world?.title ?? 'World');
 }
 
 function compactSourceOwnerLabel(label) {

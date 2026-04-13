@@ -4,6 +4,7 @@ describe('feat cache', () => {
   beforeEach(() => {
     invalidateCache();
     localStorage.clear();
+    game.items = [];
     global._testSettings = {
       'pf2e-leveler': {
         customCompendiums: {
@@ -16,7 +17,11 @@ describe('feat cache', () => {
       if (key === 'pf2e.feats-srd') {
         return {
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.pf2e.feats-srd.Item.A', type: 'feat', system: { category: 'class' } },
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.A',
+              type: 'feat',
+              system: { category: 'class' },
+            },
           ]),
         };
       }
@@ -24,7 +29,11 @@ describe('feat cache', () => {
       if (key === 'my-module.feats') {
         return {
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.my-module.feats.Item.B', type: 'feat', system: { category: 'general' } },
+            {
+              uuid: 'Compendium.my-module.feats.Item.B',
+              type: 'feat',
+              system: { category: 'general' },
+            },
           ]),
         };
       }
@@ -56,7 +65,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'pf2e' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.pf2e.feats-srd.Item.A', type: 'feat', system: { category: 'class', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.A',
+              type: 'feat',
+              system: { category: 'class', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -65,7 +78,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'my-discovered' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.my-discovered.feats.Item.Marshal', type: 'feat', system: { category: 'archetype', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.my-discovered.feats.Item.Marshal',
+              type: 'feat',
+              system: { category: 'archetype', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -83,7 +100,12 @@ describe('feat cache', () => {
       {
         collection: 'my-discovered.feats',
         documentName: 'Item',
-        metadata: { packageName: 'my-discovered', type: 'Item', label: 'Discovered Feats', id: 'my-discovered.feats' },
+        metadata: {
+          packageName: 'my-discovered',
+          type: 'Item',
+          label: 'Discovered Feats',
+          id: 'my-discovered.feats',
+        },
         getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'archetype' } }]),
       },
     ]);
@@ -110,7 +132,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'pf2e' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.pf2e.feats-srd.Item.A', type: 'feat', system: { category: 'class', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.A',
+              type: 'feat',
+              system: { category: 'class', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -119,7 +145,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'my-module' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.my-module.feats.Item.B', type: 'feat', system: { category: 'general', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.my-module.feats.Item.B',
+              type: 'feat',
+              system: { category: 'general', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -128,7 +158,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'pf2e' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.pf2e.lost-omens-firebrands.Item.Marshal', type: 'feat', system: { category: 'archetype', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.pf2e.lost-omens-firebrands.Item.Marshal',
+              type: 'feat',
+              system: { category: 'archetype', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -146,13 +180,23 @@ describe('feat cache', () => {
       {
         collection: 'pf2e.lost-omens-firebrands',
         documentName: 'Item',
-        metadata: { packageName: 'pf2e', type: 'Item', label: 'Lost Omens Firebrands', id: 'pf2e.lost-omens-firebrands' },
+        metadata: {
+          packageName: 'pf2e',
+          type: 'Item',
+          label: 'Lost Omens Firebrands',
+          id: 'pf2e.lost-omens-firebrands',
+        },
         getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'archetype' } }]),
       },
       {
         collection: 'my-module.feats',
         documentName: 'Item',
-        metadata: { packageName: 'my-module', type: 'Item', label: 'My Feats', id: 'my-module.feats' },
+        metadata: {
+          packageName: 'my-module',
+          type: 'Item',
+          label: 'My Feats',
+          id: 'my-module.feats',
+        },
         getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'general' } }]),
       },
     ]);
@@ -176,7 +220,12 @@ describe('feat cache', () => {
     const discoveredPack = {
       collection: 'my-discovered.feats',
       documentName: 'Item',
-      metadata: { packageName: 'my-discovered', type: 'Item', label: 'Discovered Feats', id: 'my-discovered.feats' },
+      metadata: {
+        packageName: 'my-discovered',
+        type: 'Item',
+        label: 'Discovered Feats',
+        id: 'my-discovered.feats',
+      },
       getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'archetype' } }]),
     };
 
@@ -185,7 +234,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'pf2e' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.pf2e.feats-srd.Item.A', type: 'feat', system: { category: 'class', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.A',
+              type: 'feat',
+              system: { category: 'class', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -194,7 +247,11 @@ describe('feat cache', () => {
         return {
           metadata: { packageName: 'my-discovered' },
           getDocuments: jest.fn(async () => [
-            { uuid: 'Compendium.my-discovered.feats.Item.Marshal', type: 'feat', system: { category: 'archetype', traits: { rarity: 'common' } } },
+            {
+              uuid: 'Compendium.my-discovered.feats.Item.Marshal',
+              type: 'feat',
+              system: { category: 'archetype', traits: { rarity: 'common' } },
+            },
           ]),
         };
       }
@@ -221,5 +278,41 @@ describe('feat cache', () => {
     await loadFeats();
 
     expect(discoveredPack.getIndex.mock.calls.length).toBeLessThan(initialCallCount);
+  });
+
+  test('includes eligible world feat items alongside compendium feats', async () => {
+    game.items = [
+      {
+        uuid: 'Item.world-feat',
+        type: 'feat',
+        name: 'World Feat',
+        system: {
+          category: 'ancestry',
+          traits: { rarity: 'common', value: ['human'] },
+        },
+      },
+      {
+        uuid: 'Item.world-ancestry-feature',
+        type: 'feat',
+        name: 'World Ancestry Feature',
+        system: {
+          category: 'ancestryfeature',
+          traits: { rarity: 'common', value: ['human'] },
+        },
+      },
+    ];
+
+    const feats = await loadFeats();
+
+    expect(feats.map((feat) => feat.uuid)).toEqual([
+      'Compendium.pf2e.feats-srd.Item.A',
+      'Compendium.my-module.feats.Item.B',
+      'Item.world-feat',
+    ]);
+    expect(feats.find((feat) => feat.uuid === 'Item.world-feat')).toEqual(
+      expect.objectContaining({
+        sourcePackage: 'world',
+      }),
+    );
   });
 });

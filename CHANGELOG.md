@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.1.1
+
+### Feat Picker
+
+- **`Eligible Only` now works correctly in Babele-translated environments** - Prerequisite evaluation now prefers raw source prerequisite text when available, so translated feat text from modules like `pf2-fr` no longer breaks skill-rank prerequisite checks or hides valid feats from the filtered picker
+- **Custom ancestry feats from world items now match against the ancestry's actual traits** - Leveler now includes world `Item` feats in its feat cache and treats the selected ancestry's own trait list as valid ancestry-feat match tags, so custom ancestries without a slug can still surface feats tagged with traits like `human`, `humanoid`, or `beast-folk`
+
+### Character Wizard
+
+- **Flawed ancestry abilities can now still be selected when the ancestry grants a choice boost there** - Boost rows no longer treat flaw-marked abilities as dead cells when that same ability is also a valid selectable boost, and combined flaw/boost buttons now render their `-` and `+` state more clearly
+
 ## 3.1.0
 
 ### Feat Picker
