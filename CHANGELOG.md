@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.4
+
+### Character Wizard
+
+- **Ranger now correctly shows both class-trained skills during character creation** - The Skills step now merges PF2E-authored class trained skills from both structured item data and description text, so Rangers correctly mark both `Survival` and `Nature` as already trained instead of only locking `Survival`
+
 ## 3.1.3
 
 ### Content Sources

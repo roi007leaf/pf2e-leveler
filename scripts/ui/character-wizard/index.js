@@ -1630,7 +1630,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.data.class?.uuid) return [];
     const classItem = await this._getCachedDocument(this.data.class.uuid);
     if (!classItem) return [];
-    return classItem.system?.trainedSkills?.value ?? [];
+    return [
+      ...new Set([
+        ...((classItem.system?.trainedSkills?.value ?? []).filter(
+          (skill) => typeof skill === 'string' && skill.length > 0,
+        )),
+        ...this._parseGrantedSkills(
+          classItem.system?.rules ?? [],
+          classItem.system?.description?.value ?? '',
+        ),
+      ]),
+    ];
   }
 
   _isStepComplete(stepId) {

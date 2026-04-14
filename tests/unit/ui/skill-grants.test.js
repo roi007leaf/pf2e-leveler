@@ -577,6 +577,47 @@ describe('CharacterWizard skills step grants', () => {
     global.CONFIG = originalConfig;
   });
 
+  it('merges class-trained skills from item data and description text', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 5,
+              value: ['survival'],
+            },
+            description: {
+              value: '<p>At 1st level, you are trained in Nature and Survival.</p>',
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'ranger', uuid: 'class-uuid', name: 'Ranger' };
+    wizard.data.background = null;
+    wizard.data.subclass = null;
+    wizard.data.deity = null;
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slug: 'nature',
+        autoTrained: true,
+        source: 'Class',
+      }),
+      expect.objectContaining({
+        slug: 'survival',
+        autoTrained: true,
+        source: 'Class',
+      }),
+    ]));
+  });
+
   it('adds a placeholder lore for patron deity backgrounds', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'background-pilgrim-uuid') {
