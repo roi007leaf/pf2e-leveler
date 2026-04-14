@@ -1,4 +1,10 @@
-import { canOpenCreationWizard, getCreationButtonTitle, isSupportedClass, normalizePreparationGroupRank } from '../../../scripts/ui/sheet-integration.js';
+import {
+  canOpenCreationWizard,
+  getCreationButtonTitle,
+  isSupportedClass,
+  normalizePreparationGroupRank,
+  shouldRedirectCreationWizardToPlanner,
+} from '../../../scripts/ui/sheet-integration.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 
 describe('normalizePreparationGroupRank', () => {
@@ -31,6 +37,26 @@ describe('creation wizard sheet access', () => {
   test('uses an edit label after a class exists', () => {
     expect(getCreationButtonTitle(createMockActor())).toBe('PF2E_LEVELER.CREATION.EDIT_BUTTON');
     expect(getCreationButtonTitle(createMockActor({ class: null }))).toBe('PF2E_LEVELER.CREATION.BUTTON');
+  });
+
+  test('redirects higher-level characters with both ancestry and class to the planner', () => {
+    expect(shouldRedirectCreationWizardToPlanner(createMockActor({
+      ancestry: { slug: 'human' },
+      class: { slug: 'wizard' },
+      system: { details: { level: { value: 5 } } },
+    }))).toBe(true);
+
+    expect(shouldRedirectCreationWizardToPlanner(createMockActor({
+      ancestry: null,
+      class: { slug: 'wizard' },
+      system: { details: { level: { value: 5 } } },
+    }))).toBe(false);
+
+    expect(shouldRedirectCreationWizardToPlanner(createMockActor({
+      ancestry: { slug: 'human' },
+      class: { slug: 'wizard' },
+      system: { details: { level: { value: 1 } } },
+    }))).toBe(false);
   });
 
   test('self-heals class registry checks for supported classes', () => {

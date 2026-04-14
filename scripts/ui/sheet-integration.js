@@ -28,6 +28,11 @@ function canOpenCreationWizard(actor) {
   return actor?.type === 'character';
 }
 
+function shouldRedirectCreationWizardToPlanner(actor) {
+  const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
+  return actorLevel > 1 && Boolean(actor?.ancestry) && Boolean(actor?.class);
+}
+
 function getCreationButtonTitle(actor) {
   return isWithoutClass(actor)
     ? localize('CREATION.BUTTON')
@@ -86,6 +91,16 @@ async function openPlanner(actor) {
 
 async function openWizard(actor) {
   await ensureLevelerTemplatesLoaded();
+  if (shouldRedirectCreationWizardToPlanner(actor)) {
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: localize('CREATION.HIGHER_LEVEL_REDIRECT_TITLE') },
+      content: `<p>${localize('CREATION.HIGHER_LEVEL_REDIRECT_BODY')}</p>`,
+      modal: true,
+    });
+    if (confirmed) await openPlanner(actor);
+    return;
+  }
+
   const existing = Object.values(ui.windows).find(
     (w) => w instanceof CharacterWizard && w.actor.id === actor.id,
   );
@@ -182,4 +197,4 @@ export function normalizePreparationGroupRank(groupId) {
   return null;
 }
 
-export { canOpenCreationWizard, getCreationButtonTitle };
+export { canOpenCreationWizard, getCreationButtonTitle, shouldRedirectCreationWizardToPlanner };

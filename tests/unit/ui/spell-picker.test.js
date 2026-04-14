@@ -254,7 +254,7 @@ describe('SpellPicker', () => {
     expect(viewData.system.level.value).toBe(1);
   });
 
-  test('can filter out already owned spells by identity for preparation-style picking', async () => {
+  test('keeps already owned spells visible but marks them taken for preparation-style picking', async () => {
     const actor = createMockActor({
       items: [
         {
@@ -277,9 +277,71 @@ describe('SpellPicker', () => {
     });
 
     const context = await picker._prepareContext();
-    const uuids = context.spells.map((spell) => spell.uuid);
+    expect(context.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'magic-missile', alreadyTaken: true }),
+    ]));
+  });
 
-    expect(uuids).not.toContain('magic-missile');
+  test('toggle select all skips visible taken spells', () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      exactRank: true,
+      multiSelect: true,
+      excludeOwnedByIdentity: true,
+      excludedSelections: [],
+    });
+
+    picker.selectedSpellUuids = new Set();
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="spell-picker__selected-count"></div>
+      <button data-action="toggleSelectAll"></button>
+      <button data-action="confirmSelection"></button>
+      <div class="spell-option" data-uuid="magic-missile" data-already-taken="true" data-selectable="false">
+        <button data-action="selectSpell"></button>
+      </div>
+      <div class="spell-option" data-uuid="acid-grip" data-already-taken="false" data-selectable="true">
+        <button data-action="selectSpell"></button>
+      </div>
+    `;
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedSpellUuids.has('acid-grip')).toBe(true);
+    expect(picker.selectedSpellUuids.has('magic-missile')).toBe(false);
+    expect(picker.element.querySelector('[data-uuid="magic-missile"] [data-action="selectSpell"]').disabled).toBe(true);
+    expect(picker.element.querySelector('[data-uuid="magic-missile"] [data-action="selectSpell"]').textContent)
+      .toBe('PF2E_LEVELER.SPELLS.TAKEN');
+  });
+
+  test('can remove an already selected spell from the sidebar', async () => {
+    const actor = createMockActor({ items: [] });
+    const onRemoveSelected = jest.fn(async () => {});
+    const picker = new SpellPicker(actor, 'arcane', -1, jest.fn(), {
+      multiSelect: true,
+      selectedSpells: [
+        { uuid: 'acid-grip', name: 'Acid Grip', img: 'acid.png', rank: -1, baseRank: 2 },
+      ],
+      onRemoveSelected,
+      maxSelect: 1,
+      excludedSelections: [],
+    });
+
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = '<div class="spell-picker"><div class="spell-picker__list"></div><div class="picker__results-count"></div></div>';
+    picker.filteredSpells = [];
+    picker.render = jest.fn(async () => {});
+
+    await picker._removeSelectedSpell(0);
+
+    expect(onRemoveSelected).toHaveBeenCalledWith(
+      expect.objectContaining({ uuid: 'acid-grip' }),
+      0,
+    );
+    expect(picker.selectedSpells).toEqual([]);
+    expect(picker.maxSelect).toBe(2);
+    expect(picker.render).toHaveBeenCalledWith(true);
   });
 
   test('can filter spells by multiple selected ranks', async () => {

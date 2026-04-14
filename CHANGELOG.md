@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.1.2
+
+### Spell Picker
+
+- **Prepared spellbook pickers now keep already taken spells visible** - Spells already known in the actor's spellbook now remain in the picker with a `TAKEN` badge and disabled selection instead of disappearing from the list
+- **Selected spell `x` removal now works reliably from the picker sidebar** - The `Already Selected` section now exposes a working remove control, and spellbook picks stored with any-rank planner entries now remove correctly by their displayed rank without popping the planner in front of the picker
+- **Removing selected spells now fully refreshes picker and parent spellbook state** - Clearing a spell from `Already Selected` now updates the picker's selection cap/count and refreshes the underlying planner or wizard spell chips immediately instead of leaving stale selected entries visible
+
+### Sheet Integration
+
+- **Higher-level characters now redirect into the planner when creation would conflict with existing ancestry and class data** - Clicking the character creation button on a level 2+ actor that already has both ancestry and class chosen now prompts the user and opens the level planner instead of allowing duplicate wizard selection flow
+
 ## 3.1.1
 
 ### Feat Picker

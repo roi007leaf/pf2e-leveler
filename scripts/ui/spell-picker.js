@@ -28,6 +28,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.multiSelect = options.multiSelect === true;
     this.excludeOwnedByIdentity = options.excludeOwnedByIdentity === true;
     this.onSelect = onSelect;
+    this.onRemoveSelected = typeof options.onRemoveSelected === 'function' ? options.onRemoveSelected : null;
     this.excludedUuids = new Set(options.excludedUuids ?? []);
     this.excludedSelections = new Set((options.excludedSelections ?? []).map((entry) => `${entry.uuid}:${entry.rank}`));
     this.maxRank = Number.isInteger(options.maxRank) ? options.maxRank : null;
@@ -86,7 +87,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const ownedSelections = new Set(
       ownedSpells.map((spell) => `${spell.uuid}:${spell.rank}`),
     );
-    const ownedIdentityKeys = new Set(
+    this._ownedIdentityKeys = new Set(
       ownedSpells.flatMap((spell) => spell.keys),
     );
 
@@ -106,19 +107,18 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this.allSpells = merged.filter((s) => {
         if (this.allowedUuids.size > 0 && !this.allowedUuids.has(s.uuid)) return false;
         if (!this._matchesTradition(s)) return false;
-        if (this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(s, ownedIdentityKeys)) return false;
         const isCantrip = s.system.traits?.value?.includes('cantrip');
         const spellRank = getSpellRank(s.system ?? {});
         if (this.isCantrip) return isCantrip;
         if (this.rank === -1) {
-          if (ownedSelections.has(`${s.uuid}:${spellRank}`) || this.excludedUuids.has(s.uuid)) return false;
+          if ((!this.excludeOwnedByIdentity && ownedSelections.has(`${s.uuid}:${spellRank}`)) || this.excludedUuids.has(s.uuid)) return false;
           if (this.allowedUuids.size > 0) return true;
           if (isCantrip) return false;
           if (this.maxRank != null) return spellRank >= 1 && spellRank <= this.maxRank;
           return spellRank >= 1;
         }
         if (isCantrip) return false;
-        if (ownedSelections.has(`${s.uuid}:${this.rank}`) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
+        if ((!this.excludeOwnedByIdentity && ownedSelections.has(`${s.uuid}:${this.rank}`)) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
         if (this.exactRank) return spellRank === this.rank;
         return spellRank <= this.rank;
       });
@@ -159,7 +159,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
-      selectedSpells: this.selectedSpells,
+      selectedSpells: this.selectedSpells.map((spell, index) => this._toSelectedTemplateSpell(spell, index)),
       maxSelect: this.maxSelect,
       remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
     };
@@ -274,6 +274,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!uuid) return;
         const item = await fromUuid(uuid);
         if (item?.sheet) item.sheet.render(true);
+        return;
+      }
+
+      if (action === 'removeSelectedSpell') {
+        e.preventDefault();
+        e.stopPropagation();
+        const index = Number(target.dataset.index);
+        await this._removeSelectedSpell(index);
         return;
       }
 
@@ -423,7 +431,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
-      selectedSpells: this.selectedSpells,
+      selectedSpells: this.selectedSpells.map((spell, index) => this._toSelectedTemplateSpell(spell, index)),
       maxSelect: this.maxSelect,
       remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
     });
@@ -498,6 +506,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getVisibleSpellUuids() {
     return this._getVisibleSpellOptions()
+      .filter((item) => item.dataset.selectable !== 'false')
       .map((item) => item.dataset.uuid)
       .filter((uuid) => typeof uuid === 'string' && uuid.length > 0);
   }
@@ -551,14 +560,17 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const option of el.querySelectorAll('.spell-option')) {
       const uuid = option.dataset.uuid;
       const selected = this.selectedSpellUuids.has(uuid);
+      const alreadyTaken = option.dataset.alreadyTaken === 'true';
       option.classList.toggle('spell-option--selected', selected);
       const button = option.querySelector('[data-action="selectSpell"]');
       if (button) {
         button.classList.toggle('active', selected);
-        button.disabled = !selected && atMax;
-        button.textContent = selected
-          ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
-          : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
+        button.disabled = alreadyTaken || (!selected && atMax);
+        button.textContent = alreadyTaken
+          ? game.i18n.localize('PF2E_LEVELER.SPELLS.TAKEN')
+          : selected
+            ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
+            : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
       }
     }
 
@@ -644,13 +656,38 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _toTemplateSpell(spell) {
+    const alreadyTaken = this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(spell, this._ownedIdentityKeys ?? new Set());
     return {
       uuid: spell.uuid ?? spell.sourceId ?? spell.flags?.core?.sourceId ?? '',
       name: spell.name ?? '',
       img: spell.img ?? '',
       system: spell.system ?? {},
       _levelerSelected: this.selectedSpellUuids.has(spell.uuid),
+      alreadyTaken,
     };
+  }
+
+  _toSelectedTemplateSpell(spell, index) {
+    const displayRank = Number(spell?.displayRank ?? spell?.rank ?? spell?.baseRank ?? spell?.system?.level?.value ?? 0);
+    return {
+      ...this._toTemplateSpell(spell),
+      index,
+      displayRank,
+      displayRankLabel: displayRank > 0
+        ? game.i18n.format('PF2E_LEVELER.SPELLS.RANK_NUMBER', { rank: displayRank })
+        : null,
+      canRemove: this.onRemoveSelected != null,
+    };
+  }
+
+  async _removeSelectedSpell(index) {
+    if (!this.onRemoveSelected || !Number.isInteger(index) || index < 0 || index >= this.selectedSpells.length) return;
+    const spell = this.selectedSpells[index];
+    await this.onRemoveSelected(spell, index);
+    this.selectedSpells.splice(index, 1);
+    this.selectedSpellUuids.delete(spell?.uuid);
+    if (this.maxSelect != null) this.maxSelect += 1;
+    await this.render(true);
   }
 
   _getSourceOptions() {

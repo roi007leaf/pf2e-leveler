@@ -646,11 +646,31 @@
 }
 
 .pf2e-leveler .spell-picker__selected-sidebar-name {
+  background: none;
+  border: 0;
+  padding: 0;
   font-size: var(--leveler-font-sm);
   color: var(--leveler-text-muted);
+  text-align: left;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-remove {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--leveler-text-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.pf2e-leveler .spell-picker__selected-sidebar-remove:hover {
+  color: var(--leveler-text-bright);
 }
 
 @media (max-width: 900px) {

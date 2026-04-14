@@ -206,7 +206,10 @@ export function removeLevelSpell(plan, level, uuid, options = {}) {
     if (removed) return true;
     if (s.uuid !== uuid) return true;
     if (targetEntryType != null && (s.entryType ?? 'primary') !== targetEntryType) return true;
-    if (targetRank != null && Number(s.rank ?? s.baseRank ?? -1) !== targetRank) return true;
+    const spellRank = Number(s.rank) === -1
+      ? Number(s.baseRank ?? -1)
+      : Number(s.rank ?? s.baseRank ?? -1);
+    if (targetRank != null && spellRank !== targetRank) return true;
     removed = true;
     return false;
   });

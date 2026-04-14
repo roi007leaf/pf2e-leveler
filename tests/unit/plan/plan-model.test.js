@@ -14,6 +14,8 @@ import {
   getAllPlannedFeats,
   getAllPlannedSkillIncreases,
   getAllPlannedBoosts,
+  addLevelSpell,
+  removeLevelSpell,
 } from '../../../scripts/plan/plan-model.js';
 
 beforeAll(() => {
@@ -112,6 +114,23 @@ describe('setLevelSkillIncrease', () => {
     const plan = createPlan('alchemist');
     setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
     expect(plan.levels[3].skillIncreases).toEqual([{ skill: 'athletics', toRank: 2 }]);
+  });
+});
+
+describe('removeLevelSpell', () => {
+  test('removes spellbook picks by base rank when stored rank is any-rank sentinel', () => {
+    const plan = createPlan('alchemist');
+    addLevelSpell(plan, 2, {
+      uuid: 'spell-rank-2',
+      name: 'Acid Grip',
+      rank: -1,
+      baseRank: 2,
+      entryType: 'primary',
+    });
+
+    removeLevelSpell(plan, 2, 'spell-rank-2', { entryType: 'primary', rank: 2 });
+
+    expect(plan.levels[2].spells).toEqual([]);
   });
 });
 

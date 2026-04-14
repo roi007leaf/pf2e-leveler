@@ -6,9 +6,19 @@
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ALREADY_SELECTED"}} ({{selectedSpells.length}})</div>
         <div class="spell-picker__selected-sidebar">
           {{#each selectedSpells}}
-          <div class="spell-picker__selected-sidebar-item" data-action="viewSpell" data-uuid="{{this.uuid}}" style="cursor: pointer;">
+          <div class="spell-picker__selected-sidebar-item">
             <img src="{{this.img}}" alt="" class="spell-picker__selected-sidebar-img">
-            <span class="spell-picker__selected-sidebar-name">{{this.name}}</span>
+            <button type="button" class="spell-picker__selected-sidebar-name" data-action="viewSpell" data-uuid="{{this.uuid}}">
+              {{this.name}}
+            </button>
+            {{#if this.displayRankLabel}}
+            <span class="tag tag--muted tag--tiny">{{this.displayRankLabel}}</span>
+            {{/if}}
+            {{#if this.canRemove}}
+            <button type="button" class="spell-picker__selected-sidebar-remove" data-action="removeSelectedSpell" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+            {{/if}}
           </div>
           {{/each}}
         </div>
@@ -165,11 +175,12 @@
 
       <div class="spell-list spell-picker__list">
         {{#each spells}}
-        <div class="spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}">
+        <div class="spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}spell-option--taken{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.alreadyTaken}}false{{else}}true{{/if}}">
           <img class="spell-option__img" src="{{this.img}}" alt="">
           <div class="spell-option__info">
             <div class="spell-option__header">
               <span class="spell-option__name" data-action="viewSpell">{{this.name}}</span>
+              {{#if this.alreadyTaken}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.SPELLS.TAKEN"}}</span>{{/if}}
               <span class="spell-option__level">{{localize "PF2E_LEVELER.SPELLS.RANK"}} {{this.system.level.value}}</span>
             </div>
             <div class="spell-option__traits">
@@ -182,8 +193,10 @@
             </div>
           </div>
           <div class="spell-option__actions">
-            <button type="button" class="spell-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}">
-              {{#if ../multiSelect}}
+            <button type="button" class="spell-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}" {{#if this.alreadyTaken}}disabled data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ALREADY_TAKEN'}}"{{/if}}>
+              {{#if this.alreadyTaken}}
+                {{localize "PF2E_LEVELER.SPELLS.TAKEN"}}
+              {{else if ../multiSelect}}
                 {{#if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
                 {{else}}

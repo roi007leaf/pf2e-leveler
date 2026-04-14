@@ -26,6 +26,7 @@ import {
   clearLevelEquipmentSlot,
   addLevelCustomEquipment,
   removeLevelCustomEquipment,
+  removeLevelSpell,
 } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
@@ -1180,6 +1181,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           maxRank,
           multiSelect,
           selectedSpells,
+          onRemoveSelected: async (spell) => {
+            const removalRank = Number(spell?.displayRank ?? spell?.baseRank ?? spell?.rank ?? spell?.system?.level?.value ?? -1);
+            removeLevelSpell(this.plan, this.selectedLevel, spell?.uuid, {
+              entryType: resolvedEntryType,
+              rank: removalRank,
+            });
+            this._buildStateCache = new Map();
+            this._subclassSlug = undefined;
+            this._subclassItem = undefined;
+            await savePlan(this.actor, this.plan);
+            await this.render({ force: true, parts: ['planner'] });
+          },
           maxSelect,
           preset: {
             ...(rank > 0 ? { selectedRanks: [rank] } : {}),

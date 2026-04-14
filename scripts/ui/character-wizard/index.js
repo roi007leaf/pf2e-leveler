@@ -28,6 +28,7 @@ import {
   setLanguages,
   setLores,
   addSpell,
+  removeSpell,
   setGrantedFeatSections,
   setAncestryFeat,
   setAncestryParagonFeat,
@@ -1301,6 +1302,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           multiSelect: true,
           excludedUuids: currentSpells.map((s) => s.uuid),
           selectedSpells: currentSpells,
+          onRemoveSelected: async (spell) => {
+            removeSpell(this.data, spell?.uuid, isCantrip);
+            this._applyPromptRowsCache = null;
+            await saveCreationData(this.actor, this.data);
+            await this.render({ force: true, parts: ['wizard'] });
+          },
           maxSelect: remaining,
         },
       );
