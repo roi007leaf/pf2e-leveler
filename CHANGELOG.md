@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.1.3
+
+### Content Sources
+
+- **Pickers now include custom world items from the Items tab for feats, spells, and equipment** - Spell picker, item picker, and character wizard category loading now pull eligible world `Item` documents alongside configured compendium content, so custom feats, spells, and gear created directly in the world are available in Leveler flows
+
+### Character Wizard
+
+- **GMs can now allow incomplete character creation** - A new world setting lets players apply character creation from the Summary step even when not every wizard step is complete, while keeping the default strict completion gate unchanged
+
 ## 3.1.2
 
 ### Spell Picker

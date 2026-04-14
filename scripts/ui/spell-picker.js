@@ -941,7 +941,13 @@ function getTraditionLabel(tradition) {
 
 export async function loadSpells() {
   const keys = getCompendiumKeysForCategory('spells');
-  const signature = keys.join('|');
+  const worldSignature = getAllWorldItems()
+    .filter((item) => item?.type === 'spell')
+    .map((item) => String(item?.uuid ?? item?.id ?? ''))
+    .filter(Boolean)
+    .sort()
+    .join('|');
+  const signature = `${keys.join('|')}::${worldSignature}`;
   if (cachedSpells && cachedSpellSourceSignature === signature) return cachedSpells;
 
   const allDocs = [];
@@ -961,6 +967,18 @@ export async function loadSpells() {
         return spell;
       }));
   }
+
+  const worldSourcePackage = 'world';
+  const worldSourcePackageLabel = getWorldSourceLabel();
+  allDocs.push(...getAllWorldItems()
+    .filter((item) => item?.type === 'spell')
+    .filter((spell) => isRarityAllowedForCurrentUser(spell.system?.traits?.rarity ?? 'common'))
+    .map((spell) => {
+      spell.sourcePack = spell.sourcePack ?? null;
+      spell.sourcePackage = spell.sourcePackage ?? worldSourcePackage;
+      spell.sourcePackageLabel = spell.sourcePackageLabel ?? worldSourcePackageLabel;
+      return spell;
+    }));
 
   cachedSpells = dedupeSpellDocuments(allDocs);
   cachedSpellSourceSignature = signature;
@@ -998,4 +1016,16 @@ function compactSourceOwnerLabel(label) {
   text = text.replace(/\s+for\s+Pathfinder\s+2e\s+by\s+Roll\s+For\s+Combat$/i, '');
   text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
   return text;
+}
+
+function getAllWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
+}
+
+function getWorldSourceLabel() {
+  return compactSourceOwnerLabel(game.world?.title ?? 'World');
 }

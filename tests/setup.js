@@ -14,6 +14,7 @@ global.game = {
         'pf2e-leveler': {
           showPlanButton: true,
           autoApplyOnLevelUp: true,
+          allowIncompleteCreation: false,
           showPrerequisites: true,
           enforcePrerequisites: true,
           enableDualClassSupport: true,

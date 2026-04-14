@@ -371,6 +371,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const allComplete = this.visibleSteps
       .filter((s) => s !== 'summary')
       .every((s) => this._isStepComplete(s));
+    const canApplyCreation = allComplete || game.settings.get(MODULE_ID, 'allowIncompleteCreation');
 
     const rawStepContext = await this._getStepContext();
     const compendiumSourceOptions = buildCompendiumSourceOptions(
@@ -410,6 +411,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       isLast: this.currentStep === STEPS.length - 1,
       isSummary: this.stepId === 'summary',
       allComplete,
+      canApplyCreation,
       browserStep,
       compendiumSourceOptions,
       hasCompendiumSourceFilter: compendiumSourceOptions.length > 0,

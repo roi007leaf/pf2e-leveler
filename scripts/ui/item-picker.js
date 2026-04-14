@@ -447,10 +447,39 @@ export async function loadItems() {
       return doc;
     }));
   }
+  const worldSourcePackage = 'world';
+  const worldSourcePackageLabel = compactSourceOwnerLabel(game.world?.title ?? 'World');
+  items.push(...getAllWorldItems()
+    .filter((item) => EQUIPMENT_TYPES.has(String(item?.type ?? '').toLowerCase()))
+    .map((item) => {
+      item.sourcePack = item.sourcePack ?? null;
+      item.sourcePackage = item.sourcePackage ?? worldSourcePackage;
+      item.sourcePackageLabel = item.sourcePackageLabel ?? worldSourcePackageLabel;
+      return item;
+    }));
   _itemCache = items;
   return items;
 }
 
 export function invalidateItemCache() {
   _itemCache = null;
+}
+
+const EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'equipment', 'consumable', 'ammo', 'treasure', 'backpack', 'shield', 'kit']);
+
+function getAllWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
+}
+
+function compactSourceOwnerLabel(label) {
+  let text = String(label ?? '').trim();
+  if (!text) return '';
+  if (/^pathfinder second edition$/i.test(text)) return 'PF2E';
+  text = text.replace(/\s+for\s+Pathfinder\s+2e\s+by\s+Roll\s+For\s+Combat$/i, '');
+  text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
+  return text;
 }

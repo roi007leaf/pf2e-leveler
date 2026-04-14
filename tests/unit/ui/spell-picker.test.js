@@ -9,6 +9,7 @@ const { getCompendiumKeysForCategory } = jest.requireMock('../../../scripts/comp
 describe('SpellPicker', () => {
   beforeEach(() => {
     clearSpellPickerCache();
+    game.items = [];
     getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd']);
     game.packs.get = jest.fn((key) => {
       if (key !== 'pf2e.spells-srd') return null;
@@ -121,6 +122,23 @@ describe('SpellPicker', () => {
 
     expect(getCompendiumKeysForCategory).toHaveBeenCalledWith('spells');
     expect(context.spells.map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'custom-bolt']));
+  });
+
+  test('includes world spell items alongside configured spell packs', async () => {
+    game.items = [
+      makeSpell('Item.world-heal', 'World Heal', 1, ['divine']),
+    ];
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'divine', 1, jest.fn(), { excludedSelections: [] });
+    const context = await picker._prepareContext();
+
+    expect(context.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'Item.world-heal',
+        name: 'World Heal',
+      }),
+    ]));
   });
 
   test('includes directly allowed spell UUIDs even when they are not in configured spell packs', async () => {

@@ -32,6 +32,15 @@ export function registerSettings() {
     default: true,
   });
 
+  game.settings.register(MODULE_ID, 'allowIncompleteCreation', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ALLOW_INCOMPLETE_CREATION.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ALLOW_INCOMPLETE_CREATION.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   game.settings.register(MODULE_ID, 'showPrerequisites', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.SHOW_PREREQUISITES.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.SHOW_PREREQUISITES.HINT'),

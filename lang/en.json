@@ -502,6 +502,10 @@
         "NAME": "Auto-Apply on Level Up",
         "HINT": "Automatically prompt to apply planned selections when a character levels up"
       },
+      "ALLOW_INCOMPLETE_CREATION": {
+        "NAME": "Allow Incomplete Character Creation",
+        "HINT": "Let players apply character creation even when not every wizard step is complete."
+      },
       "SHOW_PREREQUISITES": {
         "NAME": "Show Prerequisites",
         "HINT": "Show prerequisite validation status on feats in the picker"

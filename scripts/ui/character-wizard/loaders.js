@@ -56,7 +56,8 @@ export async function loadCompendiumCategory(wizard, category, cacheKey = `categ
     ? wizard._loadCompendium.bind(wizard)
     : (key) => loadCompendium(wizard, key);
   const lists = await Promise.all(keys.map((key) => loader(key)));
-  const items = filterEntriesByRarityForCurrentUser(dedupeCompendiumItems(lists.flat()))
+  const worldItems = getWorldItemsForCategory(category);
+  const items = filterEntriesByRarityForCurrentUser(dedupeCompendiumItems([...lists.flat(), ...worldItems]))
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
@@ -600,6 +601,71 @@ function dedupeCompendiumItems(items) {
     return true;
   });
 }
+
+function getWorldItemsForCategory(category) {
+  const allItems = getAllWorldItems();
+  const sourcePackage = 'world';
+  const sourcePackageLabel = compactSourceOwnerLabel(game.world?.title ?? 'World');
+
+  return allItems
+    .filter((item) => matchesWorldCategory(item, category))
+    .map((item) => ({
+      uuid: item.uuid,
+      name: item.name,
+      img: item.img,
+      sourcePack: item.sourcePack ?? null,
+      sourceLabel: sourcePackageLabel,
+      sourcePackage: item.sourcePackage ?? sourcePackage,
+      sourcePackageLabel: item.sourcePackageLabel ?? sourcePackageLabel,
+      type: item.type,
+      slug: item.slug ?? null,
+      description: item.system?.description?.value?.substring(0, 150) ?? '',
+      traits: item.system?.traits?.value ?? [],
+      otherTags: item.system?.traits?.otherTags ?? [],
+      traditions: item.system?.traits?.traditions ?? item.system?.traditions?.value ?? [],
+      rarity: item.system?.traits?.rarity ?? 'common',
+      level: item.system?.level?.value ?? 0,
+      category: item.system?.category ?? null,
+      ancestrySlug: item.system?.ancestry?.slug ?? null,
+      usage: item.system?.usage?.value ?? null,
+      range: normalizeRangeValue(item.system?.range ?? null),
+      isRanged: isRangedWeaponData(item.system),
+      damageTypes: extractDamageTypes(item),
+      isMagical: (item.system?.traits?.value ?? []).includes('magical'),
+      trainedSkills: item.system?.trainedSkills?.value ?? [],
+      boosts: normalizeBoostEntries(item.system?.boosts ?? {}),
+      font: item.system?.font ?? [],
+      sanctification: item.system?.sanctification ?? {},
+      domains: item.system?.domains ?? { primary: [], alternate: [] },
+      skill: item.system?.skill ?? null,
+      keyAbility: normalizeKeyAbilityOptions(item.system?.keyAbility ?? null),
+    }));
+}
+
+function matchesWorldCategory(item, category) {
+  const type = String(item?.type ?? '').toLowerCase();
+  if (category === 'spells') return type === 'spell';
+  if (category === 'equipment') return EQUIPMENT_TYPES.has(type);
+  if (category === 'feats') return type === 'feat' && !isClassFeatureCategory(item?.system?.category);
+  return false;
+}
+
+function isClassFeatureCategory(category) {
+  const normalized = String(
+    (typeof category === 'object' && category !== null ? category.value : category) ?? '',
+  ).toLowerCase();
+  return ['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(normalized);
+}
+
+function getAllWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
+}
+
+const EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'equipment', 'consumable', 'ammo', 'treasure', 'backpack', 'shield', 'kit']);
 
 function collectAncestryMatchTokens(ancestry) {
   const baseTokens = new Set();

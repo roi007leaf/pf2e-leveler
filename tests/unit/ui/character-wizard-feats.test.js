@@ -610,6 +610,30 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
+  it('can allow applying incomplete character creation when the GM setting is enabled', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = wizard.visibleSteps.indexOf('summary');
+    jest.spyOn(wizard, 'visibleSteps', 'get').mockReturnValue(['ancestry', 'summary']);
+    jest.spyOn(wizard, '_isStepComplete').mockImplementation((stepId) => stepId === 'summary');
+    wizard._ensureClassMetadata = jest.fn(async () => {});
+    wizard._getRequiredClassBoostSelections = jest.fn(async () => 0);
+    wizard._computeBoostStepComplete = jest.fn(async () => true);
+    wizard._getAdditionalLanguageCount = jest.fn(async () => 0);
+    wizard._getAdditionalSkillCount = jest.fn(async () => 0);
+    wizard._getStepContext = jest.fn(async () => ({}));
+
+    game.settings.get = jest.fn((moduleId, settingId) => {
+      if (moduleId === 'pf2e-leveler' && settingId === 'allowIncompleteCreation') return true;
+      return false;
+    });
+
+    const context = await wizard._prepareContext();
+
+    expect(context.allComplete).toBe(false);
+    expect(context.canApplyCreation).toBe(true);
+  });
+
   it('keeps the feat step incomplete for rogues until a level 1 skill feat is selected', () => {
     game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());

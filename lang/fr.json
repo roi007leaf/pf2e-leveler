@@ -470,6 +470,10 @@
         "NAME": "Application automatique au gain de niveau",
         "HINT": "Proposer automatiquement l'application des selections planifiees lorsqu'un personnage gagne un niveau"
       },
+      "ALLOW_INCOMPLETE_CREATION": {
+        "NAME": "Autoriser une creation de personnage incomplete",
+        "HINT": "Permet aux joueurs d'appliquer la creation de personnage meme si toutes les etapes de l'assistant ne sont pas terminees."
+      },
       "SHOW_PREREQUISITES": {
         "NAME": "Afficher les prerequis",
         "HINT": "Afficher l'etat de validation des prerequis sur les dons dans le selecteur"

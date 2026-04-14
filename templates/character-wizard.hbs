@@ -1734,7 +1734,7 @@
         <i class="fa-solid fa-file-export"></i> {{localize "PF2E_LEVELER.CREATION.EXPORT"}}
       </button>
       {{#if isSummary}}
-      <button type="button" class="wizard-nav__btn wizard-nav__btn--apply" data-action="applyCreation" {{#unless allComplete}}disabled{{/unless}} {{#if isApplying}}disabled{{/if}}>
+      <button type="button" class="wizard-nav__btn wizard-nav__btn--apply" data-action="applyCreation" {{#unless canApplyCreation}}disabled{{/unless}} {{#if isApplying}}disabled{{/if}}>
         <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "PF2E_LEVELER.CREATION.CREATE"}}
       </button>
       {{else}}

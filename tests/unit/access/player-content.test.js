@@ -55,4 +55,59 @@ describe('player content restrictions', () => {
       { uuid: 'common', name: 'Common Option', rarity: 'common' },
     ]);
   });
+
+  test('includes eligible world items in character creation loaders for feats, spells, and equipment', async () => {
+    game.items = [
+      {
+        uuid: 'Item.world-feat',
+        name: 'World Feat',
+        type: 'feat',
+        system: {
+          category: 'general',
+          traits: { rarity: 'common', value: ['skill'] },
+          description: { value: '<p>Feat</p>' },
+          level: { value: 1 },
+        },
+      },
+      {
+        uuid: 'Item.world-spell',
+        name: 'World Spell',
+        type: 'spell',
+        system: {
+          traits: { rarity: 'common', value: [], traditions: ['arcane'] },
+          description: { value: '<p>Spell</p>' },
+          level: { value: 1 },
+        },
+      },
+      {
+        uuid: 'Item.world-weapon',
+        name: 'World Weapon',
+        type: 'weapon',
+        system: {
+          traits: { rarity: 'common', value: ['martial'] },
+          description: { value: '<p>Weapon</p>' },
+          level: { value: 1 },
+        },
+      },
+    ];
+
+    const wizard = {
+      _compendiumCache: {},
+      _loadCompendium: jest.fn(async () => []),
+    };
+
+    const feats = await loadCompendiumCategory(wizard, 'feats', 'category-feats');
+    const spells = await loadCompendiumCategory(wizard, 'spells', 'category-spells');
+    const equipment = await loadCompendiumCategory(wizard, 'equipment', 'category-equipment');
+
+    expect(feats).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'Item.world-feat', sourcePackage: 'world' }),
+    ]));
+    expect(spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'Item.world-spell', sourcePackage: 'world' }),
+    ]));
+    expect(equipment).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'Item.world-weapon', sourcePackage: 'world' }),
+    ]));
+  });
 });
