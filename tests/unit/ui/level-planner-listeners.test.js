@@ -4,6 +4,12 @@ import { createPlan } from '../../../scripts/plan/plan-model.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 
+jest.mock('../../../scripts/apply/apply-manager.js', () => ({
+  promptApplyPlan: jest.fn(async () => {}),
+}));
+
+import { promptApplyPlan } from '../../../scripts/apply/apply-manager.js';
+
 async function flushAsyncListeners() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -384,5 +390,29 @@ describe('Level planner skill increase listeners', () => {
       { skill: 'acrobatics', toRank: 3 },
     ]);
     expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('wires the manual apply button to the selected planner level', async () => {
+    document.body.innerHTML = '<button type="button" data-action="applySelectedPlan"></button>';
+
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+        },
+      },
+    });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 2;
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="applySelectedPlan"]').click();
+    await flushAsyncListeners();
+
+    expect(promptApplyPlan).toHaveBeenCalledWith(planner.actor, planner.plan, 2, 1);
   });
 });

@@ -28,8 +28,10 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     super();
     this.actor = actor;
     this.onSelect = onSelect;
+    this.multiSelect = options.multiSelect === true;
     this.allItems = options.items ?? [];
     this.filteredItems = [];
+    this.selectedItemUuids = new Set();
     this.searchText = '';
     this.selectedSourcePackages = new Set();
     this.selectedCategories = new Set();
@@ -76,6 +78,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       items: (capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems).map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
       capped,
+      multiSelect: this.multiSelect,
+      selectedCount: this.selectedItemUuids.size,
+      allVisibleSelected: this._areAllVisibleSelected(),
       sourceOptions,
       categoryOptions,
       rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
@@ -106,6 +111,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       traits: [...new Set(item.system?.traits?.value ?? [])].filter((t) => t !== normalizeItemCategory(item)),
       isRecommended: item.isRecommended ?? false,
       isDisallowed: item.isDisallowed ?? false,
+      _levelerSelected: this.selectedItemUuids.has(item.uuid),
     };
   }
 
@@ -257,6 +263,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       items: (capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems).map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
       capped,
+      multiSelect: this.multiSelect,
+      selectedCount: this.selectedItemUuids.size,
+      allVisibleSelected: this._areAllVisibleSelected(),
     };
     const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/item-picker.hbs`, context);
     const temp = document.createElement('div');
@@ -280,6 +289,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     this._cachedVisibleTraits = this._getVisibleTraits();
+    this._updateSelectionUI();
   }
 
   _scheduleUpdate() {
@@ -411,11 +421,114 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const uuid = target.closest('[data-uuid]')?.dataset.uuid ?? target.dataset.uuid;
         const item = await fromUuid(uuid).catch(() => null);
         if (item && this.onSelect) {
-          await this.onSelect(item);
-          this.close();
+          if (this.multiSelect) {
+            this._toggleSelectedItem(item.uuid);
+            this._updateSelectionUI();
+          } else {
+            await this.onSelect(item);
+            this.close();
+          }
         }
+        return;
+      }
+
+      if (action === 'toggleSelectAll') {
+        e.preventDefault();
+        e.stopPropagation();
+        this._toggleSelectAllVisible();
+        this._updateSelectionUI();
+        return;
+      }
+
+      if (action === 'confirmSelection') {
+        e.preventDefault();
+        e.stopPropagation();
+        await this._confirmSelection();
       }
     }, { signal });
+  }
+
+  _getVisibleItemOptions() {
+    const el = this._getRootElement();
+    if (!el) return [];
+    return [...el.querySelectorAll('.item-option')].filter((item) => item.style.display !== 'none');
+  }
+
+  _getVisibleItemUuids() {
+    return this._getVisibleItemOptions()
+      .map((item) => item.dataset.uuid)
+      .filter((uuid) => typeof uuid === 'string' && uuid.length > 0);
+  }
+
+  _areAllVisibleSelected() {
+    const visibleUuids = this._getVisibleItemUuids();
+    return visibleUuids.length > 0 && visibleUuids.every((uuid) => this.selectedItemUuids.has(uuid));
+  }
+
+  _toggleSelectedItem(uuid) {
+    if (!uuid) return;
+    if (this.selectedItemUuids.has(uuid)) this.selectedItemUuids.delete(uuid);
+    else this.selectedItemUuids.add(uuid);
+  }
+
+  _toggleSelectAllVisible() {
+    const visibleUuids = this._getVisibleItemUuids();
+    if (visibleUuids.length === 0) return;
+
+    const allVisibleSelected = visibleUuids.every((uuid) => this.selectedItemUuids.has(uuid));
+    for (const uuid of visibleUuids) {
+      if (allVisibleSelected) this.selectedItemUuids.delete(uuid);
+      else this.selectedItemUuids.add(uuid);
+    }
+  }
+
+  async _confirmSelection() {
+    if (!this.multiSelect || this.selectedItemUuids.size === 0 || !this.onSelect) return;
+    const selectedItems = this.allItems
+      .filter((item) => this.selectedItemUuids.has(item.uuid))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    await this.onSelect(selectedItems);
+    this.close();
+  }
+
+  _updateSelectionUI() {
+    const el = this._getRootElement();
+    if (!el || !this.multiSelect) return;
+
+    for (const option of el.querySelectorAll('.item-option')) {
+      const uuid = option.dataset.uuid;
+      const selected = this.selectedItemUuids.has(uuid);
+      option.classList.toggle('spell-option--selected', selected);
+      const button = option.querySelector('[data-action="selectItem"]');
+      if (button) {
+        button.classList.toggle('active', selected);
+        button.textContent = selected
+          ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
+          : game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.SELECT');
+      }
+    }
+
+    const countEl = el.querySelector('.spell-picker__selected-count');
+    if (countEl) {
+      countEl.textContent = game.i18n.format('PF2E_LEVELER.SPELLS.SELECTED_COUNT', {
+        count: this.selectedItemUuids.size,
+      });
+    }
+
+    const selectAllButton = el.querySelector('[data-action="toggleSelectAll"]');
+    if (selectAllButton) {
+      selectAllButton.disabled = this._getVisibleItemUuids().length === 0;
+      selectAllButton.textContent = game.i18n.localize(
+        this._areAllVisibleSelected()
+          ? 'PF2E_LEVELER.SPELLS.DESELECT_ALL'
+          : 'PF2E_LEVELER.SPELLS.SELECT_ALL',
+      );
+    }
+
+    const confirmButton = el.querySelector('[data-action="confirmSelection"]');
+    if (confirmButton) {
+      confirmButton.disabled = this.selectedItemUuids.size === 0;
+    }
   }
 }
 

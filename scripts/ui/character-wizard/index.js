@@ -1104,28 +1104,35 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _openItemPicker() {
     import('../item-picker.js').then(({ ItemPicker }) => {
-      const picker = new ItemPicker(this.actor, (item) => {
+      const picker = new ItemPicker(this.actor, (items) => {
+        const selectedItems = Array.isArray(items) ? items : [items];
         const budgetCp = this._getGoldBudgetCp();
-        if (budgetCp > 0 && !game.user.isGM) {
-          const currentCp = equipmentTotalCp(this.data.equipment ?? []);
-          const itemCp =
-            (item.system?.price?.value?.gp ?? 0) * 100 +
-            (item.system?.price?.value?.sp ?? 0) * 10 +
-            (item.system?.price?.value?.cp ?? 0);
-          if (currentCp + itemCp > budgetCp) {
-            const limitGp = budgetCp / 100;
-            ui.notifications.warn(
-              game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', {
-                limit: limitGp,
-              }),
-            );
-            return;
+        let currentCp = equipmentTotalCp(this.data.equipment ?? []);
+        let changed = false;
+        for (const item of selectedItems) {
+          if (!item) continue;
+          if (budgetCp > 0 && !game.user.isGM) {
+            const itemCp =
+              (item.system?.price?.value?.gp ?? 0) * 100 +
+              (item.system?.price?.value?.sp ?? 0) * 10 +
+              (item.system?.price?.value?.cp ?? 0);
+            if (currentCp + itemCp > budgetCp) {
+              const limitGp = budgetCp / 100;
+              ui.notifications.warn(
+                game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', {
+                  limit: limitGp,
+                }),
+              );
+              continue;
+            }
+            currentCp += itemCp;
           }
+          const batchSize = Number(item.system?.price?.per ?? 1);
+          addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
+          changed = true;
         }
-        const batchSize = Number(item.system?.price?.per ?? 1);
-        addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
-        this._saveAndRender();
-      });
+        if (changed) this._saveAndRender();
+      }, { multiSelect: true });
       picker.render(true);
     });
   }

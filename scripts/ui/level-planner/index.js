@@ -32,6 +32,7 @@ import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-fea
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
+import { promptApplyPlan } from '../../apply/apply-manager.js';
 import { isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled, isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../../utils/feat-aliases.js';
 import { extractFeatSpellcastingMetadata, FEAT_SPELLCASTING_METADATA_VERSION } from '../../utils/spellcasting-support.js';
@@ -1774,6 +1775,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       this.plan.sequentialMode.active = false;
     }
     await this._savePlanAndRender();
+  }
+
+  async _applySelectedPlan() {
+    if (!this.plan || !Number.isInteger(this.selectedLevel)) return;
+    await promptApplyPlan(this.actor, this.plan, this.selectedLevel, this.selectedLevel - 1);
   }
 
   async _openEquipmentSlotPicker(slotIndex, maxLevel) {

@@ -94,12 +94,27 @@
     <section class="picker__results">
       <div class="picker__results-header">
         <div class="picker__results-label">{{localize "PF2E_LEVELER.ITEM_PICKER.EQUIPMENT"}}</div>
-        <div class="picker__results-count">{{filteredCount}}</div>
+        <div class="spell-picker__results-meta">
+          {{#if multiSelect}}
+          <div class="spell-picker__selected-count">{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}</div>
+          <button type="button" class="item-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
+            {{#if allVisibleSelected}}
+              {{localize "PF2E_LEVELER.SPELLS.DESELECT_ALL"}}
+            {{else}}
+              {{localize "PF2E_LEVELER.SPELLS.SELECT_ALL"}}
+            {{/if}}
+          </button>
+          <button type="button" class="item-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
+            {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}}
+          </button>
+          {{/if}}
+          <div class="picker__results-count">{{filteredCount}}</div>
+        </div>
       </div>
 
       <div class="item-list">
         {{#each items}}
-        <div class="item-option" data-uuid="{{this.uuid}}">
+        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}">
           <img class="item-option__img" src="{{this.img}}" alt="">
           <div class="item-option__info">
             <div class="item-option__header">
@@ -119,7 +134,15 @@
           </div>
           <div class="item-option__actions">
             <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}">
-              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+              {{#if ../multiSelect}}
+                {{#if this._levelerSelected}}
+                  {{localize "PF2E_LEVELER.UI.SELECTED"}}
+                {{else}}
+                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{/if}}
+              {{else}}
+                {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+              {{/if}}
             </button>
           </div>
         </div>

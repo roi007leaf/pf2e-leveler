@@ -53,6 +53,10 @@
           <h2 class="planner-content__title">
             {{format "PF2E_LEVELER.UI.LEVEL" level=selectedLevel}}
           </h2>
+          <button type="button" class="sidebar-action-btn planner-content__action" data-action="applySelectedPlan" data-tooltip="{{localize 'PF2E_LEVELER.UI.APPLY'}}">
+            <i class="fa-solid fa-play"></i>
+            {{localize "PF2E_LEVELER.UI.APPLY"}}
+          </button>
           <button type="button" class="sidebar-action-btn sidebar-action-btn--danger planner-content__action" data-action="clearLevel" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR_LEVEL'}}">
             <i class="fa-solid fa-eraser"></i>
             {{localize "PF2E_LEVELER.UI.CLEAR_LEVEL"}}

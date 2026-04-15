@@ -68,4 +68,72 @@ describe('ItemPicker', () => {
       }),
     ]));
   });
+
+  test('supports multi-select confirmation for item picking', async () => {
+    const onSelect = jest.fn();
+    const picker = new ItemPicker({ name: 'Actor' }, onSelect, {
+      multiSelect: true,
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Adventurer Pack',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-b',
+          name: 'Backpack',
+          type: 'backpack',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 0 } },
+        },
+      ],
+    });
+
+    picker.close = jest.fn();
+    picker._toggleSelectedItem('item-b');
+    picker._toggleSelectedItem('item-a');
+    await picker._confirmSelection();
+
+    expect(onSelect).toHaveBeenCalledWith([
+      expect.objectContaining({ uuid: 'item-a', name: 'Adventurer Pack' }),
+      expect.objectContaining({ uuid: 'item-b', name: 'Backpack' }),
+    ]);
+    expect(picker.close).toHaveBeenCalled();
+  });
+
+  test('toggle select all only affects visible items', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      items: [],
+    });
+
+    picker.selectedItemUuids = new Set(['hidden-item']);
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="spell-picker__selected-count"></div>
+      <button data-action="toggleSelectAll"></button>
+      <button data-action="confirmSelection"></button>
+      <div class="item-option" data-uuid="item-a"></div>
+      <div class="item-option" data-uuid="item-b"></div>
+      <div class="item-option" data-uuid="hidden-item" style="display:none"></div>
+    `;
+
+    picker._updateSelectionUI();
+    expect(picker.element.querySelector('[data-action="toggleSelectAll"]').textContent)
+      .toBe('PF2E_LEVELER.SPELLS.SELECT_ALL');
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedItemUuids.has('item-a')).toBe(true);
+    expect(picker.selectedItemUuids.has('item-b')).toBe(true);
+    expect(picker.selectedItemUuids.has('hidden-item')).toBe(true);
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedItemUuids.has('item-a')).toBe(false);
+    expect(picker.selectedItemUuids.has('item-b')).toBe(false);
+    expect(picker.selectedItemUuids.has('hidden-item')).toBe(true);
+  });
 });

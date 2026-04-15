@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.1.5
+
+### Level Planner
+
+- **A manual button can now apply a plan on demand** - Added an explicit planner action so builds can be applied manually instead of only through the existing flow triggers
+
+### Equipment Selection
+
+- **Equipment browser now supports multi-select item picking** - The equipment selection menu can now add several items in one pass, matching the existing spell-picker multi-select flow and avoiding repeated reopen cycles
+
 ## 3.1.4
 
 ### Character Wizard

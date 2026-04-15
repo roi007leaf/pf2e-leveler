@@ -317,6 +317,10 @@ export function activateLevelPlannerListeners(planner, html) {
   el.querySelector('[data-action="clearLevel"]')?.addEventListener('click', () => {
     planner._clearSelectedLevel();
   });
+
+  el.querySelector('[data-action="applySelectedPlan"]')?.addEventListener('click', () => {
+    planner._applySelectedPlan();
+  });
 }
 
 export function getSelectableSkillRank(planner, slug) {
