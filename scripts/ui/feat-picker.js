@@ -311,7 +311,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
 
       feat.prereqResults = showPrereqs ? check.results : [];
-      feat.hasFailedPrerequisites = check.results.some((result) => result.met === false);
+      feat.prereqTree = showPrereqs ? check.tree : null;
+      feat.hasFailedPrerequisites = check.met === false;
       feat.hasUnknownPrerequisites = check.results.some((result) => result.met == null);
       feat.prerequisitesFailed = feat.hasFailedPrerequisites;
       feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
@@ -984,6 +985,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       ...feat,
       uuid: featUuid,
       prereqResults: (feat.prereqResults ?? []).map((result) => this._decoratePrereqResult(result)),
+      prereqGroups: this._buildPrereqGroups(feat.prereqTree),
       additionalArchetypeUnlockLevel,
       isAdditionalArchetypeFeat: additionalArchetypeUnlockLevel != null,
       hasSelectionLimitationBadge: this._requiredFeatLimitation
@@ -1001,6 +1003,52 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       tooltipText: text,
       displayHtml: this._colorizePrereqRanks(text),
     };
+  }
+
+  _buildPrereqGroups(tree) {
+    if (!tree) return [];
+    return this._collectPrereqGroups(tree);
+  }
+
+  _collectPrereqGroups(node) {
+    if (!node || typeof node !== 'object') return [];
+
+    if (node.kind === 'leaf' && node.result) {
+      return [{
+        grouped: false,
+        items: [this._decoratePrereqResult(node.result)],
+      }];
+    }
+
+    if (node.kind === 'any') {
+      const leafItems = this._collectLeafPrereqItems(node);
+      if (leafItems.length > 0) {
+        return [{
+          grouped: true,
+          met: node.met,
+          items: leafItems,
+        }];
+      }
+    }
+
+    if (node.kind === 'not' && node.child) {
+      return this._collectPrereqGroups(node.child);
+    }
+
+    const childNodes = Array.isArray(node.children) ? node.children : [];
+    return childNodes.flatMap((child) => this._collectPrereqGroups(child));
+  }
+
+  _collectLeafPrereqItems(node) {
+    if (!node || typeof node !== 'object') return [];
+    if (node.kind === 'leaf' && node.result) {
+      return [this._decoratePrereqResult(node.result)];
+    }
+
+    const childNodes = Array.isArray(node.children) ? node.children : [];
+    if (childNodes.length === 0) return [];
+
+    return childNodes.flatMap((child) => this._collectLeafPrereqItems(child));
   }
 
   _colorizePrereqRanks(text) {

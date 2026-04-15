@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.6
+
+### Feat Picker
+
+- **Alternative prerequisites now enforce correctly when one branch is met** - Feats with prerequisite text such as `master in Occultism or Religion` no longer stay blocked just because one displayed alternative fails; Leveler now respects the overall `or` prerequisite result when deciding eligibility
+- **Grouped prerequisite alternatives now render inside a shared border** - Alternative branches that belong to one prerequisite, including shared-rank lists such as `master in Nature, Occultism, or Religion`, now display as a single bordered cluster so it is clear they are one grouped requirement rather than separate independent prerequisites
+
 ## 3.1.5
 
 ### Level Planner

@@ -231,14 +231,18 @@
             </div>
             {{#if this.prereqResults.length}}
             <div class="prereq-tags">
-              {{#each this.prereqResults}}
-              {{#if (eq this.met true)}}
-                <span class="tag tag--success" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-check"></i> {{{this.displayHtml}}}</span>
-              {{else if (eq this.met false)}}
-                <span class="tag tag--error" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-xmark"></i> {{{this.displayHtml}}}</span>
-              {{else}}
-                <span class="tag tag--muted" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}"><i class="fa-solid fa-question"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED"}}: {{{this.displayHtml}}}</span>
-              {{/if}}
+              {{#each this.prereqGroups}}
+              <div class="prereq-group {{#if this.grouped}}prereq-group--grouped{{/if}}">
+                {{#each this.items}}
+                {{#if (eq this.met true)}}
+                  <span class="tag tag--success" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-check"></i> {{{this.displayHtml}}}</span>
+                {{else if (eq this.met false)}}
+                  <span class="tag tag--error" data-tooltip="{{this.tooltipText}}"><i class="fa-solid fa-xmark"></i> {{{this.displayHtml}}}</span>
+                {{else}}
+                  <span class="tag tag--muted" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}"><i class="fa-solid fa-question"></i> {{localize "PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED"}}: {{{this.displayHtml}}}</span>
+                {{/if}}
+                {{/each}}
+              </div>
               {{/each}}
             </div>
             {{/if}}

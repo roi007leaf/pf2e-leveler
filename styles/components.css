@@ -467,6 +467,19 @@
   margin-top: 4px;
 }
 
+.pf2e-leveler .prereq-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pf2e-leveler .prereq-group--grouped {
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .pf2e-leveler .prereq-rank {
   font-weight: 600;
 }

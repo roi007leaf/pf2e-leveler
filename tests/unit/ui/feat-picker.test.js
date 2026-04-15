@@ -96,6 +96,66 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(true);
   });
 
+  test('mechanical alternative prerequisites do not block selection when one branch is met', () => {
+    const feat = createFeat({
+      name: 'Break Curse',
+      prereqText: 'master in Occultism or Religion',
+      uuid: 'break-curse',
+      slug: 'break-curse',
+    });
+    feat.system.level.value = 7;
+    feat.system.traits.value = ['skill', 'general'];
+
+    const picker = new FeatPicker(createActor(), 'general', 7, createBuildState({
+      level: 7,
+      skills: { athletics: 0, religion: 3, occultism: 0 },
+    }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.prereqResults).toHaveLength(2);
+    expect(result.prereqResults).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'master in Occultism', met: false }),
+      expect.objectContaining({ text: 'master in Religion', met: true }),
+    ]));
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.hasUnknownPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
+  test('mechanical alternative prerequisites render as a grouped prerequisite cluster', () => {
+    const feat = createFeat({
+      name: 'Break Curse',
+      prereqText: 'master in Occultism or Religion',
+      uuid: 'break-curse',
+      slug: 'break-curse',
+    });
+    feat.system.level.value = 7;
+    feat.system.traits.value = ['skill', 'general'];
+
+    const picker = new FeatPicker(createActor(), 'general', 7, createBuildState({
+      level: 7,
+      skills: { athletics: 0, religion: 3, occultism: 0 },
+    }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+    const templated = picker._toTemplateFeat(result);
+
+    expect(templated.prereqGroups).toHaveLength(1);
+    expect(templated.prereqGroups[0]).toEqual(expect.objectContaining({
+      grouped: true,
+    }));
+    expect(templated.prereqGroups[0].items).toHaveLength(2);
+    expect(templated.prereqGroups[0].items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'Master In Occultism', met: false }),
+      expect.objectContaining({ text: 'Master In Religion', met: true }),
+    ]));
+  });
+
   test('signature trick prerequisites are shown as unknown and do not block selection', () => {
     const feat = createFeat({
       name: 'Additional Circus Trick',

@@ -27,7 +27,7 @@ export function checkPrerequisites(feat, buildState) {
   const parsed = parseAllPrerequisiteNodes(feat);
 
   if (parsed.length === 0) {
-    return { met: true, results: [] };
+    return { met: true, results: [], tree: null };
   }
 
   const root = parsed.length === 1
@@ -36,13 +36,17 @@ export function checkPrerequisites(feat, buildState) {
   const evaluation = evaluateRequirementNode(root, buildState);
   const met = evaluation.met !== false;
 
-  return { met, results: evaluation.results };
+  return { met, results: evaluation.results, tree: evaluation.tree };
 }
 
 function evaluateRequirementNode(node, buildState) {
   if (!node || typeof node !== 'object') {
     const result = matchUnknown({ type: 'unknown', text: '' });
-    return { met: result.met, results: [result] };
+    return {
+      met: result.met,
+      results: [result],
+      tree: { kind: 'leaf', met: result.met, result },
+    };
   }
 
   switch (node.kind) {
@@ -113,6 +117,12 @@ function evaluateAllNode(node, buildState) {
   return {
     met: combineAll(evaluations.map((entry) => entry.met)),
     results: evaluations.flatMap((entry) => entry.results),
+    tree: {
+      kind: 'all',
+      text: node.text,
+      met: combineAll(evaluations.map((entry) => entry.met)),
+      children: evaluations.map((entry) => entry.tree).filter(Boolean),
+    },
   };
 }
 
@@ -121,6 +131,12 @@ function evaluateAnyNode(node, buildState) {
   return {
     met: combineAny(evaluations.map((entry) => entry.met)),
     results: evaluations.flatMap((entry) => entry.results),
+    tree: {
+      kind: 'any',
+      text: node.text,
+      met: combineAny(evaluations.map((entry) => entry.met)),
+      children: evaluations.map((entry) => entry.tree).filter(Boolean),
+    },
   };
 }
 
@@ -129,6 +145,12 @@ function evaluateNotNode(node, buildState) {
   return {
     met: evaluation.met === null ? null : !evaluation.met,
     results: evaluation.results,
+    tree: {
+      kind: 'not',
+      text: node.text,
+      met: evaluation.met === null ? null : !evaluation.met,
+      child: evaluation.tree,
+    },
   };
 }
 
@@ -136,6 +158,12 @@ function wrapLeafResult(result) {
   return {
     met: result.met,
     results: [result],
+    tree: {
+      kind: 'leaf',
+      text: result.text,
+      met: result.met,
+      result,
+    },
   };
 }
 
