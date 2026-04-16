@@ -14,6 +14,31 @@ export function matchAnySkill(parsed, buildState) {
   };
 }
 
+const RECALL_KNOWLEDGE_SKILLS = new Set([
+  'arcana',
+  'crafting',
+  'medicine',
+  'nature',
+  'occultism',
+  'religion',
+  'society',
+]);
+
+export function matchRecallKnowledgeSkill(parsed, buildState) {
+  const skillMet = Object.entries(buildState.skills ?? {}).some(
+    ([skill, rank]) => RECALL_KNOWLEDGE_SKILLS.has(String(skill ?? '').trim().toLowerCase()) && Number(rank ?? 0) >= parsed.minRank,
+  );
+  if (skillMet) {
+    return { met: true, text: parsed.text };
+  }
+
+  const loreMet = Object.values(buildState.lores ?? {}).some((rank) => Number(rank ?? 0) >= parsed.minRank);
+  return {
+    met: loreMet,
+    text: parsed.text,
+  };
+}
+
 export function matchWeaponFamilyProficiency(parsed, buildState) {
   const weaponProficiencies = buildState.weaponProficiencies ?? {};
   const family = normalizeWeaponFamily(parsed.family);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.7
+
+### Feat Picker
+
+- **Recall Knowledge skill prerequisites are now recognized correctly** - Prerequisites like `Trained in a skill with the Recall Knowledge action` now check trained Recall Knowledge skills and lore properly, so feats such as `Dubious Knowledge` no longer fail or show as blocked incorrectly
+
 ## 3.1.6
 
 ### Feat Picker

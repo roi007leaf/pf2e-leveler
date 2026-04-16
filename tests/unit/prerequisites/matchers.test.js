@@ -1,6 +1,7 @@
 import {
   matchSkill,
   matchAnySkill,
+  matchRecallKnowledgeSkill,
   matchWeaponFamilyProficiency,
   matchLore,
   matchLanguage,
@@ -60,6 +61,32 @@ describe('matchAnySkill', () => {
     const result = matchAnySkill(
       { type: 'anySkill', minRank: 1, text: 'trained in at least one skill' },
       { skills: { athletics: 0, crafting: 0, stealth: 0 } },
+    );
+    expect(result.met).toBe(false);
+  });
+});
+
+describe('matchRecallKnowledgeSkill', () => {
+  test('met when a Recall Knowledge skill rank is sufficient', () => {
+    const result = matchRecallKnowledgeSkill(
+      { type: 'recallKnowledgeSkill', minRank: 1, text: 'trained in a skill with the Recall Knowledge action' },
+      { skills: { athletics: 1, religion: 1 }, lores: {} },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('met when a lore rank is sufficient', () => {
+    const result = matchRecallKnowledgeSkill(
+      { type: 'recallKnowledgeSkill', minRank: 1, text: 'trained in a skill with the Recall Knowledge action' },
+      { skills: { athletics: 1 }, lores: { 'underworld-lore': 1 } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when neither Recall Knowledge skills nor lore qualify', () => {
+    const result = matchRecallKnowledgeSkill(
+      { type: 'recallKnowledgeSkill', minRank: 1, text: 'trained in a skill with the Recall Knowledge action' },
+      { skills: { athletics: 1, stealth: 0 }, lores: {} },
     );
     expect(result.met).toBe(false);
   });

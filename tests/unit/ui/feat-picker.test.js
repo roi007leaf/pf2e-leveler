@@ -198,6 +198,29 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
+  test('Recall Knowledge skill prerequisites pass when the build has a trained applicable skill', () => {
+    const feat = createFeat({
+      name: 'Dubious Knowledge',
+      prereqText: 'Trained in a skill with the Recall Knowledge action',
+      uuid: 'dubious-knowledge',
+      slug: 'dubious-knowledge',
+    });
+
+    const picker = new FeatPicker(createActor(), 'skill', 2, createBuildState({
+      skills: { athletics: 0, religion: 1 },
+    }), jest.fn());
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toHaveLength(1);
+    expect(result.prereqResults[0].met).toBe(true);
+    expect(result.hasUnknownPrerequisites).toBe(false);
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
   test('archetype additional feats stay visible but respect their native prerequisites', () => {
     const feat = createFeat({
       name: 'Trap Finder',

@@ -276,3 +276,12 @@ clear batches and verify each batch before moving on.
 
 Prefer small, focused, navigable files. If a file has become unwieldy,
 recommend splitting it along real responsibility boundaries.
+
+
+<claude-mem-context>
+# Memory Context
+
+# [pf2e-leveler] recent context, 2026-04-16 10:56am GMT+3
+
+No previous sessions found.
+</claude-mem-context>

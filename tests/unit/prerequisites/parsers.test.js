@@ -335,6 +335,12 @@ describe('parsePrerequisite', () => {
     expect(result.minRank).toBe(1);
   });
 
+  test('parses Recall Knowledge skill prerequisites as a dedicated skill-family requirement', () => {
+    const result = parsePrerequisite('Trained in a skill with the Recall Knowledge action');
+    expect(result.type).toBe('recallKnowledgeSkill');
+    expect(result.minRank).toBe(1);
+  });
+
   test('treats weapon-type proficiency prerequisites as unknown instead of fake proficiency keys', () => {
     const result = parsePrerequisite('trained in at least one type of one-handed firearm');
     expect(result.type).toBe('unknown');

@@ -883,6 +883,20 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].met).toBe(true);
   });
 
+  test('meets Recall Knowledge skill prerequisites when trained in an applicable skill', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Trained in a skill with the Recall Knowledge action' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBe(true);
+  });
+
   test('treats weapon-type proficiency prerequisites as unverified instead of unmet', () => {
     const feat = {
       system: {

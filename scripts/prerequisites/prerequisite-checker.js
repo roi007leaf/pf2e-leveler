@@ -2,6 +2,7 @@ import { parseAllPrerequisiteNodes } from './parsers.js';
 import {
   matchSkill,
   matchAnySkill,
+  matchRecallKnowledgeSkill,
   matchWeaponFamilyProficiency,
   matchLore,
   matchLanguage,
@@ -69,6 +70,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchSkill(parsed, buildState));
     case 'anySkill':
       return wrapLeafResult(matchAnySkill(parsed, buildState));
+    case 'recallKnowledgeSkill':
+      return wrapLeafResult(matchRecallKnowledgeSkill(parsed, buildState));
     case 'weaponFamilyProficiency':
       return wrapLeafResult(matchWeaponFamilyProficiency(parsed, buildState));
     case 'lore':

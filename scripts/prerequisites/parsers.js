@@ -81,6 +81,10 @@ const NARRATIVE_ATTENDANCE_PATTERN = /^(attended|studied at|graduated from)\b/i;
 const NARRATIVE_DEATH_PATTERN = /\b(dead|died|mummified)\b/i;
 const NARRATIVE_INITIATION_PATTERN = /\b(initiates you into|earned the trust of)\b/i;
 const ACTION_CAPABILITY_PATTERN = /\bskill to\b/i;
+const RECALL_KNOWLEDGE_SKILL_PATTERN = new RegExp(
+  `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+(?:a|an|any)\\s+skill\\s+with\\s+(?:the\\s+)?recall\\s+knowledge\\s+action$`,
+  'i',
+);
 const WEAPON_TYPE_PROFICIENCY_PATTERN = /^trained in at least one type of\b/i;
 const WEAPON_FAMILY_PROFICIENCY_PATTERN = new RegExp(
   `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(?:at\\s+least\\s+one|au\\s+moins\\s+une)\\s+(.+)$`,
@@ -288,6 +292,15 @@ function tryParseRankRequirement(text, fullText = text) {
   if (WEAPON_FAMILY_PROFICIENCY_PATTERN.test(text)) return null;
   if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(text)) return null;
   if (looksLikeWeaponNameProficiency(text)) return null;
+
+  const recallKnowledgeMatch = text.match(RECALL_KNOWLEDGE_SKILL_PATTERN);
+  if (recallKnowledgeMatch) {
+    const rankName = recallKnowledgeMatch[1].toLowerCase();
+    const minRank = PROFICIENCY_RANK_NAMES.indexOf(rankName);
+    if (minRank >= 0) {
+      return { type: 'recallKnowledgeSkill', minRank, text: fullText };
+    }
+  }
 
   const normalizedText = text.split(/[;,]/, 1)[0].trim();
   const match = normalizedText.match(RANK_PATTERN);
