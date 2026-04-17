@@ -1,9 +1,10 @@
 # Changelog
 
-## 3.1.9
+## 3.1.8
 
 ### Character Wizard
 
+- **Mixed Ancestry heritage creation now finalizes correctly on PF2E 7.12.2** - Synthetic Mixed Ancestry heritage application now creates valid PF2E heritage data, so finalizing character creation no longer fails with heritage validation errors about invalid `versatile` traits or null ancestry fields
 - **Dual-class character creation is now supported end-to-end** - The wizard now lets you pick separate primary and secondary classes, separate subclasses for each class, class-owned level 1 feat slots for both classes when applicable, and handler-driven extra steps from both classes instead of silently following only the primary class
 - **Dual-class starting skills now follow PF2E rules** - The Skills step now auto-trains fixed skills granted by both classes and uses the larger of the two additional trained-skill counts, while still respecting subclass and class-feature granted starting skills such as witch patron skills
 - **Dual-class casters can now plan spells for both classes during character creation** - The Spells step now renders a separate spell section for each caster class in a dual-class build, so secondary class cantrips, rank 1 spells, and curriculum selections are visible and selectable instead of being hidden behind the primary class only
@@ -11,12 +12,6 @@
 - **Secondary dual-class spell setup now applies through the correct class handler** - Finalizing character creation now projects the secondary class, subclass, and spell selections into that class's `applyExtras` flow, so second-class spellcasting choices are actually created on the actor instead of being skipped
 - **Dual-class class-specific choices and feat choices now persist correctly per class** - Owner-scoped class selection state now keeps thesis, apparitions, subconscious mind, devotion spell, subclass follow-up choices, fighter-style skill choices, and other handler-driven selections separated between the two classes instead of letting primary-only state overwrite them
 - **System-managed dual subclasses no longer get duplicated** - When PF2E already grants the subclass item as part of class processing, Leveler no longer creates a second duplicate subclass item for the secondary class
-
-## 3.1.8
-
-### Character Wizard
-
-- **Mixed Ancestry heritage creation now finalizes correctly on PF2E 7.12.2** - Synthetic Mixed Ancestry heritage application now creates valid PF2E heritage data, so finalizing character creation no longer fails with heritage validation errors about invalid `versatile` traits or null ancestry fields
 
 ### Level Planner
 
