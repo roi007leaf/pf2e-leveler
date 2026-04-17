@@ -16,37 +16,56 @@ const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
 export async function applySpells(actor, plan, level) {
-  const classDef = ClassRegistry.get(plan.classSlug);
   const addedSpells = [];
+  const classDefs = getTrackedSpellcastingClasses(plan);
   const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
   const customEntries = await ensureCustomPlannedSpellcastingEntries(actor, plan, level);
   const levelData = plan.levels[level];
 
-  if (classDef?.spellcasting) {
+  let appliedClassSpellcasting = false;
+  for (const classDef of classDefs) {
+    if (!classDef?.spellcasting) continue;
     const slots = classDef.spellcasting.slots[level];
-    if (slots) {
-      const entries = await ensureSpellcastingEntries(actor, classDef);
-      if (classUsesPhysicalSpellbook(classDef.slug)) await ensureActorHasSpellbook(actor);
-      entries.archetypes = archetypeEntries;
-      entries.custom = customEntries;
-      await updateSpellSlots(actor, entries, slots, classDef, level);
+    if (!slots) continue;
 
-      const planned = await addPlannedSpells(actor, entries, levelData);
-      addedSpells.push(...planned);
+    const entries = await ensureSpellcastingEntries(actor, classDef);
+    if (classUsesPhysicalSpellbook(classDef.slug)) await ensureActorHasSpellbook(actor);
+    entries.archetypes = archetypeEntries;
+    entries.custom = customEntries;
+    await updateSpellSlots(actor, entries, slots, classDef, level);
 
-      const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
-      addedSpells.push(...grantedSpells);
+    const planned = await addPlannedSpells(actor, entries, levelData, classDef.slug, classDef.slug === plan.classSlug);
+    addedSpells.push(...planned);
 
-      const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
-      addedSpells.push(...focusSpells);
+    const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
+    addedSpells.push(...grantedSpells);
 
-      await updateDivineFont(actor, plan, level);
-    }
-  } else if (Object.keys(archetypeEntries).length > 0 || Object.keys(customEntries).length > 0) {
+    const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
+    addedSpells.push(...focusSpells);
+
+    await updateDivineFont(actor, classDef, level);
+    appliedClassSpellcasting = true;
+  }
+
+  if (!appliedClassSpellcasting && (Object.keys(archetypeEntries).length > 0 || Object.keys(customEntries).length > 0)) {
     const planned = await addPlannedSpells(actor, { archetypes: archetypeEntries, custom: customEntries }, levelData);
     addedSpells.push(...planned);
   }
   return addedSpells;
+}
+
+function getTrackedSpellcastingClasses(plan) {
+  const classes = [];
+  const primaryClassDef = ClassRegistry.get(plan.classSlug);
+  if (primaryClassDef) classes.push(primaryClassDef);
+
+  const dualClassSlug = String(plan?.dualClassSlug ?? '').trim().toLowerCase();
+  if (dualClassSlug && dualClassSlug !== String(plan?.classSlug ?? '').trim().toLowerCase()) {
+    const dualClassDef = ClassRegistry.get(dualClassSlug);
+    if (dualClassDef) classes.push(dualClassDef);
+  }
+
+  return classes;
 }
 
 async function ensureCustomPlannedSpellcastingEntries(actor, plan, level) {
@@ -68,8 +87,8 @@ async function ensureCustomPlannedSpellcastingEntries(actor, plan, level) {
   return entriesByType;
 }
 
-async function updateDivineFont(actor, plan, level) {
-  if (plan.classSlug !== 'cleric') return;
+async function updateDivineFont(actor, classDef, level) {
+  if (classDef?.slug !== 'cleric') return;
 
   const fontEntry = actor.items?.find((i) =>
     i.type === 'spellcastingEntry' && i.name?.includes('Font'),
@@ -82,7 +101,6 @@ async function updateDivineFont(actor, plan, level) {
   else if (level >= 5) maxSlots = 5;
 
   // Find the highest spell rank for font slots
-  const classDef = ClassRegistry.get(plan.classSlug);
   const slots = classDef?.spellcasting?.slots?.[level];
   if (!slots) return;
 
@@ -397,8 +415,9 @@ function getMagusStudiousRankForLevel(level) {
   return 0;
 }
 
-async function addPlannedSpells(actor, entries, levelData) {
-  const plannedSpells = [...(levelData?.spells ?? []), ...(levelData?.customSpells ?? [])];
+async function addPlannedSpells(actor, entries, levelData, classSlug = null, includeDefaultPrimary = true) {
+  const plannedSpells = [...(levelData?.spells ?? []), ...(levelData?.customSpells ?? [])]
+    .filter((spellPlan) => shouldApplyPlannedSpellToClass(spellPlan, classSlug, includeDefaultPrimary));
   if (!plannedSpells.length) return [];
 
   const added = [];
@@ -425,6 +444,15 @@ async function addPlannedSpells(actor, entries, levelData) {
   }
 
   return added;
+}
+
+function shouldApplyPlannedSpellToClass(spellPlan, classSlug, includeDefaultPrimary) {
+  const entryType = String(spellPlan?.entryType ?? '').trim().toLowerCase();
+  if (!entryType || entryType === 'primary') return includeDefaultPrimary;
+  if (entryType.startsWith('class:')) {
+    return entryType.slice('class:'.length) === String(classSlug ?? '').trim().toLowerCase();
+  }
+  return true;
 }
 
 async function addGrantedSpells(actor, entries, classDef, _plan, level) {

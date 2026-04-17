@@ -56,7 +56,7 @@ describe('player content restrictions', () => {
     ]);
   });
 
-  test('includes eligible world items in character creation loaders for feats, spells, and equipment', async () => {
+  test('includes eligible world items in character creation loaders for feats, spells, equipment, and classes', async () => {
     game.items = [
       {
         uuid: 'Item.world-feat',
@@ -89,6 +89,26 @@ describe('player content restrictions', () => {
           level: { value: 1 },
         },
       },
+      {
+        uuid: 'Item.world-class',
+        name: 'World Class',
+        type: 'class',
+        slug: 'world-class',
+        system: {
+          keyAbility: { value: ['str'] },
+          traits: { rarity: 'common', value: [] },
+          description: { value: '<p>Class</p>' },
+          level: { value: 1 },
+          classFeatLevels: { value: [1, 2] },
+          skillFeatLevels: { value: [2] },
+          generalFeatLevels: { value: [3] },
+          ancestryFeatLevels: { value: [1] },
+          skillIncreaseLevels: { value: [3] },
+          trainedSkills: { value: ['athletics'], additional: 2 },
+          hp: 10,
+          items: {},
+        },
+      },
     ];
 
     const wizard = {
@@ -99,6 +119,7 @@ describe('player content restrictions', () => {
     const feats = await loadCompendiumCategory(wizard, 'feats', 'category-feats');
     const spells = await loadCompendiumCategory(wizard, 'spells', 'category-spells');
     const equipment = await loadCompendiumCategory(wizard, 'equipment', 'category-equipment');
+    const classes = await loadCompendiumCategory(wizard, 'classes', 'category-classes');
 
     expect(feats).toEqual(expect.arrayContaining([
       expect.objectContaining({ uuid: 'Item.world-feat', sourcePackage: 'world' }),
@@ -108,6 +129,9 @@ describe('player content restrictions', () => {
     ]));
     expect(equipment).toEqual(expect.arrayContaining([
       expect.objectContaining({ uuid: 'Item.world-weapon', sourcePackage: 'world' }),
+    ]));
+    expect(classes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'Item.world-class', sourcePackage: 'world' }),
     ]));
   });
 });

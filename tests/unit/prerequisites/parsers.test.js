@@ -398,9 +398,14 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
-  test('treats multi-ancestry feat selection prerequisites as unknown legacy text', () => {
+  test('parses multi-ancestry feat selection prerequisites', () => {
     const result = parsePrerequisite('Ability To Select Ancestry Feats From Multiple Ancestries');
-    expect(result.type).toBe('unknown');
+    expect(result).toEqual(
+      expect.objectContaining({
+        type: 'ancestryFeatAccess',
+        multipleAncestries: true,
+      }),
+    );
   });
 });
 

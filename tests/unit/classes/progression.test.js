@@ -1,4 +1,6 @@
-import { getGradualBoostGroupLevels } from '../../../scripts/classes/progression.js';
+import { getChoicesForLevel, getGradualBoostGroupLevels } from '../../../scripts/classes/progression.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
+import { ROGUE } from '../../../scripts/classes/rogue.js';
 
 describe('getGradualBoostGroupLevels', () => {
   test('returns the first gradual boost set for levels 2 through 5', () => {
@@ -22,5 +24,23 @@ describe('getGradualBoostGroupLevels', () => {
     expect(getGradualBoostGroupLevels(6)).toEqual([]);
     expect(getGradualBoostGroupLevels(11)).toEqual([]);
     expect(getGradualBoostGroupLevels(16)).toEqual([]);
+  });
+});
+
+describe('getChoicesForLevel dual class support', () => {
+  test('adds secondary rogue skill feat and skill increase benefits without duplicating shared benefits', () => {
+    const choices = getChoicesForLevel(FIGHTER, 2, {
+      dualClass: true,
+      dualClassDef: ROGUE,
+    });
+
+    expect(choices).toEqual(expect.arrayContaining([
+      { type: 'skillFeat' },
+      { type: 'skillIncrease' },
+    ]));
+    expect(choices.filter((choice) => choice.type === 'skillFeat')).toHaveLength(1);
+    expect(choices.filter((choice) => choice.type === 'skillIncrease')).toHaveLength(1);
+    expect(choices.filter((choice) => choice.type === 'classFeat')).toHaveLength(1);
+    expect(choices.filter((choice) => choice.type === 'dualClassFeat')).toHaveLength(1);
   });
 });

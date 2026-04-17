@@ -15,7 +15,7 @@ export class CommanderHandler extends BaseClassHandler {
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'tactics') return null;
 
-    const tactics = await wizard._loadCommanderTactics();
+    const tactics = await wizard._loadCommanderTactics(data.class);
     const selectedUuids = new Set((data.tactics ?? []).map((entry) => entry.uuid));
 
     return {

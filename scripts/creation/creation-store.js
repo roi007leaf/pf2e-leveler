@@ -1,4 +1,5 @@
 import { MODULE_ID } from '../constants.js';
+import { normalizeCreationData } from './creation-model.js';
 
 const CREATION_FLAG = 'creation';
 
@@ -45,6 +46,8 @@ function normalizeCreationImport(payload) {
   normalized.languages ??= [];
   normalized.lores ??= [];
   normalized.skills ??= [];
+  normalized.dualClass ??= null;
+  normalized.dualSubclass ??= null;
   normalized.tactics ??= [];
   normalized.ikons ??= [];
   normalized.kineticImpulses ??= [];
@@ -54,12 +57,18 @@ function normalizeCreationImport(payload) {
   normalized.spells ??= { cantrips: [], rank1: [] };
   normalized.spells.cantrips ??= [];
   normalized.spells.rank1 ??= [];
+  normalized.dualSpells ??= { cantrips: [], rank1: [] };
+  normalized.dualSpells.cantrips ??= [];
+  normalized.dualSpells.rank1 ??= [];
   normalized.curriculumSpells ??= { cantrips: [], rank1: [] };
   normalized.curriculumSpells.cantrips ??= [];
   normalized.curriculumSpells.rank1 ??= [];
+  normalized.dualCurriculumSpells ??= { cantrips: [], rank1: [] };
+  normalized.dualCurriculumSpells.cantrips ??= [];
+  normalized.dualCurriculumSpells.rank1 ??= [];
   normalized.alternateAncestryBoosts ??= false;
   normalized.equipment ??= [];
   normalized.permanentItems ??= [];
 
-  return normalized;
+  return normalizeCreationData(normalized);
 }

@@ -20,7 +20,7 @@ export class PsychicHandler extends CasterBaseHandler {
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'subconsciousMind') return null;
 
-    const items = await wizard._loadPsychicSubconsciousMinds();
+    const items = await wizard._loadPsychicSubconsciousMinds(data.class);
     return { items: items.filter((item) => item.uuid !== data.subconsciousMind?.uuid) };
   }
 

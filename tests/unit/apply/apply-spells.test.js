@@ -121,6 +121,44 @@ describe('applySpells', () => {
     ]));
   });
 
+  test('creates and updates separate secondary dual-class spellcasting entries', async () => {
+    global._testSettings = {
+      pf2e: { dualClassVariant: true },
+      'pf2e-leveler': { enableDualClassSupport: true },
+    };
+
+    const plan = {
+      classSlug: 'sorcerer',
+      dualClassSlug: 'wizard',
+      levels: {
+        3: {},
+      },
+    };
+
+    await applySpells(actor, plan, 3);
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Wizard Spells',
+        type: 'spellcastingEntry',
+      }),
+    ]);
+    expect(actor.updateEmbeddedDocuments).toHaveBeenNthCalledWith(1, 'Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'primary-entry',
+        'system.slots.slot1.max': 4,
+        'system.slots.slot2.max': 3,
+      }),
+    ]));
+    expect(actor.updateEmbeddedDocuments).toHaveBeenNthCalledWith(2, 'Item', expect.arrayContaining([
+      expect.objectContaining({
+        _id: 'created-entry-0',
+        'system.slots.slot1.max': 3,
+        'system.slots.slot2.max': 2,
+      }),
+    ]));
+  });
+
   test('adds custom planned spells alongside standard planned spells', async () => {
     global.fromUuid = jest.fn(async (uuid) => ({
       uuid,

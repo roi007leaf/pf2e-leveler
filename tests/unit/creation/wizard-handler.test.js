@@ -2,6 +2,64 @@ import { WizardHandler } from '../../../scripts/creation/class-handlers/wizard.j
 import { CasterBaseHandler } from '../../../scripts/creation/class-handlers/caster-base.js';
 
 describe('WizardHandler.getSpellContext', () => {
+  it('treats selected Runelord sin spell lists like curriculum choices', async () => {
+    const spells = {
+      'Compendium.pf2e.spells-srd.Item.Shield': {
+        uuid: 'Compendium.pf2e.spells-srd.Item.Shield',
+        name: 'Shield',
+        img: 'icons/shield.webp',
+      },
+      'Compendium.pf2e.spells-srd.Item.Tangle Vine': {
+        uuid: 'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+        name: 'Tangle Vine',
+        img: 'icons/tangle-vine.webp',
+      },
+      'Compendium.pf2e.spells-srd.Item.Schadenfreude': {
+        uuid: 'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+        name: 'Schadenfreude',
+        img: 'icons/schadenfreude.webp',
+      },
+      'Compendium.pf2e.spells-srd.Item.Enfeeble': {
+        uuid: 'Compendium.pf2e.spells-srd.Item.Enfeeble',
+        name: 'Enfeeble',
+        img: 'icons/enfeeble.webp',
+      },
+    };
+
+    global.fromUuid = jest.fn((uuid) => Promise.resolve(spells[uuid] ?? null));
+
+    const handler = new WizardHandler();
+    const context = await handler.getSpellContext({
+      subclass: {
+        slug: 'runelord',
+        choiceCurricula: {
+          sin: {
+            0: [
+              'Compendium.pf2e.spells-srd.Item.Shield',
+              'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+            ],
+            1: [
+              'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+              'Compendium.pf2e.spells-srd.Item.Enfeeble',
+            ],
+          },
+        },
+      },
+    });
+
+    expect(context.hasCurriculum).toBe(true);
+    expect(context.curriculumNeedsCantripSelection).toBe(true);
+    expect(context.curriculumNeedsRank1Selection).toBe(false);
+    expect(context.curriculumCantripOptions.map((spell) => spell.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.Shield',
+      'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+    ]);
+    expect(context.curriculumRank1Selected.map((spell) => spell.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+      'Compendium.pf2e.spells-srd.Item.Enfeeble',
+    ]);
+  });
+
   it('shows fixed curriculum spells even when there is no choice to make', async () => {
     const spells = {
       'Compendium.pf2e.spells-srd.Item.Light': {
@@ -267,6 +325,68 @@ describe('WizardHandler._applyCurriculumEntry', () => {
 });
 
 describe('WizardHandler._applySpellcasting', () => {
+  it('duplicates selected Runelord sin spells into the main wizard entry', async () => {
+    global.foundry = {
+      utils: {
+        deepClone: (value) => JSON.parse(JSON.stringify(value)),
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: {
+        'Compendium.pf2e.spells-srd.Item.Shield': 'Shield',
+        'Compendium.pf2e.spells-srd.Item.Schadenfreude': 'Schadenfreude',
+        'Compendium.pf2e.spells-srd.Item.Enfeeble': 'Enfeeble',
+      }[uuid] ?? 'Unknown Spell',
+      img: 'icons/spell.webp',
+    }));
+
+    const superApply = jest.spyOn(CasterBaseHandler.prototype, '_applySpellcasting').mockResolvedValue();
+
+    const handler = new WizardHandler();
+    const data = {
+      spells: {
+        cantrips: [
+          { uuid: 'Compendium.pf2e.spells-srd.Item.Detect Magic', name: 'Detect Magic', img: 'icons/detect-magic.webp' },
+        ],
+        rank1: [
+          { uuid: 'Compendium.pf2e.spells-srd.Item.Magic Missile', name: 'Magic Missile', img: 'icons/magic-missile.webp' },
+        ],
+      },
+      subclass: {
+        slug: 'runelord',
+        choiceCurricula: {
+          sin: {
+            0: [
+              'Compendium.pf2e.spells-srd.Item.Shield',
+              'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+            ],
+            1: [
+              'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+              'Compendium.pf2e.spells-srd.Item.Enfeeble',
+            ],
+          },
+        },
+      },
+      curriculumSpells: {
+        cantrips: [
+          { uuid: 'Compendium.pf2e.spells-srd.Item.Shield', name: 'Shield', img: 'icons/shield.webp' },
+        ],
+        rank1: [],
+      },
+    };
+
+    await handler._applySpellcasting({}, data);
+
+    expect(superApply).toHaveBeenCalledTimes(1);
+    const [, mainData] = superApply.mock.calls[0];
+    expect(mainData.spells.cantrips.map((spell) => spell.name)).toEqual(['Detect Magic', 'Shield']);
+    expect(mainData.spells.rank1.map((spell) => spell.name)).toEqual(['Magic Missile', 'Schadenfreude', 'Enfeeble']);
+
+    superApply.mockRestore();
+  });
+
   it('duplicates selected curriculum spells into the main wizard entry', async () => {
     global.foundry = {
       utils: {

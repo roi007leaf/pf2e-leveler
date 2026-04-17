@@ -4,7 +4,7 @@
     <div class="wizard-apply-card">
       <div class="wizard-apply-card__scroll">
       <div class="wizard-apply-card__eyebrow">{{localize "PF2E_LEVELER.CREATION.APPLY_OVERLAY.EYEBROW"}}</div>
-      <div class="wizard-apply-card__title">{{data.class.name}}{{#if data.subclass}} · {{data.subclass.name}}{{/if}}</div>
+      <div class="wizard-apply-card__title">{{#if classSummaryLabel}}{{classSummaryLabel}}{{else}}{{data.class.name}}{{/if}}{{#if subclassSummaryLabel}} · {{subclassSummaryLabel}}{{/if}}</div>
       <div class="wizard-apply-card__status">{{applyStatus}}</div>
       <div class="wizard-apply-card__bar">
         <div class="wizard-apply-card__fill" style="width: {{applyProgressPercent}}%;"></div>
@@ -58,7 +58,23 @@
       <aside class="wizard-browser__filters">
         <h2>{{browserStep.title}}</h2>
 
-        {{#if browserStep.selected}}
+        {{#if browserStep.selectedGroups}}
+        {{#each browserStep.selectedGroups}}
+        <div class="wizard-selected wizard-selected--browser">
+          <img src="{{this.selected.img}}" alt="" class="wizard-selected__img">
+          <div class="wizard-selected__stack">
+            <span class="wizard-selected__label">{{this.label}}</span>
+            <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{this.selected.uuid}}">{{this.selected.name}}</span>
+          </div>
+          {{#if this.selected.tradition}}
+          <span class="tag tag--info tag--tiny">{{this.selected.tradition}}</span>
+          {{/if}}
+          {{#if this.clearAction}}
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="{{this.clearAction}}" data-target="{{this.target}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          {{/if}}
+        </div>
+        {{/each}}
+        {{else if browserStep.selected}}
         <div class="wizard-selected wizard-selected--browser">
           <img src="{{browserStep.selected.img}}" alt="" class="wizard-selected__img">
           <div class="wizard-selected__stack">
@@ -150,7 +166,12 @@
 
         {{#if browserStep.groups}}
         {{#each browserStep.groups}}
-        <div class="wizard-browser__group-label">{{this.label}}</div>
+        <div class="wizard-browser__group-label">
+          {{this.label}}
+          {{#if this.selected}}
+          <span class="tag tag--info tag--tiny">{{this.selected.name}}</span>
+          {{/if}}
+        </div>
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each this.items}}
           <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
@@ -171,7 +192,21 @@
                 {{/if}}
               </div>
             </div>
-            <button type="button" class="wizard-item__select" data-action="{{../../browserStep.selectAction}}" data-uuid="{{this.uuid}}" {{#if this.isDisallowed}}disabled{{/if}}>
+            <button
+              type="button"
+              class="wizard-item__select"
+              data-action="{{../../browserStep.selectAction}}"
+              data-uuid="{{this.uuid}}"
+              {{#if (or (eq ../../browserStep.stepId "subclass") (eq ../../browserStep.stepId "class"))}}data-target="{{this.targetKey}}"{{/if}}
+              {{#if (eq ../../browserStep.stepId "subclass")}}
+              data-tradition="{{this.tradition}}"
+              data-spelluuids='{{json this.spellUuids}}'
+              data-skills='{{json this.grantedSkills}}'
+              data-lores='{{json this.grantedLores}}'
+              data-choicesets='{{json this.choiceSets}}'
+              data-curriculum='{{json this.curriculum}}'
+              {{/if}}
+              {{#if this.isDisallowed}}disabled{{/if}}>
               {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
             </button>
           </div>
@@ -209,6 +244,7 @@
               data-uuid="{{this.uuid}}"
               {{#if this.isDisallowed}}disabled{{/if}}
               {{#if (eq ../browserStep.stepId "subclass")}}
+              data-target="{{this.targetKey}}"
               data-tradition="{{this.tradition}}"
               data-spelluuids='{{json this.spellUuids}}'
               data-skills='{{json this.grantedSkills}}'
@@ -256,12 +292,30 @@
     {{#if (eq stepId "subclassChoices")}}
       <h2>{{subclassName}} Options</h2>
 
-      {{#each choiceSets}}
+      {{#if subclassChoiceSections}}
+      {{#each subclassChoiceSections}}
+      <div class="section-header wizard-choice-source" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{this.subclassName}}
+      </div>
+      {{#each this.choiceSets}}
       <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
         <i class="section-header__icon fa-solid fa-list-check"></i>
         {{this.prompt}}
       </div>
       {{#if this.isItemChoice}}
+      {{#if this.selectedOption}}
+      <div class="wizard-selected wizard-selected--compact wizard-selected--choice">
+        {{#if this.selectedOption.img}}
+        <img src="{{this.selectedOption.img}}" alt="" class="wizard-selected__img">
+        {{/if}}
+        <div class="wizard-selected__stack">
+          <span class="wizard-selected__label">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+          <span class="wizard-selected__name {{#unless this.selectedOption.uuid}}wizard-item__name--static{{/unless}}" {{#if this.selectedOption.uuid}}data-action="viewItem" data-uuid="{{this.selectedOption.uuid}}"{{/if}}>{{this.selectedOption.label}}</span>
+        </div>
+        <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+      </div>
+      {{/if}}
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each this.options}}
         <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
@@ -289,7 +343,7 @@
           {{else}}
             <button type="button"
               class="wizard-item__select"
-              data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}">
+              data-action="selectSubclassChoice" data-target="{{../../target}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}'>
               {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
             </button>
           {{/if}}
@@ -301,7 +355,7 @@
         {{#each this.options}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+          data-action="selectSubclassChoice" data-target="{{../../target}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}' {{#if this.disabled}}disabled{{/if}}>
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             {{#if this.selectedInSkills}}
@@ -315,6 +369,80 @@
       </div>
       {{/if}}
       {{/each}}
+      {{/each}}
+      {{else}}
+      {{#each choiceSets}}
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{this.prompt}}
+      </div>
+      {{#if this.isItemChoice}}
+      {{#if this.selectedOption}}
+      <div class="wizard-selected wizard-selected--compact wizard-selected--choice">
+        {{#if this.selectedOption.img}}
+        <img src="{{this.selectedOption.img}}" alt="" class="wizard-selected__img">
+        {{/if}}
+        <div class="wizard-selected__stack">
+          <span class="wizard-selected__label">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+          <span class="wizard-selected__name {{#unless this.selectedOption.uuid}}wizard-item__name--static{{/unless}}" {{#if this.selectedOption.uuid}}data-action="viewItem" data-uuid="{{this.selectedOption.uuid}}"{{/if}}>{{this.selectedOption.label}}</span>
+        </div>
+        <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+      </div>
+      {{/if}}
+      <div class="wizard-item-grid wizard-item-grid--compact">
+        {{#each this.options}}
+        <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}">
+          {{#if this.img}}
+          <img src="{{this.img}}" alt="" class="wizard-item__img">
+          {{/if}}
+          <div class="wizard-item__info">
+            <span class="wizard-item__name {{#unless this.uuid}}wizard-item__name--static{{/unless}}" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+            {{#if this.summary}}
+            <div class="wizard-item__desc">{{this.summary}}</div>
+            {{/if}}
+            <div class="wizard-item__traits">
+              {{#each this.traits}}
+              <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
+              {{/each}}
+              {{#if (notEqual this.rarity "common")}}
+              <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.selected}}
+            <button type="button" class="wizard-item__select wizard-item__select--selected" disabled>
+              <i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}
+            </button>
+          {{else}}
+            <button type="button"
+              class="wizard-item__select"
+              data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}'>
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+            </button>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <div class="skill-btn-grid">
+        {{#each this.options}}
+        <button type="button"
+          class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}' {{#if this.disabled}}disabled{{/if}}>
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+            {{#if this.selectedInSkills}}
+            <span class="skill-btn__hint">Selected in Skills</span>
+            {{else if this.autoTrained}}
+            <span class="skill-btn__hint">Already trained from {{this.autoTrainedSource}}</span>
+            {{/if}}
+          </span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/each}}
+      {{/if}}
 
     {{else if (eq stepId "featChoices")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.FEAT_CHOICES"}}</h2>
@@ -419,6 +547,18 @@
         </div>
       </div>
       {{/if}}
+      {{#if this.selectedOption}}
+      <div class="wizard-selected wizard-selected--compact wizard-selected--choice">
+        {{#if this.selectedOption.img}}
+        <img src="{{this.selectedOption.img}}" alt="" class="wizard-selected__img">
+        {{/if}}
+        <div class="wizard-selected__stack">
+          <span class="wizard-selected__label">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+          <span class="wizard-selected__name {{#unless this.selectedOption.uuid}}wizard-item__name--static{{/unless}}" {{#if this.selectedOption.uuid}}data-action="viewItem" data-uuid="{{this.selectedOption.uuid}}"{{/if}}>{{this.selectedOption.label}}</span>
+        </div>
+        <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+      </div>
+      {{/if}}
       <div class="wizard-item-grid wizard-item-grid--compact">
         {{#each this.options}}
         <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}" data-name="{{this.label}} {{this.traits}}" data-rarity="{{this.rarity}}" data-type="{{this.type}}" data-category="{{this.category}}" data-is-ranged="{{#if this.isRanged}}true{{else}}false{{/if}}">
@@ -483,7 +623,7 @@
         <div class="wizard-selected">
           <img src="{{data.implement.img}}" alt="" class="wizard-selected__img">
           <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.implement.uuid}}">{{data.implement.name}}</span>
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearImplement" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearImplement" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
@@ -503,7 +643,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -521,7 +661,7 @@
         <span class="wizard-spell-chip">
           <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
           <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleTactic" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}"></i>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleTactic" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}"></i>
         </span>
         {{/each}}
       </div>
@@ -545,7 +685,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="toggleTactic" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}">+</button>
+          <button type="button" class="wizard-item__select" data-action="toggleTactic" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxTactics}}">+</button>
         </div>
         {{/unless}}
         {{/each}}
@@ -565,7 +705,7 @@
         <span class="wizard-spell-chip">
           <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
           <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleIkon" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}"></i>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleIkon" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}"></i>
         </span>
         {{/each}}
       </div>
@@ -589,7 +729,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="toggleIkon" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}">+</button>
+          <button type="button" class="wizard-item__select" data-action="toggleIkon" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-max="{{../maxIkons}}">+</button>
         </div>
         {{/unless}}
         {{/each}}
@@ -609,7 +749,7 @@
         <div class="wizard-selected">
           <img src="{{data.innovationItem.img}}" alt="" class="wizard-selected__img">
           <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.innovationItem.uuid}}">{{data.innovationItem.name}}</span>
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationItem" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationItem" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       {{#unless data.innovationItem}}
@@ -627,7 +767,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectInnovationItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectInnovationItem" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -641,7 +781,7 @@
         <div class="wizard-selected">
           <img src="{{data.innovationModification.img}}" alt="" class="wizard-selected__img">
           <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.innovationModification.uuid}}">{{data.innovationModification.name}}</span>
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationModification" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearInnovationModification" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       {{#if data.innovationItem}}
@@ -658,7 +798,7 @@
                 {{/if}}
               </div>
             </div>
-            <button type="button" class="wizard-item__select" data-action="selectInnovationModification" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+            <button type="button" class="wizard-item__select" data-action="selectInnovationModification" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
           </div>
           {{/each}}
         </div>
@@ -680,7 +820,7 @@
         {{#each gateModes}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectKineticGateMode" data-value="{{this.value}}">
+          data-action="selectKineticGateMode" data-target="{{../handlerTarget}}" data-value="{{this.value}}">
           <span class="skill-btn__name">{{this.label}}</span>
         </button>
         {{/each}}
@@ -695,7 +835,7 @@
         <div class="wizard-selected">
           <img src="{{data.secondElement.img}}" alt="" class="wizard-selected__img">
           <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.secondElement.uuid}}">{{data.secondElement.name}}</span>
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSecondElement" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSecondElement" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{else}}
       <div class="wizard-item-grid wizard-item-grid--compact">
@@ -705,7 +845,7 @@
           <div class="wizard-item__info">
             <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectSecondElement" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectSecondElement" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -723,7 +863,7 @@
           <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
           <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
           {{#if this.element}}<span class="tag tag--info tag--tiny">{{this.element}}</span>{{/if}}
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleKineticImpulse" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}"></i>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleKineticImpulse" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}"></i>
         </span>
         {{/each}}
       </div>
@@ -746,7 +886,7 @@
               {{#if this.element}}<span class="tag tag--info tag--tiny">{{this.element}}</span>{{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="toggleKineticImpulse" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}">+</button>
+          <button type="button" class="wizard-item__select" data-action="toggleKineticImpulse" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-element="{{this.element}}">+</button>
         </div>
         {{/unless}}
         {{/each}}
@@ -763,7 +903,7 @@
           {{#if data.subconsciousMind.keyAbility}}
           <span class="tag tag--info tag--tiny">{{titleCase data.subconsciousMind.keyAbility}}</span>
           {{/if}}
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSubconsciousMind" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearSubconsciousMind" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
@@ -786,7 +926,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -797,7 +937,7 @@
         <div class="wizard-selected">
           <img src="{{data.thesis.img}}" alt="" class="wizard-selected__img">
           <span class="wizard-selected__name" data-action="viewItem" data-uuid="{{data.thesis.uuid}}">{{data.thesis.name}}</span>
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearThesis" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearThesis" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
@@ -817,7 +957,7 @@
               {{/if}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -838,7 +978,7 @@
           {{#if (eq ../primaryApparition this.uuid)}}
           <span class="tag tag--success tag--tiny">{{localize "PF2E_LEVELER.UI.PRIMARY"}}</span>
           {{/if}}
-          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleApparition" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}"></i>
+          <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="toggleApparition" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}"></i>
         </span>
         {{/each}}
       </div>
@@ -861,10 +1001,10 @@
             </div>
           </div>
           {{#if this.selected}}
-          <button type="button" class="wizard-item__select" data-action="setPrimaryApparition" data-uuid="{{this.uuid}}">{{#if this.primary}}{{localize "PF2E_LEVELER.UI.PRIMARY"}}{{else}}{{localize "PF2E_LEVELER.UI.MAKE_PRIMARY"}}{{/if}}</button>
-          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">-</button>
+          <button type="button" class="wizard-item__select" data-action="setPrimaryApparition" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{#if this.primary}}{{localize "PF2E_LEVELER.UI.PRIMARY"}}{{else}}{{localize "PF2E_LEVELER.UI.MAKE_PRIMARY"}}{{/if}}</button>
+          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">-</button>
           {{else}}
-          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">+</button>
+          <button type="button" class="wizard-item__select" data-action="toggleApparition" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}" data-name="{{this.name}}" data-img="{{this.img}}" data-lores='{{json this.lores}}' data-spells='{{json this.spells}}' data-vessel-spell="{{this.vesselSpell}}" data-max="{{../maxApparitions}}">+</button>
           {{/if}}
         </div>
         {{/each}}
@@ -882,7 +1022,7 @@
         {{#each sanctificationOptions}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectSanctification" data-value="{{this.value}}">
+          data-action="selectSanctification" data-target="{{../handlerTarget}}" data-value="{{this.value}}">
           <span class="skill-btn__name">{{this.label}}</span>
         </button>
         {{/each}}
@@ -899,7 +1039,7 @@
         {{#each divineFontOptions}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectDivineFont" data-value="{{this.value}}">
+          data-action="selectDivineFont" data-target="{{../handlerTarget}}" data-value="{{this.value}}">
           <span class="skill-btn__name">{{this.label}}</span>
         </button>
         {{/each}}
@@ -914,7 +1054,7 @@
           {{#each data.deity.font}}
           <span class="tag tag--info tag--tiny">{{this}}</span>
           {{/each}}
-          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearDeity" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
+          <i class="wizard-selected__clear fa-solid fa-xmark" data-action="clearDeity" data-target="{{handlerTarget}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"></i>
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
@@ -934,7 +1074,7 @@
               {{/each}}
             </div>
           </div>
-          <button type="button" class="wizard-item__select" data-action="selectItem" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
+          <button type="button" class="wizard-item__select" data-action="selectItem" data-target="{{../handlerTarget}}" data-uuid="{{this.uuid}}">{{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}</button>
         </div>
         {{/each}}
       </div>
@@ -1174,6 +1314,24 @@
         </div>
         {{/if}}
 
+        {{#if hasDualClassFeat}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{dualClassFeatLabel}}</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.dualClassFeat}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.dualClassFeat.uuid}}">{{data.dualClassFeat.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearDualClassFeat" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.dualClassFeat.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.dualClassFeat.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="dualClass">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+          </div>
+        </div>
+        {{/if}}
+
         {{#if hasSkillFeat}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</div>
@@ -1198,91 +1356,98 @@
         <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SPELLS"}}</h2>
         <p class="wizard-hint">{{localize "PF2E_LEVELER.CREATION.SPELLS_HINT"}}</p>
 
-        {{#if maxCantrips}}
+        {{#if spellSections.length}}
+        {{#each spellSections}}
+        <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+          <i class="section-header__icon fa-solid fa-wand-magic-sparkles"></i>
+          {{this.className}}
+        </div>
+
+        {{#if this.maxCantrips}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
-            <i class="fa-solid fa-sparkles"></i> Cantrips ({{selectedCantrips.length}}/{{maxCantrips}})
+            <i class="fa-solid fa-sparkles"></i> Cantrips ({{this.selectedCantrips.length}}/{{this.maxCantrips}})
           </div>
           <div class="wizard-spell-chips">
-            {{#each grantedCantrips}}
+            {{#each this.grantedCantrips}}
             <span class="wizard-spell-chip wizard-spell-chip--granted">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <span class="tag tag--success tag--tiny">{{this.source}}</span>
             </span>
             {{/each}}
-            {{#each selectedCantrips}}
+            {{#each this.selectedCantrips}}
             <span class="wizard-spell-chip">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCantrip" data-uuid="{{this.uuid}}"></i>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCantrip" data-target="{{../target}}" data-uuid="{{this.uuid}}"></i>
             </span>
             {{/each}}
           </div>
-          {{#unless cantripsFull}}
-          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseCantrips">
+          {{#unless this.cantripsFull}}
+          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseCantrips" data-target="{{this.target}}">
             <i class="fa-solid fa-magnifying-glass"></i> {{localize "PF2E_LEVELER.UI.BROWSE"}}
           </button>
           {{/unless}}
         </div>
         {{/if}}
 
-        {{#if maxRank1}}
+        {{#if this.maxRank1}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
-            <i class="fa-solid fa-book-open"></i> 1st-Rank Spells ({{selectedRank1.length}}/{{maxRank1}})
+            <i class="fa-solid fa-book-open"></i> 1st-Rank Spells ({{this.selectedRank1.length}}/{{this.maxRank1}})
           </div>
           <div class="wizard-spell-chips">
-            {{#each grantedRank1s}}
+            {{#each this.grantedRank1s}}
             <span class="wizard-spell-chip wizard-spell-chip--granted">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <span class="tag tag--success tag--tiny">{{this.source}}</span>
             </span>
             {{/each}}
-            {{#each selectedRank1}}
+            {{#each this.selectedRank1}}
             <span class="wizard-spell-chip">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeRank1" data-uuid="{{this.uuid}}"></i>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeRank1" data-target="{{../target}}" data-uuid="{{this.uuid}}"></i>
             </span>
             {{/each}}
           </div>
-          {{#unless rank1Full}}
-          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseRank1">
+          {{#unless this.rank1Full}}
+          <button type="button" class="wizard-feat-slot-card__browse" data-action="browseRank1" data-target="{{this.target}}">
             <i class="fa-solid fa-magnifying-glass"></i> {{localize "PF2E_LEVELER.UI.BROWSE"}}
           </button>
           {{/unless}}
         </div>
         {{/if}}
 
-        {{#if hasCurriculum}}
+        {{#if this.hasCurriculum}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
-            <i class="fa-solid fa-graduation-cap"></i> {{localize "PF2E_LEVELER.CREATION.WIZARD.CURRICULUM_SPELLS"}} ({{curriculumSelectedCount}}/{{curriculumTargetCount}})
+            <i class="fa-solid fa-graduation-cap"></i> {{localize "PF2E_LEVELER.CREATION.WIZARD.CURRICULUM_SPELLS"}} ({{this.curriculumSelectedCount}}/{{this.curriculumTargetCount}})
           </div>
-          <p class="wizard-hint" style="margin: 4px 0;">Choose {{maxCurriculumCantrips}} curriculum cantrip and {{maxCurriculumRank1}} 1st-rank curriculum spells.</p>
-          {{#if curriculumCantripOptions.length}}
+          <p class="wizard-hint" style="margin: 4px 0;">Choose {{this.maxCurriculumCantrips}} curriculum cantrip and {{this.maxCurriculumRank1}} 1st-rank curriculum spells.</p>
+          {{#if this.curriculumCantripOptions.length}}
           <div class="wizard-feat-slot-card__label" style="font-size: var(--leveler-font-sm); margin-top: 8px;">Cantrips:</div>
           <div class="wizard-spell-chips">
-            {{#each curriculumCantripSelected}}
+            {{#each this.curriculumCantripSelected}}
             <span class="wizard-spell-chip">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumCantrip" data-uuid="{{this.uuid}}"></i>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumCantrip" data-target="{{../target}}" data-uuid="{{this.uuid}}"></i>
             </span>
             {{/each}}
           </div>
-          {{#unless curriculumCantripsFull}}
+          {{#unless this.curriculumCantripsFull}}
           <div class="wizard-item-grid wizard-item-grid--compact">
-            {{#each curriculumCantripOptions}}
+            {{#each this.curriculumCantripOptions}}
             {{#unless this.selected}}
             <div class="wizard-item">
               <img src="{{this.img}}" alt="" class="wizard-item__img">
               <div class="wizard-item__info">
                 <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               </div>
-              <button type="button" class="wizard-item__select" data-action="addCurriculumCantrip" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumCantrips}}">+</button>
+              <button type="button" class="wizard-item__select" data-action="addCurriculumCantrip" data-target="{{../target}}" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumCantrips}}">+</button>
             </div>
             {{/unless}}
             {{/each}}
@@ -1291,24 +1456,24 @@
           {{/if}}
           <div class="wizard-feat-slot-card__label" style="font-size: var(--leveler-font-sm); margin-top: 8px;">1st-rank spells:</div>
           <div class="wizard-spell-chips">
-            {{#each curriculumRank1Selected}}
+            {{#each this.curriculumRank1Selected}}
             <span class="wizard-spell-chip">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumRank1" data-uuid="{{this.uuid}}"></i>
+              <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeCurriculumRank1" data-target="{{../target}}" data-uuid="{{this.uuid}}"></i>
             </span>
             {{/each}}
           </div>
-          {{#unless curriculumRank1Full}}
+          {{#unless this.curriculumRank1Full}}
           <div class="wizard-item-grid wizard-item-grid--compact">
-            {{#each curriculumRank1Options}}
+            {{#each this.curriculumRank1Options}}
             {{#unless this.selected}}
             <div class="wizard-item">
               <img src="{{this.img}}" alt="" class="wizard-item__img">
               <div class="wizard-item__info">
                 <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               </div>
-              <button type="button" class="wizard-item__select" data-action="addCurriculumRank1" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumRank1}}">+</button>
+              <button type="button" class="wizard-item__select" data-action="addCurriculumRank1" data-target="{{../target}}" data-uuid="{{this.uuid}}" data-max="{{../maxCurriculumRank1}}">+</button>
             </div>
             {{/unless}}
             {{/each}}
@@ -1317,15 +1482,15 @@
         </div>
         {{/if}}
 
-        {{#if focusSpells.length}}
-        {{#if focusCantrips.length}}
+        {{#if this.focusSpells.length}}
+        {{#if this.focusCantrips.length}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
-            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS_CANTRIPS"}} ({{focusCantrips.length}})
+            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS_CANTRIPS"}} ({{this.focusCantrips.length}})
           </div>
           <p class="wizard-hint" style="margin: 4px 0;">These focus cantrips will be added automatically.</p>
           <div class="wizard-spell-chips">
-            {{#each focusCantrips}}
+            {{#each this.focusCantrips}}
             <span class="wizard-spell-chip wizard-spell-chip--granted">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -1335,6 +1500,41 @@
           </div>
         </div>
         {{/if}}
+        {{#if this.focusNonCantrips.length}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">
+            <i class="fa-solid fa-sun"></i> {{localize "PF2E_LEVELER.SPELLS.FOCUS"}} ({{this.focusNonCantrips.length}})
+          </div>
+          {{#if this.isDevotionChoice}}
+          <p class="wizard-hint" style="margin: 4px 0;">Choose one focus spell.</p>
+          <div class="skill-btn-grid">
+            {{#each this.focusNonCantrips}}
+            <button type="button"
+              class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+              data-action="selectDevotionSpell" data-uuid="{{this.uuid}}">
+              <img src="{{this.img}}" alt="" style="width: 24px; height: 24px; border-radius: 2px; margin-right: 4px;">
+              <span class="skill-btn__name">{{this.name}}</span>
+            </button>
+            {{/each}}
+          </div>
+          {{else}}
+          <p class="wizard-hint" style="margin: 4px 0;">These focus spells will be added automatically.</p>
+          <div class="wizard-spell-chips">
+            {{#each this.focusNonCantrips}}
+            <span class="wizard-spell-chip wizard-spell-chip--granted">
+              <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+              <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              <span class="tag tag--success tag--tiny">{{../className}}</span>
+            </span>
+            {{/each}}
+          </div>
+          {{/if}}
+        </div>
+        {{/if}}
+        {{/if}}
+        {{/each}}
+        {{else}}
+        {{#if focusSpells.length}}
         {{#if focusNonCantrips.length}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">
@@ -1359,12 +1559,12 @@
             <span class="wizard-spell-chip wizard-spell-chip--granted">
               <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
               <span class="wizard-spell-chip__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
-              <span class="tag tag--success tag--tiny">{{../className}}</span>
             </span>
             {{/each}}
           </div>
           {{/if}}
         </div>
+        {{/if}}
         {{/if}}
         {{/if}}
       </div>
@@ -1471,7 +1671,7 @@
         {{#if data.class}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.STEPS.CLASS"}}</span>
-          <span class="wizard-summary__value">{{data.class.name}}</span>
+          <span class="wizard-summary__value">{{#if classSummaryLabel}}{{classSummaryLabel}}{{else}}{{data.class.name}}{{/if}}</span>
         </div>
         {{/if}}
         {{#if showSubclassSummary}}
@@ -1612,6 +1812,12 @@
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}</span>
           <span class="wizard-summary__value">{{data.classFeat.name}}{{#if classFeatChoiceLabels.length}} ({{#each classFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
+        </div>
+        {{/if}}
+        {{#if data.dualClassFeat}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{dualClassFeatLabel}}</span>
+          <span class="wizard-summary__value">{{data.dualClassFeat.name}}{{#if dualClassFeatChoiceLabels.length}} ({{#each dualClassFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
         </div>
         {{/if}}
         {{#if data.skillFeat}}

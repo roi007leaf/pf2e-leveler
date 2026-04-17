@@ -4,6 +4,9 @@ import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { GUARDIAN } from '../../../scripts/classes/guardian.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
+import { ROGUE } from '../../../scripts/classes/rogue.js';
+import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { WIZARD } from '../../../scripts/classes/wizard.js';
 import {
   MIXED_ANCESTRY_CHOICE_FLAG,
   MIXED_ANCESTRY_UUID,
@@ -25,6 +28,9 @@ beforeAll(() => {
   ClassRegistry.register(FIGHTER);
   ClassRegistry.register(GUARDIAN);
   ClassRegistry.register(INVESTIGATOR);
+  ClassRegistry.register(ROGUE);
+  ClassRegistry.register(SORCERER);
+  ClassRegistry.register(WIZARD);
 });
 
 describe('computeBuildState', () => {
@@ -63,6 +69,32 @@ describe('computeBuildState', () => {
     plan.dualClassSlug = 'fighter';
     const state = computeBuildState(mockActor, plan, 7);
     expect(state.proficiencies.perception).toBe(PROFICIENCY_RANKS.MASTER);
+  });
+
+  test('includes secondary rogue class features in dual class state', () => {
+    global._testSettings = {
+      pf2e: { dualClassVariant: true },
+      'pf2e-leveler': { enableDualClassSupport: true },
+    };
+    plan.classSlug = 'alchemist';
+    plan.dualClassSlug = 'rogue';
+
+    const state = computeBuildState(mockActor, plan, 5);
+
+    expect(state.classFeatures.has('weapon-tricks')).toBe(true);
+  });
+
+  test('includes secondary wizard spell tradition in dual class state', () => {
+    global._testSettings = {
+      pf2e: { dualClassVariant: true },
+      'pf2e-leveler': { enableDualClassSupport: true },
+    };
+    plan.classSlug = 'fighter';
+    plan.dualClassSlug = 'wizard';
+
+    const state = computeBuildState(mockActor, plan, 3);
+
+    expect(state.spellcasting.traditions.has('arcane')).toBe(true);
   });
 
   test('applies ability boosts', () => {

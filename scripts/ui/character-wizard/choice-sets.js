@@ -4,6 +4,7 @@ import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 import { buildSkillContext } from './skills-languages.js';
+import { parseCurriculum } from './loaders.js';
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
@@ -12,9 +13,25 @@ async function resolveDocument(wizard, uuid) {
 }
 
 export async function buildSubclassChoicesContext(wizard) {
+  const sections = [];
+  if ((wizard.data.subclass?.choiceSets?.length ?? 0) > 0) {
+    sections.push({
+      target: 'class',
+      subclassName: wizard.data.subclass?.name,
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.subclass?.choiceSets ?? [], wizard.data.subclass?.choices ?? {}),
+    });
+  }
+  if ((wizard.data.dualSubclass?.choiceSets?.length ?? 0) > 0) {
+    sections.push({
+      target: 'dualClass',
+      subclassName: wizard.data.dualSubclass?.name,
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.dualSubclass?.choiceSets ?? [], wizard.data.dualSubclass?.choices ?? {}),
+    });
+  }
   return {
-    subclassName: wizard.data.subclass?.name,
-    choiceSets: await hydrateChoiceSets(wizard, wizard.data.subclass?.choiceSets ?? [], wizard.data.subclass?.choices ?? {}),
+    subclassName: sections[0]?.subclassName ?? wizard.data.subclass?.name ?? wizard.data.dualSubclass?.name,
+    choiceSets: sections[0]?.choiceSets ?? [],
+    subclassChoiceSections: sections,
   };
 }
 
@@ -40,6 +57,14 @@ export async function buildFeatChoicesContext(wizard) {
       slot: 'class',
       featName: await resolveChoiceSectionName(wizard, wizard.data.classFeat),
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.classFeat.choiceSets, wizard.data.classFeat.choices ?? {}),
+    });
+  }
+  if (wizard.data.dualClassFeat?.choiceSets?.length) {
+    sections.push({
+      slot: 'dualClass',
+      featName: await resolveChoiceSectionName(wizard, wizard.data.dualClassFeat),
+      sourceName: wizard.data.dualClass?.name ?? 'Dual Class',
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.dualClassFeat.choiceSets, wizard.data.dualClassFeat.choices ?? {}),
     });
   }
   if (wizard.data.skillFeat?.choiceSets?.length) {
@@ -109,8 +134,9 @@ export async function getSelectedSubclassChoiceLabels(wizard) {
 export async function getSelectedFeatChoiceLabels(wizard, slot) {
   const grantedSection = (wizard.data.grantedFeatSections ?? []).find((section) => section.slot === slot);
   const feat = slot === 'ancestry' ? wizard.data.ancestryFeat
-    : slot === 'ancestryParagon' ? wizard.data.ancestryParagonFeat
+      : slot === 'ancestryParagon' ? wizard.data.ancestryParagonFeat
       : slot === 'class' ? wizard.data.classFeat
+        : slot === 'dualClass' ? wizard.data.dualClassFeat
         : slot === 'skill' ? wizard.data.skillFeat
           : grantedSection
             ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
@@ -129,10 +155,13 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
+    { uuid: wizard.data.dualClass?.uuid, label: wizard.data.dualClass?.name },
     { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, skipDirectSection: true, choiceSource: wizard.data.subclass },
+    { uuid: wizard.data.dualSubclass?.uuid, label: wizard.data.dualSubclass?.name, skipDirectSection: true, choiceSource: wizard.data.dualSubclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, skipDirectSection: true, choiceSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
+    { uuid: wizard.data.dualClassFeat?.uuid, label: wizard.data.dualClassFeat?.name, skipDirectSection: true, choiceSource: wizard.data.dualClassFeat },
     { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name, skipDirectSection: true, choiceSource: wizard.data.skillFeat },
     ...getSelectedHandlerChoiceSourceItems(wizard),
   ];
@@ -500,9 +529,13 @@ export async function getPendingChoices(wizard) {
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name },
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name },
+    { uuid: wizard.data.dualClass?.uuid, label: wizard.data.dualClass?.name },
+    { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, optionSource: wizard.data.subclass },
+    { uuid: wizard.data.dualSubclass?.uuid, label: wizard.data.dualSubclass?.name, optionSource: wizard.data.dualSubclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name },
+    { uuid: wizard.data.dualClassFeat?.uuid, label: wizard.data.dualClassFeat?.name },
     { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name },
     ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
@@ -517,8 +550,11 @@ export async function getPendingChoices(wizard) {
       continue;
     }
     const sourceChoices = optionSource ?? (uuid === wizard.data.ancestryFeat?.uuid ? wizard.data.ancestryFeat
+      : uuid === wizard.data.subclass?.uuid ? wizard.data.subclass
+        : uuid === wizard.data.dualSubclass?.uuid ? wizard.data.dualSubclass
       : uuid === wizard.data.ancestryParagonFeat?.uuid ? wizard.data.ancestryParagonFeat
         : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
+          : uuid === wizard.data.dualClassFeat?.uuid ? wizard.data.dualClassFeat
           : uuid === wizard.data.skillFeat?.uuid ? wizard.data.skillFeat
             : null);
     await scanItem(item, label, sourceChoices);
@@ -813,6 +849,15 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
     && !String(JSON.stringify(rule.choices.filter ?? [])).includes('item:rarity:')
   const itemType = typeof rule.choices.itemType === 'string' ? rule.choices.itemType.toLowerCase() : null;
   return candidates
+    .filter((item) => {
+      const type = String(item.type ?? '').toLowerCase();
+      const category = String(item.category ?? '').toLowerCase();
+      if (isAncestryChoiceSet(rule)) return type === 'ancestry';
+      if (itemType === 'heritage') return type === 'heritage';
+      if (itemType === 'deity') return type === 'deity' || category === 'deity';
+      if (itemType === 'classfeature') return category === 'classfeature';
+      return true;
+    })
     .filter((item) => matchesChoiceSetFilters(item, rule.choices.filter ?? []))
     .filter((item) => !promptImpliesCommonAncestry || String(item.rarity ?? 'common').toLowerCase() === 'common')
     .filter((item) => {
@@ -1007,6 +1052,7 @@ function collectAssuranceSelectedSkills(wizard, excludeFlag = null, currentChoic
   maybeCollectFromChoiceSource(wizard?.data?.ancestryFeat);
   maybeCollectFromChoiceSource(wizard?.data?.ancestryParagonFeat);
   maybeCollectFromChoiceSource(wizard?.data?.classFeat);
+  maybeCollectFromChoiceSource(wizard?.data?.dualClassFeat);
   maybeCollectFromChoiceSource(wizard?.data?.skillFeat);
 
   for (const section of (wizard?.data?.grantedFeatSections ?? [])) {
@@ -1488,6 +1534,7 @@ async function enrichChoiceOption(wizard, choice) {
     description: item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? '',
     summary: summarizeChoiceDescription(item.system?.description?.value ?? choice?.description ?? choiceValue?.description ?? ''),
     level: Number(item.system?.level?.value ?? choice?.level ?? choiceValue?.level ?? 0) || 0,
+    curriculum: parseCurriculum(item.system?.description?.value ?? '') ?? choice?.curriculum ?? choiceValue?.curriculum ?? null,
   };
 }
 

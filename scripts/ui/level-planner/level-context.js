@@ -1,5 +1,6 @@
 import { PROFICIENCY_RANK_NAMES, SKILLS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
 import { getChoicesForLevel } from '../../classes/progression.js';
+import { ClassRegistry } from '../../classes/registry.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
@@ -146,11 +147,31 @@ export function buildABPContext(level, options) {
 
 export function getClassFeaturesForLevel(planner, level) {
   const classItem = planner.actor.class;
-  if (!classItem?.system?.items) return [];
+  const features = [];
+  const seen = new Set();
 
-  return Object.values(classItem.system.items)
-    .filter((feature) => feature.level === level)
-    .map((feature) => ({ name: feature.name, uuid: feature.uuid, img: feature.img }));
+  for (const feature of Object.values(classItem?.system?.items ?? {})) {
+    if (feature?.level !== level) continue;
+    const key = String(feature?.uuid ?? feature?.name ?? '').trim().toLowerCase();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    features.push({ name: feature.name, uuid: feature.uuid, img: feature.img });
+  }
+
+  const dualClassSlug = String(planner.plan?.dualClassSlug ?? '').trim().toLowerCase();
+  const dualClassDef = dualClassSlug && ClassRegistry.has(dualClassSlug)
+    ? ClassRegistry.get(dualClassSlug)
+    : null;
+
+  for (const feature of dualClassDef?.classFeatures ?? []) {
+    if (feature?.level !== level) continue;
+    const key = String(feature?.key ?? feature?.name ?? '').trim().toLowerCase();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    features.push({ name: feature.name, uuid: feature.uuid ?? null, img: feature.img ?? null });
+  }
+
+  return features;
 }
 
 export function annotateFeat(feat) {

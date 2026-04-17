@@ -11,7 +11,9 @@ import {
   setAncestryParagonFeat,
   setBackground,
   setClass,
+  setDualClass,
   setClassFeat,
+  setDualClassFeat,
   setDeity,
   setDivineFont,
   setFeatChoice,
@@ -25,7 +27,9 @@ import {
   setSanctification,
   setSecondElement,
   setSubclass,
+  setDualSubclass,
   setSubclassChoice,
+  setDualSubclassChoice,
   setSubconsciousMind,
   setSkillFeat,
   setThesis,
@@ -72,7 +76,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="selectItem"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const uuid = btn.dataset.uuid;
-      await wizard._selectItem(uuid);
+      await wizard._selectItem(uuid, btn.dataset.target ?? null);
     });
   });
 
@@ -130,14 +134,14 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="selectSanctification"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setSanctification(wizard.data, btn.dataset.value);
+      setSanctification(wizard.data, btn.dataset.value, btn.dataset.target ?? 'class');
       wizard._saveAndRender();
     });
   });
 
   el.querySelectorAll('[data-action="selectDivineFont"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setDivineFont(wizard.data, btn.dataset.value);
+      setDivineFont(wizard.data, btn.dataset.value, btn.dataset.target ?? 'class');
       wizard._saveAndRender();
     });
   });
@@ -155,7 +159,9 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="selectSubclassChoice"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setSubclassChoice(wizard.data, btn.dataset.flag, btn.dataset.value);
+      const curriculum = btn.dataset.curriculum ? JSON.parse(btn.dataset.curriculum) : null;
+      if (btn.dataset.target === 'dualClass') setDualSubclassChoice(wizard.data, btn.dataset.flag, btn.dataset.value, { curriculum });
+      else setSubclassChoice(wizard.data, btn.dataset.flag, btn.dataset.value, { curriculum });
       wizard._saveAndRender();
     });
   });
@@ -180,7 +186,12 @@ export function activateCharacterWizardListeners(wizard, el) {
 
       const item = await fromUuid(uuid).catch(() => null);
       if (item) {
-        setSubclass(wizard.data, item, tradition, spellUuids, grantedSkills, grantedLores, choiceSets, curriculum);
+        const targetKey = btn.dataset.target ?? wizard._getPendingSubclassClassEntries?.()?.[0]?.key ?? 'class';
+        if (targetKey === 'dualClass') {
+          setDualSubclass(wizard.data, item, tradition, spellUuids, grantedSkills, grantedLores, choiceSets, curriculum);
+        } else {
+          setSubclass(wizard.data, item, tradition, spellUuids, grantedSkills, grantedLores, choiceSets, curriculum);
+        }
         await wizard._saveAndRender();
       }
     });
@@ -195,7 +206,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         lores: btn.dataset.lores ? JSON.parse(btn.dataset.lores) : [],
         spells: btn.dataset.spells ? JSON.parse(btn.dataset.spells) : {},
         vesselSpell: btn.dataset.vesselSpell || null,
-      }, Number(btn.dataset.max ?? 2));
+      }, Number(btn.dataset.max ?? 2), btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
@@ -207,7 +218,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         uuid: btn.dataset.uuid,
         name: btn.dataset.name,
         img: btn.dataset.img,
-      }, Number(btn.dataset.max ?? 5));
+      }, Number(btn.dataset.max ?? 5), btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
@@ -219,7 +230,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         uuid: btn.dataset.uuid,
         name: btn.dataset.name,
         img: btn.dataset.img,
-      }, Number(btn.dataset.max ?? 3));
+      }, Number(btn.dataset.max ?? 3), btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
@@ -238,7 +249,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         traits: item.system?.traits?.value ?? [],
         usage: item.system?.usage?.value ?? null,
         range: item.system?.range ?? null,
-      });
+      }, btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
@@ -248,7 +259,7 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const item = await fromUuid(btn.dataset.uuid).catch(() => null);
       if (!item) return;
-      setInnovationModification(wizard.data, item);
+      setInnovationModification(wizard.data, item, btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
@@ -256,7 +267,7 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="selectKineticGateMode"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setKineticGateMode(wizard.data, btn.dataset.value);
+      setKineticGateMode(wizard.data, btn.dataset.value, btn.dataset.target ?? 'class');
       wizard._saveAndRender();
     });
   });
@@ -265,7 +276,7 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const item = await fromUuid(btn.dataset.uuid).catch(() => null);
       if (!item) return;
-      setSecondElement(wizard.data, item);
+      setSecondElement(wizard.data, item, btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });
@@ -278,7 +289,7 @@ export function activateCharacterWizardListeners(wizard, el) {
         name: btn.dataset.name,
         img: btn.dataset.img,
         element: btn.dataset.element,
-      }, 2);
+      }, 2, btn.dataset.target ?? 'class');
       wizard._featChoiceDataDirty = true;
       wizard._saveAndRender();
     });
@@ -286,39 +297,55 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="setPrimaryApparition"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      setPrimaryApparition(wizard.data, btn.dataset.uuid);
+      setPrimaryApparition(wizard.data, btn.dataset.uuid, btn.dataset.target ?? 'class');
       wizard._saveAndRender();
     });
   });
 
   ['clearAncestry', 'clearHeritage', 'clearMixedAncestry', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat'].forEach((action) => {
-    el.querySelector(`[data-action="${action}"]`)?.addEventListener('click', async () => {
+    el.querySelectorAll(`[data-action="${action}"]`).forEach((button) => button.addEventListener('click', async () => {
+      const target = button?.dataset?.target ?? 'class';
       const clearMap = {
         clearAncestry: () => setAncestry(wizard.data, null),
         clearHeritage: () => setHeritage(wizard.data, null),
         clearMixedAncestry: () => setMixedAncestry(wizard.data, null),
         clearBackground: () => setBackground(wizard.data, null),
-        clearClass: () => { setClass(wizard.data, null); wizard.classHandler = getClassHandler(null); },
-        clearSubclass: () => setSubclass(wizard.data, null, null, null, null, null, null, null),
-        clearImplement: () => setImplement(wizard.data, null),
-        clearInnovationItem: () => setInnovationItem(wizard.data, null),
-        clearInnovationModification: () => setInnovationModification(wizard.data, null),
-        clearSecondElement: () => setSecondElement(wizard.data, null),
-        clearSubconsciousMind: () => setSubconsciousMind(wizard.data, null),
-        clearThesis: () => setThesis(wizard.data, null),
-        clearDeity: () => setDeity(wizard.data, null),
+        clearClass: () => {
+          if (target === 'dualClass') setDualClass(wizard.data, null);
+          else {
+            setClass(wizard.data, null);
+            setDualClass(wizard.data, null);
+          }
+          wizard.classHandler = getClassHandler(null);
+        },
+        clearSubclass: () => {
+          if (target === 'dualClass') setDualSubclass(wizard.data, null, null, null, null, null, null, null);
+          else if (target === 'class') setSubclass(wizard.data, null, null, null, null, null, null, null);
+          else {
+            setSubclass(wizard.data, null, null, null, null, null, null, null);
+            setDualSubclass(wizard.data, null, null, null, null, null, null, null);
+          }
+        },
+        clearImplement: () => setImplement(wizard.data, null, target),
+        clearInnovationItem: () => setInnovationItem(wizard.data, null, target),
+        clearInnovationModification: () => setInnovationModification(wizard.data, null, target),
+        clearSecondElement: () => setSecondElement(wizard.data, null, target),
+        clearSubconsciousMind: () => setSubconsciousMind(wizard.data, null, target),
+        clearThesis: () => setThesis(wizard.data, null, target),
+        clearDeity: () => setDeity(wizard.data, null, target),
         clearAncestryFeat: () => setAncestryFeat(wizard.data, null),
         clearAncestryParagonFeat: () => setAncestryParagonFeat(wizard.data, null),
         clearClassFeat: () => setClassFeat(wizard.data, null),
+        clearDualClassFeat: () => setDualClassFeat(wizard.data, null),
         clearSkillFeat: () => setSkillFeat(wizard.data, null),
       };
       clearMap[action]?.();
-      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat']);
+      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearDualClassFeat', 'clearSkillFeat']);
       if (refreshActions.has(action)) {
         await wizard._refreshGrantedFeatChoiceSections();
       }
       await wizard._saveAndRender();
-    });
+    }));
   });
 
   el.querySelectorAll('[data-action="browseFeat"]').forEach((btn) => {
@@ -387,12 +414,16 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  el.querySelector('[data-action="browseCantrips"]')?.addEventListener('click', () => {
-    wizard._openSpellPicker(0, true);
+  el.querySelectorAll('[data-action="browseCantrips"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._openSpellPicker(0, true, btn.dataset.target ?? 'primary');
+    });
   });
 
-  el.querySelector('[data-action="browseRank1"]')?.addEventListener('click', () => {
-    wizard._openSpellPicker(1, false);
+  el.querySelectorAll('[data-action="browseRank1"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._openSpellPicker(1, false, btn.dataset.target ?? 'primary');
+    });
   });
 
   el.querySelectorAll('[data-action="addCantrip"]').forEach((btn) => {
@@ -401,7 +432,7 @@ export function activateCharacterWizardListeners(wizard, el) {
       if (!uuid) return;
       const spell = await fromUuid(uuid).catch(() => null);
       if (spell) {
-        addSpell(wizard.data, spell, true);
+        addSpell(wizard.data, spell, true, btn.dataset.target ?? 'primary');
         await wizard._saveAndRender();
       }
     });
@@ -413,7 +444,7 @@ export function activateCharacterWizardListeners(wizard, el) {
       if (!uuid) return;
       const spell = await fromUuid(uuid).catch(() => null);
       if (spell) {
-        addSpell(wizard.data, spell, false);
+        addSpell(wizard.data, spell, false, btn.dataset.target ?? 'primary');
         await wizard._saveAndRender();
       }
     });
@@ -478,7 +509,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="removeCantrip"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeSpell(wizard.data, btn.dataset.uuid, true);
+      removeSpell(wizard.data, btn.dataset.uuid, true, btn.dataset.target ?? 'primary');
       wizard._saveAndRender();
     });
   });
@@ -486,7 +517,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="removeRank1"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeSpell(wizard.data, btn.dataset.uuid, false);
+      removeSpell(wizard.data, btn.dataset.uuid, false, btn.dataset.target ?? 'primary');
       wizard._saveAndRender();
     });
   });
@@ -495,11 +526,12 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const uuid = btn.dataset.uuid;
       const max = Number(btn.dataset.max ?? 1);
-      const current = wizard._getSanitizedCurriculumSelections().cantrips;
+      const target = btn.dataset.target ?? 'primary';
+      const current = wizard._getSanitizedCurriculumSelections(target).cantrips;
       if (current.some((spell) => spell.uuid === uuid) || current.length >= max) return;
       const spell = await fromUuid(uuid).catch(() => null);
       if (spell) {
-        addCurriculumCantrip(wizard.data, spell);
+        addCurriculumCantrip(wizard.data, spell, target);
         wizard._saveAndRender();
       }
     });
@@ -508,7 +540,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="removeCurriculumCantrip"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeCurriculumCantrip(wizard.data, btn.dataset.uuid);
+      removeCurriculumCantrip(wizard.data, btn.dataset.uuid, btn.dataset.target ?? 'primary');
       wizard._saveAndRender();
     });
   });
@@ -517,11 +549,12 @@ export function activateCharacterWizardListeners(wizard, el) {
     btn.addEventListener('click', async () => {
       const uuid = btn.dataset.uuid;
       const max = Number(btn.dataset.max ?? 2);
-      const current = wizard._getSanitizedCurriculumSelections().rank1;
+      const target = btn.dataset.target ?? 'primary';
+      const current = wizard._getSanitizedCurriculumSelections(target).rank1;
       if (current.some((spell) => spell.uuid === uuid) || current.length >= max) return;
       const spell = await fromUuid(uuid).catch(() => null);
       if (spell) {
-        addCurriculumRank1(wizard.data, spell);
+        addCurriculumRank1(wizard.data, spell, target);
         wizard._saveAndRender();
       }
     });
@@ -530,7 +563,7 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelectorAll('[data-action="removeCurriculumRank1"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeCurriculumRank1(wizard.data, btn.dataset.uuid);
+      removeCurriculumRank1(wizard.data, btn.dataset.uuid, btn.dataset.target ?? 'primary');
       wizard._saveAndRender();
     });
   });

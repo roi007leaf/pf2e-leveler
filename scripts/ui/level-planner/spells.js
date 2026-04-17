@@ -1,4 +1,5 @@
 import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
+import { ClassRegistry } from '../../classes/registry.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { getAllPlannedFeats, getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
@@ -19,80 +20,164 @@ async function resolveDocuments(uuids) {
 }
 
 export async function buildSpellContext(planner, classDef, level) {
+  const classSpellSections = await buildClassSpellSections(planner, classDef, level);
+  const classFocusSections = await buildClassFocusSections(planner, classDef, level);
+
   if (!classDef.spellcasting) {
     const focusOnly = await getFocusSpellsForLevel(planner, level);
     const levelData = getLevelData(planner.plan, level) ?? {};
     const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
     const dedicationSpellSections = buildDedicationSpellSections(planner, level, plannedSpells);
     return {
-      showSpells: focusOnly.showFocusSpells || dedicationSpellSections.length > 0,
+      showSpells: classSpellSections.length > 0 || classFocusSections.length > 0 || focusOnly.showFocusSpells || dedicationSpellSections.length > 0,
+      classSpellSections,
+      classFocusSections,
       dedicationSpellSections,
       ...focusOnly,
     };
   }
 
-  const slots = classDef.spellcasting.slots;
-  const currentSlots = slots[level];
-  if (!currentSlots) return { showSpells: false };
-  const prevSlots = slots[level - 1] ?? getActorSpellCounts(planner);
-
-  const levelData = getLevelData(planner.plan, level) ?? {};
-  const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
-  const primaryPlannedSpells = plannedSpells.filter((spell) => (spell.entryType ?? 'primary') === 'primary');
-  const primaryPlannedRankSpells = primaryPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0));
-  const primaryPlannedCantripSpells = primaryPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
-  const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level);
-  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, primaryPlannedSpells, grantedSpells);
-  const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
-  const highestRank = getHighestRank(currentSlots);
-  const newRank = hasNewRank ? ordinalRank(highestRank) : null;
+  const primarySection = classSpellSections[0] ?? null;
+  if (!primarySection) return { showSpells: false, classSpellSections: [] };
 
   const apparitionContext = await buildApparitionContext(planner, classDef, level);
-
-  const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
-  const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
-  const hasRankSpellSelections = isSpontaneous;
-  const spellbookSelectionCount = hasSpellbook ? 2 : 0;
-  const spellbookCantripSelectionCount = hasSpellbook
-    ? getSpellbookBonusCantripSelectionCount(planner.plan, level)
-    : 0;
-  const spellbookTotalSelectionCount = spellbookSelectionCount + spellbookCantripSelectionCount;
-  const plannedSpellbookSelectionCount = hasSpellbook
-    ? primaryPlannedRankSpells.length
-    : 0;
-  const plannedSpellbookCantripCount = hasSpellbook
-    ? primaryPlannedCantripSpells.length
-    : 0;
-  const showCustomSpellRankReminder = hasNewRank && !hasSpellbook;
+  const levelData = getLevelData(planner.plan, level) ?? {};
+  const plannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
   const dedicationSpellSections = buildDedicationSpellSections(planner, level, plannedSpells);
-
   const focusSpellData = await getFocusSpellsForLevel(planner, level);
 
   return {
     showSpells: true,
-    spellTradition: classDef.spellcasting.tradition,
-    spellType: classDef.spellcasting.type,
-    isSpontaneous,
-    hasRankSpellSelections,
-    hasSpellbook,
-    spellbookSelectionCount,
-    spellbookCantripSelectionCount,
-    spellbookTotalSelectionCount,
-    plannedSpellbookSelectionCount,
-    plannedSpellbookCantripCount,
-    showCustomSpellRankReminder,
-    spellSlots,
-    hasNewRank,
-    newRank,
-    plannedSpells: isSpontaneous ? primaryPlannedSpells : hasSpellbook ? primaryPlannedRankSpells : [],
-    plannedSpellbookCantripSpells: hasSpellbook ? primaryPlannedCantripSpells : [],
+    classSpellSections,
+    classFocusSections,
+    spellTradition: primarySection.spellTradition,
+    spellType: primarySection.spellType,
+    isSpontaneous: primarySection.isSpontaneous,
+    hasRankSpellSelections: primarySection.hasRankSpellSelections,
+    hasSpellbook: primarySection.hasSpellbook,
+    spellbookSelectionCount: primarySection.spellbookSelectionCount,
+    spellbookCantripSelectionCount: primarySection.spellbookCantripSelectionCount,
+    spellbookTotalSelectionCount: primarySection.spellbookTotalSelectionCount,
+    plannedSpellbookSelectionCount: primarySection.plannedSpellbookSelectionCount,
+    plannedSpellbookCantripCount: primarySection.plannedSpellbookCantripCount,
+    showCustomSpellRankReminder: primarySection.showCustomSpellRankReminder,
+    spellSlots: primarySection.spellSlots,
+    hasNewRank: primarySection.hasNewRank,
+    newRank: primarySection.newRank,
+    plannedSpells: primarySection.plannedSpells,
+    plannedSpellbookCantripSpells: primarySection.plannedSpellbookCantripSpells,
     dedicationSpellSections,
-    highestRank,
-    grantedSpells,
-    showGrantedSpells: grantedSpells.length > 0,
+    highestRank: primarySection.highestRank,
+    grantedSpells: primarySection.grantedSpells,
+    showGrantedSpells: primarySection.showGrantedSpells,
     ...focusSpellData,
     ...apparitionContext,
   };
+}
+
+async function buildClassFocusSections(planner, classDef, level) {
+  const sections = [];
+
+  if (classDef?.spellcasting) {
+    const primaryFocus = await getFocusSpellsForLevel(planner, level, classDef.slug);
+    if (primaryFocus.showFocusSpells) {
+      sections.push({
+        classSlug: classDef.slug,
+        ...primaryFocus,
+      });
+    }
+  }
+
+  const dualClassSlug = String(planner?.plan?.dualClassSlug ?? '').trim().toLowerCase();
+  const primaryClassSlug = String(planner?.plan?.classSlug ?? '').trim().toLowerCase();
+  if (dualClassSlug && dualClassSlug !== primaryClassSlug && ClassRegistry.has(dualClassSlug)) {
+    const dualClassDef = ClassRegistry.get(dualClassSlug);
+    if (dualClassDef?.spellcasting) {
+      const secondaryFocus = await getFocusSpellsForLevel(planner, level, dualClassSlug);
+      if (secondaryFocus.showFocusSpells) {
+        sections.push({
+          classSlug: dualClassSlug,
+          ...secondaryFocus,
+        });
+      }
+    }
+  }
+
+  return sections;
+}
+
+async function buildClassSpellSections(planner, classDef, level) {
+  const sections = [];
+
+  if (classDef?.spellcasting) {
+    const primaryEntryType = classDef.spellcasting.type === 'dual' ? 'animist' : 'primary';
+    const primarySection = await buildClassSpellSection(planner, classDef, level, primaryEntryType, classDef.slug);
+    if (primarySection) sections.push(primarySection);
+  }
+
+  const dualClassSlug = String(planner?.plan?.dualClassSlug ?? '').trim().toLowerCase();
+  const primaryClassSlug = String(planner?.plan?.classSlug ?? '').trim().toLowerCase();
+  if (dualClassSlug && dualClassSlug !== primaryClassSlug && ClassRegistry.has(dualClassSlug)) {
+    const dualClassDef = ClassRegistry.get(dualClassSlug);
+    if (dualClassDef?.spellcasting) {
+      const secondarySection = await buildClassSpellSection(planner, dualClassDef, level, `class:${dualClassSlug}`, dualClassSlug);
+      if (secondarySection) sections.push(secondarySection);
+    }
+  }
+
+  return sections;
+}
+
+async function buildClassSpellSection(planner, classDef, level, entryType, classSlug) {
+  const slots = classDef?.spellcasting?.slots ?? {};
+  const currentSlots = slots[level];
+  if (!currentSlots) return null;
+
+  const prevSlots = slots[level - 1] ?? getActorSpellCounts(planner);
+  const levelData = getLevelData(planner.plan, level) ?? {};
+  const allPlannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
+  const sectionPlannedSpells = allPlannedSpells.filter((spell) => normalizeSectionEntryType(spell, classDef) === entryType);
+  const rankSpells = sectionPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0));
+  const cantripSpells = sectionPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
+  const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level, classSlug);
+  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, sectionPlannedSpells, grantedSpells);
+  const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
+  const highestRank = getHighestRank(currentSlots);
+  const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
+  const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
+  const spellbookSelectionCount = hasSpellbook ? 2 : 0;
+  const spellbookCantripSelectionCount = hasSpellbook ? getSpellbookBonusCantripSelectionCount(planner.plan, level) : 0;
+
+  return {
+    classSlug,
+    label: classSlug,
+    entryType,
+    spellTradition: classDef.spellcasting.tradition,
+    spellType: classDef.spellcasting.type,
+    isSpontaneous,
+    hasRankSpellSelections: isSpontaneous,
+    hasSpellbook,
+    spellbookSelectionCount,
+    spellbookCantripSelectionCount,
+    spellbookTotalSelectionCount: spellbookSelectionCount + spellbookCantripSelectionCount,
+    plannedSpellbookSelectionCount: hasSpellbook ? rankSpells.length : 0,
+    plannedSpellbookCantripCount: hasSpellbook ? cantripSpells.length : 0,
+    showCustomSpellRankReminder: hasNewRank && !hasSpellbook,
+    spellSlots,
+    hasNewRank,
+    newRank: hasNewRank ? ordinalRank(highestRank) : null,
+    plannedSpells: isSpontaneous ? sectionPlannedSpells : hasSpellbook ? rankSpells : sectionPlannedSpells,
+    plannedSpellbookCantripSpells: hasSpellbook ? cantripSpells : [],
+    highestRank,
+    grantedSpells,
+    showGrantedSpells: grantedSpells.length > 0,
+  };
+}
+
+function normalizeSectionEntryType(spell, classDef) {
+  const entryType = String(spell?.entryType ?? '').trim();
+  if (entryType) return entryType;
+  return classDef?.spellcasting?.type === 'dual' ? 'animist' : 'primary';
 }
 
 export function buildCustomSpellEntryOptions(planner, level) {
@@ -245,8 +330,8 @@ function normalizePlannedSpellsForDisplay(plannedSpells) {
   });
 }
 
-export async function getFocusSpellsForLevel(planner, level) {
-  const subclassSlug = getSubclassSlug(planner);
+export async function getFocusSpellsForLevel(planner, level, classSlug = null) {
+  const subclassSlug = getSubclassSlug(planner, classSlug);
   if (!subclassSlug) return { focusSpells: [], showFocusSpells: false };
 
   const data = SUBCLASS_SPELLS[subclassSlug];
@@ -292,38 +377,43 @@ export async function getFocusSpellsForLevel(planner, level) {
   };
 }
 
-export function getSubclassSlug(planner) {
-  if (planner._subclassSlug !== undefined) return planner._subclassSlug;
-  const subclassTag = SUBCLASS_TAGS[planner.plan.classSlug];
+export function getSubclassSlug(planner, classSlug = null) {
+  const targetClassSlug = String(classSlug ?? planner.plan.classSlug ?? '').trim().toLowerCase();
+  planner._subclassSlugCache ??= new Map();
+  if (planner._subclassSlugCache.has(targetClassSlug)) return planner._subclassSlugCache.get(targetClassSlug);
+  const subclassTag = SUBCLASS_TAGS[targetClassSlug];
   if (!subclassTag) {
-    planner._subclassSlug = null;
+    planner._subclassSlugCache.set(targetClassSlug, null);
     return null;
   }
 
   const subItem = planner.actor.items?.find((item) =>
     item.type === 'feat' && (item.system?.traits?.otherTags ?? []).includes(subclassTag),
   );
-  planner._subclassSlug = subItem?.slug ?? null;
-  return planner._subclassSlug;
+  const resolved = subItem?.slug ?? null;
+  planner._subclassSlugCache.set(targetClassSlug, resolved);
+  return resolved;
 }
 
-export function getSubclassItem(planner) {
-  if (planner._subclassItem !== undefined) return planner._subclassItem;
-  const subclassTag = SUBCLASS_TAGS[planner.plan.classSlug];
+export function getSubclassItem(planner, classSlug = null) {
+  const targetClassSlug = String(classSlug ?? planner.plan.classSlug ?? '').trim().toLowerCase();
+  planner._subclassItemCache ??= new Map();
+  if (planner._subclassItemCache.has(targetClassSlug)) return planner._subclassItemCache.get(targetClassSlug);
+  const subclassTag = SUBCLASS_TAGS[targetClassSlug];
   if (!subclassTag) {
-    planner._subclassItem = null;
+    planner._subclassItemCache.set(targetClassSlug, null);
     return null;
   }
 
-  planner._subclassItem = planner.actor.items?.find((item) =>
+  const resolved = planner.actor.items?.find((item) =>
     item.type === 'feat' && (item.system?.traits?.otherTags ?? []).includes(subclassTag),
   ) ?? null;
-
-  return planner._subclassItem;
+  planner._subclassItemCache.set(targetClassSlug, resolved);
+  return resolved;
 }
 
-export function getSubclassChoices(planner) {
-  const item = getSubclassItem(planner);
+export function getSubclassChoices(planner, classSlug = null) {
+  const item = getSubclassItem(planner, classSlug);
   const rawChoices = item?.flags?.pf2e?.rulesSelections ?? {};
   const choices = {};
 
@@ -336,10 +426,10 @@ export function getSubclassChoices(planner) {
   return choices;
 }
 
-export async function getGrantedSpellsForLevel(planner, classDef, level) {
-  const subclassSlug = getSubclassSlug(planner);
+export async function getGrantedSpellsForLevel(planner, classDef, level, classSlug = null) {
+  const subclassSlug = getSubclassSlug(planner, classSlug);
   if (!subclassSlug || !classDef?.spellcasting) return [];
-  const subclassChoices = getSubclassChoices(planner);
+  const subclassChoices = getSubclassChoices(planner, classSlug);
 
   const slots = classDef.spellcasting.slots;
   const currentSlots = slots[level];

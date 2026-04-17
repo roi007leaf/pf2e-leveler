@@ -129,6 +129,23 @@ export function matchHeritage(parsed, buildState) {
   };
 }
 
+export function matchAncestryFeatAccess(parsed, buildState) {
+  if (parsed.multipleAncestries !== true) {
+    return { met: null, text: parsed.text };
+  }
+
+  const featSlugs = buildState.feats instanceof Set ? buildState.feats : new Set(buildState.feats ?? []);
+  const heritageSlug = normalizeText(buildState.heritageSlug);
+  const heritageAliases = buildState.heritageAliases instanceof Set
+    ? new Set([...buildState.heritageAliases].map((value) => normalizeText(value)))
+    : new Set();
+
+  return {
+    met: featSlugs.has('adopted-ancestry') || heritageSlug === 'mixed-ancestry' || heritageAliases.has('mixed-ancestry'),
+    text: parsed.text,
+  };
+}
+
 export function matchProficiency(parsed, buildState) {
   const proficiencies = buildState.proficiencies ?? {};
   const normalizedKey = normalizeProficiencyKey(parsed.key);

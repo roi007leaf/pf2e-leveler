@@ -34,7 +34,7 @@ export class AnimistHandler extends CasterBaseHandler {
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'apparitions') return null;
 
-    const apparitions = await wizard._loadApparitions();
+    const apparitions = await wizard._loadApparitions(data.class);
     const selectedUuids = new Set((data.apparitions ?? []).map((entry) => entry.uuid));
 
     return {

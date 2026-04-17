@@ -248,6 +248,15 @@ export async function loadSubclasses(wizard) {
   });
 }
 
+export async function loadSubclassesForClass(wizard, classEntry) {
+  const tag = classEntry?.subclassTag ?? SUBCLASS_TAGS[classEntry?.slug];
+  if (!tag) return [];
+  return loadTaggedClassFeatures(wizard, tag, `subclass-${tag}`, {
+    includeSubclassData: true,
+    packageName: classEntry?.sourcePackage ?? null,
+  });
+}
+
 export async function resolveClassSubclassTag(wizard, classItem) {
   const explicitTag = classItem?.subclassTag ?? SUBCLASS_TAGS[classItem?.slug];
   if (typeof explicitTag === 'string' && explicitTag.length > 0) return explicitTag;
@@ -273,18 +282,18 @@ export async function resolveClassSubclassTag(wizard, classItem) {
   return matches[0]?.candidate ?? null;
 }
 
-export async function loadTheses(wizard) {
-  if (wizard.data.class?.slug !== 'wizard') return [];
+export async function loadTheses(wizard, classEntry = wizard.data.class) {
+  if (classEntry?.slug !== 'wizard') return [];
   return loadTaggedClassFeatures(wizard, 'wizard-arcane-thesis', 'wizard-theses');
 }
 
-export async function loadThaumaturgeImplements(wizard) {
-  if (wizard.data.class?.slug !== 'thaumaturge') return [];
+export async function loadThaumaturgeImplements(wizard, classEntry = wizard.data.class) {
+  if (classEntry?.slug !== 'thaumaturge') return [];
   return loadTaggedClassFeatures(wizard, 'thaumaturge-implement', 'thaumaturge-implements');
 }
 
-export async function loadCommanderTactics(wizard) {
-  if (wizard.data.class?.slug !== 'commander') return [];
+export async function loadCommanderTactics(wizard, classEntry = wizard.data.class) {
+  if (classEntry?.slug !== 'commander') return [];
   const cacheKey = 'commander-tactics';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
 
@@ -314,8 +323,8 @@ export async function loadCommanderTactics(wizard) {
   return items;
 }
 
-export async function loadExemplarIkons(wizard) {
-  if (wizard.data.class?.slug !== 'exemplar') return [];
+export async function loadExemplarIkons(wizard, classEntry = wizard.data.class) {
+  if (classEntry?.slug !== 'exemplar') return [];
   return loadTaggedClassFeatures(wizard, 'exemplar-ikon', 'exemplar-ikons');
 }
 
@@ -644,6 +653,7 @@ function getWorldItemsForCategory(category) {
 
 function matchesWorldCategory(item, category) {
   const type = String(item?.type ?? '').toLowerCase();
+  if (category === 'classes') return type === 'class';
   if (category === 'spells') return type === 'spell';
   if (category === 'equipment') return EQUIPMENT_TYPES.has(type);
   if (category === 'feats') return type === 'feat' && !isClassFeatureCategory(item?.system?.category);

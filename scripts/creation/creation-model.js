@@ -1,14 +1,125 @@
 const CURRENT_VERSION = 1;
+const HANDLER_SELECTION_KEYS = [
+  'implement',
+  'tactics',
+  'ikons',
+  'innovationItem',
+  'innovationModification',
+  'kineticGateMode',
+  'secondElement',
+  'kineticImpulses',
+  'subconsciousMind',
+  'thesis',
+  'apparitions',
+  'primaryApparition',
+  'deity',
+  'sanctification',
+  'divineFont',
+  'devotionSpell',
+];
+
+function createEmptyHandlerSelections() {
+  return {
+    implement: null,
+    tactics: [],
+    ikons: [],
+    innovationItem: null,
+    innovationModification: null,
+    kineticGateMode: null,
+    secondElement: null,
+    kineticImpulses: [],
+    subconsciousMind: null,
+    thesis: null,
+    apparitions: [],
+    primaryApparition: null,
+    deity: null,
+    sanctification: null,
+    divineFont: null,
+    devotionSpell: null,
+  };
+}
+
+function cloneSelectionValue(value) {
+  return foundry.utils.deepClone(value);
+}
+
+function isMeaningfulSelectionValue(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === 'object') return Object.keys(value).length > 0;
+  return value !== null && value !== undefined && value !== '';
+}
+
+function syncPrimaryHandlerSelectionMirrors(data) {
+  const bucket = getClassSelectionData(data, 'class');
+  for (const key of HANDLER_SELECTION_KEYS) {
+    data[key] = cloneSelectionValue(bucket[key]);
+  }
+}
+
+function resetHandlerSelections(data, target = 'class') {
+  data.classSelections[target] = createEmptyHandlerSelections();
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
+  return data.classSelections[target];
+}
+
+export function ensureClassSelections(data) {
+  data.classSelections ??= {};
+  data.classSelections.class ??= createEmptyHandlerSelections();
+  data.classSelections.dualClass ??= createEmptyHandlerSelections();
+  return data.classSelections;
+}
+
+export function getClassSelectionData(data, target = 'class') {
+  ensureClassSelections(data);
+  data.classSelections[target] ??= createEmptyHandlerSelections();
+  if (target === 'class') {
+    for (const key of HANDLER_SELECTION_KEYS) {
+      if (!isMeaningfulSelectionValue(data.classSelections.class[key]) && isMeaningfulSelectionValue(data[key])) {
+        data.classSelections.class[key] = cloneSelectionValue(data[key]);
+      }
+    }
+  }
+  return data.classSelections[target];
+}
+
+export function normalizeCreationData(data) {
+  ensureClassSelections(data);
+  if (data.subclass) data.subclass.choiceCurricula ??= {};
+  if (data.dualSubclass) data.dualSubclass.choiceCurricula ??= {};
+
+  for (const key of HANDLER_SELECTION_KEYS) {
+    const primaryBucket = data.classSelections.class;
+    if (!isMeaningfulSelectionValue(primaryBucket[key]) && isMeaningfulSelectionValue(data[key])) {
+      primaryBucket[key] = cloneSelectionValue(data[key]);
+    }
+  }
+
+  syncPrimaryHandlerSelectionMirrors(data);
+  return data;
+}
+
+function setHandlerSelection(data, key, value, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  bucket[key] = value;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
+  return bucket;
+}
 
 export function createCreationData() {
-  return {
+  const data = {
     version: CURRENT_VERSION,
     ancestry: null,
     heritage: null,
     mixedAncestry: null,
     background: null,
     class: null,
+    dualClass: null,
     subclass: null,
+    dualSubclass: null,
+    classSelections: {
+      class: createEmptyHandlerSelections(),
+      dualClass: createEmptyHandlerSelections(),
+    },
     implement: null,
     tactics: [],
     ikons: [],
@@ -36,13 +147,18 @@ export function createCreationData() {
     ancestryFeat: null,
     ancestryParagonFeat: null,
     classFeat: null,
+    dualClassFeat: null,
     skillFeat: null,
     grantedFeatSections: [],
     grantedFeatChoices: {},
     spells: { cantrips: [], rank1: [] },
+    dualSpells: { cantrips: [], rank1: [] },
     curriculumSpells: { cantrips: [], rank1: [] },
+    dualCurriculumSpells: { cantrips: [], rank1: [] },
     equipment: [],
   };
+  syncPrimaryHandlerSelectionMirrors(data);
+  return data;
 }
 
 function clearBoostsForPrefix(data, prefix) {
@@ -136,67 +252,92 @@ export function setClass(data, item) {
         subclassTag: typeof item.subclassTag === 'string' ? item.subclassTag : null,
       }
     : null;
+  data.dualClass = null;
   data.subclass = null;
-  data.implement = null;
-  data.tactics = [];
-  data.ikons = [];
-  data.innovationItem = null;
-  data.innovationModification = null;
-  data.kineticGateMode = null;
-  data.secondElement = null;
-  data.kineticImpulses = [];
-  data.subconsciousMind = null;
-  data.thesis = null;
-  data.apparitions = [];
-  data.primaryApparition = null;
-  data.deity = null;
-  data.divineFont = null;
-  data.devotionSpell = null;
+  data.dualSubclass = null;
+  resetHandlerSelections(data, 'class');
+  resetHandlerSelections(data, 'dualClass');
   data.classFeat = null;
+  data.dualClassFeat = null;
   data.skillFeat = null;
   data.grantedFeatSections = [];
   data.grantedFeatChoices = {};
   data.spells = { cantrips: [], rank1: [] };
+  data.dualSpells = { cantrips: [], rank1: [] };
   data.curriculumSpells = { cantrips: [], rank1: [] };
+  data.dualCurriculumSpells = { cantrips: [], rank1: [] };
   clearBoostsForPrefix(data, 'class');
   return data;
 }
 
-export function setImplement(data, item) {
-  data.implement = item
-    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
+export function setDualClass(data, item) {
+  data.dualClass = item
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        sourcePack: item.sourcePack ?? null,
+        sourcePackage: item.sourcePackage ?? null,
+        keyAbility: Array.isArray(item.keyAbility) ? [...item.keyAbility] : null,
+        subclassTag: typeof item.subclassTag === 'string' ? item.subclassTag : null,
+      }
     : null;
+  data.dualSubclass = null;
+  resetHandlerSelections(data, 'dualClass');
+  data.dualClassFeat = null;
+  data.dualSpells = { cantrips: [], rank1: [] };
+  data.dualCurriculumSpells = { cantrips: [], rank1: [] };
   return data;
 }
 
-export function toggleTactic(data, item, max = 5) {
-  if (!data.tactics) data.tactics = [];
-  const index = data.tactics.findIndex((entry) => entry.uuid === item.uuid);
+export function setImplement(data, item, target = 'class') {
+  setHandlerSelection(
+    data,
+    'implement',
+    item
+    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
+    : null,
+    target,
+  );
+  return data;
+}
+
+export function toggleTactic(data, item, max = 5, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  if (!bucket.tactics) bucket.tactics = [];
+  const index = bucket.tactics.findIndex((entry) => entry.uuid === item.uuid);
   if (index >= 0) {
-    data.tactics.splice(index, 1);
+    bucket.tactics.splice(index, 1);
+    if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
     return data;
   }
 
-  if (data.tactics.length >= max) return data;
-  data.tactics.push(item);
+  if (bucket.tactics.length >= max) return data;
+  bucket.tactics.push(item);
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function toggleIkon(data, item, max = 3) {
-  if (!data.ikons) data.ikons = [];
-  const index = data.ikons.findIndex((entry) => entry.uuid === item.uuid);
+export function toggleIkon(data, item, max = 3, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  if (!bucket.ikons) bucket.ikons = [];
+  const index = bucket.ikons.findIndex((entry) => entry.uuid === item.uuid);
   if (index >= 0) {
-    data.ikons.splice(index, 1);
+    bucket.ikons.splice(index, 1);
+    if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
     return data;
   }
 
-  if (data.ikons.length >= max) return data;
-  data.ikons.push(item);
+  if (bucket.ikons.length >= max) return data;
+  bucket.ikons.push(item);
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setInnovationItem(data, item) {
-  data.innovationItem = item
+export function setInnovationItem(data, item, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  bucket.innovationItem = item
     ? {
         uuid: item.uuid,
         name: item.name,
@@ -208,52 +349,69 @@ export function setInnovationItem(data, item) {
         range: item.range ?? null,
       }
     : null;
-  data.innovationModification = null;
+  bucket.innovationModification = null;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setInnovationModification(data, item) {
-  data.innovationModification = item
+export function setInnovationModification(data, item, target = 'class') {
+  setHandlerSelection(
+    data,
+    'innovationModification',
+    item
+    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
+    : null,
+    target,
+  );
+  return data;
+}
+
+export function setKineticGateMode(data, value, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  bucket.kineticGateMode = value;
+  if (value !== 'dual-gate') bucket.secondElement = null;
+  bucket.kineticImpulses = [];
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
+  return data;
+}
+
+export function setSecondElement(data, item, target = 'class') {
+  const subclass = target === 'dualClass' ? data.dualSubclass : data.subclass;
+  if (item && subclass?.uuid === item.uuid) return data;
+  const bucket = getClassSelectionData(data, target);
+  bucket.secondElement = item
     ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
     : null;
+  bucket.kineticImpulses = [];
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setKineticGateMode(data, value) {
-  data.kineticGateMode = value;
-  if (value !== 'dual-gate') data.secondElement = null;
-  data.kineticImpulses = [];
-  return data;
-}
-
-export function setSecondElement(data, item) {
-  if (item && data.subclass?.uuid === item.uuid) return data;
-  data.secondElement = item
-    ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug }
-    : null;
-  data.kineticImpulses = [];
-  return data;
-}
-
-export function toggleKineticImpulse(data, item, max = 2) {
-  if (!data.kineticImpulses) data.kineticImpulses = [];
-  const index = data.kineticImpulses.findIndex((entry) => entry.uuid === item.uuid);
+export function toggleKineticImpulse(data, item, max = 2, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  if (!bucket.kineticImpulses) bucket.kineticImpulses = [];
+  const index = bucket.kineticImpulses.findIndex((entry) => entry.uuid === item.uuid);
   if (index >= 0) {
-    data.kineticImpulses.splice(index, 1);
+    bucket.kineticImpulses.splice(index, 1);
+    if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
     return data;
   }
 
-  if (data.kineticImpulses.length >= max) return data;
-  if (data.kineticGateMode === 'dual-gate' && data.kineticImpulses.length === 1) {
-    const existingElement = data.kineticImpulses[0]?.element;
+  if (bucket.kineticImpulses.length >= max) return data;
+  if (bucket.kineticGateMode === 'dual-gate' && bucket.kineticImpulses.length === 1) {
+    const existingElement = bucket.kineticImpulses[0]?.element;
     if (existingElement && item.element === existingElement) return data;
   }
-  data.kineticImpulses.push(item);
+  bucket.kineticImpulses.push(item);
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setSubconsciousMind(data, item) {
-  data.subconsciousMind = item
+export function setSubconsciousMind(data, item, target = 'class') {
+  setHandlerSelection(
+    data,
+    'subconsciousMind',
+    item
     ? {
         uuid: item.uuid,
         name: item.name,
@@ -261,41 +419,53 @@ export function setSubconsciousMind(data, item) {
         slug: item.slug,
         keyAbility: item.keyAbility ?? null,
       }
-    : null;
+    : null,
+    target,
+  );
 
-  if (data.class?.slug === 'psychic') {
+  if (target === 'class' && data.class?.slug === 'psychic') {
     data.boosts.class = item?.keyAbility ? [item.keyAbility] : [];
   }
 
   return data;
 }
 
-export function setThesis(data, item) {
-  data.thesis = item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug } : null;
+export function setThesis(data, item, target = 'class') {
+  setHandlerSelection(
+    data,
+    'thesis',
+    item ? { uuid: item.uuid, name: item.name, img: item.img, slug: item.slug } : null,
+    target,
+  );
   return data;
 }
 
-export function toggleApparition(data, item, max = 2) {
-  if (!data.apparitions) data.apparitions = [];
-  const index = data.apparitions.findIndex((entry) => entry.uuid === item.uuid);
+export function toggleApparition(data, item, max = 2, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  if (!bucket.apparitions) bucket.apparitions = [];
+  const index = bucket.apparitions.findIndex((entry) => entry.uuid === item.uuid);
   if (index >= 0) {
-    data.apparitions.splice(index, 1);
-    if (data.primaryApparition === item.uuid) {
-      data.primaryApparition = data.apparitions[0]?.uuid ?? null;
+    bucket.apparitions.splice(index, 1);
+    if (bucket.primaryApparition === item.uuid) {
+      bucket.primaryApparition = bucket.apparitions[0]?.uuid ?? null;
     }
+    if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
     return data;
   }
 
-  if (data.apparitions.length >= max) return data;
+  if (bucket.apparitions.length >= max) return data;
 
-  data.apparitions.push(item);
-  if (!data.primaryApparition) data.primaryApparition = item.uuid;
+  bucket.apparitions.push(item);
+  if (!bucket.primaryApparition) bucket.primaryApparition = item.uuid;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setPrimaryApparition(data, uuid) {
-  if (!data.apparitions?.some((entry) => entry.uuid === uuid)) return data;
-  data.primaryApparition = uuid;
+export function setPrimaryApparition(data, uuid, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  if (!bucket.apparitions?.some((entry) => entry.uuid === uuid)) return data;
+  bucket.primaryApparition = uuid;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
@@ -321,54 +491,129 @@ export function setSubclass(
         grantedLores,
         choiceSets,
         choices: {},
+        choiceCurricula: {},
         curriculum,
       }
     : null;
-  data.innovationItem = null;
-  data.innovationModification = null;
-  data.kineticGateMode = null;
-  data.secondElement = null;
-  data.kineticImpulses = [];
+  const bucket = getClassSelectionData(data, 'class');
+  bucket.innovationItem = null;
+  bucket.innovationModification = null;
+  bucket.kineticGateMode = null;
+  bucket.secondElement = null;
+  bucket.kineticImpulses = [];
+  syncPrimaryHandlerSelectionMirrors(data);
   data.spells = { cantrips: [], rank1: [] };
   data.curriculumSpells = { cantrips: [], rank1: [] };
   return data;
 }
 
-export function addCurriculumCantrip(data, spell) {
-  if (!data.curriculumSpells) data.curriculumSpells = { cantrips: [], rank1: [] };
-  if (!data.curriculumSpells.cantrips) data.curriculumSpells.cantrips = [];
-  data.curriculumSpells.cantrips.push({ uuid: spell.uuid, name: spell.name, img: spell.img });
+export function setDualSubclass(
+  data,
+  item,
+  tradition,
+  spellUuids,
+  grantedSkills,
+  grantedLores,
+  choiceSets,
+  curriculum,
+) {
+  data.dualSubclass = item
+    ? {
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        slug: item.slug,
+        tradition,
+        spellUuids,
+        grantedSkills,
+        grantedLores,
+        choiceSets,
+        choices: {},
+        choiceCurricula: {},
+        curriculum,
+      }
+    : null;
+  const bucket = getClassSelectionData(data, 'dualClass');
+  bucket.innovationItem = null;
+  bucket.innovationModification = null;
+  bucket.kineticGateMode = null;
+  bucket.secondElement = null;
+  bucket.kineticImpulses = [];
+  data.dualSpells = { cantrips: [], rank1: [] };
+  data.dualCurriculumSpells = { cantrips: [], rank1: [] };
   return data;
 }
 
-export function removeCurriculumCantrip(data, uuid) {
-  if (!data.curriculumSpells?.cantrips) return data;
-  const idx = data.curriculumSpells.cantrips.findIndex((s) => s.uuid === uuid);
-  if (idx >= 0) data.curriculumSpells.cantrips.splice(idx, 1);
+export function addCurriculumCantrip(data, spell, target = 'primary') {
+  const store = getCurriculumSpellStore(data, target);
+  store.cantrips.push({ uuid: spell.uuid, name: spell.name, img: spell.img });
   return data;
 }
 
-export function addCurriculumRank1(data, spell) {
-  if (!data.curriculumSpells) data.curriculumSpells = { cantrips: [], rank1: [] };
-  if (!data.curriculumSpells.rank1) data.curriculumSpells.rank1 = [];
-  data.curriculumSpells.rank1.push({ uuid: spell.uuid, name: spell.name, img: spell.img });
+export function removeCurriculumCantrip(data, uuid, target = 'primary') {
+  const store = getCurriculumSpellStore(data, target);
+  const idx = store.cantrips.findIndex((s) => s.uuid === uuid);
+  if (idx >= 0) store.cantrips.splice(idx, 1);
   return data;
 }
 
-export function removeCurriculumRank1(data, uuid) {
-  if (!data.curriculumSpells) return data;
-  const idx = data.curriculumSpells.rank1.findIndex((s) => s.uuid === uuid);
-  if (idx >= 0) data.curriculumSpells.rank1.splice(idx, 1);
+export function addCurriculumRank1(data, spell, target = 'primary') {
+  const store = getCurriculumSpellStore(data, target);
+  store.rank1.push({ uuid: spell.uuid, name: spell.name, img: spell.img });
   return data;
 }
 
-export function setSubclassChoice(data, flag, value) {
+export function removeCurriculumRank1(data, uuid, target = 'primary') {
+  const store = getCurriculumSpellStore(data, target);
+  const idx = store.rank1.findIndex((s) => s.uuid === uuid);
+  if (idx >= 0) store.rank1.splice(idx, 1);
+  return data;
+}
+
+export function setSubclassChoice(data, flag, value, metadata = {}) {
   if (!data.subclass) return data;
   if (!data.subclass.choices) data.subclass.choices = {};
+  data.subclass.choiceCurricula ??= {};
   data.subclass.choices[flag] = value;
+  if (metadata.curriculum && Object.keys(metadata.curriculum).length > 0) data.subclass.choiceCurricula[flag] = foundry.utils.deepClone(metadata.curriculum);
+  else delete data.subclass.choiceCurricula[flag];
   data.spells = { cantrips: [], rank1: [] };
   data.curriculumSpells = { cantrips: [], rank1: [] };
   return data;
+}
+
+export function setDualSubclassChoice(data, flag, value, metadata = {}) {
+  if (!data.dualSubclass) return data;
+  if (!data.dualSubclass.choices) data.dualSubclass.choices = {};
+  data.dualSubclass.choiceCurricula ??= {};
+  data.dualSubclass.choices[flag] = value;
+  if (metadata.curriculum && Object.keys(metadata.curriculum).length > 0) data.dualSubclass.choiceCurricula[flag] = foundry.utils.deepClone(metadata.curriculum);
+  else delete data.dualSubclass.choiceCurricula[flag];
+  data.dualSpells = { cantrips: [], rank1: [] };
+  data.dualCurriculumSpells = { cantrips: [], rank1: [] };
+  return data;
+}
+
+export function getEffectiveSubclassCurriculum(subclass) {
+  const merged = {};
+  mergeCurriculumRanks(merged, subclass?.curriculum);
+  for (const curriculum of Object.values(subclass?.choiceCurricula ?? {})) {
+    mergeCurriculumRanks(merged, curriculum);
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
+}
+
+function mergeCurriculumRanks(target, curriculum) {
+  if (!curriculum || typeof curriculum !== 'object') return;
+
+  for (const [rank, uuids] of Object.entries(curriculum)) {
+    if (!Array.isArray(uuids) || uuids.length === 0) continue;
+    target[rank] ??= [];
+    for (const uuid of uuids) {
+      if (typeof uuid !== 'string' || target[rank].includes(uuid)) continue;
+      target[rank].push(uuid);
+    }
+  }
 }
 
 export function getAllBoosts(data) {
@@ -381,8 +626,13 @@ export function getAllBoosts(data) {
 }
 
 export function setDeity(data, item) {
+  return setTargetedDeity(data, item, 'class');
+}
+
+export function setTargetedDeity(data, item, target = 'class') {
   const normalizedFont = normalizeDivineFontList(item?.font ?? []);
-  data.deity = item
+  const bucket = getClassSelectionData(data, target);
+  bucket.deity = item
     ? {
         uuid: item.uuid,
         name: item.name,
@@ -397,22 +647,27 @@ export function setDeity(data, item) {
   const font = normalizedFont;
   const sanctWhat = item?.sanctification?.what ?? [];
   const sanctModal = item?.sanctification?.modal ?? 'can';
-  data.divineFont = font.length === 1 ? font[0] : null;
-  if (sanctWhat.length === 1 && sanctModal === 'must') data.sanctification = sanctWhat[0];
-  else data.sanctification = null;
-  data.subclass = null;
-  data.devotionSpell = null;
+  bucket.divineFont = font.length === 1 ? font[0] : null;
+  if (sanctWhat.length === 1 && sanctModal === 'must') bucket.sanctification = sanctWhat[0];
+  else bucket.sanctification = null;
+  bucket.devotionSpell = null;
+  if (target === 'dualClass') data.dualSubclass = null;
+  else data.subclass = null;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setSanctification(data, value) {
-  data.sanctification = value;
-  data.subclass = null;
+export function setSanctification(data, value, target = 'class') {
+  const bucket = getClassSelectionData(data, target);
+  bucket.sanctification = value;
+  if (target === 'dualClass') data.dualSubclass = null;
+  else data.subclass = null;
+  if (target === 'class') syncPrimaryHandlerSelectionMirrors(data);
   return data;
 }
 
-export function setDivineFont(data, value) {
-  data.divineFont = normalizeDivineFont(value);
+export function setDivineFont(data, value, target = 'class') {
+  setHandlerSelection(data, 'divineFont', normalizeDivineFont(value), target);
   return data;
 }
 
@@ -511,6 +766,22 @@ export function setClassFeat(data, feat, choiceSets = [], grantedSkills = [], gr
   return data;
 }
 
+export function setDualClassFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
+  data.dualClassFeat = feat
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
+    : null;
+  return data;
+}
+
 export function setSkillFeat(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
   data.skillFeat = feat
     ? {
@@ -535,6 +806,8 @@ export function setFeatChoice(data, slot, flag, value) {
         ? data.ancestryParagonFeat
         : slot === 'class'
           ? data.classFeat
+          : slot === 'dualClass'
+            ? data.dualClassFeat
           : slot === 'skill'
             ? data.skillFeat
             : null;
@@ -603,15 +876,43 @@ export function removePermanentItem(data, slotIndex) {
   return data;
 }
 
-export function addSpell(data, spell, isCantrip) {
-  const list = isCantrip ? data.spells.cantrips : data.spells.rank1;
+export function addSpell(data, spell, isCantrip, target = 'primary') {
+  const store = getSpellStore(data, target);
+  const list = isCantrip ? store.cantrips : store.rank1;
   list.push({ uuid: spell.uuid, name: spell.name, img: spell.img });
   return data;
 }
 
-export function removeSpell(data, uuid, isCantrip) {
-  const list = isCantrip ? data.spells.cantrips : data.spells.rank1;
+export function removeSpell(data, uuid, isCantrip, target = 'primary') {
+  const store = getSpellStore(data, target);
+  const list = isCantrip ? store.cantrips : store.rank1;
   const idx = list.findIndex((s) => s.uuid === uuid);
   if (idx >= 0) list.splice(idx, 1);
   return data;
+}
+
+function getSpellStore(data, target) {
+  if (target === 'secondary') {
+    data.dualSpells ??= { cantrips: [], rank1: [] };
+    data.dualSpells.cantrips ??= [];
+    data.dualSpells.rank1 ??= [];
+    return data.dualSpells;
+  }
+  data.spells ??= { cantrips: [], rank1: [] };
+  data.spells.cantrips ??= [];
+  data.spells.rank1 ??= [];
+  return data.spells;
+}
+
+function getCurriculumSpellStore(data, target) {
+  if (target === 'secondary') {
+    data.dualCurriculumSpells ??= { cantrips: [], rank1: [] };
+    data.dualCurriculumSpells.cantrips ??= [];
+    data.dualCurriculumSpells.rank1 ??= [];
+    return data.dualCurriculumSpells;
+  }
+  data.curriculumSpells ??= { cantrips: [], rank1: [] };
+  data.curriculumSpells.cantrips ??= [];
+  data.curriculumSpells.rank1 ??= [];
+  return data.curriculumSpells;
 }

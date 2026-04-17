@@ -1,6 +1,8 @@
 import { buildSpellContext, buildSpellSlotDisplay, shouldExcludeOwnedSpellIdentityForPlanner } from '../../../scripts/ui/level-planner/spells.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
+import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { WIZARD } from '../../../scripts/classes/wizard.js';
 
 jest.mock('../../../scripts/plan/build-state.js', () => ({
   computeBuildState: jest.fn(() => ({ feats: new Set() })),
@@ -29,11 +31,18 @@ jest.mock('../../../scripts/data/subclass-spells.js', () => ({
 }));
 
 const { resolveSubclassSpells } = jest.requireMock('../../../scripts/data/subclass-spells.js');
+const { SUBCLASS_SPELLS } = jest.requireMock('../../../scripts/data/subclass-spells.js');
 const { getLevelData } = jest.requireMock('../../../scripts/plan/plan-model.js');
 
 beforeAll(() => {
   if (!ClassRegistry.get('druid')) {
     ClassRegistry.register(DRUID);
+  }
+  if (!ClassRegistry.get('wizard')) {
+    ClassRegistry.register(WIZARD);
+  }
+  if (!ClassRegistry.get('sorcerer')) {
+    ClassRegistry.register(SORCERER);
   }
 });
 
@@ -323,7 +332,7 @@ describe('level planner spell context', () => {
   });
 
   test('spellbook planner builds a separate dedication spell section for multiclass spellcasting', async () => {
-    getLevelData.mockReturnValueOnce({
+    getLevelData.mockReturnValue({
       spells: [
         { uuid: 'druid-cantrip', name: 'Electric Arc', rank: 0, isCantrip: true, entryType: 'archetype:druid' },
       ],
@@ -368,6 +377,91 @@ describe('level planner spell context', () => {
         rankRows: expect.arrayContaining([
           expect.objectContaining({ rank: 1 }),
         ]),
+      }),
+    ]);
+  });
+
+  test('dual-class planner builds a separate secondary class spell section', async () => {
+    getLevelData.mockReturnValue({
+      spells: [
+        { uuid: 'wizard-spell', name: 'Force Barrage', rank: -1, baseRank: 1, entryType: 'class:wizard' },
+      ],
+    });
+
+    const planner = {
+      actor: { items: [] },
+      plan: {
+        classSlug: 'fighter',
+        dualClassSlug: 'wizard',
+        levels: {
+          2: {
+            spells: [
+              { uuid: 'wizard-spell', name: 'Force Barrage', rank: -1, baseRank: 1, entryType: 'class:wizard' },
+            ],
+          },
+        },
+      },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const classDef = {
+      slug: 'fighter',
+      spellcasting: null,
+    };
+
+    const context = await buildSpellContext(planner, classDef, 2);
+
+    expect(context.classSpellSections).toEqual([
+      expect.objectContaining({
+        classSlug: 'wizard',
+        entryType: 'class:wizard',
+        hasSpellbook: true,
+        spellbookSelectionCount: 2,
+        plannedSpells: [expect.objectContaining({ uuid: 'wizard-spell' })],
+      }),
+    ]);
+    expect(context.showSpells).toBe(true);
+  });
+
+  test('dual-class planner builds a separate secondary focus spell section', async () => {
+    SUBCLASS_SPELLS['bloodline-genie'] = {
+      focusSpells: { initial: 'focus-genie' },
+    };
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Genie Focus',
+      img: 'focus.png',
+    }));
+
+    const planner = {
+      actor: {
+        items: [
+          {
+            type: 'feat',
+            slug: 'bloodline-genie',
+            flags: { pf2e: { rulesSelections: { genie: 'ifrit' } } },
+            system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+          },
+        ],
+      },
+      plan: {
+        classSlug: 'fighter',
+        dualClassSlug: 'sorcerer',
+      },
+      _ordinalRank: (rank) => `${rank}th`,
+      _buildStateCache: new Map([[1, { feats: new Set() }]]),
+    };
+    const classDef = {
+      slug: 'fighter',
+      spellcasting: null,
+    };
+
+    const context = await buildSpellContext(planner, classDef, 1);
+
+    expect(context.classFocusSections).toEqual([
+      expect.objectContaining({
+        classSlug: 'sorcerer',
+        focusSpells: [expect.objectContaining({ uuid: 'focus-genie' })],
+        newFocusSpell: true,
       }),
     ]);
   });

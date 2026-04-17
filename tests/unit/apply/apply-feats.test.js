@@ -85,6 +85,24 @@ describe('applyFeats', () => {
     expect(createdData.system.location).toBe('bonus-2');
   });
 
+  test('routes dual class feats to the Workbench dual-class campaign feat section when present', async () => {
+    jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue(['xdy_dualclass']);
+
+    const plan = {
+      levels: {
+        2: {
+          dualClassFeats: [{ uuid: 'uuid-dual', name: 'Dual Feat', slug: 'dual-feat' }],
+        },
+      },
+    };
+
+    await applyFeats(mockActor, plan, 2);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('xdy_dualclass-2');
+    expect(createdData.system.level.taken).toBe(2);
+  });
+
   test('routes ancestral paragon feats to the dedicated paragon location', async () => {
     jest.spyOn(pf2eApi, 'isAncestralParagonEnabled').mockReturnValue(true);
     jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue([]);

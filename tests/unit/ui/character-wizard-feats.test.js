@@ -3,13 +3,18 @@ import {
   buildCompendiumSourceOptions,
   filterStepContextByCompendiumSource,
 } from '../../../scripts/ui/character-wizard/index.js';
+import { buildFeatChoicesContext } from '../../../scripts/ui/character-wizard/choice-sets.js';
+import { activateCharacterWizardListeners } from '../../../scripts/ui/character-wizard/listeners.js';
 import {
   loadBackgrounds,
   loadHeritages,
   loadRawHeritages,
 } from '../../../scripts/ui/character-wizard/loaders.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { saveCreationData } from '../../../scripts/creation/creation-store.js';
+import { getClassHandler } from '../../../scripts/creation/class-handlers/registry.js';
 import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
+const { getCreationData } = jest.requireMock('../../../scripts/creation/creation-store.js');
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -26,6 +31,15 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 }));
 
 describe('CharacterWizard feat step ancestry filtering', () => {
+  async function flushAsyncListeners() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  beforeEach(() => {
+    ClassRegistry.clear();
+  });
+
   it('rebuilds missing creation data from an existing actor', async () => {
     const actor = createMockActor({
       ancestry: {
@@ -222,6 +236,49 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
   });
 
+  it('registers selected custom world classes into the class registry', async () => {
+    const actor = createMockActor();
+    const wizard = new CharacterWizard(actor);
+    const customClass = {
+      uuid: 'Item.world-class',
+      name: 'World Class',
+      type: 'class',
+      slug: 'world-class',
+      system: {
+        hp: 10,
+        keyAbility: { value: ['str'] },
+        trainedSkills: { value: ['athletics'], additional: 2 },
+        classFeatLevels: { value: [1, 2] },
+        skillFeatLevels: { value: [2] },
+        generalFeatLevels: { value: [3] },
+        ancestryFeatLevels: { value: [1] },
+        skillIncreaseLevels: { value: [3] },
+        items: {},
+      },
+    };
+
+    wizard.data.class = {
+      uuid: customClass.uuid,
+      name: customClass.name,
+      slug: customClass.slug,
+      img: null,
+      sourcePack: null,
+      sourcePackage: 'world',
+      keyAbility: null,
+      subclassTag: null,
+    };
+    wizard._documentCache.set(customClass.uuid, customClass);
+
+    await wizard._ensureClassMetadata(customClass);
+
+    expect(ClassRegistry.has('world-class')).toBe(true);
+    expect(ClassRegistry.get('world-class')).toEqual(expect.objectContaining({
+      slug: 'world-class',
+      hp: 10,
+      keyAbility: ['str'],
+    }));
+  });
+
   it('loads background browser entries with trained skills and boosts for filtering', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._compendiumCache.backgrounds = [
@@ -411,6 +468,235 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         uuid: 'class-1',
         name: 'Fighter',
         type: 'class',
+      }),
+    ]);
+  });
+
+  it('stores a second class when dual class support is enabled', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._saveAndRender = jest.fn(async () => {});
+
+    wizard._documentCache.set('class-1', {
+      uuid: 'class-1',
+      name: 'Fighter',
+      img: 'fighter.png',
+      slug: 'fighter',
+      subclassTag: 'fighter-doctrine',
+      system: { keyAbility: { value: ['str'] }, items: {} },
+    });
+    wizard._documentCache.set('class-2', {
+      uuid: 'class-2',
+      name: 'Wizard',
+      img: 'wizard.png',
+      slug: 'wizard',
+      subclassTag: 'arcane-school',
+      system: { keyAbility: { value: ['int'] }, items: {} },
+    });
+
+    wizard.currentStep = 4;
+    await wizard._selectItem('class-1');
+    await wizard._selectItem('class-2');
+
+    expect(wizard.data.class).toEqual(expect.objectContaining({ slug: 'fighter', name: 'Fighter' }));
+    expect(wizard.data.dualClass).toEqual(expect.objectContaining({ slug: 'wizard', name: 'Wizard' }));
+    expect(wizard._isStepComplete('class')).toBe(true);
+  });
+
+  it('class step exposes separate primary and dual class groups and removes primary selection from dual list', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 4;
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Animist',
+      img: 'animist.png',
+      slug: 'animist',
+    };
+    wizard._loadClasses = jest.fn(async () => ([
+      { uuid: 'class-1', name: 'Animist', img: 'animist.png', slug: 'animist', type: 'class' },
+      { uuid: 'class-2', name: 'Bard', img: 'bard.png', slug: 'bard', type: 'class' },
+      { uuid: 'class-3', name: 'Cleric', img: 'cleric.png', slug: 'cleric', type: 'class' },
+    ]));
+
+    const context = await wizard._getStepContext();
+
+    expect(context.classGroups).toEqual([
+      expect.objectContaining({
+        key: 'class',
+        slotLabel: 'Class',
+        selected: expect.objectContaining({ slug: 'animist' }),
+        items: [
+          expect.objectContaining({ slug: 'bard' }),
+          expect.objectContaining({ slug: 'cleric' }),
+        ],
+      }),
+      expect.objectContaining({
+        key: 'dualClass',
+        slotLabel: 'Dual Class',
+        selected: null,
+        items: [
+          expect.objectContaining({ slug: 'bard' }),
+          expect.objectContaining({ slug: 'cleric' }),
+        ],
+      }),
+    ]);
+    expect(context.classGroups[1].items.some((entry) => entry.slug === 'animist')).toBe(false);
+  });
+
+  it('selects class target explicitly for dual-class wizard class step', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 4;
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'class-1') {
+        return {
+          uuid,
+          name: 'Animist',
+          img: 'animist.png',
+          slug: 'animist',
+          subclassTag: 'animistic-practice',
+          system: { keyAbility: { value: ['wis'] }, items: {} },
+        };
+      }
+      return {
+        uuid,
+        name: 'Bard',
+        img: 'bard.png',
+        slug: 'bard',
+        subclassTag: 'bard-muse',
+        system: { keyAbility: { value: ['cha'] }, items: {} },
+      };
+    });
+
+    await wizard._selectItem('class-1', 'class');
+    await wizard._selectItem('class-2', 'dualClass');
+
+    expect(wizard.data.class).toEqual(expect.objectContaining({ slug: 'animist' }));
+    expect(wizard.data.dualClass).toEqual(expect.objectContaining({ slug: 'bard' }));
+  });
+
+  it('subclass step progresses from the primary class subclass to the dual class subclass', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Wizard',
+      img: 'wizard.png',
+      slug: 'wizard',
+      subclassTag: 'arcane-school',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      name: 'Bard',
+      img: 'bard.png',
+      slug: 'bard',
+      subclassTag: 'muse',
+    };
+    wizard.currentStep = 8;
+    wizard._loadSubclassesForClass = jest.fn(async (classEntry) => (
+      classEntry.slug === 'wizard'
+        ? [{ uuid: 'sub-1', name: 'School of Ars Grammatica', slug: 'ars-grammatica', type: 'feat' }]
+        : [{ uuid: 'sub-2', name: 'Enigma Muse', slug: 'enigma-muse', type: 'feat' }]
+    ));
+
+    const primaryContext = await wizard._getStepContext();
+    expect(primaryContext.subclassGroups).toEqual([
+      expect.objectContaining({
+        key: 'class',
+        items: [expect.objectContaining({ slug: 'ars-grammatica' })],
+      }),
+      expect.objectContaining({
+        key: 'dualClass',
+        items: [expect.objectContaining({ slug: 'enigma-muse' })],
+      }),
+    ]);
+    expect(wizard._isStepComplete('subclass')).toBe(false);
+
+    wizard.data.subclass = {
+      uuid: 'sub-1',
+      name: 'School of Ars Grammatica',
+      slug: 'ars-grammatica',
+      choiceSets: [],
+      choices: {},
+    };
+
+    const dualContext = await wizard._getStepContext();
+    expect(dualContext.subclassGroups).toEqual([
+      expect.objectContaining({
+        key: 'dualClass',
+        items: [expect.objectContaining({ slug: 'enigma-muse' })],
+      }),
+    ]);
+    expect(wizard._isStepComplete('subclass')).toBe(false);
+
+    wizard.data.dualSubclass = {
+      uuid: 'sub-2',
+      name: 'Enigma Muse',
+      slug: 'enigma-muse',
+      choiceSets: [],
+      choices: {},
+    };
+
+    expect(wizard._isStepComplete('subclass')).toBe(true);
+  });
+
+  it('subclass step exposes separate subclass groups for each dual class', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Animist',
+      img: 'animist.png',
+      slug: 'animist',
+      subclassTag: 'animistic-practice',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      name: 'Bard',
+      img: 'bard.png',
+      slug: 'bard',
+      subclassTag: 'bard-muse',
+    };
+    wizard.currentStep = 8;
+    wizard._loadSubclassesForClass = jest.fn(async (classEntry) => (
+      classEntry.slug === 'animist'
+        ? [{ uuid: 'sub-1', name: 'Seer', slug: 'seer', type: 'feat' }]
+        : [{ uuid: 'sub-2', name: 'Enigma Muse', slug: 'enigma-muse', type: 'feat' }]
+    ));
+
+    const context = await wizard._getStepContext();
+
+    expect(context.subclassGroups).toEqual([
+      expect.objectContaining({
+        key: 'class',
+        className: 'Animist',
+        items: [expect.objectContaining({ slug: 'seer' })],
+      }),
+      expect.objectContaining({
+        key: 'dualClass',
+        className: 'Bard',
+        items: [expect.objectContaining({ slug: 'enigma-muse' })],
       }),
     ]);
   });
@@ -610,6 +896,134 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(wizard._isStepComplete('feats')).toBe(true);
   });
 
+  it('keeps the feat step incomplete when a dual class level 1 class feat is required but not selected yet', () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'ancestry-elf',
+      slug: 'elf',
+      name: 'Elf',
+    };
+    wizard.data.class = {
+      uuid: 'class-fighter',
+      slug: 'fighter',
+      name: 'Fighter',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-wizard',
+      slug: 'wizard',
+      name: 'Wizard',
+    };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-elven-lore',
+      name: 'Elven Lore',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard._cachedHasClassFeatAtLevel1 = true;
+    wizard._cachedHasDualClassFeatAtLevel1 = true;
+
+    expect(wizard._isStepComplete('feats')).toBe(false);
+
+    wizard.data.classFeat = {
+      uuid: 'feat-reactive-shield',
+      name: 'Reactive Shield',
+      choiceSets: [],
+      choices: {},
+    };
+    expect(wizard._isStepComplete('feats')).toBe(false);
+
+    wizard.data.dualClassFeat = {
+      uuid: 'feat-reach-spell',
+      name: 'Reach Spell',
+      choiceSets: [],
+      choices: {},
+    };
+    expect(wizard._isStepComplete('feats')).toBe(true);
+  });
+
+  it('shows a dual class level 1 feat slot when the secondary class has one', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-fighter',
+      slug: 'fighter',
+      name: 'Fighter',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-wizard',
+      slug: 'wizard',
+      name: 'Wizard',
+    };
+    wizard._cachedHasClassFeatAtLevel1 = false;
+    wizard._cachedHasDualClassFeatAtLevel1 = true;
+
+    const context = await wizard._buildFeatContext();
+
+    expect(context.hasClassFeat).toBe(false);
+    expect(context.hasDualClassFeat).toBe(true);
+    expect(context.dualClassFeatLabel).toBe('Wizard Class Feat');
+  });
+
+  it('shows feat choice sections for dual class feats', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.dualClass = {
+      uuid: 'class-wizard',
+      slug: 'wizard',
+      name: 'Wizard',
+    };
+    wizard.data.dualClassFeat = {
+      uuid: 'feat-reach-spell',
+      name: 'Reach Spell',
+      choiceSets: [
+        {
+          flag: 'spellshape',
+          prompt: 'Choose spellshape rider.',
+          options: [{ value: 'wide', label: 'Wide' }],
+        },
+      ],
+      choices: {},
+    };
+
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featChoiceSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slot: 'dualClass',
+        featName: 'Reach Spell',
+      }),
+    ]));
+  });
+
+  it('does not mark feat choices complete while dual class feat choice is unresolved', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.dualClassFeat = {
+      uuid: 'feat-reach-spell',
+      name: 'Reach Spell',
+      choiceSets: [
+        {
+          flag: 'spellshape',
+          prompt: 'Choose spellshape rider.',
+          options: [{ value: 'wide', label: 'Wide' }],
+        },
+      ],
+      choices: {},
+    };
+
+    expect(wizard._isStepComplete('featChoices')).toBe(false);
+
+    wizard.data.dualClassFeat.choices = { spellshape: 'wide' };
+    expect(wizard._isStepComplete('featChoices')).toBe(true);
+  });
+
   it('can allow applying incomplete character creation when the GM setting is enabled', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._isBooting = false;
@@ -632,6 +1046,335 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     expect(context.allComplete).toBe(false);
     expect(context.canApplyCreation).toBe(true);
+  });
+
+  it('includes both selected classes in browser context for dual-class class step', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      if (scope === 'pf2e-leveler' && key === 'allowIncompleteCreation') return false;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 4;
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Alchemist',
+      img: 'alchemist.png',
+      slug: 'alchemist',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      name: 'Barbarian',
+      img: 'barbarian.png',
+      slug: 'barbarian',
+    };
+    wizard._ensureClassMetadata = jest.fn(async () => {});
+    wizard._ensureDualClassMetadata = jest.fn(async () => {});
+    wizard._hasClassFeatAtLevel1 = jest.fn(async () => false);
+    wizard._getRequiredClassBoostSelections = jest.fn(async () => 0);
+    wizard._computeBoostStepComplete = jest.fn(async () => true);
+    wizard._getAdditionalLanguageCount = jest.fn(async () => 0);
+    wizard._getAdditionalSkillCount = jest.fn(async () => 0);
+    wizard._loadClasses = jest.fn(async () => []);
+    jest.spyOn(wizard, 'visibleSteps', 'get').mockReturnValue(['class']);
+    jest.spyOn(wizard, '_isStepComplete').mockReturnValue(false);
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.selectedGroups).toEqual([
+      expect.objectContaining({
+        key: 'class',
+        selected: expect.objectContaining({ slug: 'alchemist' }),
+        clearAction: 'clearClass',
+        target: 'class',
+      }),
+      expect.objectContaining({
+        key: 'dualClass',
+        selected: expect.objectContaining({ slug: 'barbarian' }),
+        clearAction: 'clearClass',
+        target: 'dualClass',
+      }),
+    ]);
+  });
+
+  it('binds grouped clearClass buttons independently so dual class can be cleared', async () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="clearClass" data-target="class"></button>
+      <button type="button" data-action="clearClass" data-target="dualClass"></button>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Witch',
+      slug: 'witch',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      name: 'Wizard',
+      slug: 'wizard',
+    };
+    wizard._refreshGrantedFeatChoiceSections = jest.fn(async () => {});
+    wizard._saveAndRender = jest.fn(async () => {});
+
+    activateCharacterWizardListeners(wizard, document.body);
+    document.querySelector('[data-action="clearClass"][data-target="dualClass"]').click();
+    await flushAsyncListeners();
+
+    expect(wizard.data.class).toEqual(expect.objectContaining({ slug: 'witch' }));
+    expect(wizard.data.dualClass).toBeNull();
+    expect(wizard._refreshGrantedFeatChoiceSections).toHaveBeenCalled();
+    expect(wizard._saveAndRender).toHaveBeenCalled();
+  });
+
+  it('includes separate selected subclass cards in browser context for dual-class subclass step', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      if (scope === 'pf2e-leveler' && key === 'allowIncompleteCreation') return false;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 8;
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Animist',
+      img: 'animist.png',
+      slug: 'animist',
+      subclassTag: 'animistic-practice',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      name: 'Bard',
+      img: 'bard.png',
+      slug: 'bard',
+      subclassTag: 'bard-muse',
+    };
+    wizard.data.subclass = {
+      uuid: 'sub-1',
+      name: 'Liturgist',
+      img: 'liturgist.png',
+      slug: 'liturgist',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard.data.dualSubclass = {
+      uuid: 'sub-2',
+      name: 'Maestro',
+      img: 'maestro.png',
+      slug: 'maestro',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard._ensureClassMetadata = jest.fn(async () => {});
+    wizard._ensureDualClassMetadata = jest.fn(async () => {});
+    wizard._hasClassFeatAtLevel1 = jest.fn(async () => false);
+    wizard._getRequiredClassBoostSelections = jest.fn(async () => 0);
+    wizard._computeBoostStepComplete = jest.fn(async () => true);
+    wizard._getAdditionalLanguageCount = jest.fn(async () => 0);
+    wizard._getAdditionalSkillCount = jest.fn(async () => 0);
+    wizard._loadSubclassesForClass = jest.fn(async () => []);
+    jest.spyOn(wizard, 'visibleSteps', 'get').mockReturnValue(['subclass']);
+    jest.spyOn(wizard, '_isStepComplete').mockReturnValue(true);
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.selectedGroups).toEqual([
+      expect.objectContaining({
+        key: 'class',
+        label: 'Animist',
+        selected: expect.objectContaining({ slug: 'liturgist' }),
+        clearAction: 'clearSubclass',
+        target: 'class',
+      }),
+      expect.objectContaining({
+        key: 'dualClass',
+        label: 'Bard',
+        selected: expect.objectContaining({ slug: 'maestro' }),
+        clearAction: 'clearSubclass',
+        target: 'dualClass',
+      }),
+    ]);
+  });
+
+  it('includes handler-managed extra steps from both classes in dual-class creation', () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-wizard',
+      slug: 'wizard',
+      name: 'Wizard',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-psychic',
+      slug: 'psychic',
+      name: 'Psychic',
+    };
+    wizard.classHandler = getClassHandler('wizard');
+
+    expect(wizard.visibleSteps).toEqual(expect.arrayContaining(['thesis', 'subconsciousMind']));
+  });
+
+  it('keeps subclass step visible after subclass selections are made', () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-1',
+      slug: 'animist',
+      name: 'Animist',
+      subclassTag: 'animistic-practice',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      slug: 'bard',
+      name: 'Bard',
+      subclassTag: 'bard-muse',
+    };
+    wizard.data.subclass = {
+      uuid: 'sub-1',
+      slug: 'liturgist',
+      name: 'Liturgist',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard.data.dualSubclass = {
+      uuid: 'sub-2',
+      slug: 'maestro',
+      name: 'Maestro',
+      choiceSets: [],
+      choices: {},
+    };
+
+    expect(wizard.visibleSteps).toContain('subclass');
+    expect(wizard._isStepComplete('subclass')).toBe(true);
+  });
+
+  it('routes handler-managed step context to the dual-class handler that owns the step', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-wizard',
+      slug: 'wizard',
+      name: 'Wizard',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-psychic',
+      slug: 'psychic',
+      name: 'Psychic',
+    };
+    wizard.classHandler = getClassHandler('wizard');
+    wizard.currentStep = 14;
+    wizard._loadPsychicSubconsciousMinds = jest.fn(async () => ([
+      { uuid: 'sub-mind', name: 'Gathered Lore', slug: 'gathered-lore', type: 'feat' },
+    ]));
+
+    const context = await wizard._getStepContext();
+
+    expect(context.items).toEqual([
+      expect.objectContaining({ slug: 'gathered-lore' }),
+    ]);
+  });
+
+  it('keeps subclass metadata on grouped subclass browser items', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-witch',
+      slug: 'witch',
+      name: 'Witch',
+      subclassTag: 'witch-patron',
+    };
+    wizard._isBooting = false;
+    wizard.currentStep = 8;
+    wizard._ensureClassMetadata = jest.fn(async () => {});
+    wizard._hasClassFeatAtLevel1 = jest.fn(async () => false);
+    wizard._getRequiredClassBoostSelections = jest.fn(async () => 0);
+    wizard._computeBoostStepComplete = jest.fn(async () => true);
+    wizard._getAdditionalLanguageCount = jest.fn(async () => 0);
+    wizard._getAdditionalSkillCount = jest.fn(async () => 0);
+    wizard._loadSubclassesForClass = jest.fn(async () => ([
+      {
+        uuid: 'patron-baba-yaga',
+        slug: 'baba-yaga',
+        name: 'Baba Yaga',
+        grantedSkills: ['occultism'],
+        grantedLores: [],
+        choiceSets: [],
+        spellUuids: [],
+        curriculum: null,
+        tradition: 'occult',
+      },
+    ]));
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.groups).toEqual([
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            slug: 'baba-yaga',
+            grantedSkills: ['occultism'],
+            targetKey: 'class',
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  it('loads dual-class animist apparitions from the dual-class handler context', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-fighter',
+      slug: 'fighter',
+      name: 'Fighter',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-animist',
+      slug: 'animist',
+      name: 'Animist',
+    };
+    wizard.classHandler = getClassHandler('fighter');
+    wizard.currentStep = 16;
+    wizard._loadCompendiumCategory = jest.fn(async () => ([
+      {
+        uuid: 'apparition-echo',
+        name: 'Steward of Stone and Fire',
+        img: 'apparition.png',
+        otherTags: ['animist-apparition'],
+        description: '<p>Trained in Architecture Lore.</p>',
+        rarity: 'common',
+      },
+    ]));
+
+    const context = await wizard._getStepContext();
+
+    expect(context.apparitions).toEqual([
+      expect.objectContaining({ uuid: 'apparition-echo', name: 'Steward of Stone and Fire' }),
+    ]);
   });
 
   it('keeps the feat step incomplete for rogues until a level 1 skill feat is selected', () => {
@@ -676,6 +1419,173 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.hasSkillFeat).toBe(true);
     expect(context.hasClassFeat).toBe(false);
     expect(context.ancestralParagonEnabled).toBe(false);
+  });
+
+  it('ignores stored dual-class subclass, feat-choice, and spell state when support is disabled', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return false;
+      return false;
+    });
+
+    getCreationData.mockReturnValue({
+      version: 1,
+      ancestry: null,
+      heritage: null,
+      mixedAncestry: null,
+      background: null,
+      class: { uuid: 'class-witch', slug: 'witch', name: 'Witch' },
+      subclass: { uuid: 'subclass-silence', slug: 'silence-in-snow', name: 'Silence in Snow', choiceSets: [], choices: {} },
+      dualClass: { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' },
+      dualSubclass: { uuid: 'subclass-runelord', slug: 'runelord', name: 'Runelord', choiceSets: [], choices: {} },
+      classSelections: {
+        class: {
+          implement: null,
+          tactics: [],
+          ikons: [],
+          innovationItem: null,
+          innovationModification: null,
+          kineticGateMode: null,
+          secondElement: null,
+          kineticImpulses: [],
+          subconsciousMind: null,
+          thesis: null,
+          apparitions: [],
+          primaryApparition: null,
+          deity: null,
+          sanctification: null,
+          divineFont: null,
+          devotionSpell: null,
+        },
+        dualClass: {
+          implement: null,
+          tactics: [],
+          ikons: [],
+          innovationItem: null,
+          innovationModification: null,
+          kineticGateMode: null,
+          secondElement: null,
+          kineticImpulses: [],
+          subconsciousMind: null,
+          thesis: { uuid: 'thesis-spell-blending', slug: 'spell-blending', name: 'Spell Blending' },
+          apparitions: [],
+          primaryApparition: null,
+          deity: null,
+          sanctification: null,
+          divineFont: null,
+          devotionSpell: null,
+        },
+      },
+      implement: null,
+      tactics: [],
+      ikons: [],
+      innovationItem: null,
+      innovationModification: null,
+      kineticGateMode: null,
+      secondElement: null,
+      kineticImpulses: [],
+      subconsciousMind: null,
+      thesis: null,
+      apparitions: [],
+      primaryApparition: null,
+      deity: null,
+      sanctification: null,
+      divineFont: null,
+      devotionSpell: null,
+      alternateAncestryBoosts: false,
+      boosts: { free: [] },
+      languages: [],
+      lores: [],
+      selectedLoreSkills: [],
+      skills: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: {
+        uuid: 'dual-feat',
+        name: 'School of Thassilonian Rune Magic',
+        choiceSets: [{ flag: 'sin', prompt: 'Choose a sin', options: [] }],
+        choices: {},
+        grantedSkills: [],
+        grantedLores: [],
+      },
+      skillFeat: null,
+      grantedFeatSections: [
+        {
+          slot: 'dual-grant',
+          featName: 'School of Thassilonian Rune Magic',
+          sourceName: 'Runelord -> School of Thassilonian Rune Magic',
+          choiceSets: [{ flag: 'sin', prompt: 'Choose a sin', options: [] }],
+        },
+      ],
+      grantedFeatChoices: {
+        'dual-grant': {},
+      },
+      spells: {
+        cantrips: [{ uuid: 'primary-cantrip', name: 'Detect Magic' }],
+        rank1: [{ uuid: 'primary-rank1', name: 'Gust of Wind' }],
+      },
+      dualSpells: {
+        cantrips: [{ uuid: 'dual-cantrip', name: 'Ancient Dust' }],
+        rank1: [{ uuid: 'dual-rank1', name: 'Admonishing Ray' }],
+      },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: {
+        cantrips: [{ uuid: 'dual-curriculum-cantrip', name: 'Shield' }],
+        rank1: [{ uuid: 'dual-curriculum-rank1', name: 'Schadenfreude' }],
+      },
+      equipment: [],
+    });
+
+    ClassRegistry.register({
+      slug: 'witch',
+      spellcasting: {
+        tradition: 'primal',
+        type: 'prepared',
+        slots: {
+          1: { cantrips: 5, 1: 2 },
+        },
+      },
+    });
+    ClassRegistry.register({
+      slug: 'wizard',
+      spellcasting: {
+        tradition: 'arcane',
+        type: 'prepared',
+        slots: {
+          1: { cantrips: 5, 1: 2 },
+        },
+      },
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._loadCompendiumCategory = jest.fn(async () => []);
+
+    expect(wizard.data.dualClass).toBeNull();
+    expect(wizard.data.dualSubclass).toBeNull();
+    expect(wizard.data.dualClassFeat).toBeNull();
+    expect(wizard.data.dualSpells).toEqual({ cantrips: [], rank1: [] });
+    expect(wizard.data.dualCurriculumSpells).toEqual({ cantrips: [], rank1: [] });
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+    expect(wizard.data.grantedFeatChoices).toEqual({});
+
+    wizard.currentStep = 8;
+    const subclassContext = await wizard._getStepContext();
+    expect(subclassContext.subclassGroups).toHaveLength(1);
+    expect(subclassContext.subclassGroups[0]).toEqual(
+      expect.objectContaining({
+        key: 'class',
+        className: 'Witch',
+        selected: expect.objectContaining({ name: 'Silence in Snow' }),
+      }),
+    );
+    expect(subclassContext.selected?.name).toBe('Silence in Snow');
+
+    const featChoicesContext = await buildFeatChoicesContext(wizard);
+    expect(featChoicesContext.featChoiceSections).toEqual([]);
+
+    const spellContext = await wizard._buildSpellContext();
+    expect(spellContext.spellSections).toHaveLength(1);
+    expect(spellContext.secondarySpellSection).toBeNull();
   });
 
   it('builds multi-select compendium source options from raw step data when no step category mapping exists', () => {

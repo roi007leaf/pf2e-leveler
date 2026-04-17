@@ -156,22 +156,28 @@ export class CasterBaseHandler extends BaseClassHandler {
 
     await new Promise((r) => setTimeout(r, 200));
 
-    let entry = actor.items?.find((i) => i.type === 'spellcastingEntry');
+    const sc = classDef?.spellcasting ?? null;
+    const entryName = `${capitalize(data.class?.name ?? data.class?.slug ?? 'Class')} Spells`;
+    const tradition = sc ? this._resolveTradition(sc.tradition, data.subclass) : 'arcane';
+    const prepared = sc ? (sc.type === 'dual' ? 'prepared' : sc.type) : 'prepared';
+    const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
+    let entry = this._findSpellcastingEntry(actor, {
+      name: entryName,
+      prepared,
+      tradition,
+    });
 
     if (entry && data.subclass?.tradition) {
       await entry.update({ 'system.tradition.value': data.subclass.tradition });
     }
 
     if (!entry && classDef?.spellcasting) {
-      const sc = classDef.spellcasting;
-      const tradition = this._resolveTradition(sc.tradition, data.subclass);
-      const ability = classDef.keyAbility.length === 1 ? classDef.keyAbility[0] : 'cha';
       const created = await actor.createEmbeddedDocuments('Item', [{
-        name: `${capitalize(data.class.name)} Spells`,
+        name: entryName,
         type: 'spellcastingEntry',
         system: {
           tradition: { value: tradition },
-          prepared: { value: sc.type === 'dual' ? 'prepared' : sc.type },
+          prepared: { value: prepared },
           ability: { value: ability },
           proficiency: { value: 1 },
         },
@@ -224,11 +230,16 @@ export class CasterBaseHandler extends BaseClassHandler {
       ? this._resolveTradition(classDef.spellcasting.tradition, data.subclass)
       : 'arcane';
     const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
+    const focusEntryName = `${capitalize(data.class?.name ?? 'Focus')} Focus Spells`;
 
-    let focusEntry = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus');
+    let focusEntry = this._findSpellcastingEntry(actor, {
+      name: focusEntryName,
+      prepared: 'focus',
+      tradition,
+    });
     if (!focusEntry) {
       const created = await actor.createEmbeddedDocuments('Item', [{
-        name: `${capitalize(data.class?.name ?? 'Focus')} Focus Spells`,
+        name: focusEntryName,
         type: 'spellcastingEntry',
         system: {
           tradition: { value: tradition },
@@ -261,6 +272,17 @@ export class CasterBaseHandler extends BaseClassHandler {
       return subclass?.tradition ?? 'arcane';
     }
     return tradition;
+  }
+
+  _findSpellcastingEntry(actor, { name, prepared = null, tradition = null }) {
+    const normalizedName = String(name ?? '').trim().toLowerCase();
+    return actor.items?.find((item) => {
+      if (item?.type !== 'spellcastingEntry') return false;
+      if (prepared && item.system?.prepared?.value !== prepared) return false;
+      if (tradition && item.system?.tradition?.value !== tradition) return false;
+      if (normalizedName && String(item.name ?? '').trim().toLowerCase() !== normalizedName) return false;
+      return true;
+    }) ?? null;
   }
 
   async _resolveFocusFromDescription(data, focusSpells, seen) {

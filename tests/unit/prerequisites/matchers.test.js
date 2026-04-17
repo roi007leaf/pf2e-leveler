@@ -19,6 +19,7 @@ import {
   matchSubclassSpell,
   matchDivineFont,
   matchEquipmentState,
+  matchAncestryFeatAccess,
   matchUnknown,
 } from '../../../scripts/prerequisites/matchers.js';
 
@@ -593,5 +594,31 @@ describe('matchUnknown', () => {
   test('returns null met value', () => {
     const result = matchUnknown({ type: 'unknown', text: 'something weird' });
     expect(result.met).toBeNull();
+  });
+});
+
+describe('matchAncestryFeatAccess', () => {
+  test('met when adopted ancestry is in build state feats', () => {
+    const result = matchAncestryFeatAccess(
+      {
+        type: 'ancestryFeatAccess',
+        multipleAncestries: true,
+        text: 'Ability to select ancestry feats from multiple ancestries',
+      },
+      { feats: new Set(['adopted-ancestry']) },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met without multi-ancestry feat access', () => {
+    const result = matchAncestryFeatAccess(
+      {
+        type: 'ancestryFeatAccess',
+        multipleAncestries: true,
+        text: 'Ability to select ancestry feats from multiple ancestries',
+      },
+      { feats: new Set(['natural-ambition']) },
+    );
+    expect(result.met).toBe(false);
   });
 });

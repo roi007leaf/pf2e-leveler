@@ -233,6 +233,287 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(planner.plan.levels[5].abilityBoosts).toEqual(['str', 'dex', 'con', 'int']);
   });
 
+  it('imports Workbench dual-class feat slots into dual class planner slots', () => {
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      pf2e: {
+        ...(global._testSettings?.pf2e ?? {}),
+        dualClassVariant: true,
+      },
+    };
+
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+      items: [
+        {
+          type: 'feat',
+          uuid: 'Actor.test.Item.dual2',
+          sourceId: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
+          slug: 'reactive-shield',
+          name: 'Reactive Shield',
+          img: 'icons/reactive-shield.webp',
+          system: {
+            category: 'class',
+            level: { value: 1, taken: 2 },
+            location: 'xdy_dualclass-2',
+            traits: { value: ['fighter'] },
+            rules: [],
+          },
+        },
+      ],
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.levels[2].dualClassFeats).toEqual([
+      expect.objectContaining({ slug: 'reactive-shield', uuid: 'Compendium.pf2e.feats-srd.Item.reactive-shield' }),
+    ]);
+  });
+
+  it('seeds dual class slug from stored character creation data when planner is created', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.getFlag = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'creation') {
+        return {
+          version: 1,
+          class: { slug: 'alchemist' },
+          dualClass: { slug: 'fighter' },
+        };
+      }
+      return null;
+    });
+
+    if (!ClassRegistry.has('fighter')) {
+      ClassRegistry.register({
+        slug: 'fighter',
+        name: 'Fighter',
+        hp: 10,
+        keyAbility: ['str', 'dex'],
+        featSchedule: { class: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+        skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+        classFeatures: [],
+      });
+    }
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.dualClassSlug).toBe('fighter');
+  });
+
+  it('infers dual class slug from the actor class items when stored creation data is unavailable', () => {
+    const actor = createMockActor({
+      class: { slug: 'alchemist', name: 'Alchemist' },
+      items: [
+        {
+          type: 'class',
+          slug: 'alchemist',
+          name: 'Alchemist',
+          system: {
+            hp: 8,
+            keyAbility: { value: ['int'] },
+            trainedSkills: { value: ['crafting'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+        {
+          type: 'class',
+          slug: 'fighter',
+          name: 'Fighter',
+          system: {
+            hp: 10,
+            keyAbility: { value: ['str', 'dex'] },
+            trainedSkills: { value: ['acrobatics', 'athletics'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+      ],
+    });
+    actor.getFlag = jest.fn(() => null);
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.dualClassSlug).toBe('fighter');
+  });
+
+  it('repairs an existing saved plan by inferring the dual class slug from actor class items', () => {
+    const actor = createMockActor({
+      class: { slug: 'alchemist', name: 'Alchemist' },
+      items: [
+        {
+          type: 'class',
+          slug: 'alchemist',
+          name: 'Alchemist',
+          system: {
+            hp: 8,
+            keyAbility: { value: ['int'] },
+            trainedSkills: { value: ['crafting'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+        {
+          type: 'class',
+          slug: 'fighter',
+          name: 'Fighter',
+          system: {
+            hp: 10,
+            keyAbility: { value: ['str', 'dex'] },
+            trainedSkills: { value: ['acrobatics', 'athletics'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+      ],
+    });
+    actor.getFlag = jest.fn(() => null);
+
+    const existingPlan = createPlan('alchemist');
+    existingPlan.dualClassSlug = null;
+    getPlan.mockReturnValue(existingPlan);
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.dualClassSlug).toBe('fighter');
+  });
+
+  it('re-registers a saved custom dual class from the actor item before opening dual class feat picks', () => {
+    const actor = createMockActor({
+      class: { slug: 'alchemist', name: 'Alchemist' },
+      items: [
+        {
+          type: 'class',
+          slug: 'alchemist',
+          name: 'Alchemist',
+          system: {
+            hp: 8,
+            keyAbility: { value: ['int'] },
+            trainedSkills: { value: ['crafting'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+        {
+          type: 'class',
+          slug: 'eldamon-trainer',
+          name: 'Eldamon Trainer',
+          system: {
+            hp: 8,
+            keyAbility: { value: ['cha'] },
+            trainedSkills: { value: ['diplomacy'], additional: 3 },
+            classFeatLevels: { value: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            skillFeatLevels: { value: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] },
+            generalFeatLevels: { value: [3, 7, 11, 15, 19] },
+            ancestryFeatLevels: { value: [1, 5, 9, 13, 17] },
+            skillIncreaseLevels: { value: [3, 5, 7, 9, 11, 13, 15, 17, 19] },
+            items: {},
+          },
+        },
+      ],
+    });
+    actor.getFlag = jest.fn(() => null);
+
+    const existingPlan = createPlan('alchemist');
+    existingPlan.dualClassSlug = 'eldamon-trainer';
+    getPlan.mockReturnValue(existingPlan);
+    ClassRegistry.clear();
+    ClassRegistry.register(ALCHEMIST);
+
+    const planner = new LevelPlanner(actor);
+    const buildState = computeBuildState(actor, planner.plan, 2);
+
+    expect(ClassRegistry.has('eldamon-trainer')).toBe(true);
+    expect(planner._buildDualClassPickerState(buildState)).toEqual(expect.objectContaining({
+      classSlug: 'eldamon-trainer',
+    }));
+  });
+
+  it('prefers the stored primary class from creation data for dual-class characters', () => {
+    if (!ClassRegistry.has('witch')) {
+      ClassRegistry.register({
+        slug: 'witch',
+        name: 'Witch',
+        hp: 6,
+        keyAbility: ['int'],
+        featSchedule: {
+          class: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+          skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+          general: [3, 7, 11, 15, 19],
+          ancestry: [1, 5, 9, 13, 17],
+        },
+        skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+        abilityBoostSchedule: [5, 10, 15, 20],
+        trainedSkills: { fixed: [], additional: 3 },
+        classFeatures: [],
+      });
+    }
+    if (!ClassRegistry.has('wizard')) {
+      ClassRegistry.register({
+        slug: 'wizard',
+        name: 'Wizard',
+        hp: 6,
+        keyAbility: ['int'],
+        featSchedule: {
+          class: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+          skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+          general: [3, 7, 11, 15, 19],
+          ancestry: [1, 5, 9, 13, 17],
+        },
+        skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
+        abilityBoostSchedule: [5, 10, 15, 20],
+        trainedSkills: { fixed: [], additional: 3 },
+        classFeatures: [],
+      });
+    }
+
+    const actor = createMockActor({
+      class: { slug: 'wizard', name: 'Wizard' },
+    });
+    actor.getFlag = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'creation') {
+        return {
+          version: 1,
+          class: { slug: 'witch' },
+          dualClass: { slug: 'wizard' },
+        };
+      }
+      return null;
+    });
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.classSlug).toBe('witch');
+    expect(planner.plan.dualClassSlug).toBe('wizard');
+  });
+
   it('locks level 2 class feat picker to the required class-archetype dedication', async () => {
     const originalGet = game.settings.get;
     game.settings.get = jest.fn((module, key) => (

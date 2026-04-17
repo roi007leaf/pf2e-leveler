@@ -18,6 +18,7 @@ export function getGradualBoostGroupLevels(level) {
 
 export function getChoicesForLevel(classDef, level, options = {}) {
   const choices = [];
+  const dualClassDef = options.dualClass && options.dualClassDef ? options.dualClassDef : null;
 
   if (options.gradualBoosts) {
     if (GRADUAL_BOOST_LEVELS.includes(level)) {
@@ -46,6 +47,8 @@ export function getChoicesForLevel(classDef, level, options = {}) {
   if (classDef.skillIncreaseSchedule.includes(level)) {
     choices.push({ type: 'skillIncrease' });
   }
+
+  addSecondaryDualClassChoices(choices, classDef, dualClassDef, level);
 
   if (options.freeArchetype && FREE_ARCHETYPE_FEAT_LEVELS.includes(level)) {
     choices.push({ type: 'archetypeFeat' });
@@ -76,6 +79,24 @@ export function getChoicesForLevel(classDef, level, options = {}) {
   }
 
   return choices;
+}
+
+function addSecondaryDualClassChoices(choices, primaryClassDef, dualClassDef, level) {
+  if (!dualClassDef) return;
+
+  if (
+    dualClassDef.featSchedule?.skill?.includes(level)
+    && !primaryClassDef.featSchedule?.skill?.includes(level)
+  ) {
+    choices.push({ type: 'skillFeat' });
+  }
+
+  if (
+    dualClassDef.skillIncreaseSchedule?.includes(level)
+    && !primaryClassDef.skillIncreaseSchedule?.includes(level)
+  ) {
+    choices.push({ type: 'skillIncrease' });
+  }
 }
 
 export function hasChoicesAtLevel(classDef, level, options = {}) {

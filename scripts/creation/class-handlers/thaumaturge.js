@@ -15,7 +15,7 @@ export class ThaumaturgeHandler extends BaseClassHandler {
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'implement') return null;
 
-    const items = await wizard._loadThaumaturgeImplements();
+    const items = await wizard._loadThaumaturgeImplements(data.class);
     return { items: items.filter((item) => item.uuid !== data.implement?.uuid) };
   }
 }

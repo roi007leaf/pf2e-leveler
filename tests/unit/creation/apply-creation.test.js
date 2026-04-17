@@ -289,6 +289,183 @@ describe('getAdditionalSelectedSkills', () => {
 });
 
 describe('applyCreation ancestry paragon', () => {
+  it('does not manually add the dual subclass when the dual class handler says PF2E will apply it', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const primaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => true),
+    };
+    const secondaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+
+    getClassHandler.mockImplementation((slug) => {
+      if (slug === 'witch') return primaryHandler;
+      if (slug === 'wizard') return secondaryHandler;
+      return {
+        applyExtras: jest.fn(async () => {}),
+        resolveFocusSpells: jest.fn(async () => []),
+        getExtraSteps: jest.fn(() => []),
+        shouldApplySubclassItem: jest.fn(() => false),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid,
+      toObject: () => ({
+        name: uuid,
+        type: uuid.includes('subclass') ? 'feat' : 'class',
+        system: { rules: [], description: { value: '' }, level: { value: 1 } },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'witch-class', name: 'Witch', slug: 'witch' },
+      subclass: { uuid: 'witch-subclass', name: 'Baba Yaga', slug: 'baba-yaga' },
+      dualClass: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
+      dualSubclass: { uuid: 'wizard-subclass', name: 'Runelord', slug: 'runelord' },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      dualSpells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [], rank1: [] },
+      equipment: [],
+    });
+
+    const createdItems = actor.createEmbeddedDocuments.mock.calls
+      .filter(([type]) => type === 'Item')
+      .flatMap(([, docs]) => docs);
+
+    expect(createdItems.map((item) => item.name)).toContain('witch-subclass');
+    expect(createdItems.map((item) => item.name)).not.toContain('wizard-subclass');
+    expect(secondaryHandler.shouldApplySubclassItem).toHaveBeenCalled();
+  });
+
+  it('applies secondary dual-class extras with the secondary class spell data', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const primaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+    const secondaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+
+    getClassHandler.mockImplementation((slug) => {
+      if (slug === 'bard') return primaryHandler;
+      if (slug === 'wizard') return secondaryHandler;
+      return {
+        applyExtras: jest.fn(async () => {}),
+        resolveFocusSpells: jest.fn(async () => []),
+        getExtraSteps: jest.fn(() => []),
+        shouldApplySubclassItem: jest.fn(() => false),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid,
+      toObject: () => ({
+        name: uuid,
+        type: uuid.includes('subclass') ? 'feat' : 'class',
+        system: { rules: [], description: { value: '' }, level: { value: 1 } },
+      }),
+    }));
+
+    const data = {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'bard-class', name: 'Bard', slug: 'bard' },
+      dualClass: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
+      subclass: { uuid: 'bard-subclass', name: 'Maestro', slug: 'maestro' },
+      dualSubclass: { uuid: 'wizard-subclass', name: 'School of Ars Grammatica', slug: 'ars-grammatica', tradition: 'arcane' },
+      classSelections: {
+        class: {},
+        dualClass: {
+          thesis: { uuid: 'thesis-uuid', name: 'Spell Blending', slug: 'spell-blending' },
+        },
+      },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: { uuid: 'dual-class-feat-uuid', name: 'Reach Spell', choices: {} },
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [{ uuid: 'song-of-strength', name: 'Song of Strength', img: 'song.png' }], rank1: [] },
+      dualSpells: { cantrips: [{ uuid: 'shield', name: 'Shield', img: 'shield.png' }], rank1: [{ uuid: 'magic-missile', name: 'Magic Missile', img: 'missile.png' }] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [{ uuid: 'detect-magic', name: 'Detect Magic', img: 'detect.png' }], rank1: [] },
+      equipment: [],
+    };
+
+    await applyCreation(actor, data);
+
+    expect(primaryHandler.applyExtras).toHaveBeenCalledWith(actor, data);
+    const createdItems = actor.createEmbeddedDocuments.mock.calls
+      .filter(([type]) => type === 'Item')
+      .flatMap(([, docs]) => docs);
+    expect(createdItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        system: expect.objectContaining({
+          location: expect.stringMatching(/^(xdy_dualclass|dualclass|dual_class)-1$/),
+        }),
+      }),
+    ]));
+    expect(secondaryHandler.applyExtras).toHaveBeenCalledWith(actor, expect.objectContaining({
+      class: data.dualClass,
+      subclass: data.dualSubclass,
+      thesis: expect.objectContaining({ uuid: 'thesis-uuid' }),
+      spells: data.dualSpells,
+      curriculumSpells: data.dualCurriculumSpells,
+    }));
+  });
+
   it('applies the extra level-1 ancestry feat to the ancestry paragon location', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return true;
@@ -397,6 +574,11 @@ describe('applyCreation ancestry paragon', () => {
         type: 'heritage',
         system: expect.objectContaining({
           slug: 'mixed-ancestry',
+          ancestry: null,
+          traits: expect.objectContaining({
+            value: [],
+            rarity: 'uncommon',
+          }),
           vision: 'lowLightVision',
         }),
         flags: expect.objectContaining({

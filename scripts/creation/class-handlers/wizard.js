@@ -1,4 +1,5 @@
 import { CasterBaseHandler } from './caster-base.js';
+import { getEffectiveSubclassCurriculum } from '../creation-model.js';
 
 const CURRICULUM_ENTRY_FLAG = 'curriculumEntry';
 
@@ -28,7 +29,7 @@ export class WizardHandler extends CasterBaseHandler {
   }
 
   async getSpellContext(data, _classDef) {
-    const curriculum = data.subclass?.curriculum;
+    const curriculum = getEffectiveSubclassCurriculum(data.subclass);
     if (!curriculum) return {};
 
     const curriculumCantripOptions = await this._loadCurriculumSpells(curriculum[0] ?? []);
@@ -67,7 +68,7 @@ export class WizardHandler extends CasterBaseHandler {
   isStepComplete(stepId, data) {
     if (stepId === 'thesis') return !!data.thesis;
     if (stepId !== 'spells') return null;
-    const curriculum = data.subclass?.curriculum;
+    const curriculum = getEffectiveSubclassCurriculum(data.subclass);
     if (!curriculum) return null;
     const selections = this._sanitizeCurriculumSelections(data);
 
@@ -81,7 +82,7 @@ export class WizardHandler extends CasterBaseHandler {
 
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'thesis') return null;
-    const theses = await wizard._loadTheses();
+    const theses = await wizard._loadTheses(data.class);
     return { items: theses.filter((i) => i.uuid !== data.thesis?.uuid) };
   }
 
@@ -108,7 +109,7 @@ export class WizardHandler extends CasterBaseHandler {
   }
 
   async _applyCurriculumEntry(actor, data) {
-    const curriculum = data.subclass?.curriculum;
+    const curriculum = getEffectiveSubclassCurriculum(data.subclass);
     if (!curriculum) return;
 
     const schoolName = data.subclass?.name ?? 'Arcane School';
@@ -182,7 +183,7 @@ export class WizardHandler extends CasterBaseHandler {
   }
 
   _sanitizeCurriculumSelections(data) {
-    const curriculum = data.subclass?.curriculum ?? {};
+    const curriculum = getEffectiveSubclassCurriculum(data.subclass) ?? {};
     return {
       cantrips: this._limitSelections(
         data.curriculumSpells?.cantrips ?? [],
@@ -198,7 +199,7 @@ export class WizardHandler extends CasterBaseHandler {
   }
 
   _resolveCurriculumEntrySpells(data) {
-    const curriculum = data.subclass?.curriculum ?? {};
+    const curriculum = getEffectiveSubclassCurriculum(data.subclass) ?? {};
     const selections = this._sanitizeCurriculumSelections(data);
     const cantripUuids = curriculum[0] ?? [];
     const rank1Uuids = curriculum[1] ?? [];

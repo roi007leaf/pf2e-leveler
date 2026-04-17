@@ -201,6 +201,10 @@ export function parsePrerequisite(text) {
 
   const languageMatch = tryParseLanguageRequirement(baseText, trimmed);
   if (languageMatch) return languageMatch;
+
+  const ancestryFeatAccessMatch = tryParseAncestryFeatAccessRequirement(baseText, trimmed);
+  if (ancestryFeatAccessMatch) return ancestryFeatAccessMatch;
+
   return tryParseFeatRequirement(trimmed);
 }
 
@@ -673,6 +677,15 @@ function tryParseLanguageRequirement(text, fullText = text) {
   return {
     type: 'language',
     languages,
+    text: fullText,
+  };
+}
+
+function tryParseAncestryFeatAccessRequirement(text, fullText = text) {
+  if (!MULTIPLE_ANCESTRY_FEATS_PATTERN.test(text)) return null;
+  return {
+    type: 'ancestryFeatAccess',
+    multipleAncestries: true,
     text: fullText,
   };
 }

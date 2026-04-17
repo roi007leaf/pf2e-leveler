@@ -26,7 +26,7 @@ export function isStaminaEnabled() {
 
 export function isDualClassEnabled() {
   try {
-    return game.settings.get('pf2e', 'dualClassVariant') && game.settings.get(MODULE_ID, 'enableDualClassSupport');
+    return game.settings.get(MODULE_ID, 'enableDualClassSupport');
   } catch {
     return false;
   }

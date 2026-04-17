@@ -1,5 +1,5 @@
 import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES } from '../../constants.js';
-import { ensureActorClassRegistered, ensureClassRegistry } from '../../classes/ensure.js';
+import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
 import {
@@ -41,6 +41,7 @@ import { debug } from '../../utils/logger.js';
 import { FeatPicker } from '../feat-picker.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { loadFeats } from '../../feats/feat-cache.js';
+import { getCreationData } from '../../creation/creation-store.js';
 import {
   doesFeatMatchRequiredSecondLevelClassFeat,
   getRequiredSecondLevelClassFeatForActor,
@@ -95,6 +96,7 @@ const LOCATION_TO_PLAN_CATEGORY = {
   xdy_ancestryparagon: 'ancestryFeats',
   archetype: 'archetypeFeats',
   mythic: 'mythicFeats',
+  xdy_dualclass: 'dualClassFeats',
   dualclass: 'dualClassFeats',
   dual_class: 'dualClassFeats',
 };
@@ -352,6 +354,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       plan.dualClassSlug = null;
       changed = true;
     }
+    const inferredDualClassSlug = this._inferStoredDualClassSlug(this.actor, classSlug);
+    if (!plan.dualClassSlug && inferredDualClassSlug) {
+      plan.dualClassSlug = inferredDualClassSlug;
+      changed = true;
+    }
 
     // Migrate per-level apparitions (old format) to plan-level cumulative list
     if (!plan.apparitions && classDef.apparitions) {
@@ -541,7 +548,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const classSlug = this._resolveClassSlug(actor);
     if (!classSlug) return null;
 
-    const options = this._getVariantOptions();
+    const options = {
+      ...this._getVariantOptions(),
+      dualClassSlug: this._inferStoredDualClassSlug(actor, classSlug),
+    };
     const plan = createPlan(classSlug, options);
     const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
     if (actorLevel > 1) {
@@ -554,6 +564,76 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     savePlan(actor, plan);
     debug(`Auto-created plan for ${actor.name} (${classSlug})`);
     return plan;
+  }
+
+  _inferStoredDualClassSlug(actor, primaryClassSlug = null) {
+    const primarySlug = String(primaryClassSlug ?? '').trim().toLowerCase();
+    const trackedSlug = this._getTrackedPlanDualClassSlug(actor, primarySlug);
+    if (trackedSlug) return trackedSlug;
+    const storedSlug = this._getStoredDualClassSlug(actor, primarySlug);
+    if (storedSlug) return storedSlug;
+    return this._inferActorDualClassSlug(actor, primarySlug);
+  }
+
+  _getTrackedPlanDualClassSlug(actor, primaryClassSlug) {
+    const dualClassSlug = String(this.plan?.dualClassSlug ?? '').trim().toLowerCase();
+    if (!dualClassSlug || dualClassSlug === primaryClassSlug) return null;
+    if (!ClassRegistry.has(dualClassSlug)) {
+      const matchingClassItem = this._getActorClassItems(actor)
+        .find((item) => String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase() === dualClassSlug);
+      if (!matchingClassItem) return null;
+      ensureClassItemRegistered(matchingClassItem, dualClassSlug);
+    }
+    return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
+  }
+
+  _getStoredDualClassSlug(actor, primaryClassSlug) {
+    if (!actor || typeof actor.getFlag !== 'function') return null;
+    const dualClassSlug = String(getCreationData(actor)?.dualClass?.slug ?? '').trim().toLowerCase();
+    if (!dualClassSlug || dualClassSlug === primaryClassSlug) return null;
+    if (!ClassRegistry.has(dualClassSlug)) {
+      const matchingClassItem = this._getActorClassItems(actor)
+        .find((item) => String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase() === dualClassSlug);
+      if (!matchingClassItem) return null;
+      ensureClassItemRegistered(matchingClassItem, dualClassSlug);
+    }
+    return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
+  }
+
+  _inferActorDualClassSlug(actor, primaryClassSlug) {
+    const secondaryClassItem = this._getActorClassItems(actor)
+      .find((item) => {
+        const slug = String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase();
+        return slug && slug !== primaryClassSlug;
+      });
+    if (!secondaryClassItem) return null;
+
+    const dualClassSlug = String(secondaryClassItem?.slug ?? secondaryClassItem?.system?.slug ?? '').trim().toLowerCase();
+    if (!dualClassSlug) return null;
+    ensureClassItemRegistered(secondaryClassItem, dualClassSlug);
+    return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
+  }
+
+  _getActorClassItems(actor) {
+    const items = actor?.items;
+    if (Array.isArray(items)) {
+      return items.filter((item) => item?.type === 'class');
+    }
+    if (typeof items?.filter === 'function') {
+      return items.filter((item) => item?.type === 'class');
+    }
+    return [];
+  }
+
+  _ensureResolvedDualClassSlug() {
+    if (!this.plan) return null;
+    const currentSlug = String(this.plan.dualClassSlug ?? '').trim().toLowerCase() || null;
+    const resolvedSlug = this._inferStoredDualClassSlug(this.actor, this.plan.classSlug);
+    if (resolvedSlug !== currentSlug) {
+      this.plan.dualClassSlug = resolvedSlug;
+      void savePlan(this.actor, this.plan);
+    }
+    return resolvedSlug;
   }
 
   _seedPlanFromActor(actor, plan, options) {
@@ -731,12 +811,28 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _resolveClassSlug(actor) {
     ensureClassRegistry();
     ensureActorClassRegistered(actor);
+    const storedPrimarySlug = this._getStoredPrimaryClassSlug(actor);
+    if (storedPrimarySlug) return storedPrimarySlug;
     const actorClass = actor.class;
     if (!actorClass) return null;
 
     const slug = actorClass.slug ?? null;
     if (ClassRegistry.has(slug)) return slug;
     return null;
+  }
+
+  _getStoredPrimaryClassSlug(actor) {
+    if (!actor || typeof actor.getFlag !== 'function') return null;
+    const creationData = getCreationData(actor);
+    const primaryClassSlug = String(creationData?.class?.slug ?? '').trim().toLowerCase();
+    if (!primaryClassSlug) return null;
+    if (ClassRegistry.has(primaryClassSlug)) return primaryClassSlug;
+
+    const matchingClassItem = this._getActorClassItems(actor)
+      .find((item) => String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase() === primaryClassSlug);
+    if (!matchingClassItem) return null;
+    ensureClassItemRegistered(matchingClassItem, primaryClassSlug);
+    return ClassRegistry.has(primaryClassSlug) ? primaryClassSlug : null;
   }
 
   static DEFAULT_OPTIONS = {
@@ -783,6 +879,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       : null;
     const sequentialLevelComplete = currentLevelStatus != null && currentLevelStatus !== PLAN_STATUS.INCOMPLETE;
     const isLastSequentialLevel = isSequential && seq.currentLevel >= seq.targetLevel;
+    const resolvedDualClassSlug = this._ensureResolvedDualClassSlug();
 
     return {
       hasPlan: !!this.plan,
@@ -792,7 +889,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedLevel: this.selectedLevel,
       dualClassEnabled: options.dualClass,
       dualClassOptions: this._buildDualClassOptions(),
-      selectedDualClassSlug: this.plan?.dualClassSlug ?? '',
+      selectedDualClassSlug: resolvedDualClassSlug ?? '',
       sidebarLevels: this._buildSidebarLevels(classDef, options),
       availableClasses: ClassRegistry.getAll(),
       sequentialMode: isSequential,
@@ -812,12 +909,14 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getVariantOptions() {
     const ancestryParagonFeatLevels = this._getAncestryParagonFeatLevels();
+    const dualClassSlug = String(this._ensureResolvedDualClassSlug() ?? '').trim().toLowerCase();
     return {
       freeArchetype: isFreeArchetypeEnabled(),
       mythic: isMythicEnabled(),
       abp: isABPEnabled(),
       gradualBoosts: isGradualBoostsEnabled(),
       dualClass: isDualClassEnabled(),
+      dualClassDef: dualClassSlug && ClassRegistry.has(dualClassSlug) ? ClassRegistry.get(dualClassSlug) : null,
       ancestralParagon: isAncestralParagonEnabled(),
       ancestryParagonFeatLevels,
     };
@@ -1129,7 +1228,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _openSpellPicker(rank, entryType = 'primary') {
-    const classDef = ClassRegistry.get(this.plan.classSlug);
+    const classDef = this._getSpellcastingClassForEntryType(entryType);
     const isArchetypeEntry = typeof entryType === 'string' && entryType.startsWith('archetype:');
     if (!classDef?.spellcasting && !isArchetypeEntry) return;
 
@@ -1189,8 +1288,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
               rank: removalRank,
             });
             this._buildStateCache = new Map();
-            this._subclassSlug = undefined;
-            this._subclassItem = undefined;
+            this._subclassSlugCache = new Map();
+            this._subclassItemCache = new Map();
             await savePlan(this.actor, this.plan);
             await this.render({ force: true, parts: ['planner'] });
           },
@@ -1227,6 +1326,15 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       return [classTradition];
     }
     return [];
+  }
+
+  _getSpellcastingClassForEntryType(entryType = 'primary') {
+    if (typeof entryType === 'string' && entryType.startsWith('class:')) {
+      const classSlug = entryType.slice('class:'.length);
+      return ClassRegistry.get(classSlug) ?? null;
+    }
+
+    return ClassRegistry.get(this.plan.classSlug);
   }
 
   _isPlannedCantripSpell(spell) {
@@ -1269,7 +1377,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const excludedSelections = (levelData.customSpells ?? [])
       .filter((spell) => (spell.entryType ?? 'primary') === entryType)
       .map((spell) => ({ uuid: spell.uuid, rank: spell.rank ?? spell.baseRank ?? 0 }));
-    const classDef = ClassRegistry.get(this.plan.classSlug);
+    const classDef = this._getSpellcastingClassForEntryType(entryType);
     const currentSlots = classDef?.spellcasting?.slots?.[this.selectedLevel] ?? {};
     const levelRanks = Object.keys(currentSlots).filter((k) => k !== 'cantrips').map(Number).filter(Number.isFinite);
     const customEntryOptions = buildCustomSpellEntryOptions(this, this.selectedLevel);
@@ -1695,19 +1803,20 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _buildDualClassOptions() {
+    const dualClassSlug = this._ensureResolvedDualClassSlug();
     const primaryClassSlug = String(this.plan?.classSlug ?? '').toLowerCase();
     return ClassRegistry.getAll()
       .filter((classDef) => String(classDef?.slug ?? '').toLowerCase() !== primaryClassSlug)
       .map((classDef) => ({
         value: classDef.slug,
         label: classDef.name ?? classDef.slug,
-        selected: classDef.slug === this.plan?.dualClassSlug,
+        selected: classDef.slug === dualClassSlug,
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   _buildDualClassPickerState(buildState) {
-    const dualClassSlug = String(this.plan?.dualClassSlug ?? '').trim().toLowerCase();
+    const dualClassSlug = String(this._ensureResolvedDualClassSlug() ?? '').trim().toLowerCase();
     if (!dualClassSlug) return null;
     if (!ClassRegistry.has(dualClassSlug)) return null;
 
@@ -1855,8 +1964,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   async _savePlanAndRender() {
     this._capturePlannerScroll();
     this._buildStateCache = new Map();
-    this._subclassSlug = undefined;
-    this._subclassItem = undefined;
+    this._subclassSlugCache = new Map();
+    this._subclassItemCache = new Map();
     await savePlan(this.actor, this.plan);
     this.render(true);
   }

@@ -487,6 +487,13 @@
   margin-top: 8px;
 }
 
+.pf2e-leveler .wizard-selected--choice {
+  margin-bottom: var(--leveler-spacing-sm);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(196, 180, 158, 0.22);
+}
+
 .pf2e-leveler .wizard-selected__img {
   width: 32px;
   height: 32px;

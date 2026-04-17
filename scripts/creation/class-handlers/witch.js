@@ -53,12 +53,15 @@ export class WitchHandler extends CasterBaseHandler {
     if (!spell) return;
 
     const tradition = data.subclass?.tradition ?? 'arcane';
-    let focusEntry = actor.items?.find(
-      (i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus',
-    );
+    const focusEntryName = `${capitalize(data.class?.name ?? 'Witch')} Focus Spells`;
+    let focusEntry = this._findSpellcastingEntry(actor, {
+      name: focusEntryName,
+      prepared: 'focus',
+      tradition,
+    });
     if (!focusEntry) {
       const created = await actor.createEmbeddedDocuments('Item', [{
-        name: `${capitalize(data.class?.name ?? 'Witch')} Focus Spells`,
+        name: focusEntryName,
         type: 'spellcastingEntry',
         system: {
           tradition: { value: tradition },

@@ -24,7 +24,7 @@ export function createMixedAncestryHeritage(ancestry = null) {
     sourcePackage: MODULE_ID,
     sourcePackageLabel: 'PF2E Leveler',
     slug: 'mixed-ancestry',
-    traits: ['versatile'],
+    traits: [],
     rarity: 'uncommon',
     ancestrySlug: null,
     description: ancestryName
@@ -43,9 +43,10 @@ export function createMixedAncestryHeritage(ancestry = null) {
           : '<p>Choose a second ancestry to pair with your primary ancestry.</p>',
       },
       traits: {
-        value: ['versatile'],
+        value: [],
         rarity: 'uncommon',
       },
+      ancestry: null,
       rules: [],
     },
   };

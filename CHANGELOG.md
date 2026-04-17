@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.1.9
+
+### Character Wizard
+
+- **Dual-class character creation is now supported end-to-end** - The wizard now lets you pick separate primary and secondary classes, separate subclasses for each class, class-owned level 1 feat slots for both classes when applicable, and handler-driven extra steps from both classes instead of silently following only the primary class
+- **Dual-class starting skills now follow PF2E rules** - The Skills step now auto-trains fixed skills granted by both classes and uses the larger of the two additional trained-skill counts, while still respecting subclass and class-feature granted starting skills such as witch patron skills
+- **Dual-class casters can now plan spells for both classes during character creation** - The Spells step now renders a separate spell section for each caster class in a dual-class build, so secondary class cantrips, rank 1 spells, and curriculum selections are visible and selectable instead of being hidden behind the primary class only
+- **Dual-class spell and focus setup now creates separate class entries on the actor** - Character creation no longer reuses the primary class spellcasting or focus entries for the secondary class, so dual-class casters get distinct spellcasting entries and focus sections where PF2E expects them
+- **Secondary dual-class spell setup now applies through the correct class handler** - Finalizing character creation now projects the secondary class, subclass, and spell selections into that class's `applyExtras` flow, so second-class spellcasting choices are actually created on the actor instead of being skipped
+- **Dual-class class-specific choices and feat choices now persist correctly per class** - Owner-scoped class selection state now keeps thesis, apparitions, subconscious mind, devotion spell, subclass follow-up choices, fighter-style skill choices, and other handler-driven selections separated between the two classes instead of letting primary-only state overwrite them
+- **System-managed dual subclasses no longer get duplicated** - When PF2E already grants the subclass item as part of class processing, Leveler no longer creates a second duplicate subclass item for the secondary class
+
+## 3.1.8
+
+### Character Wizard
+
+- **Mixed Ancestry heritage creation now finalizes correctly on PF2E 7.12.2** - Synthetic Mixed Ancestry heritage application now creates valid PF2E heritage data, so finalizing character creation no longer fails with heritage validation errors about invalid `versatile` traits or null ancestry fields
+
+### Level Planner
+
+- **Dual-class planners now bootstrap the correct primary and secondary classes from character creation data** - Planner startup now prefers Leveler's stored primary and dual class pairing instead of trusting whichever class PF2E currently exposes through `actor.class`, preventing dual-class builds such as `witch + wizard` from being inverted and losing their dual-class feat access
+- **Dual-class planner recovery is now more resilient for existing actors** - If the saved plan is stale or missing its secondary class, the planner now repairs `dualClassSlug` from stored creation data and actor class items, including custom classes, before dual-class feat picking or spell planning runs
+- **Dual-class progression now follows PF2E advancement rules more closely** - Planner/build-state progression merges primary and secondary class feature schedules, preserves extra rogue-style skill feats and skill increases when only one class grants them, and shows class features from both tracked classes at each level
+- **Dual-class spell planning now supports separate secondary class spell and focus sections** - The planner now renders distinct spell and focus sections for a secondary caster class and routes spell picks to the correct class-specific entry instead of treating all planned casting as primary-class only
+- **Dual Class feats now apply to Workbench dual-class feat slots** - Planned `Dual Class Feats` now create items in the `xdy_dualclass` campaign feat section when PF2E Workbench dual-class support is present, instead of incorrectly applying them to normal class feat slots
+- **Existing Workbench dual-class feats now import back into the planner correctly** - Actor feats stored in `xdy_dualclass-*` locations now bootstrap into Leveler's `Dual Class Feats` slots instead of being missed or treated like standard class feats
+
 ## 3.1.7
 
 ### Feat Picker

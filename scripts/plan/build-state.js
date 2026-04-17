@@ -406,7 +406,9 @@ function getActorAbilityModifier(actor, attr) {
 }
 
 function computeSkills(actor, plan, atLevel, classDef) {
-  const skills = computeSkillsWithoutPlannedFeatRules(actor, plan, atLevel, classDef);
+  const dualClassSlug = getTrackedDualClassSlug(plan);
+  const dualClassDef = dualClassSlug ? ClassRegistry.get(dualClassSlug) : null;
+  const skills = computeSkillsWithoutPlannedFeatRules(actor, plan, atLevel, [classDef, dualClassDef]);
   applyPlannedSkillRankRules(skills, plan, atLevel);
   return skills;
 }
@@ -421,13 +423,17 @@ export function computeSkillsWithoutPlannedFeatRules(actor, plan, atLevel, class
 export function computeSkillPickerState(actor, plan, atLevel, classDef, options = {}) {
   const includePlannedFeatRules = options.includePlannedFeatRules !== false;
   const includeCurrentLevelSkillIncrease = options.includeCurrentLevelSkillIncrease === true;
+  const trackedClassDefs = Array.isArray(classDef)
+    ? classDef.filter(Boolean)
+    : [classDef].filter(Boolean);
   const skills = {};
   for (const skill of SKILLS) {
     skills[skill] = actor?.system?.skills?.[skill]?.rank ?? PROFICIENCY_RANKS.UNTRAINED;
   }
 
-  if (classDef?.trainedSkills?.fixed) {
-    for (const skill of classDef.trainedSkills.fixed) {
+  for (const trackedClassDef of trackedClassDefs) {
+    if (!trackedClassDef?.trainedSkills?.fixed) continue;
+    for (const skill of trackedClassDef.trainedSkills.fixed) {
       if (skills[skill] < PROFICIENCY_RANKS.TRAINED) {
         skills[skill] = PROFICIENCY_RANKS.TRAINED;
       }

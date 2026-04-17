@@ -1,8 +1,11 @@
 export async function buildSummaryContext(wizard) {
+  const classSummaryLabel = [wizard.data.class?.name, wizard.data.dualClass?.name].filter(Boolean).join(' + ') || null;
   const choiceLabels = await wizard._getSelectedSubclassChoiceLabels();
+  const dualChoiceLabels = await wizard._getSelectedDualSubclassChoiceLabels?.() ?? [];
   const ancestryFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('ancestry');
   const ancestryParagonFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('ancestryParagon');
   const classFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('class');
+  const dualClassFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('dualClass');
   const skillFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('skill');
   const grantedFeatChoiceSummaries = [];
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
@@ -15,12 +18,19 @@ export async function buildSummaryContext(wizard) {
       });
     }
   }
-  const showSubclassSummary = !!wizard.data.subclass && wizard.data.class?.slug !== 'kineticist';
-  const subclassSummaryLabel = wizard.data.subclass
-    ? choiceLabels.length > 0
+  const subclassParts = [];
+  if (wizard.data.subclass) {
+    subclassParts.push(choiceLabels.length > 0
       ? `${wizard.data.subclass.name} (${choiceLabels.join(', ')})`
-      : wizard.data.subclass.name
-    : null;
+      : wizard.data.subclass.name);
+  }
+  if (wizard.data.dualSubclass) {
+    subclassParts.push(dualChoiceLabels.length > 0
+      ? `${wizard.data.dualSubclass.name} (${dualChoiceLabels.join(', ')})`
+      : wizard.data.dualSubclass.name);
+  }
+  const showSubclassSummary = subclassParts.length > 0 && wizard.data.class?.slug !== 'kineticist';
+  const subclassSummaryLabel = subclassParts.join(' + ') || null;
   const sanctStep = wizard.classHandler.getExtraSteps().find((s) => s.id === 'sanctification');
   const fontStep = wizard.classHandler.getExtraSteps().find((s) => s.id === 'divineFont');
   const sanctLabel = sanctStep?.label ?? 'Sanctification';
@@ -30,12 +40,14 @@ export async function buildSummaryContext(wizard) {
 
   return {
     pendingChoices: await wizard._getPendingChoices(),
+    classSummaryLabel,
     focusSpells: await wizard._resolveSummaryFocusSpells(),
     curriculumSummarySpells: await wizard._resolveSummaryCurriculumSpells(),
     subclassChoiceLabels: choiceLabels,
     ancestryFeatChoiceLabels,
     ancestryParagonFeatChoiceLabels,
     classFeatChoiceLabels,
+    dualClassFeatChoiceLabels,
     skillFeatChoiceLabels,
     grantedFeatChoiceSummaries,
     subclassSummaryLabel,
@@ -58,6 +70,9 @@ export async function buildSummaryContext(wizard) {
     sanctificationValue: sanctValue,
     divineFontLabel: fontLabel,
     divineFontValue: fontValue,
+    dualClassFeatLabel: wizard.data.dualClass?.name
+      ? `${wizard.data.dualClass.name} Class Feat`
+      : 'Dual Class Feat',
   };
 }
 

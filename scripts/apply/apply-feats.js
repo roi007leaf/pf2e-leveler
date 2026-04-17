@@ -17,6 +17,10 @@ const CATEGORY_TO_GROUP = {
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);
 
 function getFeatGroup(key, level) {
+  if (key === 'dualClassFeats') {
+    return getDualClassFeatGroupId();
+  }
+
   if (
     key === 'ancestryFeats'
     && isAncestralParagonEnabled()
@@ -30,6 +34,14 @@ function getFeatGroup(key, level) {
   }
 
   return CATEGORY_TO_GROUP[key];
+}
+
+function getDualClassFeatGroupId() {
+  const sectionIds = getCampaignFeatSectionIds()
+    .map((id) => String(id ?? '').trim())
+    .filter((id) => id.length > 0);
+  const matchingId = sectionIds.find((id) => ['xdy_dualclass', 'dualclass', 'dual_class'].includes(id.toLowerCase()));
+  return matchingId ?? CATEGORY_TO_GROUP.dualClassFeats;
 }
 
 export async function applyFeats(actor, plan, level) {

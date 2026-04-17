@@ -54,7 +54,17 @@ export function ensureActorClassRegistered(actor) {
   if (!slug) return null;
   if (ClassRegistry.has(slug)) return ClassRegistry.get(slug);
 
-  const classDef = buildClassDefinitionFromActorClass(actorClass, slug);
+  return ensureClassItemRegistered(actorClass, slug);
+}
+
+export function ensureClassItemRegistered(classItem, slug = null) {
+  ensureClassRegistry();
+
+  const normalizedSlug = String(slug ?? classItem?.slug ?? classItem?.system?.slug ?? '').trim().toLowerCase();
+  if (!normalizedSlug) return null;
+  if (ClassRegistry.has(normalizedSlug)) return ClassRegistry.get(normalizedSlug);
+
+  const classDef = buildClassDefinitionFromActorClass(classItem, normalizedSlug);
   if (!classDef) return null;
 
   ClassRegistry.register(classDef);

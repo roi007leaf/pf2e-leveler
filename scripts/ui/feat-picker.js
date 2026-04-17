@@ -11,6 +11,7 @@ import {
   sortFeats,
 } from '../feats/feat-filter.js';
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
+import { parseAllPrerequisiteNodes } from '../prerequisites/parsers.js';
 import { isMythicEnabled } from '../utils/pf2e-api.js';
 import {
   applyRarityFilter,
@@ -176,13 +177,17 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _initializeFeats() {
     const allCachedFeats = await loadFeats();
+    const directlyAllowedFeats = await this._loadDirectlyAllowedFeats();
+    const availableFeats = [...allCachedFeats, ...directlyAllowedFeats.filter((feat) =>
+      !allCachedFeats.some((cached) => this._getFeatUuid(cached) === this._getFeatUuid(feat))
+    )];
     this.additionalArchetypeFeatLevels = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
-      ? await collectAdditionalArchetypeFeatLevels(allCachedFeats, this.buildState?.feats ?? new Set())
+      ? await collectAdditionalArchetypeFeatLevels(availableFeats, this.buildState?.feats ?? new Set())
       : new Map();
     this.additionalArchetypeFeatTraits = ['archetype', 'class', 'general', 'skill', 'custom'].includes(this.category)
-      ? await collectAdditionalArchetypeFeatTraits(allCachedFeats, this.buildState?.feats ?? new Set())
+      ? await collectAdditionalArchetypeFeatTraits(availableFeats, this.buildState?.feats ?? new Set())
       : new Map();
-    this.allFeats = getFeatsForSelection(allCachedFeats, this.category, this.actor, this.targetLevel, {
+    this.allFeats = getFeatsForSelection(availableFeats, this.category, this.actor, this.targetLevel, {
       sortMethod: this.sortMethod,
       includeDedications: this.category === 'class',
       includeSkillFeats: this.category === 'general',
@@ -191,6 +196,21 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       ignoreDedicationLock: this._ignoreDedicationLock,
     });
     this._showSkillFilter = this._featsHaveSkillRelevance();
+  }
+
+  async _loadDirectlyAllowedFeats() {
+    if (this.allowedFeatUuids.size === 0) return [];
+
+    const loaded = await Promise.all(
+      [...this.allowedFeatUuids].map((uuid) => fromUuid(uuid).catch(() => null)),
+    );
+
+    return loaded.filter((item) => {
+      if (!item) return false;
+      const type = String(item.type ?? '').toLowerCase();
+      const category = String(item.system?.category?.value ?? item.system?.category ?? '').toLowerCase();
+      return type === 'feat' || type === 'classfeature' || category === 'classfeature';
+    });
   }
 
   _getLoadingContext() {
@@ -306,7 +326,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const cacheKey = `${this._buildStateSignature}:${this._getFeatUuid(feat) ?? feat.slug ?? feat.name}`;
       let check = this._prereqCache.get(cacheKey);
       if (!check) {
-        check = checkPrerequisites(feat, this.buildState);
+        check = checkPrerequisites(feat, this._getPrerequisiteBuildState(feat));
         this._prereqCache.set(cacheKey, check);
       }
 
@@ -974,6 +994,92 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const key of featKeys) {
       const level = this.additionalArchetypeFeatLevels.get(key);
       if (level != null) return level;
+    }
+    return null;
+  }
+
+  _getPrerequisiteBuildState(feat) {
+    const dedicationAliases = this._getAdditionalArchetypeDedicationAliases(feat);
+    if (dedicationAliases.size === 0) return this.buildState;
+
+    const feats = new Set(this.buildState?.feats ?? []);
+    const featAliasSources = this._cloneFeatAliasSources(this.buildState?.featAliasSources);
+    const sourceSlug = this._getAdditionalArchetypeSourceSlug(feat);
+    const sourceName = this._getAdditionalArchetypeSourceName(feat);
+
+    for (const alias of dedicationAliases) {
+      feats.add(alias);
+      if (!featAliasSources.has(alias)) featAliasSources.set(alias, new Map());
+      featAliasSources.get(alias).set(sourceSlug ?? sourceName ?? alias, sourceName ?? sourceSlug ?? alias);
+    }
+
+    return {
+      ...this.buildState,
+      feats,
+      featAliasSources,
+    };
+  }
+
+  _getAdditionalArchetypeDedicationAliases(feat) {
+    const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+    const isAdditionalArchetypeFeat = featKeys.some((key) => this.additionalArchetypeFeatLevels.has(key));
+    if (!isAdditionalArchetypeFeat) return new Set();
+
+    const aliases = new Set();
+    for (const node of parseAllPrerequisiteNodes(feat)) {
+      this._collectDedicationPrereqAliases(node, aliases);
+    }
+    return aliases;
+  }
+
+  _collectDedicationPrereqAliases(node, target) {
+    if (!node || typeof node !== 'object') return;
+
+    if (node.kind === 'leaf') {
+      if (node.type === 'feat' && String(node.slug ?? '').toLowerCase().endsWith('-dedication')) {
+        target.add(String(node.slug).toLowerCase());
+      }
+      return;
+    }
+
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) this._collectDedicationPrereqAliases(child, target);
+    }
+
+    if (node.child) this._collectDedicationPrereqAliases(node.child, target);
+  }
+
+  _cloneFeatAliasSources(sourceMap) {
+    const cloned = new Map();
+    if (!(sourceMap instanceof Map)) return cloned;
+    for (const [alias, sources] of sourceMap.entries()) {
+      cloned.set(alias, sources instanceof Map ? new Map(sources) : new Map());
+    }
+    return cloned;
+  }
+
+  _getAdditionalArchetypeSourceSlug(feat) {
+    const trait = this._getAdditionalArchetypeSourceTrait(feat);
+    return trait ? `${trait}-dedication` : null;
+  }
+
+  _getAdditionalArchetypeSourceName(feat) {
+    const trait = this._getAdditionalArchetypeSourceTrait(feat);
+    if (!trait) return null;
+    return `${trait
+      .split('-')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')} Dedication`;
+  }
+
+  _getAdditionalArchetypeSourceTrait(feat) {
+    const featKeys = this._getAdditionalArchetypeFeatKeys(feat);
+    for (const key of featKeys) {
+      const extraTraits = this.additionalArchetypeFeatTraits.get(key);
+      if (!(extraTraits instanceof Set) || extraTraits.size === 0) continue;
+      const [firstTrait] = [...extraTraits].sort();
+      if (firstTrait) return String(firstTrait).toLowerCase();
     }
     return null;
   }

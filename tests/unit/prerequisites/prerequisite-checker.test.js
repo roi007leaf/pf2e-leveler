@@ -210,6 +210,22 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('meets multi-ancestry feat access prerequisites via adopted ancestry', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Ability to select ancestry feats from multiple ancestries' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set([...buildState.feats, 'adopted-ancestry']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0].met).toBe(true);
+  });
+
   test('met level prerequisite', () => {
     const feat = {
       system: { prerequisites: { value: [{ value: '4th level' }] } },

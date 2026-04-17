@@ -429,6 +429,78 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }));
   });
 
+  it('keeps subclassChoices visible for dual subclass choice sets', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-1',
+      slug: 'fighter',
+      name: 'Fighter',
+      subclassTag: 'fighter-doctrine',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-2',
+      slug: 'witch',
+      name: 'Witch',
+      subclassTag: 'witch-patron',
+    };
+    wizard.data.subclass = {
+      uuid: 'fighter-subclass',
+      slug: 'fighter-subclass',
+      name: 'Fighter Path',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard.data.dualSubclass = {
+      uuid: 'witch-patron',
+      slug: 'witch-patron',
+      name: 'Night Patron',
+      choiceSets: [
+        {
+          flag: 'patronSkill',
+          prompt: 'Select your patron skill.',
+          options: [{ value: 'occultism', label: 'Occultism' }],
+        },
+      ],
+      choices: {},
+    };
+
+    expect(wizard._hasSubclassChoices()).toBe(true);
+    expect(wizard._isStepComplete('subclassChoices')).toBe(false);
+  });
+
+  it('builds subclass choice context sections for dual subclass choices', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.subclass = {
+      uuid: 'fighter-subclass',
+      slug: 'fighter-subclass',
+      name: 'Fighter Path',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard.data.dualSubclass = {
+      uuid: 'witch-patron',
+      slug: 'witch-patron',
+      name: 'Night Patron',
+      choiceSets: [
+        {
+          flag: 'patronSkill',
+          prompt: 'Select your patron skill.',
+          options: [{ value: 'occultism', label: 'Occultism' }],
+        },
+      ],
+      choices: {},
+    };
+
+    const context = await wizard._buildSubclassChoicesContext();
+
+    expect(context.subclassChoiceSections).toEqual([
+      expect.objectContaining({
+        target: 'dualClass',
+        subclassName: 'Night Patron',
+      }),
+    ]);
+  });
+
   it('enriches inline compendium array choices into item-backed options', async () => {
     const wizard = new CharacterWizard(createMockActor());
     global.fromUuid = jest.fn(async (uuid) => ({
@@ -619,6 +691,11 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     const context = await wizard._buildSubclassChoicesContext();
     expect(context.choiceSets[0].isItemChoice).toBe(true);
+    expect(context.choiceSets[0].selectedOption).toEqual(
+      expect.objectContaining({
+        label: 'Black Dragon',
+      }),
+    );
     expect(context.choiceSets[0].options).toEqual([
       expect.objectContaining({
         value: 'black-dragon',
@@ -1239,6 +1316,61 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('keeps adopted ancestry choice sets restricted to ancestry items even if ancestry sources contain mixed item types', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._loadCompendium = jest.fn(async (pack) => {
+      if (pack === 'pf2e.ancestries') {
+        return [
+          {
+            uuid: 'Compendium.pf2e.ancestries.Item.dwarf',
+            name: 'Dwarf',
+            img: 'dwarf.png',
+            type: 'ancestry',
+            slug: 'dwarf',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 0,
+            category: null,
+          },
+          {
+            uuid: 'Compendium.world.feats.Item.advanced-construct',
+            name: 'Advanced Construct (CC)',
+            img: 'construct.png',
+            type: 'feat',
+            slug: 'advanced-construct',
+            traits: [],
+            otherTags: [],
+            rarity: 'common',
+            level: 1,
+            category: null,
+          },
+        ];
+      }
+      return [];
+    });
+
+    const choiceSets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'ancestry',
+        prompt: 'PF2E.SpecificRule.AdoptedAncestry.Prompt',
+        choices: {
+          itemType: 'ancestry',
+          filter: [{ not: 'item:slug:{actor|system.details.ancestry.trait}' }],
+        },
+      },
+    ]);
+
+    expect(choiceSets[0].options).toEqual([
+      expect.objectContaining({
+        value: 'Compendium.pf2e.ancestries.Item.dwarf',
+        label: 'Dwarf',
+        type: 'ancestry',
+      }),
+    ]);
+  });
+
   it('builds feat choice sections for heritage-granted feats with choice sets', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.heritage = {
@@ -1372,6 +1504,81 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         expect.objectContaining({ value: 'acr', label: 'Acrobatics' }),
         expect.objectContaining({ value: 'arc', label: 'Arcana' }),
       ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('builds granted feat choice sections from dual class items', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-primary',
+      name: 'Wizard',
+      slug: 'wizard',
+    };
+    wizard.data.dualClass = {
+      uuid: 'class-dual',
+      name: 'Fighter',
+      slug: 'fighter',
+    };
+
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'Acrobatics',
+          ath: 'Athletics',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-primary') {
+        return {
+          uuid,
+          name: 'Wizard',
+          type: 'class',
+          system: {
+            rules: [],
+          },
+        };
+      }
+      if (uuid === 'class-dual') {
+        return {
+          uuid,
+          name: 'Fighter',
+          type: 'class',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'fighterSkill',
+                prompt: 'Select a skill.',
+                choices: {
+                  config: 'skills',
+                  filter: ['item:slug:acr', 'item:slug:ath'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      await wizard._refreshGrantedFeatChoiceSections();
+      const context = await wizard._buildFeatChoicesContext();
+
+      expect(context.featChoiceSections).toEqual([
+        expect.objectContaining({
+          slot: 'class-dual',
+          featName: 'Fighter',
+          sourceName: 'Fighter',
+        }),
+      ]);
     } finally {
       global.CONFIG = originalConfig;
     }

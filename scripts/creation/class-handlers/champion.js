@@ -1,6 +1,7 @@
 import { BaseClassHandler } from './base.js';
 import { CHAMPION_DEVOTION_SPELLS } from '../../data/subclass-spells.js';
 import { applyItem } from '../apply-creation.js';
+import { capitalize } from '../../utils/pf2e-api.js';
 
 const CAUSE_SANCTIFICATION = {
   justice: 'holy',
@@ -110,10 +111,15 @@ export class ChampionHandler extends BaseClassHandler {
     if (data.devotionSpell) {
       const spell = await fromUuid(data.devotionSpell.uuid).catch(() => null);
       if (spell) {
-        let focusEntry = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus');
+        const focusEntryName = `${capitalize(data.class?.name ?? 'Champion')} Focus Spells`;
+        let focusEntry = actor.items?.find((i) =>
+          i.type === 'spellcastingEntry'
+          && i.system?.prepared?.value === 'focus'
+          && i.system?.tradition?.value === 'divine'
+          && String(i.name ?? '').trim().toLowerCase() === focusEntryName.toLowerCase());
         if (!focusEntry) {
           const created = await actor.createEmbeddedDocuments('Item', [{
-            name: 'Champion Focus Spells',
+            name: focusEntryName,
             type: 'spellcastingEntry',
             system: {
               tradition: { value: 'divine' },

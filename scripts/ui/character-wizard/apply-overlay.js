@@ -165,6 +165,7 @@ export async function getApplyPromptRows(wizard) {
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, optionSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, optionSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, optionSource: wizard.data.classFeat },
+    { uuid: wizard.data.dualClassFeat?.uuid, label: wizard.data.dualClassFeat?.name, optionSource: wizard.data.dualClassFeat },
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       uuid: section.slot,
       label: section.sourceName ? `${section.sourceName} -> ${section.featName}` : section.featName,

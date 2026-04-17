@@ -1,4 +1,5 @@
 import { getClassHandler } from './class-handlers/registry.js';
+import { getClassSelectionData } from './creation-model.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
@@ -19,9 +20,15 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.heritage) await applyItem(actor, data.heritage, 'heritage', getStoredChoiceSelections(data, data.heritage.uuid));
   if (data.background) await applyItem(actor, data.background, 'background', getStoredChoiceSelections(data, data.background.uuid));
   if (data.class) await applyItem(actor, data.class, 'class', getStoredChoiceSelections(data, data.class.uuid));
+  if (data.dualClass) await applyItem(actor, data.dualClass, 'class', getStoredChoiceSelections(data, data.dualClass.uuid));
   const handler = getClassHandler(data.class?.slug);
+  const dualClassData = projectDualClassCreationData(data);
+  const dualHandler = getClassHandler(data.dualClass?.slug);
   if (data.subclass && handler.shouldApplySubclassItem(data) !== false) {
     await applyItem(actor, data.subclass, 'subclass', getStoredChoiceSelections(data, data.subclass.uuid));
+  }
+  if (data.dualSubclass && dualHandler.shouldApplySubclassItem(dualClassData) !== false) {
+    await applyItem(actor, data.dualSubclass, 'subclass', getStoredChoiceSelections(data, data.dualSubclass.uuid));
   }
   reportProgress(0.28, 'Waiting for the PF2E system to finish initializing items...');
   await waitForSystem();
@@ -46,6 +53,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.ancestryFeat) await applyFeat(actor, data.ancestryFeat, 'ancestry', 1);
   if (data.ancestryParagonFeat) await applyFeat(actor, data.ancestryParagonFeat, getCreationAncestryParagonGroup(), 1);
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
+  if (data.dualClassFeat) await applyFeat(actor, data.dualClassFeat, getCreationDualClassFeatGroup(), 1);
   if (data.skillFeat) await applyFeat(actor, data.skillFeat, 'skill', 1);
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
@@ -57,12 +65,26 @@ export async function applyCreation(actor, data, onProgress = null) {
   // Class-specific apply (spellcasting, focus spells, deity, divine font, etc.)
   reportProgress(0.86, 'Finalizing class-specific features...');
   await handler.applyExtras(actor, data);
+  if (data.dualClass?.slug) {
+    await dualHandler.applyExtras(actor, dualClassData);
+  }
 
   reportProgress(0.97, 'Creating summary message...');
   await createCreationMessage(actor, data);
   reportProgress(1, 'Character creation complete.');
 
   info(`Character creation complete for ${actor.name}`);
+}
+
+function projectDualClassCreationData(data) {
+  return {
+    ...data,
+    class: data.dualClass ?? null,
+    subclass: data.dualSubclass ?? null,
+    ...getClassSelectionData(data, 'dualClass'),
+    spells: data.dualSpells ?? { cantrips: [], rank1: [] },
+    curriculumSpells: data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },
+  };
 }
 
 export async function applyItem(actor, entry, type, choices = {}) {
@@ -100,12 +122,10 @@ async function applyMixedAncestryHeritage(actor, entry, choices = {}) {
           : '<p>Mixed Ancestry.</p>',
       },
       traits: {
-        value: ['versatile'],
+        value: [],
         rarity: 'uncommon',
       },
-      ancestry: {
-        slug: null,
-      },
+      ancestry: null,
       rules: [],
       ...(vision ? { vision } : {}),
     },
@@ -544,6 +564,14 @@ function getCreationAncestryParagonGroup() {
   if (!isAncestralParagonEnabled()) return 'ancestry';
   if (getCampaignFeatSectionIds().includes('ancestryParagon')) return 'ancestryParagon';
   return 'xdy_ancestryparagon';
+}
+
+function getCreationDualClassFeatGroup() {
+  const sectionIds = getCampaignFeatSectionIds()
+    .map((id) => String(id ?? '').trim())
+    .filter((id) => id.length > 0);
+  const matchingId = sectionIds.find((id) => ['xdy_dualclass', 'dualclass', 'dual_class'].includes(id.toLowerCase()));
+  return matchingId ?? 'dualclass';
 }
 
 function resolveSelectedSkillChoice(choiceSet, selectedValue) {

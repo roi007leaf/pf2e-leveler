@@ -1,4 +1,5 @@
 import { SKILLS } from '../../constants.js';
+import { getClassSelectionData } from '../../creation/creation-model.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -53,7 +54,7 @@ export async function buildLanguageContext(wizard) {
 export async function collectFeatLanguageGrants(wizard) {
   const slugs = [];
   let bonusSlots = 0;
-  const feats = [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.skillFeat].filter(Boolean);
+  const feats = [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.dualClassFeat, wizard.data.skillFeat].filter(Boolean);
   for (const feat of feats) {
     if (!feat.uuid) continue;
     const item = await wizard._getCachedDocument(feat.uuid);
@@ -195,17 +196,30 @@ export function parseSubclassLores(rules, html) {
 }
 
 export async function buildSkillContext(wizard) {
-  const classSkills = await wizard._getClassTrainedSkills() ?? [];
+  const primaryClassSkills = await wizard._getClassTrainedSkills() ?? [];
+  const dualClassSkills = await wizard._getClassTrainedSkills('dualClass') ?? [];
+  const classSkills = [...new Set([...primaryClassSkills, ...dualClassSkills])];
   const bgSkills = await getBackgroundTrainedSkills(wizard) ?? [];
   const selectedSkills = Array.isArray(wizard.data.skills) ? wizard.data.skills : [];
-  const subclassSkills = Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : [];
+  const selectedSubclassChoiceSkills = getSelectedSubclassChoiceSkillMap(wizard.data);
+  const dualSelections = getClassSelectionData(wizard.data, 'dualClass');
+  const subclassSkills = [
+    ...(Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : []),
+    ...(Array.isArray(wizard.data.dualSubclass?.grantedSkills) ? wizard.data.dualSubclass.grantedSkills : []),
+    ...selectedSubclassChoiceSkills.keys(),
+  ];
   const featGrantedSkills = [
     ...(Array.isArray(wizard.data.ancestryFeat?.grantedSkills) ? wizard.data.ancestryFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.ancestryParagonFeat?.grantedSkills) ? wizard.data.ancestryParagonFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.classFeat?.grantedSkills) ? wizard.data.classFeat.grantedSkills : []),
+    ...(Array.isArray(wizard.data.dualClassFeat?.grantedSkills) ? wizard.data.dualClassFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.skillFeat?.grantedSkills) ? wizard.data.skillFeat.grantedSkills : []),
   ];
-  const deitySkill = wizard.data.deity?.skill ?? null;
+  const deitySkills = new Map(
+    [wizard.data.deity, dualSelections.deity]
+      .filter(Boolean)
+      .flatMap((deity) => (deity?.skill ? [[deity.skill, deity.name ?? 'Deity']] : [])),
+  );
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
   const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
@@ -213,7 +227,7 @@ export async function buildSkillContext(wizard) {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
-    const fromDeity = deitySkill === slug;
+    const fromDeity = deitySkills.has(slug);
     const fromFeatGrant = featGrantedSkills.includes(slug);
     const fromFeatChoices = featChoiceSkillSet.has(slug);
     const autoTrained = fromClass || fromBg || fromSubclass || fromDeity || fromFeatGrant || fromFeatChoices;
@@ -222,9 +236,12 @@ export async function buildSkillContext(wizard) {
       : fromBg
         ? localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background')
         : fromSubclass
-          ? wizard.data.subclass.name
+          ? (selectedSubclassChoiceSkills.get(slug)
+            ?? (wizard.data.subclass?.grantedSkills?.includes(slug)
+              ? wizard.data.subclass.name
+              : wizard.data.dualSubclass?.name))
           : fromDeity
-            ? (wizard.data.deity?.name ?? 'Deity')
+            ? deitySkills.get(slug)
             : fromFeatGrant
               ? getFeatGrantedSkillSource(wizard, slug)
               : fromFeatChoices
@@ -242,7 +259,7 @@ export async function buildSkillContext(wizard) {
 }
 
 function getFeatGrantedSkillSource(wizard, slug) {
-  for (const feat of [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.skillFeat]) {
+  for (const feat of [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.dualClassFeat, wizard.data.skillFeat]) {
     if ((feat?.grantedSkills ?? []).includes(slug)) return feat.name ?? null;
   }
   return null;
@@ -344,6 +361,7 @@ function localizeWithFallback(key, fallback) {
 function buildFutureSkillChoiceMap(wizard) {
   const map = new Map();
   const sections = [
+    ...getSubclassSkillChoiceSections(wizard.data),
     wizard.data.ancestryFeat
       ? {
         sourceLabel: wizard.data.ancestryFeat.name ?? 'Ancestry Feat',
@@ -363,6 +381,13 @@ function buildFutureSkillChoiceMap(wizard) {
         sourceLabel: wizard.data.classFeat.name ?? 'Class Feat',
         choiceSets: wizard.data.classFeat.choiceSets ?? [],
         choices: wizard.data.classFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.dualClassFeat
+      ? {
+        sourceLabel: wizard.data.dualClassFeat.name ?? 'Dual Class Feat',
+        choiceSets: wizard.data.dualClassFeat.choiceSets ?? [],
+        choices: wizard.data.dualClassFeat.choices ?? {},
       }
       : null,
     wizard.data.skillFeat
@@ -412,6 +437,7 @@ function isUnrestrictedSkillChoiceSet(skillSlugs) {
 function buildResolvedSkillChoiceSet(wizard) {
   const selected = new Set();
   const sections = [
+    ...getSubclassSkillChoiceSections(wizard.data),
     wizard.data.ancestryFeat
       ? {
         choiceSets: wizard.data.ancestryFeat.choiceSets ?? [],
@@ -428,6 +454,12 @@ function buildResolvedSkillChoiceSet(wizard) {
       ? {
         choiceSets: wizard.data.classFeat.choiceSets ?? [],
         choices: wizard.data.classFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.dualClassFeat
+      ? {
+        choiceSets: wizard.data.dualClassFeat.choiceSets ?? [],
+        choices: wizard.data.dualClassFeat.choices ?? {},
       }
       : null,
     wizard.data.skillFeat
@@ -514,6 +546,36 @@ function normalizeSkillIdentity(value) {
     .toLowerCase()
     .replace(/^pf2e\.skill/i, '')
     .replace(/[^a-z0-9]+/g, '');
+}
+
+function getSubclassSkillChoiceSections(data) {
+  return [
+    data.subclass
+      ? {
+        sourceLabel: data.subclass.name ?? 'Subclass',
+        choiceSets: data.subclass.choiceSets ?? [],
+        choices: data.subclass.choices ?? {},
+      }
+      : null,
+    data.dualSubclass
+      ? {
+        sourceLabel: data.dualSubclass.name ?? 'Dual Subclass',
+        choiceSets: data.dualSubclass.choiceSets ?? [],
+        choices: data.dualSubclass.choices ?? {},
+      }
+      : null,
+  ].filter((section) => (section?.choiceSets?.length ?? 0) > 0);
+}
+
+export function getSelectedSubclassChoiceSkillMap(data) {
+  const selected = new Map();
+  for (const section of getSubclassSkillChoiceSections(data)) {
+    for (const choiceSet of section.choiceSets) {
+      const selectedSlug = resolveSkillSlugFromValue(choiceSet, section.choices?.[choiceSet.flag]);
+      if (selectedSlug) selected.set(selectedSlug, section.sourceLabel);
+    }
+  }
+  return selected;
 }
 
 export function normalizeLoreSkillName(value) {

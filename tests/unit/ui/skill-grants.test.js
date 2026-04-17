@@ -417,6 +417,83 @@ describe('CharacterWizard skills step grants', () => {
     }));
   });
 
+  it('uses larger additional skill count for dual-class instead of summing both classes', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-ranger') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 4,
+              value: ['nature', 'survival'],
+            },
+          },
+        };
+      }
+
+      if (uuid === 'class-cleric') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 2,
+              value: ['religion'],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'ranger', uuid: 'class-ranger', name: 'Ranger' };
+    wizard.data.dualClass = { slug: 'cleric', uuid: 'class-cleric', name: 'Cleric' };
+
+    expect(await wizard._getAdditionalSkillCount()).toBe(4);
+  });
+
+  it('marks fixed skills from both dual classes as auto-trained', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-ranger') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 4,
+              value: ['nature', 'survival'],
+            },
+          },
+        };
+      }
+
+      if (uuid === 'class-cleric') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 2,
+              value: ['religion'],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'ranger', uuid: 'class-ranger', name: 'Ranger' };
+    wizard.data.dualClass = { slug: 'cleric', uuid: 'class-cleric', name: 'Cleric' };
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context.find((entry) => entry.slug === 'nature')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Class',
+    }));
+    expect(context.find((entry) => entry.slug === 'religion')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Class',
+    }));
+  });
+
   it('marks deity-granted skills as auto-trained', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'class-uuid') {
@@ -616,6 +693,219 @@ describe('CharacterWizard skills step grants', () => {
         source: 'Class',
       }),
     ]));
+  });
+
+  it('shows future skill hints from dual-class granted feat choice sections', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'Acrobatics',
+          ath: 'Athletics',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'dual-class-uuid') {
+        return {
+          uuid,
+          name: 'Fighter',
+          type: 'class',
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'fighterSkill',
+                prompt: 'Select a skill.',
+                choices: {
+                  config: 'skills',
+                  filter: ['item:slug:acr', 'item:slug:ath'],
+                },
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'class-uuid') {
+        return {
+          uuid,
+          name: 'Wizard',
+          type: 'class',
+          system: {
+            trainedSkills: {
+              additional: 4,
+              value: ['arcana'],
+            },
+            rules: [],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'wizard', uuid: 'class-uuid', name: 'Wizard' };
+    wizard.data.dualClass = { slug: 'fighter', uuid: 'dual-class-uuid', name: 'Fighter' };
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const context = await wizard._buildSkillContext();
+
+    try {
+      expect(context.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
+        futureSkillChoices: [
+          expect.objectContaining({ sourceLabel: 'Fighter', prompt: 'Select a skill.' }),
+        ],
+      }));
+      expect(context.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({
+        futureSkillChoices: [
+          expect.objectContaining({ sourceLabel: 'Fighter', prompt: 'Select a skill.' }),
+        ],
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('auto-trains selected witch patron skill from subclass choices', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          occ: 'Occultism',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-witch') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'witch', uuid: 'class-witch', name: 'Witch' };
+    wizard.data.subclass = {
+      uuid: 'patron-uuid',
+      name: 'Night Patron',
+      slug: 'night-patron',
+      choiceSets: [
+        {
+          flag: 'patronSkill',
+          prompt: 'Select your patron skill.',
+          options: [{ value: 'occultism', label: 'Occultism' }],
+        },
+      ],
+      choices: {
+        patronSkill: 'occultism',
+      },
+      grantedSkills: [],
+    };
+
+    try {
+      const context = await wizard._buildSkillContext();
+      expect(context.find((entry) => entry.slug === 'occultism')).toEqual(expect.objectContaining({
+        autoTrained: true,
+        source: 'Night Patron',
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('auto-trains selected dual-class witch patron skill from subclass choices', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          rel: 'Religion',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-fighter') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+      if (uuid === 'class-witch') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'fighter', uuid: 'class-fighter', name: 'Fighter' };
+    wizard.data.dualClass = { slug: 'witch', uuid: 'class-witch', name: 'Witch' };
+    wizard.data.dualSubclass = {
+      uuid: 'faith-patron',
+      name: 'Faith Patron',
+      slug: 'faith-patron',
+      choiceSets: [
+        {
+          flag: 'patronSkill',
+          prompt: 'Select your patron skill.',
+          options: [{ value: 'religion', label: 'Religion' }],
+        },
+      ],
+      choices: {
+        patronSkill: 'religion',
+      },
+      grantedSkills: [],
+    };
+
+    try {
+      const context = await wizard._buildSkillContext();
+      expect(context.find((entry) => entry.slug === 'religion')).toEqual(expect.objectContaining({
+        autoTrained: true,
+        source: 'Faith Patron',
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('parses witch patron skill from ActiveEffectLike skill rules with short slugs', () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const skills = wizard._parseGrantedSkills([
+      { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.occ.rank', value: 1 },
+    ], '');
+
+    expect(skills).toContain('occultism');
   });
 
   it('adds a placeholder lore for patron deity backgrounds', async () => {

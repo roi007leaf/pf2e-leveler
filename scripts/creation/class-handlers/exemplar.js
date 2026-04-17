@@ -15,7 +15,7 @@ export class ExemplarHandler extends BaseClassHandler {
   async getStepContext(stepId, data, wizard) {
     if (stepId !== 'ikons') return null;
 
-    const ikons = await wizard._loadExemplarIkons();
+    const ikons = await wizard._loadExemplarIkons(data.class);
     const selectedUuids = new Set((data.ikons ?? []).map((entry) => entry.uuid));
 
     return {

@@ -1,4 +1,5 @@
 import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
+import * as featCache from '../../../scripts/feats/feat-cache.js';
 
 describe('FeatPicker prerequisite enforcement', () => {
   function createFeat({ name, prereqText, uuid = 'feat-1', slug = 'feat-1' }) {
@@ -177,7 +178,7 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
-  test('multi-ancestry feat selection prerequisites are shown as unknown and do not block selection', () => {
+  test('multi-ancestry feat selection prerequisites pass with adopted ancestry in build state', () => {
     const feat = createFeat({
       name: 'Different Worlds',
       prereqText: 'Ability To Select Ancestry Feats From Multiple Ancestries',
@@ -185,14 +186,17 @@ describe('FeatPicker prerequisite enforcement', () => {
       slug: 'different-worlds',
     });
 
-    const picker = new FeatPicker(createActor(), 'archetype', 2, createBuildState({ level: 2 }), jest.fn());
+    const picker = new FeatPicker(createActor(), 'archetype', 2, createBuildState({
+      level: 2,
+      feats: new Set(['adopted-ancestry']),
+    }), jest.fn());
     picker.allFeats = [feat];
 
     const [result] = picker._applyFilters();
 
     expect(result.prereqResults).toHaveLength(1);
-    expect(result.prereqResults[0].met).toBeNull();
-    expect(result.hasUnknownPrerequisites).toBe(true);
+    expect(result.prereqResults[0].met).toBe(true);
+    expect(result.hasUnknownPrerequisites).toBe(false);
     expect(result.hasFailedPrerequisites).toBe(false);
     expect(result.prerequisitesFailed).toBe(false);
     expect(result.selectionBlocked).toBe(false);
@@ -478,6 +482,36 @@ describe('FeatPicker prerequisite enforcement', () => {
 
     expect(result).toBeDefined();
     expect(result.selectionBlocked).toBe(true);
+  });
+
+  test('archetype additional feats can satisfy dedication prerequisites via their unlocking archetype', () => {
+    const feat = createFeat({
+      name: 'Reactive Striker',
+      prereqText: 'Fighter Dedication',
+      uuid: 'Compendium.pf2e.feats-srd.Item.reactive-striker',
+      slug: 'reactive-striker',
+    });
+    feat.system.level.value = 4;
+    feat.system.traits.value = ['archetype'];
+
+    const picker = new FeatPicker(createActor(), 'archetype', 6, createBuildState({
+      level: 6,
+      feats: new Set(['blackjacket-dedication']),
+    }), jest.fn());
+    picker.allFeats = [feat];
+    picker.additionalArchetypeFeatLevels = new Map([['reactive-striker', 6]]);
+    picker.additionalArchetypeFeatTraits = new Map([['reactive-striker', new Set(['blackjacket'])]]);
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.prereqResults).toEqual(expect.arrayContaining([
+      expect.objectContaining({ met: true }),
+    ]));
+    expect(result.prereqResults[0].text).toContain('Blackjacket Dedication');
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
   });
 
   test('custom feat picker can filter by multiple feat types', () => {
@@ -851,5 +885,45 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result).toBeDefined();
     expect(result.selectionBlocked).toBe(false);
     expect(result.prereqResults.some((entry) => String(entry.text ?? '').includes('Complete your current dedication'))).toBe(false);
+  });
+
+  test('custom picker surfaces allowed classfeature documents even when feat cache excludes them', async () => {
+    const classfeature = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.school-of-thassilonian-rune-magic-envy',
+      slug: 'school-of-thassilonian-rune-magic-envy',
+      name: 'Envy',
+      img: 'envy.png',
+      type: 'classfeature',
+      system: {
+        level: { value: 1 },
+        maxTakable: 1,
+        traits: { value: [], rarity: 'common' },
+        prerequisites: { value: [] },
+      },
+    };
+
+    jest.spyOn(featCache, 'getCachedFeats').mockReturnValue([]);
+    jest.spyOn(featCache, 'loadFeats').mockResolvedValue([]);
+    global.fromUuid = jest.fn(async (uuid) => (uuid === classfeature.uuid ? classfeature : null));
+
+    const picker = new FeatPicker(createActor(), 'custom', 1, createBuildState({ level: 1 }), jest.fn(), {
+      preset: {
+        allowedFeatUuids: [classfeature.uuid],
+        minLevel: 1,
+        maxLevel: 1,
+        lockMinLevel: true,
+        lockMaxLevel: true,
+      },
+    });
+
+    await picker._initializeFeats();
+    const context = await picker._prepareContext();
+
+    expect(context.feats).toEqual([
+      expect.objectContaining({
+        uuid: classfeature.uuid,
+        name: 'Envy',
+      }),
+    ]);
   });
 });

@@ -1,4 +1,6 @@
 import { ClassRegistry } from '../../classes/registry.js';
+import { getClassHandler } from '../../creation/class-handlers/registry.js';
+import { getEffectiveSubclassCurriculum } from '../../creation/creation-model.js';
 
 export async function resolveGrantedSpells(wizard) {
   return wizard.classHandler.resolveGrantedSpells(wizard.data);
@@ -16,7 +18,7 @@ export async function resolveSummaryFocusSpells(wizard) {
 }
 
 export async function resolveSummaryCurriculumSpells(wizard) {
-  const curriculum = wizard.data.subclass?.curriculum;
+  const curriculum = getEffectiveSubclassCurriculum(wizard.data.subclass);
   if (!curriculum) return [];
   const selectedCurriculum = getSanitizedCurriculumSelections(wizard);
 
@@ -46,99 +48,157 @@ export async function resolveSummaryCurriculumSpells(wizard) {
 }
 
 export async function buildSpellContext(wizard) {
-  if (!wizard._isCaster() && !wizard.classHandler.needsNonCasterSpellStep(wizard.data)) {
-    return { cantrips: [], rank1Spells: [] };
+  const spellSections = [];
+  const primaryClassDef = wizard.data.class?.slug ? ClassRegistry.get(wizard.data.class.slug) : null;
+  if (primaryClassDef?.spellcasting) {
+    spellSections.push(await buildCasterSpellSection(wizard, {
+      target: 'primary',
+      classEntry: wizard.data.class,
+      subclassEntry: wizard.data.subclass,
+      classDef: primaryClassDef,
+      classHandler: wizard.classHandler,
+    }));
   }
 
-  if (!wizard._isCaster()) {
-    const focusSpells = await resolveFocusSpells(wizard);
-    const { isDevotionChoice, ...focusCtx } = wizard.classHandler.buildFocusContext(wizard.data, focusSpells);
+  const secondaryClassDef = wizard.data.dualClass?.slug ? ClassRegistry.get(wizard.data.dualClass.slug) : null;
+  if (secondaryClassDef?.spellcasting) {
+    spellSections.push(await buildCasterSpellSection(wizard, {
+      target: 'secondary',
+      classEntry: wizard.data.dualClass,
+      subclassEntry: wizard.data.dualSubclass,
+      classDef: secondaryClassDef,
+      classHandler: getClassHandler(wizard.data.dualClass.slug),
+    }));
+  }
+
+  if (spellSections.length > 0) {
+    const [primarySection, secondarySection] = spellSections;
     return {
-      spellSubStep: 'focus',
-      cantrips: [],
-      rank1Spells: [],
-      selectedCantrips: [],
-      selectedRank1: [],
-      grantedCantrips: [],
-      grantedRank1s: [],
-      focusSpells: focusCtx.focusSpells,
-      isDevotionChoice,
-      traitOptions: [],
-      maxCantrips: 0,
-      maxRank1: 0,
-      cantripsFull: true,
-      rank1Full: true,
-      tradition: null,
+      ...primarySection,
+      spellSections,
+      secondarySpellSection: secondarySection ?? null,
     };
   }
 
-  const classDef = ClassRegistry.get(wizard.data.class.slug);
+  if (!wizard.classHandler.needsNonCasterSpellStep(wizard.data)) {
+    return { cantrips: [], rank1Spells: [], spellSections: [], secondarySpellSection: null };
+  }
+
+  const focusSpells = await resolveFocusSpells(wizard);
+  const { isDevotionChoice, ...focusCtx } = wizard.classHandler.buildFocusContext(wizard.data, focusSpells);
+  return {
+    spellSubStep: 'focus',
+    cantrips: [],
+    rank1Spells: [],
+    selectedCantrips: [],
+    selectedRank1: [],
+    grantedCantrips: [],
+    grantedRank1s: [],
+    focusSpells: focusCtx.focusSpells,
+    isDevotionChoice,
+    traitOptions: [],
+    maxCantrips: 0,
+    maxRank1: 0,
+    cantripsFull: true,
+    rank1Full: true,
+    tradition: null,
+    spellSections: [],
+    secondarySpellSection: null,
+  };
+}
+
+async function buildCasterSpellSection(wizard, {
+  target,
+  classEntry,
+  subclassEntry,
+  classDef,
+  classHandler,
+}) {
+  const sectionData = projectSpellSectionData(wizard.data, target);
   let tradition = classDef.spellcasting.tradition;
   if (['bloodline', 'patron'].includes(tradition)) {
-    tradition = wizard.data.subclass?.tradition ?? 'arcane';
+    tradition = subclassEntry?.tradition ?? 'arcane';
   }
 
   const level1Slots = classDef.spellcasting.slots?.[1] ?? {};
-  let totalCantrips = Array.isArray(level1Slots.cantrips) ? level1Slots.cantrips[0] + level1Slots.cantrips[1] : (level1Slots.cantrips ?? 5);
-  let totalRank1 = Array.isArray(level1Slots[1]) ? level1Slots[1][0] + level1Slots[1][1] : (level1Slots[1] ?? 2);
+  let totalCantrips = Array.isArray(level1Slots.cantrips)
+    ? level1Slots.cantrips[0] + level1Slots.cantrips[1]
+    : (level1Slots.cantrips ?? 5);
+  let totalRank1 = Array.isArray(level1Slots[1])
+    ? level1Slots[1][0] + level1Slots[1][1]
+    : (level1Slots[1] ?? 2);
 
-  const spellbookCounts = wizard.classHandler.getSpellbookCounts(wizard.data, classDef);
+  const spellbookCounts = classHandler.getSpellbookCounts(sectionData, classDef);
   if (spellbookCounts) {
     totalCantrips = spellbookCounts.cantrips;
     totalRank1 = spellbookCounts.rank1;
   }
 
-  const rawFocusSpells = await resolveFocusSpells(wizard);
-  const focusContext = wizard.classHandler.buildFocusContext
-    ? wizard.classHandler.buildFocusContext(wizard.data, rawFocusSpells)
-    : { focusSpells: rawFocusSpells, isDevotionChoice: wizard.classHandler.isFocusSpellChoice() };
+  const rawFocusSpells = await classHandler.resolveFocusSpells(sectionData);
+  const focusContext = classHandler.buildFocusContext
+    ? classHandler.buildFocusContext(sectionData, rawFocusSpells)
+    : { focusSpells: rawFocusSpells, isDevotionChoice: classHandler.isFocusSpellChoice() };
   const { isDevotionChoice, ...focusCtx } = focusContext;
   const focusSpells = focusCtx.focusSpells ?? rawFocusSpells;
-  const grantedSpells = await resolveGrantedSpells(wizard);
+  const grantedSpells = await classHandler.resolveGrantedSpells(sectionData);
   const maxCantrips = totalCantrips - grantedSpells.cantrips.length;
   const maxRank1 = totalRank1 - grantedSpells.rank1s.length;
 
   const allSpells = await wizard._loadCompendiumCategory('spells');
-  const grantedUuids = [...grantedSpells.cantrips.map((s) => s.uuid), ...grantedSpells.rank1s.map((s) => s.uuid)];
-  const curriculum = wizard.data.subclass?.curriculum ?? {};
-  const selectedCurriculum = getSanitizedCurriculumSelections(wizard);
+  const grantedUuids = [
+    ...grantedSpells.cantrips.map((spell) => spell.uuid),
+    ...grantedSpells.rank1s.map((spell) => spell.uuid),
+  ];
+  const curriculum = getEffectiveSubclassCurriculum(subclassEntry) ?? {};
+  const selectedCurriculum = getSanitizedCurriculumSelections(wizard, target);
   const autoCurriculumUuids = [
     ...(((curriculum[0] ?? []).length <= 1 ? (curriculum[0] ?? []).slice(0, 1) : [])),
     ...(((curriculum[1] ?? []).length <= 2 ? (curriculum[1] ?? []).slice(0, 2) : [])),
   ];
   const curriculumSelectedUuids = [
-    ...selectedCurriculum.cantrips.map((s) => s.uuid),
-    ...selectedCurriculum.rank1.map((s) => s.uuid),
+    ...selectedCurriculum.cantrips.map((spell) => spell.uuid),
+    ...selectedCurriculum.rank1.map((spell) => spell.uuid),
   ];
   const selectedUuids = new Set([
-    ...wizard.data.spells.cantrips.map((s) => s.uuid),
-    ...wizard.data.spells.rank1.map((s) => s.uuid),
+    ...(sectionData.spells?.cantrips ?? []).map((spell) => spell.uuid),
+    ...(sectionData.spells?.rank1 ?? []).map((spell) => spell.uuid),
     ...autoCurriculumUuids,
     ...curriculumSelectedUuids,
     ...grantedUuids,
-    ...focusSpells.map((s) => s.uuid),
+    ...focusSpells.map((spell) => spell.uuid),
   ]);
 
-  const matchesTradition = (s) => {
-    if (s.traditions.length > 0) return s.traditions.includes(tradition);
-    return s.traits.includes(tradition);
+  const matchesTradition = (spell) => {
+    if (spell.traditions.length > 0) return spell.traditions.includes(tradition);
+    return spell.traits.includes(tradition);
   };
 
   const restrictToCommonSpellOptions = classDef.slug === 'wizard';
-  const matchesRarity = (spell) => !restrictToCommonSpellOptions || (spell.rarity ?? 'common') === 'common';
+  const matchesRarity = (spell) =>
+    !restrictToCommonSpellOptions || (spell.rarity ?? 'common') === 'common';
 
   const cantrips = allSpells.filter(
-    (s) => s.traits.includes('cantrip') && matchesTradition(s) && matchesRarity(s) && !selectedUuids.has(s.uuid),
+    (spell) =>
+      spell.traits.includes('cantrip')
+      && matchesTradition(spell)
+      && matchesRarity(spell)
+      && !selectedUuids.has(spell.uuid),
   );
 
   const rank1Spells = allSpells.filter(
-    (s) => !s.traits.includes('cantrip') && s.level === 1 && matchesTradition(s) && matchesRarity(s) && !selectedUuids.has(s.uuid),
+    (spell) =>
+      !spell.traits.includes('cantrip')
+      && spell.level === 1
+      && matchesTradition(spell)
+      && matchesRarity(spell)
+      && !selectedUuids.has(spell.uuid),
   );
 
-  wizard._cachedMaxCantrips = maxCantrips;
-  wizard._cachedMaxRank1 = maxRank1;
-  const cantripsFull = wizard.data.spells.cantrips.length >= maxCantrips;
-  const rank1Full = maxRank1 <= 0 || wizard.data.spells.rank1.length >= maxRank1;
+  setSpellSelectionCache(wizard, target, maxCantrips, maxRank1);
+  const selectedCantrips = sectionData.spells?.cantrips ?? [];
+  const selectedRank1 = sectionData.spells?.rank1 ?? [];
+  const cantripsFull = selectedCantrips.length >= maxCantrips;
+  const rank1Full = maxRank1 <= 0 || selectedRank1.length >= maxRank1;
 
   const allTraits = new Set();
   for (const spell of [...cantrips, ...rank1Spells]) {
@@ -146,8 +206,6 @@ export async function buildSpellContext(wizard) {
   }
   const traitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
 
-  // Classes like witch choose between focus cantrips, so keep all focus spells
-  // in the selectable lane instead of auto-adding cantrips.
   let focusCantrips = [];
   let focusNonCantrips = [];
 
@@ -156,20 +214,18 @@ export async function buildSpellContext(wizard) {
   } else {
     for (const spellEntry of focusSpells) {
       const spell = await fromUuid(spellEntry.uuid).catch(() => null);
-      if (spell?.system?.traits?.value?.includes('cantrip')) {
-        focusCantrips.push(spellEntry);
-      } else {
-        focusNonCantrips.push(spellEntry);
-      }
+      if (spell?.system?.traits?.value?.includes('cantrip')) focusCantrips.push(spellEntry);
+      else focusNonCantrips.push(spellEntry);
     }
   }
 
   return {
+    target,
     spellSubStep: wizard.spellSubStep,
     cantrips,
     rank1Spells,
-    selectedCantrips: wizard.data.spells.cantrips,
-    selectedRank1: wizard.data.spells.rank1,
+    selectedCantrips,
+    selectedRank1,
     grantedCantrips: grantedSpells.cantrips,
     grantedRank1s: grantedSpells.rank1s,
     focusSpells,
@@ -182,22 +238,56 @@ export async function buildSpellContext(wizard) {
     cantripsFull,
     rank1Full,
     tradition,
-    className: wizard.data.class?.name ?? 'Class',
+    className: classEntry?.name ?? 'Class',
     showSpellRarityFilters: !restrictToCommonSpellOptions,
-    ...await wizard.classHandler.getSpellContext(wizard.data, classDef),
+    ...await classHandler.getSpellContext(sectionData, classDef),
   };
 }
 
-export function getSanitizedCurriculumSelections(wizard) {
-  const curriculum = wizard.data.subclass?.curriculum ?? {};
+function projectSpellSectionData(data, target = 'primary') {
+  if (target === 'secondary') {
+    return {
+      ...data,
+      class: data.dualClass ?? null,
+      subclass: data.dualSubclass ?? null,
+      spells: data.dualSpells ?? { cantrips: [], rank1: [] },
+      curriculumSpells: data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },
+    };
+  }
+
+  return {
+    ...data,
+    class: data.class ?? null,
+    subclass: data.subclass ?? null,
+    spells: data.spells ?? { cantrips: [], rank1: [] },
+    curriculumSpells: data.curriculumSpells ?? { cantrips: [], rank1: [] },
+  };
+}
+
+function setSpellSelectionCache(wizard, target, maxCantrips, maxRank1) {
+  wizard._cachedSpellSelectionLimits ??= {};
+  wizard._cachedSpellSelectionLimits[target] = { maxCantrips, maxRank1 };
+
+  if (target === 'primary') {
+    wizard._cachedMaxCantrips = maxCantrips;
+    wizard._cachedMaxRank1 = maxRank1;
+  } else {
+    wizard._cachedDualMaxCantrips = maxCantrips;
+    wizard._cachedDualMaxRank1 = maxRank1;
+  }
+}
+
+export function getSanitizedCurriculumSelections(wizard, target = 'primary') {
+  const sectionData = projectSpellSectionData(wizard.data, target);
+  const curriculum = getEffectiveSubclassCurriculum(sectionData.subclass) ?? {};
   return {
     cantrips: limitCurriculumSelections(
-      wizard.data.curriculumSpells?.cantrips ?? [],
+      sectionData.curriculumSpells?.cantrips ?? [],
       new Set(curriculum[0] ?? []),
       Math.min(1, (curriculum[0] ?? []).length),
     ),
     rank1: limitCurriculumSelections(
-      wizard.data.curriculumSpells?.rank1 ?? [],
+      sectionData.curriculumSpells?.rank1 ?? [],
       new Set(curriculum[1] ?? []),
       Math.min(2, (curriculum[1] ?? []).length),
     ),
