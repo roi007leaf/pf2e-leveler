@@ -65,7 +65,7 @@ const SPELL_TRAIT_PATTERN = /^able to cast at least one\s+(.+?)\s+spell$/i;
 const SPELLCASTING_TRADITION_PATTERN =
   /^ability to cast\s+(arcane|divine|occult|primal)\s+spells?$/i;
 const SUBCLASS_TRADITION_PATTERN =
-  /(bloodline|mystery|patron|order|conscious mind)\s+that\s+grants?\s+(arcane|divine|occult|primal)\s+spells?/i;
+  /(bloodline|mystery|patron|order|conscious mind)\s+(?:that\s+grants?|with)\s+(?:the\s+)?(arcane|divine|occult|primal)\s+(?:spells?|spell list)/i;
 const CLASS_FEATURE_PATTERN = /^(.+?)\s+class feature$/i;
 const BACKGROUND_PATTERN = /^(.+?)\s+background$/i;
 const HERITAGE_PATTERN = /^(.+?)\s+heritage$/i;

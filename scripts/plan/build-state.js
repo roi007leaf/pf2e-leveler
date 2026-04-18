@@ -7,6 +7,7 @@ import {
   PROFICIENCY_RANKS,
 } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
+import { SUBCLASS_SPELLS } from '../data/subclass-spells.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
@@ -35,6 +36,8 @@ const CLASS_SUBCLASS_TYPES = {
   witch: 'patron',
   wizard: 'school',
 };
+
+const VARIABLE_SPELLCASTING_TRADITIONS = new Set(['bloodline', 'patron']);
 
 export function computeBuildState(actor, plan, atLevel) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -264,6 +267,10 @@ function computeSpellcastingState(actor, plan, atLevel, classDefs) {
     }
   }
 
+  for (const tradition of collectVariableClassTraditions(actor, plan, atLevel, trackedClassDefs)) {
+    traditions.add(tradition);
+  }
+
   for (const tradition of collectPlannedDedicationTraditions(actor, plan, atLevel)) {
     traditions.add(tradition);
   }
@@ -311,6 +318,36 @@ function computeSpellcastingState(actor, plan, atLevel, classDefs) {
     focusPool: focusMax > 0,
     focusPointsMax: focusMax,
   };
+}
+
+function collectVariableClassTraditions(actor, plan, atLevel, trackedClassDefs) {
+  const traditions = new Set();
+  const feats = [
+    ...getOwnedItems(actor).filter((item) => item?.type === 'feat'),
+    ...getAllPlannedFeats(plan, atLevel),
+  ];
+
+  for (const classDef of trackedClassDefs) {
+    const classSlug = String(classDef?.slug ?? '')
+      .trim()
+      .toLowerCase();
+    const baseTradition = String(classDef?.spellcasting?.tradition ?? '')
+      .trim()
+      .toLowerCase();
+    if (!classSlug || !VARIABLE_SPELLCASTING_TRADITIONS.has(baseTradition)) continue;
+
+    const subclassType = CLASS_SUBCLASS_TYPES[classSlug] ?? null;
+    const subclassTag = subclassType ? `${classSlug}-${slugify(subclassType)}` : null;
+    if (!subclassTag) continue;
+
+    for (const feat of feats) {
+      if (!matchesTagFamily(feat, subclassTag)) continue;
+      const tradition = inferFeatSpellcastingTradition(feat);
+      if (tradition) traditions.add(tradition);
+    }
+  }
+
+  return traditions;
 }
 
 function collectPlannedDedicationTraditions(actor, plan, atLevel) {
@@ -981,11 +1018,13 @@ function computeClassArchetypeDedications(actor, plan, atLevel) {
   const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
   for (const feat of existingFeats) {
     if (isClassArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+    for (const alias of getSelectedClassArchetypeDedicationAliases(feat)) dedications.add(alias);
   }
 
   const plannedFeats = getAllPlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (isClassArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+    for (const alias of getSelectedClassArchetypeDedicationAliases(feat)) dedications.add(alias);
   }
 
   return dedications;
@@ -997,11 +1036,13 @@ function computeArchetypeDedications(actor, plan, atLevel) {
   const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
   for (const feat of existingFeats) {
     if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+    for (const alias of getSelectedDedicationAliases(feat)) dedications.add(alias);
   }
 
   const plannedFeats = getAllPlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
+    for (const alias of getSelectedDedicationAliases(feat)) dedications.add(alias);
   }
 
   return dedications;
@@ -1016,12 +1057,18 @@ function computeClassArchetypeTraits(actor, plan, atLevel) {
     const archetypeTrait = getClassArchetypeTrait(feat);
     if (archetypeTrait) traits.add(archetypeTrait);
   }
+  for (const feat of existingFeats) {
+    for (const trait of getSelectedClassArchetypeTraits(feat)) traits.add(trait);
+  }
 
   const plannedFeats = getAllPlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (!isClassArchetypeDedication(feat)) continue;
     const archetypeTrait = getClassArchetypeTrait(feat);
     if (archetypeTrait) traits.add(archetypeTrait);
+  }
+  for (const feat of plannedFeats) {
+    for (const trait of getSelectedClassArchetypeTraits(feat)) traits.add(trait);
   }
 
   return traits;
@@ -1205,7 +1252,7 @@ function getFeatAliases(feat) {
     if (baseName && baseName !== name) aliases.add(slugify(baseName));
   }
 
-  for (const selected of Object.values(feat?.choices ?? {})) {
+  for (const selected of getFeatChoiceSelections(feat)) {
     addFeatChoiceAlias(aliases, selected);
   }
 
@@ -1221,16 +1268,129 @@ function getFeatAliases(feat) {
     aliases.add(alias);
   }
 
+  for (const alias of getSubclassAliases(feat)) {
+    aliases.add(alias);
+  }
+
+  return aliases;
+}
+
+function getSubclassAliases(feat) {
+  const aliases = new Set();
+  const slug = String(feat?.slug ?? '')
+    .trim()
+    .toLowerCase();
+  if (!slug) return aliases;
+
+  for (const [classSlug, subclassType] of Object.entries(CLASS_SUBCLASS_TYPES)) {
+    const subclassSlug = slugify(subclassType);
+    const classPrefix = `${classSlug}-${subclassSlug}-`;
+    const barePrefix = `${subclassSlug}-`;
+    const suffix = slug.startsWith(classPrefix)
+      ? slug.slice(classPrefix.length)
+      : slug.startsWith(barePrefix)
+        ? slug.slice(barePrefix.length)
+        : '';
+    if (!suffix) continue;
+    aliases.add(`${suffix}-${subclassSlug}`);
+  }
+
   return aliases;
 }
 
 function addFeatChoiceAlias(target, selected) {
   if (typeof selected !== 'string' || selected.length === 0 || selected === '[object Object]')
     return;
-  if (selected.startsWith('Compendium.')) return;
+
+  if (selected.startsWith('Compendium.')) {
+    const match = selected.match(/\.Item\.([^.]+)$/u);
+    const normalizedCompendiumAlias = slugify(match?.[1] ?? '');
+    if (normalizedCompendiumAlias) target.add(normalizedCompendiumAlias);
+    return;
+  }
 
   const normalized = slugify(selected);
   if (normalized) target.add(normalized);
+}
+
+function getFeatChoiceSelections(feat) {
+  return [
+    ...Object.values(feat?.choices ?? {}),
+    ...Object.values(feat?.flags?.pf2e?.rulesSelections ?? {}),
+  ];
+}
+
+function matchesTagFamily(feat, tag) {
+  const normalizedTag = String(tag ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalizedTag) return false;
+
+  const tags = [
+    ...(feat?.otherTags ?? []),
+    ...(feat?.system?.traits?.otherTags ?? []),
+  ].map((value) =>
+    String(value ?? '')
+      .trim()
+      .toLowerCase(),
+  );
+
+  return tags.includes(normalizedTag);
+}
+
+function inferFeatSpellcastingTradition(feat) {
+  const directTradition = normalizeSpellcastingTradition(
+    feat?.system?.tradition?.value ?? feat?.tradition ?? null,
+  );
+  if (directTradition && !VARIABLE_SPELLCASTING_TRADITIONS.has(directTradition)) {
+    return directTradition;
+  }
+
+  const slug = getPrimaryFeatAlias(feat);
+  const subclassData = SUBCLASS_SPELLS[slug] ?? null;
+  if (!subclassData?.choiceFlag || !Array.isArray(subclassData.choiceOptions)) return null;
+
+  const choices = {
+    ...(feat?.choices ?? {}),
+    ...(feat?.flags?.pf2e?.rulesSelections ?? {}),
+  };
+  const selected = String(choices[subclassData.choiceFlag] ?? '')
+    .trim()
+    .toLowerCase();
+  if (!selected) return null;
+
+  const option = subclassData.choiceOptions.find((entry) => {
+    const slugValue = typeof entry === 'string' ? entry : entry?.slug;
+    return String(slugValue ?? '')
+      .trim()
+      .toLowerCase() === selected;
+  });
+
+  return normalizeSpellcastingTradition(option?.tradition ?? null);
+}
+
+function normalizeSpellcastingTradition(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return ['arcane', 'divine', 'occult', 'primal'].includes(normalized) ? normalized : null;
+}
+
+function getSelectedDedicationAliases(feat) {
+  return [...getFeatAliases(feat)].filter((alias) => alias.endsWith('-dedication'));
+}
+
+function getSelectedClassArchetypeDedicationAliases(feat) {
+  return getSelectedDedicationAliases(feat).filter((alias) => {
+    const classSlug = alias.replace(/-dedication$/u, '');
+    return ClassRegistry.has(classSlug);
+  });
+}
+
+function getSelectedClassArchetypeTraits(feat) {
+  return getSelectedClassArchetypeDedicationAliases(feat)
+    .map((alias) => alias.replace(/-dedication$/u, ''))
+    .filter(Boolean);
 }
 
 function getPrimaryFeatAlias(feat) {

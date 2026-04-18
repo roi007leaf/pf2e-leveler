@@ -361,6 +361,36 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     }));
   });
 
+  it('does not keep expert-only feat-granted skills locked once a later manual increase is legal', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.skills.medicine.rank = 1;
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+      name: 'Medic Dedication',
+      slug: 'medic-dedication',
+      skillRules: [
+        { skill: 'medicine', value: 2 },
+      ],
+      skillRulesResolved: true,
+    }];
+
+    const skills = planner._buildSkillContext(planner.plan.levels[7], 7);
+    expect(skills.find((entry) => entry.slug === 'medicine')).toEqual(expect.objectContaining({
+      rank: 2,
+      rankName: 'expert',
+      featGranted: true,
+      featSourceName: 'Medic Dedication',
+      lockedByFeat: false,
+      disabled: false,
+      maxed: false,
+      nextRankName: 'master',
+    }));
+  });
+
   it('falls back to slug-based feat source names when planned feat names are missing', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';

@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.1.10
+
+### Character Wizard
+
+- **Runelord sin selections now populate Thassilonian curriculum spells correctly** - Granted `School of Thassilonian Rune Magic` sin choices now preserve their curriculum metadata through feat-choice selection and mirror it onto the secondary wizard subclass state, so sin spells such as `Envy` appear in the wizard curriculum picker and summary instead of being dropped
+
+### Feat Picker
+
+- **Subclass and spell-list prerequisites now unlock more feats correctly** - Prerequisite checks now recognize subclass-name aliases and wording such as `bloodline with the arcane spell list`, while build-state infers variable class traditions from subclass choices, so feats tied to bloodlines, muses, rackets, and similar subclass identities no longer stay locked when their prerequisites are met
+
 ## 3.1.9
 
 ### Character Wizard

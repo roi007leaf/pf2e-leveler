@@ -1194,7 +1194,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           feat.sourceId ||
           feat.slug ||
           feat.name;
-        setFeatChoice(this.data, slot, flag, selectedValue);
+        setFeatChoice(this.data, slot, flag, selectedValue, {
+          curriculum: selectedOption?.curriculum ?? null,
+          target: this._inferFeatChoiceTarget(slot),
+        });
         this._featChoiceDataDirty = true;
         await this._saveAndRender();
       },
@@ -1268,6 +1271,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === 'dualClass') return this.data.dualClassFeat?.choices ?? {};
     if (slot === 'skill') return this.data.skillFeat?.choices ?? {};
     return this.data.grantedFeatChoices?.[slot] ?? {};
+  }
+
+  _inferFeatChoiceTarget(slot) {
+    if (slot === 'class') return 'class';
+    if (slot === 'dualClass') return 'dualClass';
+
+    const section = (this.data.grantedFeatSections ?? []).find((entry) => entry.slot === slot);
+    const sourceName = String(section?.sourceName ?? '')
+      .trim()
+      .toLowerCase();
+    if (!sourceName) return null;
+
+    const candidates = [
+      { target: 'dualClass', label: this.data.dualSubclass?.name ?? this.data.dualClass?.name ?? '' },
+      { target: 'class', label: this.data.subclass?.name ?? this.data.class?.name ?? '' },
+    ];
+
+    for (const candidate of candidates) {
+      const normalizedLabel = String(candidate.label ?? '')
+        .trim()
+        .toLowerCase();
+      if (normalizedLabel && sourceName.startsWith(normalizedLabel)) return candidate.target;
+    }
+
+    return null;
   }
 
   _buildFeatChoicePickerPreset(choiceSet, buildState) {

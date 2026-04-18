@@ -1,5 +1,6 @@
 import { buildSpellContext, resolveSummaryCurriculumSpells } from '../../../scripts/ui/character-wizard/spells.js';
 import { WizardHandler } from '../../../scripts/creation/class-handlers/wizard.js';
+import { createCreationData, setFeatChoice } from '../../../scripts/creation/creation-model.js';
 
 jest.mock('../../../scripts/classes/registry.js', () => ({
   ClassRegistry: { get: jest.fn() },
@@ -480,5 +481,116 @@ describe('buildSpellContext', () => {
     expect(context.curriculumCantripSelected.map((spell) => spell.name)).toEqual(['Shield']);
     expect(context.curriculumRank1Selected.map((spell) => spell.name)).toEqual(['Schadenfreude', 'Enfeeble']);
     expect(summary.map((spell) => spell.name)).toEqual(['Shield', 'Schadenfreude', 'Enfeeble']);
+  });
+
+  it('uses mirrored granted Runelord sin curriculum in secondary wizard spell context', async () => {
+    ClassRegistry.get.mockImplementation((slug) => {
+      if (slug === 'witch') {
+        return {
+          slug: 'witch',
+          spellcasting: {
+            tradition: 'primal',
+            type: 'prepared',
+            slots: {
+              1: {
+                cantrips: 5,
+                1: 2,
+              },
+            },
+          },
+        };
+      }
+      return {
+        slug: 'wizard',
+        spellcasting: {
+          tradition: 'arcane',
+          type: 'prepared',
+          slots: {
+            1: {
+              cantrips: 5,
+              1: 2,
+            },
+          },
+        },
+      };
+    });
+    getClassHandler.mockReturnValue(new WizardHandler());
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      const docs = {
+        'Compendium.pf2e.spells-srd.Item.Shield': {
+          uuid: 'Compendium.pf2e.spells-srd.Item.Shield',
+          name: 'Shield',
+          img: 'shield.png',
+          system: { traits: { value: ['cantrip'] } },
+        },
+        'Compendium.pf2e.spells-srd.Item.Tangle Vine': {
+          uuid: 'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+          name: 'Tangle Vine',
+          img: 'tangle-vine.png',
+          system: { traits: { value: ['cantrip'] } },
+        },
+        'Compendium.pf2e.spells-srd.Item.Schadenfreude': {
+          uuid: 'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+          name: 'Schadenfreude',
+          img: 'schadenfreude.png',
+          system: { traits: { value: [] } },
+        },
+        'Compendium.pf2e.spells-srd.Item.Enfeeble': {
+          uuid: 'Compendium.pf2e.spells-srd.Item.Enfeeble',
+          name: 'Enfeeble',
+          img: 'enfeeble.png',
+          system: { traits: { value: [] } },
+        },
+      };
+
+      return docs[uuid] ?? null;
+    });
+
+    const data = createCreationData();
+    data.class = { slug: 'witch', name: 'Witch' };
+    data.subclass = { slug: 'silence-in-snow', name: 'Silence in Snow', choiceCurricula: {} };
+    data.dualClass = { slug: 'wizard', name: 'Wizard' };
+    data.dualSubclass = { slug: 'runelord', name: 'Runelord', choiceCurricula: {} };
+
+    setFeatChoice(data, 'dual-grant', 'sin', 'envy', {
+      target: 'dualClass',
+      curriculum: {
+        0: [
+          'Compendium.pf2e.spells-srd.Item.Shield',
+          'Compendium.pf2e.spells-srd.Item.Tangle Vine',
+        ],
+        1: [
+          'Compendium.pf2e.spells-srd.Item.Schadenfreude',
+          'Compendium.pf2e.spells-srd.Item.Enfeeble',
+        ],
+      },
+    });
+    data.dualCurriculumSpells = {
+      cantrips: [{ uuid: 'Compendium.pf2e.spells-srd.Item.Shield', name: 'Shield', img: 'shield.png' }],
+      rank1: [],
+    };
+
+    const wizard = {
+      data,
+      classHandler: {
+        needsNonCasterSpellStep: () => false,
+        getSpellbookCounts: () => null,
+        resolveGrantedSpells: async () => ({ cantrips: [], rank1s: [] }),
+        resolveFocusSpells: async () => [],
+        isFocusSpellChoice: () => false,
+        getSpellContext: async () => ({}),
+      },
+      _loadCompendiumCategory: async () => [],
+    };
+
+    const context = await buildSpellContext(wizard);
+    const secondary = context.secondarySpellSection;
+
+    expect(secondary).toBeTruthy();
+    expect(secondary.hasCurriculum).toBe(true);
+    expect(secondary.curriculumCantripOptions.map((spell) => spell.name)).toEqual(['Shield', 'Tangle Vine']);
+    expect(secondary.curriculumCantripSelected.map((spell) => spell.name)).toEqual(['Shield']);
+    expect(secondary.curriculumRank1Selected.map((spell) => spell.name)).toEqual(['Schadenfreude', 'Enfeeble']);
   });
 });

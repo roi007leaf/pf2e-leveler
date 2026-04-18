@@ -591,6 +591,30 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('meets subclass spell-list prerequisite wording when class context matches', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'bloodline with the arcane spell list' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      class: { slug: 'sorcerer', hp: 6, subclassType: 'bloodline' },
+      spellcasting: {
+        hasAny: true,
+        hasSpellSlots: true,
+        spellNames: new Set(),
+        spellTraits: new Set(),
+        traditions: new Set(['arcane']),
+        focusPool: true,
+        focusPointsMax: 1,
+      },
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('meets lore prerequisite when trained in matching lore', () => {
     const feat = {
       system: {

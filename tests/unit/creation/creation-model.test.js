@@ -1,30 +1,33 @@
-import {
-  createCreationData,
-  getClassSelectionData,
-  normalizeCreationData,
-  setThesis,
-} from '../../../scripts/creation/creation-model.js';
+import { createCreationData, setFeatChoice } from '../../../scripts/creation/creation-model.js';
 
-describe('creation model class-owned selections', () => {
-  it('stores dual-class handler selections separately from the primary class', () => {
+describe('setFeatChoice', () => {
+  test('mirrors granted Runelord sin curriculum choices onto the dual subclass state', () => {
     const data = createCreationData();
+    data.dualSubclass = {
+      slug: 'runelord',
+      name: 'Runelord',
+      choiceCurricula: {},
+    };
+    data.dualCurriculumSpells = {
+      cantrips: [{ uuid: 'stale-cantrip', name: 'Old Spell' }],
+      rank1: [{ uuid: 'stale-rank1', name: 'Old Rank 1' }],
+    };
 
-    setThesis(data, { uuid: 'thesis-primary', name: 'Staff Nexus', img: 'staff.png', slug: 'staff-nexus' }, 'class');
-    setThesis(data, { uuid: 'thesis-dual', name: 'Spell Blending', img: 'blend.png', slug: 'spell-blending' }, 'dualClass');
-
-    expect(getClassSelectionData(data, 'class').thesis).toEqual(expect.objectContaining({ uuid: 'thesis-primary' }));
-    expect(getClassSelectionData(data, 'dualClass').thesis).toEqual(expect.objectContaining({ uuid: 'thesis-dual' }));
-    expect(data.thesis).toEqual(expect.objectContaining({ uuid: 'thesis-primary' }));
-  });
-
-  it('migrates legacy primary handler selections into the primary class bucket', () => {
-    const data = normalizeCreationData({
-      version: 1,
-      class: { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' },
-      thesis: { uuid: 'legacy-thesis', name: 'Legacy Thesis', slug: 'legacy-thesis' },
+    setFeatChoice(data, 'dual-grant', 'sin', 'envy', {
+      target: 'dualClass',
+      curriculum: {
+        0: ['Compendium.pf2e.spells-srd.Item.Shield'],
+        1: ['Compendium.pf2e.spells-srd.Item.Schadenfreude'],
+      },
     });
 
-    expect(getClassSelectionData(data, 'class').thesis).toEqual(expect.objectContaining({ uuid: 'legacy-thesis' }));
-    expect(data.thesis).toEqual(expect.objectContaining({ uuid: 'legacy-thesis' }));
+    expect(data.grantedFeatChoices['dual-grant']).toEqual({ sin: 'envy' });
+    expect(data.dualSubclass.choiceCurricula).toEqual({
+      sin: {
+        0: ['Compendium.pf2e.spells-srd.Item.Shield'],
+        1: ['Compendium.pf2e.spells-srd.Item.Schadenfreude'],
+      },
+    });
+    expect(data.dualCurriculumSpells).toEqual({ cantrips: [], rank1: [] });
   });
 });

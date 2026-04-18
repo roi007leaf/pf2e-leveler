@@ -189,6 +189,13 @@ describe('parsePrerequisite', () => {
     expect(result.tradition).toBe('divine');
   });
 
+  test('parses subclass spell-list prerequisite wording', () => {
+    const result = parsePrerequisite('bloodline with the arcane spell list');
+    expect(result.type).toBe('classIdentity');
+    expect(result.subclassType).toBe('bloodline');
+    expect(result.tradition).toBe('arcane');
+  });
+
   test('parses lore rank requirement', () => {
     const result = parsePrerequisite('trained in Underworld Lore');
     expect(result.type).toBe('lore');

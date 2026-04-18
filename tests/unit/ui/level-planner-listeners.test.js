@@ -107,6 +107,45 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('allows manual increases past expert when a feat only granted the current rank', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="medicine" data-locked="false"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          4: {
+            archetypeFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+                name: 'Medic Dedication',
+                slug: 'medic-dedication',
+                skillRules: [
+                  { skill: 'medicine', value: 2 },
+                ],
+              },
+            ],
+          },
+          7: {
+            skillIncreases: [],
+          },
+        },
+      },
+      selectedLevel: 7,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    planner.actor.system.skills.medicine.rank = 1;
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectSkillIncrease"]').click();
+
+    expect(planner.plan.levels[7].skillIncreases).toEqual([
+      { skill: 'medicine', toRank: 3 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
   it('stores planner feat follow-up choices on the selected feat', async () => {
     document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="deity" data-value="Compendium.pf2e.deities.Item.abadar"></button>';
 

@@ -798,7 +798,7 @@ export function setSkillFeat(data, feat, choiceSets = [], grantedSkills = [], gr
   return data;
 }
 
-export function setFeatChoice(data, slot, flag, value) {
+export function setFeatChoice(data, slot, flag, value, metadata = {}) {
   const target =
     slot === 'ancestry'
       ? data.ancestryFeat
@@ -814,13 +814,36 @@ export function setFeatChoice(data, slot, flag, value) {
   if (target) {
     if (!target.choices) target.choices = {};
     target.choices[flag] = value;
+    applyFeatChoiceCurriculumMetadata(data, metadata.target, flag, metadata.curriculum);
     return data;
   }
 
   if (!data.grantedFeatChoices) data.grantedFeatChoices = {};
   if (!data.grantedFeatChoices[slot]) data.grantedFeatChoices[slot] = {};
   data.grantedFeatChoices[slot][flag] = value;
+  applyFeatChoiceCurriculumMetadata(data, metadata.target, flag, metadata.curriculum);
   return data;
+}
+
+function applyFeatChoiceCurriculumMetadata(data, target, flag, curriculum) {
+  const normalizedTarget = target === 'dualClass' ? 'dualClass' : target === 'class' ? 'class' : null;
+  if (!normalizedTarget || !flag) return;
+
+  const subclass = normalizedTarget === 'dualClass' ? data.dualSubclass : data.subclass;
+  if (!subclass) return;
+
+  subclass.choiceCurricula ??= {};
+  if (curriculum && Object.keys(curriculum).length > 0) {
+    subclass.choiceCurricula[flag] = foundry.utils.deepClone(curriculum);
+  } else {
+    delete subclass.choiceCurricula[flag];
+  }
+
+  if (normalizedTarget === 'dualClass') {
+    data.dualCurriculumSpells = { cantrips: [], rank1: [] };
+  } else {
+    data.curriculumSpells = { cantrips: [], rank1: [] };
+  }
 }
 
 export function setGrantedFeatSections(data, sections) {

@@ -168,7 +168,11 @@ export function activateCharacterWizardListeners(wizard, el) {
 
   el.querySelectorAll('[data-action="selectFeatChoice"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      setFeatChoice(wizard.data, btn.dataset.slot, btn.dataset.flag, btn.dataset.value);
+      const curriculum = btn.dataset.curriculum ? JSON.parse(btn.dataset.curriculum) : null;
+      setFeatChoice(wizard.data, btn.dataset.slot, btn.dataset.flag, btn.dataset.value, {
+        curriculum,
+        target: btn.dataset.target || null,
+      });
       wizard._featChoiceDataDirty = true;
       await wizard._saveAndRender();
     });

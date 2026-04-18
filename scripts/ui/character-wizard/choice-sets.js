@@ -56,6 +56,7 @@ export async function buildFeatChoicesContext(wizard) {
   if (wizard.data.classFeat?.choiceSets?.length) {
     sections.push({
       slot: 'class',
+      target: 'class',
       featName: await resolveChoiceSectionName(wizard, wizard.data.classFeat),
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.classFeat.choiceSets, wizard.data.classFeat.choices ?? {}),
     });
@@ -63,6 +64,7 @@ export async function buildFeatChoicesContext(wizard) {
   if (wizard.data.dualClassFeat?.choiceSets?.length) {
     sections.push({
       slot: 'dualClass',
+      target: 'dualClass',
       featName: await resolveChoiceSectionName(wizard, wizard.data.dualClassFeat),
       sourceName: wizard.data.dualClass?.name ?? 'Dual Class',
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.dualClassFeat.choiceSets, wizard.data.dualClassFeat.choices ?? {}),
@@ -78,12 +80,34 @@ export async function buildFeatChoicesContext(wizard) {
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
     sections.push({
       slot: section.slot,
+      target: inferGrantedFeatChoiceTarget(wizard, section),
       featName: await resolveChoiceSectionName(wizard, { uuid: section.slot, name: section.featName }),
       sourceName: section.sourceName ?? null,
       choiceSets: await hydrateChoiceSets(wizard, section.choiceSets ?? [], wizard.data.grantedFeatChoices?.[section.slot] ?? {}),
     });
   }
   return { featChoiceSections: sections };
+}
+
+function inferGrantedFeatChoiceTarget(wizard, section) {
+  const sourceName = String(section?.sourceName ?? '')
+    .trim()
+    .toLowerCase();
+  if (!sourceName) return null;
+
+  const candidates = [
+    { target: 'dualClass', label: wizard.data.dualSubclass?.name ?? wizard.data.dualClass?.name ?? '' },
+    { target: 'class', label: wizard.data.subclass?.name ?? wizard.data.class?.name ?? '' },
+  ];
+
+  for (const candidate of candidates) {
+    const normalizedLabel = String(candidate.label ?? '')
+      .trim()
+      .toLowerCase();
+    if (normalizedLabel && sourceName.startsWith(normalizedLabel)) return candidate.target;
+  }
+
+  return null;
 }
 
 async function resolveChoiceSectionName(wizard, entry) {

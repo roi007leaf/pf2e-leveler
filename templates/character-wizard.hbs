@@ -416,7 +416,7 @@
           {{else}}
             <button type="button"
               class="wizard-item__select"
-              data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}'>
+              data-action="selectFeatChoice" data-slot="{{../../slot}}" data-target="{{../../target}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}'>
               {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
             </button>
           {{/if}}
@@ -428,7 +428,7 @@
         {{#each this.options}}
         <button type="button"
           class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
-          data-action="selectSubclassChoice" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}' {{#if this.disabled}}disabled{{/if}}>
+          data-action="selectFeatChoice" data-slot="{{../../slot}}" data-target="{{../../target}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-curriculum='{{json this.curriculum}}' {{#if this.disabled}}disabled{{/if}}>
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             {{#if this.selectedInSkills}}

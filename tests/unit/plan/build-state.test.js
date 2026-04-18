@@ -790,6 +790,117 @@ describe('computeBuildState', () => {
     expect(state.classArchetypeDedications.has('aldori-duelist-dedication')).toBe(false);
   });
 
+  test('tracks planned Multitalented dedication choices as class archetype dedications', () => {
+    const plan = {
+      levels: {
+        9: {
+          ancestryFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.multitalented',
+              name: 'Multitalented',
+              slug: 'multitalented',
+              choices: {
+                multiclassDedication: 'druid-dedication',
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 10);
+    expect(state.feats.has('druid-dedication')).toBe(true);
+    expect(state.archetypeDedications.has('druid-dedication')).toBe(true);
+    expect(state.classArchetypeDedications.has('druid-dedication')).toBe(true);
+    expect(state.classArchetypeTraits.has('druid')).toBe(true);
+  });
+
+  test('tracks applied Multitalented dedication choices from PF2E rules selections', () => {
+    const actor = createMockActor();
+    actor.items = {
+      filter: jest.fn((predicate) => {
+        const items = [
+          {
+            type: 'feat',
+            uuid: 'Compendium.pf2e.feats-srd.Item.multitalented',
+            name: 'Multitalented',
+            slug: 'multitalented',
+            flags: {
+              pf2e: {
+                rulesSelections: {
+                  multiclassDedication: 'Compendium.pf2e.feats-srd.Item.druid-dedication',
+                },
+              },
+            },
+          },
+        ];
+        return items.filter(predicate);
+      }),
+    };
+
+    const state = computeBuildState(actor, createPlan('alchemist'), 10);
+    expect(state.feats.has('druid-dedication')).toBe(true);
+    expect(state.archetypeDedications.has('druid-dedication')).toBe(true);
+    expect(state.classArchetypeDedications.has('druid-dedication')).toBe(true);
+    expect(state.classArchetypeTraits.has('druid')).toBe(true);
+  });
+
+  test('tracks subclass aliases from subclass feat slugs', () => {
+    const actor = createMockActor();
+    actor.items = {
+      filter: jest.fn((predicate) => {
+        const items = [
+          {
+            type: 'feat',
+            slug: 'bard-muse-warrior',
+            system: { traits: { otherTags: ['bard-muse'] } },
+          },
+          {
+            type: 'feat',
+            slug: 'rogue-racket-mastermind',
+            system: { traits: { otherTags: ['rogue-racket'] } },
+          },
+        ];
+        return items.filter(predicate);
+      }),
+    };
+
+    const state = computeBuildState(actor, createPlan('alchemist'), 4);
+    expect(state.feats.has('warrior-muse')).toBe(true);
+    expect(state.feats.has('mastermind-racket')).toBe(true);
+    expect(state.featAliasSources.get('warrior-muse')?.has('bard-muse-warrior')).toBe(true);
+  });
+
+  test('infers variable bloodline tradition from subclass choice without an embedded spellcasting entry', () => {
+    const actor = createMockActor();
+    actor.items = {
+      filter: jest.fn((predicate) => {
+        const items = [
+          {
+            type: 'feat',
+            slug: 'bloodline-draconic',
+            flags: {
+              pf2e: {
+                rulesSelections: {
+                  dragonBloodline: 'fortune',
+                },
+              },
+            },
+            system: {
+              traits: {
+                otherTags: ['sorcerer-bloodline'],
+              },
+            },
+          },
+        ];
+        return items.filter(predicate);
+      }),
+    };
+
+    const state = computeBuildState(actor, createPlan('sorcerer'), 4);
+    expect(state.spellcasting.traditions.has('arcane')).toBe(true);
+  });
+
   test('tracks incomplete dedication progress until two other archetype feats are taken', () => {
     const plan = {
       levels: {

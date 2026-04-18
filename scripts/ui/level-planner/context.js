@@ -283,6 +283,7 @@ export function buildSkillContext(planner, levelData, level) {
     const nextRank = rank + 1;
     const featGranted = rank > (baseSkills[slug] ?? 0);
     const featSourceName = featGranted ? findSkillGrantingFeatName(planner.plan, slug, level) : null;
+    const lockedByFeat = featGranted && nextRank > maxRank;
     return {
       slug,
       label: localizeSkillSlug(slug),
@@ -293,7 +294,7 @@ export function buildSkillContext(planner, levelData, level) {
       featGranted,
       featSourceName,
       disabled: !featGranted && nextRank > maxRank,
-      lockedByFeat: featGranted,
+      lockedByFeat,
       selected: currentIncrease?.skill === slug,
     };
   });
