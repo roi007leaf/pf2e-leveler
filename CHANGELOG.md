@@ -8,7 +8,12 @@
 
 ### Feat Picker
 
+- **Multitalented dedication choices now unlock their follow-up class feats correctly** - Chosen multiclass dedications from `Multitalented` now count as owned class archetype dedications in build-state and prerequisite checks, so later class feat selection correctly unlocks feats from the selected dedication instead of treating the dedication as missing
 - **Subclass and spell-list prerequisites now unlock more feats correctly** - Prerequisite checks now recognize subclass-name aliases and wording such as `bloodline with the arcane spell list`, while build-state infers variable class traditions from subclass choices, so feats tied to bloodlines, muses, rackets, and similar subclass identities no longer stay locked when their prerequisites are met
+
+### Level Planner
+
+- **Feat-granted skill ranks no longer block legal later skill increases** - Skills raised by feats such as `Medic Dedication` now stay selectable when a later level legally allows another increase, so Medicine can advance from expert to master at level 7 instead of staying locked as `Set by Medic Dedication`
 
 ## 3.1.9
 
