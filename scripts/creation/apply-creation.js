@@ -19,8 +19,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.ancestry) await applyItem(actor, data.ancestry, 'ancestry', getStoredChoiceSelections(data, data.ancestry.uuid));
   if (data.heritage) await applyItem(actor, data.heritage, 'heritage', getStoredChoiceSelections(data, data.heritage.uuid));
   if (data.background) await applyItem(actor, data.background, 'background', getStoredChoiceSelections(data, data.background.uuid));
-  if (data.class) await applyItem(actor, data.class, 'class', getStoredChoiceSelections(data, data.class.uuid));
-  if (data.dualClass) await applyItem(actor, data.dualClass, 'class', getStoredChoiceSelections(data, data.dualClass.uuid));
+  await applyClassItems(actor, data);
   const handler = getClassHandler(data.class?.slug);
   const dualClassData = projectDualClassCreationData(data);
   const dualHandler = getClassHandler(data.dualClass?.slug);
@@ -102,6 +101,31 @@ export async function applyItem(actor, entry, type, choices = {}) {
   applyStoredChoices(itemData, choices);
   await actor.createEmbeddedDocuments('Item', [itemData]);
   debug(`Applied ${type}: ${entry.name}`);
+}
+
+async function applyClassItems(actor, data) {
+  const classEntries = [data.dualClass, data.class].filter((entry) => !!entry?.uuid);
+  if (classEntries.length === 0) return;
+
+  const itemData = [];
+  const appliedNames = [];
+
+  for (const entry of classEntries) {
+    const item = await fromUuid(entry.uuid).catch(() => null);
+    if (!item) {
+      warn(`Failed to resolve class: ${entry.uuid}`);
+      continue;
+    }
+
+    const resolvedItemData = foundry.utils.deepClone(item.toObject());
+    applyStoredChoices(resolvedItemData, getStoredChoiceSelections(data, entry.uuid));
+    itemData.push(resolvedItemData);
+    appliedNames.push(entry.name);
+  }
+
+  if (itemData.length === 0) return;
+  await actor.createEmbeddedDocuments('Item', itemData);
+  debug(`Applied classes: ${appliedNames.join(', ')}`);
 }
 
 async function applyMixedAncestryHeritage(actor, entry, choices = {}) {

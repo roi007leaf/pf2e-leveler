@@ -1,5 +1,6 @@
 import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
+import { getClassSelectionData } from '../../creation/creation-model.js';
 import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
@@ -231,15 +232,31 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
+      const grantedChoiceSets = isAssuranceGrant(granted)
+        ? await parseChoiceSets(wizard, granted.system?.rules ?? [], preselectedChoices, granted)
+        : [];
+      const alignedPreselectedChoices = isAssuranceGrant(granted)
+        ? alignAssuranceGrantPreselectedChoices(grantedChoiceSets, preselectedChoices)
+        : preselectedChoices;
+      const choiceSource = Object.keys(alignedPreselectedChoices).length > 0
+        ? { choices: alignedPreselectedChoices }
+        : null;
       const inheritedSkillChoiceSet = isAssuranceGrant(granted)
-        ? findGrantSourceSkillChoiceSet(parsedChoiceSets)
+        ? (
+          findGrantSourceSkillChoiceSet(parsedChoiceSets)
+          ?? buildAssurancePreselectedChoiceSet(grantedChoiceSets, alignedPreselectedChoices)
+        )
         : null;
       const preserveAsIndependentChoiceSection = isAssuranceGrant(granted)
-        && await shouldPreserveIndependentAssuranceSection(wizard, inheritedSkillChoiceSet, currentChoices);
+        && await shouldPreserveIndependentAssuranceSection(
+          wizard,
+          inheritedSkillChoiceSet,
+          choiceSource?.choices ?? currentChoices,
+        );
       if (isAssuranceGrant(granted) && !preserveAsIndependentChoiceSection) continue;
       await scanItem(granted, `${sourceName} -> ${granted.name}`, {
-        choiceSource: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0 ? { choices: preselectedChoices } : null,
-        suppressIfSatisfied: !preserveAsIndependentChoiceSection && Object.keys(preselectedChoices).length > 0,
+        choiceSource,
+        suppressIfSatisfied: !preserveAsIndependentChoiceSection && !!choiceSource,
         inheritedSkillChoiceSet,
       });
     }
@@ -485,6 +502,9 @@ export async function getPendingChoices(wizard) {
       if (hasSubclass && rule.flag && subclassTag?.includes(rule.flag)) continue;
       if (optionSource?.choices?.[rule.flag]) continue;
       if (optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[rule.flag]) continue;
+      const storedChoices = optionSource?.choices
+        ?? (optionSource?.uuid ? wizard.data.grantedFeatChoices?.[optionSource.uuid] ?? {} : {});
+      if (isAssuranceGrant(item) && isSkillChoiceSet(rule) && hasMeaningfulStoredChoice(storedChoices)) continue;
       if (wizard.data.implement && rule.flag === 'implement') continue;
       if (wizard.data.tactics?.length >= 5 && ['firstTactic', 'secondTactic', 'thirdTactic', 'fourthTactic', 'fifthTactic'].includes(rule.flag)) continue;
       if (wizard.data.ikons?.length >= 3 && ['firstIkon', 'secondIkon', 'thirdIkon'].includes(rule.flag)) continue;
@@ -505,8 +525,14 @@ export async function getPendingChoices(wizard) {
       const granted = await resolveDocument(wizard, rule.uuid);
       if (!granted) continue;
       const preselectedChoices = extractGrantPreselectedChoices(rule);
+      const grantedChoiceSets = isAssuranceGrant(granted)
+        ? await parseChoiceSets(wizard, granted.system?.rules ?? [], preselectedChoices, granted)
+        : [];
+      const alignedPreselectedChoices = isAssuranceGrant(granted)
+        ? alignAssuranceGrantPreselectedChoices(grantedChoiceSets, preselectedChoices)
+        : preselectedChoices;
       await scanItem(granted, `${sourceLabel} -> ${granted.name}`, {
-        choices: preselectedChoices,
+        choices: alignedPreselectedChoices,
       });
     }
   };
@@ -1098,6 +1124,42 @@ function findGrantSourceSkillChoiceSet(choiceSets) {
     && choiceSet.options.length > 0);
 }
 
+function alignAssuranceGrantPreselectedChoices(choiceSets, preselectedChoices = {}) {
+  const choiceSet = findGrantSourceSkillChoiceSet(choiceSets);
+  if (!choiceSet) return { ...preselectedChoices };
+
+  const alignedChoices = { ...preselectedChoices };
+  const currentValue = alignedChoices[choiceSet.flag];
+  if (findMatchingChoiceOption(choiceSet.options ?? [], currentValue)) return alignedChoices;
+
+  for (const value of Object.values(preselectedChoices ?? {})) {
+    if (!findMatchingChoiceOption(choiceSet.options ?? [], value)) continue;
+    alignedChoices[choiceSet.flag] = value;
+    break;
+  }
+
+  return alignedChoices;
+}
+
+function buildAssurancePreselectedChoiceSet(choiceSets, currentChoices = {}) {
+  const choiceSet = findGrantSourceSkillChoiceSet(choiceSets);
+  if (!choiceSet) return null;
+
+  const selectedValue = currentChoices?.[choiceSet.flag];
+  if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') {
+    return null;
+  }
+
+  const matchedOption = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
+  if (!matchedOption) return null;
+
+  return {
+    ...choiceSet,
+    options: [{ ...matchedOption }],
+    allowAutoTrainedSelection: true,
+  };
+}
+
 function constrainAssuranceChoiceSets(choiceSets, inheritedSkillChoiceSet) {
   if (!inheritedSkillChoiceSet) return choiceSets;
 
@@ -1395,6 +1457,11 @@ function extractGrantPreselectedChoices(rule) {
       .filter(([, value]) => ['string', 'number'].includes(typeof value))
       .map(([flag, value]) => [flag, String(value)]),
   );
+}
+
+function hasMeaningfulStoredChoice(choices = {}) {
+  return Object.values(choices).some((value) =>
+    typeof value === 'string' && value.length > 0 && value !== '[object Object]');
 }
 
 function areChoiceSetsSatisfied(choiceSets, currentChoices) {
@@ -1983,18 +2050,22 @@ export function getSelectedHandlerChoiceSourceItems(wizard) {
     if (!entry?.uuid || !entry?.name) return;
     items.push({ uuid: entry.uuid, label: entry.name });
   };
+  const addBucket = (bucket) => {
+    add(bucket?.deity);
+    add(bucket?.implement);
+    add(bucket?.innovationItem);
+    add(bucket?.innovationModification);
+    add(bucket?.secondElement);
+    add(bucket?.subconsciousMind);
+    add(bucket?.thesis);
+    for (const entry of (bucket?.tactics ?? [])) add(entry);
+    for (const entry of (bucket?.ikons ?? [])) add(entry);
+    for (const entry of (bucket?.kineticImpulses ?? [])) add(entry);
+    for (const entry of (bucket?.apparitions ?? [])) add(entry);
+  };
 
-  add(wizard.data.deity);
-  add(wizard.data.implement);
-  add(wizard.data.innovationItem);
-  add(wizard.data.innovationModification);
-  add(wizard.data.secondElement);
-  add(wizard.data.subconsciousMind);
-  add(wizard.data.thesis);
-  for (const entry of (wizard.data.tactics ?? [])) add(entry);
-  for (const entry of (wizard.data.ikons ?? [])) add(entry);
-  for (const entry of (wizard.data.kineticImpulses ?? [])) add(entry);
-  for (const entry of (wizard.data.apparitions ?? [])) add(entry);
+  addBucket(getClassSelectionData(wizard.data, 'class'));
+  addBucket(getClassSelectionData(wizard.data, 'dualClass'));
 
   return items;
 }

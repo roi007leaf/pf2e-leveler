@@ -91,6 +91,12 @@ export async function getApplyPromptRows(wizard) {
   };
 
   const resolveSelectedChoiceItem = async (rule, optionSource = null) => {
+    const selectedSubclass = getPromptSelectedSubclass(wizard, rule, optionSource);
+    if (selectedSubclass?.uuid) {
+      const item = await resolveDocument(wizard, selectedSubclass.uuid);
+      if (item) return item;
+    }
+
     const flag = getRuleSelectionFlag(rule);
     if (!flag) return null;
 
@@ -161,7 +167,9 @@ export async function getApplyPromptRows(wizard) {
     { uuid: wizard.data.heritage?.uuid, label: wizard.data.heritage?.name, optionSource: wizard.data.heritage?.uuid ? { uuid: wizard.data.heritage.uuid } : null },
     { uuid: wizard.data.background?.uuid, label: wizard.data.background?.name, optionSource: wizard.data.background?.uuid ? { uuid: wizard.data.background.uuid } : null },
     { uuid: wizard.data.class?.uuid, label: wizard.data.class?.name, optionSource: wizard.data.class?.uuid ? { uuid: wizard.data.class.uuid } : null },
+    { uuid: wizard.data.dualClass?.uuid, label: wizard.data.dualClass?.name, optionSource: wizard.data.dualClass?.uuid ? { uuid: wizard.data.dualClass.uuid } : null },
     { uuid: wizard.data.subclass?.uuid, label: wizard.data.subclass?.name, optionSource: wizard.data.subclass },
+    { uuid: wizard.data.dualSubclass?.uuid, label: wizard.data.dualSubclass?.name, optionSource: wizard.data.dualSubclass },
     { uuid: wizard.data.ancestryFeat?.uuid, label: wizard.data.ancestryFeat?.name, optionSource: wizard.data.ancestryFeat },
     { uuid: wizard.data.ancestryParagonFeat?.uuid, label: wizard.data.ancestryParagonFeat?.name, optionSource: wizard.data.ancestryParagonFeat },
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, optionSource: wizard.data.classFeat },
@@ -266,7 +274,6 @@ function normalizeSourceLabel(source) {
 
 export async function resolvePromptSelectionLabel(wizard, rule, optionSource = null) {
   const flag = getRuleSelectionFlag(rule);
-  const subclassTag = wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug];
   const rawPrompt = String(rule?.prompt ?? '');
   const localizedPrompt = game.i18n?.has?.(rule?.prompt)
     ? game.i18n.localize(rule.prompt)
@@ -277,12 +284,9 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
     ? rule.choices.filter.filter((entry) => typeof entry === 'string')
     : [];
 
-  if (wizard.data.subclass && subclassTag && filterStrings.some((entry) => entry.includes(subclassTag))) {
-    return wizard.data.subclass.name;
-  }
-
-  if (wizard.data.subclass && subclassTag && flag && subclassTag.includes(flag)) {
-    return wizard.data.subclass.name;
+  const selectedSubclass = getPromptSelectedSubclass(wizard, rule, optionSource);
+  if (selectedSubclass?.name) {
+    return selectedSubclass.name;
   }
 
   if (
@@ -357,6 +361,40 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
   if (flag === 'divineFont') return wizard.data.divineFont ? wizard.data.divineFont.charAt(0).toUpperCase() + wizard.data.divineFont.slice(1) : null;
   if (rule.prompt === 'PF2E.SpecificRule.Kineticist.KineticGate.Prompt.Gate') {
     return wizard.data.kineticGateMode === 'dual-gate' ? 'Dual Gate' : wizard.data.kineticGateMode === 'single-gate' ? 'Single Gate' : null;
+  }
+
+  return null;
+}
+
+function getPromptSelectedSubclass(wizard, rule, optionSource = null) {
+  const flag = getRuleSelectionFlag(rule);
+  const filterStrings = Array.isArray(rule?.choices?.filter)
+    ? rule.choices.filter.filter((entry) => typeof entry === 'string')
+    : [];
+  const filterText = String(JSON.stringify(rule?.choices?.filter ?? []) ?? '').toLowerCase();
+
+  const entries = [
+    {
+      classEntry: wizard.data.class,
+      subclassEntry: wizard.data.subclass,
+      subclassTag: wizard.data.class?.subclassTag ?? SUBCLASS_TAGS[wizard.data.class?.slug],
+    },
+    {
+      classEntry: wizard.data.dualClass,
+      subclassEntry: wizard.data.dualSubclass,
+      subclassTag: wizard.data.dualClass?.subclassTag ?? SUBCLASS_TAGS[wizard.data.dualClass?.slug],
+    },
+  ];
+
+  const scopedEntries = optionSource?.uuid
+    ? entries.filter((entry) => entry.classEntry?.uuid === optionSource.uuid)
+    : entries;
+
+  for (const entry of scopedEntries) {
+    if (!entry.subclassEntry || typeof entry.subclassTag !== 'string' || entry.subclassTag.length === 0) continue;
+    if (filterStrings.some((value) => value.includes(entry.subclassTag))) return entry.subclassEntry;
+    if (filterText.includes(entry.subclassTag.toLowerCase())) return entry.subclassEntry;
+    if (flag && entry.subclassTag.includes(flag)) return entry.subclassEntry;
   }
 
   return null;

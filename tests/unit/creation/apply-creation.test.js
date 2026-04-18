@@ -368,6 +368,218 @@ describe('applyCreation ancestry paragon', () => {
     expect(secondaryHandler.shouldApplySubclassItem).toHaveBeenCalled();
   });
 
+  it('keeps the primary class as the final embedded class for dual-class creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const primaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+    const secondaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+
+    getClassHandler.mockImplementation((slug) => {
+      if (slug === 'witch') return primaryHandler;
+      if (slug === 'wizard') return secondaryHandler;
+      return {
+        applyExtras: jest.fn(async () => {}),
+        resolveFocusSpells: jest.fn(async () => []),
+        getExtraSteps: jest.fn(() => []),
+        shouldApplySubclassItem: jest.fn(() => false),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const created = docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+      for (const doc of created) {
+        if (doc.type === 'class') {
+          actor.class = {
+            name: doc.name,
+            slug: doc.system?.slug ?? doc.slug ?? doc.name.toLowerCase(),
+            system: doc.system ?? {},
+          };
+        }
+      }
+      return created;
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'witch-class' ? 'Witch' : uuid === 'wizard-class' ? 'Wizard' : uuid,
+      slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+      toObject: () => ({
+        name: uuid === 'witch-class' ? 'Witch' : uuid === 'wizard-class' ? 'Wizard' : uuid,
+        type: uuid.includes('class') ? 'class' : 'feat',
+        slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+        system: {
+          slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+          rules: [],
+          description: { value: '' },
+          level: { value: 1 },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'witch-class', name: 'Witch', slug: 'witch' },
+      dualClass: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
+      subclass: null,
+      dualSubclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      dualSpells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [], rank1: [] },
+      equipment: [],
+    });
+
+    expect(actor.class.slug).toBe('witch');
+  });
+
+  it('creates both classes in one embedded-document operation so PF2E can keep both class feature sets', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const primaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+    const secondaryHandler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    };
+
+    getClassHandler.mockImplementation((slug) => {
+      if (slug === 'witch') return primaryHandler;
+      if (slug === 'wizard') return secondaryHandler;
+      return {
+        applyExtras: jest.fn(async () => {}),
+        resolveFocusSpells: jest.fn(async () => []),
+        getExtraSteps: jest.fn(() => []),
+        shouldApplySubclassItem: jest.fn(() => false),
+      };
+    });
+
+    const createdItems = [];
+    const actor = createMockActor({ items: createdItems });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const created = docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+      createdItems.push(...created);
+
+      const classDocs = created.filter((doc) => doc.type === 'class');
+      if (classDocs.length > 0) {
+        actor.class = {
+          name: classDocs.at(-1).name,
+          slug: classDocs.at(-1).system?.slug ?? classDocs.at(-1).slug ?? classDocs.at(-1).name.toLowerCase(),
+          system: classDocs.at(-1).system ?? {},
+        };
+
+        createdItems.splice(
+          0,
+          createdItems.length,
+          ...createdItems.filter((item) => String(item?.system?.category ?? '').toLowerCase() !== 'classfeature'),
+        );
+
+        const grantedFeatures = classDocs.map((doc, index) => ({
+          id: `feature-${index}`,
+          name: `${doc.name} Feature`,
+          type: 'feat',
+          system: {
+            category: 'classfeature',
+            level: { value: 1 },
+          },
+        }));
+        createdItems.push(...grantedFeatures);
+      }
+
+      return created;
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'witch-class' ? 'Witch' : uuid === 'wizard-class' ? 'Wizard' : uuid,
+      slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+      toObject: () => ({
+        name: uuid === 'witch-class' ? 'Witch' : uuid === 'wizard-class' ? 'Wizard' : uuid,
+        type: uuid.includes('class') ? 'class' : 'feat',
+        slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+        system: {
+          slug: uuid === 'witch-class' ? 'witch' : uuid === 'wizard-class' ? 'wizard' : uuid,
+          rules: [],
+          description: { value: '' },
+          level: { value: 1 },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'witch-class', name: 'Witch', slug: 'witch' },
+      dualClass: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
+      subclass: null,
+      dualSubclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      dualSpells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [], rank1: [] },
+      equipment: [],
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Wizard', type: 'class' }),
+      expect.objectContaining({ name: 'Witch', type: 'class' }),
+    ]);
+    expect(createdItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Wizard Feature' }),
+      expect.objectContaining({ name: 'Witch Feature' }),
+    ]));
+    expect(actor.class.slug).toBe('witch');
+  });
+
   it('applies secondary dual-class extras with the secondary class spell data', async () => {
     game.settings.get = jest.fn(() => false);
 

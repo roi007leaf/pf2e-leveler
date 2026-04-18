@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.1.9
+
+### Character Wizard
+
+- **Dual-class creation now keeps both classes' feature trees intact** - Level 1 dual-class application now batches the secondary and primary class items in one embedded-item operation, so PF2E keeps both class feature sets instead of dropping the secondary side or treating the wrong class as active on the sheet
+- **Dual-class prompt summaries now include subclass and feat choices from both classes** - The wizard now carries secondary subclass prompts, dual-class subclass follow-up choices, and dual-class feat choice rows through the Feat Choices step and apply overlay instead of only reflecting the primary class path
+- **Primary and secondary subclass prompts now resolve against more PF2E rule shapes** - Apply-overlay prompt matching now handles both string and object-shaped subclass filters for all mapped subclass-bearing classes, so prompts such as Alchemist research fields, Barbarian instincts, and Bard muses show their selected values instead of staying pending or disappearing
+- **Fixed-skill `Assurance` grants no longer reopen full manual skill prompts** - Granted `Assurance` selections now align source-facing preselected skill flags with the feat's actual choice flag, so backgrounds and other grants that lock `Assurance` to a specific skill stop surfacing an unnecessary all-skills prompt
+
 ## 3.1.8
 
 ### Character Wizard

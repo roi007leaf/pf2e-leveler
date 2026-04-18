@@ -1,7 +1,7 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
 import { hydrateChoiceSets, parseChoiceSets } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { toggleKineticImpulse } from '../../../scripts/creation/creation-model.js';
-import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
+import { MIXED_ANCESTRY_UUID, SUBCLASS_TAGS } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -3887,6 +3887,142 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('includes selected dual-class subclass choice prompts in the apply overlay prompt rows', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-barbarian', slug: 'barbarian', name: 'Barbarian' };
+    wizard.data.dualClass = { uuid: 'class-bard', slug: 'bard', name: 'Bard' };
+    wizard.data.dualSubclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.enigma-muse',
+      name: 'Enigma',
+      choiceSets: [
+        {
+          flag: 'muse',
+          prompt: 'Select a muse.',
+          options: [
+            { value: 'enigma', label: 'Enigma' },
+            { value: 'maestro', label: 'Maestro' },
+          ],
+        },
+      ],
+      choices: {
+        muse: 'enigma',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.enigma-muse') {
+        return {
+          uuid,
+          name: 'Enigma',
+          system: {
+            rules: [
+              { key: 'ChoiceSet', flag: 'muse', prompt: 'Select a muse.' },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Enigma',
+        prompt: 'Select a muse.',
+        value: 'Enigma',
+      }),
+    ]);
+  });
+
+  it('includes dual-class subclass-selection prompts in the apply overlay when resolved from the chosen dual subclass', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-barbarian', slug: 'barbarian', name: 'Barbarian' };
+    wizard.data.dualClass = { uuid: 'class-bard', slug: 'bard', name: 'Bard', subclassTag: 'bard-muse' };
+    wizard.data.dualSubclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.enigma-muse',
+      name: 'Enigma',
+      slug: 'enigma-muse',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-bard') {
+        return {
+          uuid,
+          name: 'Bard',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'muse',
+                prompt: 'Select a muse.',
+                choices: {
+                  filter: ['item:tag:bard-muse'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Bard',
+        prompt: 'Select a muse.',
+        value: 'Enigma',
+      }),
+    ]);
+  });
+
+  it('includes selected dual-class feat choice prompts in the apply overlay prompt rows', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.dualClass = { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' };
+    wizard.data.dualClassFeat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.reach-spell',
+      name: 'Reach Spell',
+      choiceSets: [
+        {
+          flag: 'spellshape',
+          prompt: 'Choose spellshape rider.',
+          options: [
+            { value: 'wide', label: 'Wide' },
+          ],
+        },
+      ],
+      choices: {
+        spellshape: 'wide',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.reach-spell') {
+        return {
+          uuid,
+          name: 'Reach Spell',
+          system: {
+            rules: [
+              { key: 'ChoiceSet', flag: 'spellshape', prompt: 'Choose spellshape rider.' },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Reach Spell',
+        prompt: 'Choose spellshape rider.',
+        value: 'Wide',
+      }),
+    ]);
+  });
+
   it('includes granted feat choice prompts in the apply overlay prompt rows', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.heritage = {
@@ -4630,6 +4766,64 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(pending.some((entry) => entry.prompt === 'Select a skill')).toBe(false);
   });
 
+  it('does not surface Assurance when the grant preselect uses a source-facing skill flag instead of the feat flag', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.background = {
+      uuid: 'background-abadar-avenger',
+      name: "Abadar's Avenger",
+    };
+
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'background-abadar-avenger') {
+        return {
+          uuid,
+          name: "Abadar's Avenger",
+          type: 'background',
+          system: {
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0',
+                preselectChoices: {
+                  skill: 'religion',
+                },
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.W6Gl9ePmItfDHji0') {
+        return {
+          uuid,
+          name: 'Assurance',
+          type: 'feat',
+          system: {
+            slug: 'assurance',
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'assurance',
+                prompt: 'Select a skill',
+                choices: { config: 'skills' },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const pending = await wizard._getPendingChoices();
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(wizard.data.grantedFeatSections).toEqual([]);
+    expect(context.featChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
+    expect(pending.some((entry) => entry.prompt === 'Select a skill')).toBe(false);
+  });
+
   it('matches the active system prompt title to the relevant apply prompt row', () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._activeSystemPrompt = { title: 'Select a dragon.' };
@@ -4688,6 +4882,56 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('includes primary subclass-selection prompts in the apply overlay when the PF2E filter is object-shaped', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.pf2e.classes.Item.alchemist',
+      name: 'Alchemist',
+      slug: 'alchemist',
+      subclassTag: 'alchemist-research-field',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.bomber',
+      name: 'Bomber',
+      slug: 'bomber',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classes.Item.alchemist') {
+        return {
+          uuid,
+          name: 'Alchemist',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'researchField',
+                prompt: 'Select a research field.',
+                choices: {
+                  filter: [
+                    { or: ['item:tag:alchemist-research-field'] },
+                  ],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Alchemist',
+        prompt: 'Select a research field.',
+        value: 'Bomber',
+      }),
+    ]);
+  });
+
   it('maps subclass-tag filtered system prompts to the chosen subclass', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { slug: 'barbarian', name: 'Barbarian' };
@@ -4705,6 +4949,83 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     });
 
     expect(value).toBe('Dragon Instinct');
+  });
+
+  it('maps subclass-tag filtered prompts for every supported primary subclass class', async () => {
+    for (const [slug, subclassTag] of Object.entries(SUBCLASS_TAGS)) {
+      const wizard = new CharacterWizard(createMockActor());
+      wizard.data.class = {
+        uuid: `class-${slug}`,
+        slug,
+        name: slug,
+        subclassTag,
+      };
+      wizard.data.subclass = {
+        uuid: `subclass-${slug}`,
+        name: `${slug} subclass`,
+        slug: `${slug}-subclass`,
+        choiceSets: [],
+        choices: {},
+      };
+
+      const stringFilterValue = await wizard._resolvePromptSelectionLabel({
+        prompt: 'Select a subclass.',
+        choices: {
+          filter: [`item:tag:${subclassTag}`],
+        },
+      }, { uuid: `class-${slug}` });
+
+      const objectFilterValue = await wizard._resolvePromptSelectionLabel({
+        prompt: 'Select a subclass.',
+        choices: {
+          filter: [{ or: [`item:tag:${subclassTag}`] }],
+        },
+      }, { uuid: `class-${slug}` });
+
+      expect(stringFilterValue).toBe(`${slug} subclass`);
+      expect(objectFilterValue).toBe(`${slug} subclass`);
+    }
+  });
+
+  it('maps subclass-tag filtered prompts for every supported dual-class subclass class', async () => {
+    for (const [slug, subclassTag] of Object.entries(SUBCLASS_TAGS)) {
+      const wizard = new CharacterWizard(createMockActor());
+      wizard.data.class = {
+        uuid: 'class-primary',
+        slug: 'fighter',
+        name: 'fighter',
+      };
+      wizard.data.dualClass = {
+        uuid: `dual-class-${slug}`,
+        slug,
+        name: slug,
+        subclassTag,
+      };
+      wizard.data.dualSubclass = {
+        uuid: `dual-subclass-${slug}`,
+        name: `dual ${slug} subclass`,
+        slug: `dual-${slug}-subclass`,
+        choiceSets: [],
+        choices: {},
+      };
+
+      const stringFilterValue = await wizard._resolvePromptSelectionLabel({
+        prompt: 'Select a subclass.',
+        choices: {
+          filter: [`item:tag:${subclassTag}`],
+        },
+      }, { uuid: `dual-class-${slug}` });
+
+      const objectFilterValue = await wizard._resolvePromptSelectionLabel({
+        prompt: 'Select a subclass.',
+        choices: {
+          filter: [{ or: [`item:tag:${subclassTag}`] }],
+        },
+      }, { uuid: `dual-class-${slug}` });
+
+      expect(stringFilterValue).toBe(`dual ${slug} subclass`);
+      expect(objectFilterValue).toBe(`dual ${slug} subclass`);
+    }
   });
 
   it('maps cleric deity and sanctification prompts to wizard selections', async () => {
