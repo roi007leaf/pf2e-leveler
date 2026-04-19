@@ -38,6 +38,44 @@
         </div>
       </div>
 
+      {{#if showArmorFilters}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label picker__filter-label--row">
+          <span>Armor Filters</span>
+          <button type="button" class="picker__prereq-toggle" data-action="toggleArmorFilterLogic">{{#if (eq armorFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+        </div>
+        <div class="picker__source-list">
+          {{#each armorFilterOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleArmorFilter"
+            data-filter="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{#if showWeaponFilters}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label picker__filter-label--row">
+          <span>Weapon Filters</span>
+          <button type="button" class="picker__prereq-toggle" data-action="toggleWeaponFilterLogic">{{#if (eq weaponFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+        </div>
+        <div class="picker__source-list">
+          {{#each weaponFilterOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleWeaponFilter"
+            data-filter="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
         <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
@@ -108,7 +146,7 @@
             {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}}
           </button>
           {{/if}}
-          <div class="picker__results-count">{{filteredCount}}</div>
+          <div class="picker__results-count">{{#if capped}}{{renderedCount}}/{{filteredCount}}{{else}}{{filteredCount}}{{/if}}</div>
         </div>
       </div>
 
@@ -124,6 +162,9 @@
             </div>
             <div class="item-option__traits">
               <span class="tag tag--muted">{{this.category}}</span>
+              {{#each this.equipmentTags}}
+              <span class="tag tag--info">{{this}}</span>
+              {{/each}}
               {{#each this.traits}}
               <span class="tag tag--muted">{{this}}</span>
               {{/each}}
@@ -152,7 +193,7 @@
         </div>
         {{/each}}
         {{#if capped}}
-        <div class="item-picker__cap-notice">{{localize "PF2E_LEVELER.ITEM_PICKER.SHOWING_PARTIAL"}} {{filteredCount}}</div>
+        <div class="item-picker__cap-notice">{{localize "PF2E_LEVELER.ITEM_PICKER.SHOWING_PARTIAL"}} {{renderedCount}} / {{filteredCount}}</div>
         {{/if}}
       </div>
     </section>

@@ -57,6 +57,7 @@ export async function applyCreation(actor, data, onProgress = null) {
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
+  await applyDirectFeatGrantedSpells(actor, data);
   await applySelectedSkillChoices(actor, data);
   await ensureGrantedFeatSectionsApplied(actor, data);
   await applyEquipment(actor, data);
@@ -336,6 +337,13 @@ async function ensureGrantedFeatSectionsApplied(actor, data) {
   }
 }
 
+async function applyDirectFeatGrantedSpells(actor, data) {
+  const entries = await getDirectFeatGrantedSpellEntries(data);
+  for (const entry of entries) {
+    await applySelectedSpell(actor, entry, data);
+  }
+}
+
 async function applyMissingGrantedFeatSection(actor, data, section) {
   const uuid = section?.slot;
   if (typeof uuid !== 'string' || uuid.length === 0) return;
@@ -431,6 +439,65 @@ function applyStoredChoices(itemData, choices = {}) {
   itemData.flags ??= {};
   itemData.flags.pf2e ??= {};
   itemData.flags.pf2e.rulesSelections = Object.fromEntries(entries);
+}
+
+async function getDirectFeatGrantedSpellEntries(data) {
+  const featEntries = getSelectedFeatEntries(data);
+  const seen = new Set();
+  const entries = [];
+
+  for (const featEntry of featEntries) {
+    const feat = await fromUuid(featEntry.uuid).catch(() => null);
+    if (!feat) continue;
+    const featData = typeof feat.toObject === 'function' ? feat.toObject() : feat;
+
+    for (const uuid of extractSpellUuidsFromFeat(featData)) {
+      if (seen.has(uuid)) continue;
+      seen.add(uuid);
+      entries.push({
+        uuid,
+        name: featEntry.name ?? featData.name ?? 'Granted Spell',
+        _type: 'spell',
+      });
+    }
+  }
+
+  return entries;
+}
+
+function getSelectedFeatEntries(data) {
+  return [
+    data.ancestryFeat,
+    data.ancestryParagonFeat,
+    data.classFeat,
+    data.dualClassFeat,
+    data.skillFeat,
+    ...((data.grantedFeatSections ?? [])
+      .map((section) => (section?.slot && section?.featName ? { uuid: section.slot, name: section.featName } : null))
+      .filter(Boolean)),
+  ].filter((entry) => !!entry?.uuid);
+}
+
+function extractSpellUuidsFromFeat(feat) {
+  const uuids = new Set();
+
+  for (const rule of feat?.system?.rules ?? []) {
+    if (rule?.key === 'GrantItem' && typeof rule?.uuid === 'string' && rule.uuid.includes('spells-srd')) {
+      uuids.add(rule.uuid);
+    }
+  }
+
+  const html = String(feat?.system?.description?.value ?? '');
+  if (!html) return [...uuids];
+
+  for (const match of html.matchAll(/@UUID\[(Compendium\.pf2e\.spells-srd\.Item\.[^\]]+)\]/g)) {
+    uuids.add(match[1]);
+  }
+  for (const match of html.matchAll(/data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/g)) {
+    uuids.add(match[1]);
+  }
+
+  return [...uuids];
 }
 
 function isApplicableStoredChoice(itemData, flag, value) {

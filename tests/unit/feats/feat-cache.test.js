@@ -209,6 +209,107 @@ describe('feat cache', () => {
     ]);
   });
 
+  test('player compendium restrictions block discovered and custom feat packs that are not allowed', async () => {
+    invalidateCache();
+    global._testSettings = {
+      'pf2e-leveler': {
+        customCompendiums: {
+          feats: ['my-module.feats'],
+        },
+        restrictPlayerCompendiumAccess: true,
+        playerCompendiumAccess: {
+          enabled: true,
+          selections: {
+            feats: ['pf2e.feats-srd'],
+          },
+        },
+      },
+    };
+    game.user.isGM = false;
+
+    game.packs.get = jest.fn((key) => {
+      if (key === 'pf2e.feats-srd') {
+        return {
+          metadata: { packageName: 'pf2e' },
+          getDocuments: jest.fn(async () => [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.A',
+              type: 'feat',
+              system: { category: 'class', traits: { rarity: 'common' } },
+            },
+          ]),
+        };
+      }
+
+      if (key === 'my-module.feats') {
+        return {
+          metadata: { packageName: 'my-module' },
+          getDocuments: jest.fn(async () => [
+            {
+              uuid: 'Compendium.my-module.feats.Item.B',
+              type: 'feat',
+              system: { category: 'general', traits: { rarity: 'common' } },
+            },
+          ]),
+        };
+      }
+
+      if (key === 'other-module.discovered-feats') {
+        return {
+          metadata: { packageName: 'other-module' },
+          getDocuments: jest.fn(async () => [
+            {
+              uuid: 'Compendium.other-module.discovered-feats.Item.C',
+              type: 'feat',
+              system: { category: 'archetype', traits: { rarity: 'common' } },
+            },
+          ]),
+        };
+      }
+
+      return null;
+    });
+
+    game.packs.values = jest.fn(() => [
+      {
+        collection: 'pf2e.feats-srd',
+        documentName: 'Item',
+        metadata: { packageName: 'pf2e', type: 'Item', label: 'Feats', id: 'pf2e.feats-srd' },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'class' } }]),
+      },
+      {
+        collection: 'my-module.feats',
+        documentName: 'Item',
+        metadata: {
+          packageName: 'my-module',
+          type: 'Item',
+          label: 'My Feats',
+          id: 'my-module.feats',
+        },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'general' } }]),
+      },
+      {
+        collection: 'other-module.discovered-feats',
+        documentName: 'Item',
+        metadata: {
+          packageName: 'other-module',
+          type: 'Item',
+          label: 'Discovered Feats',
+          id: 'other-module.discovered-feats',
+        },
+        getIndex: jest.fn(async () => [{ type: 'feat', system: { category: 'archetype' } }]),
+      },
+    ]);
+
+    const feats = await loadFeats();
+
+    expect(feats.map((feat) => feat.uuid)).toEqual([
+      'Compendium.pf2e.feats-srd.Item.A',
+    ]);
+
+    game.user.isGM = true;
+  });
+
   test('reuses stored raw feat pack discovery across reloads instead of rescanning all pack indexes', async () => {
     invalidateCache();
     global._testSettings = {

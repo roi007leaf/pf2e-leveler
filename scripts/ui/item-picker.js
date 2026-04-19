@@ -5,6 +5,7 @@ import {
   applySourceFilter,
   applyTraitFilter,
   buildChipOptions,
+  isUnrestrictedSelection,
   initializeSelectionSet,
   normalizeItemCategory,
   toggleSelectableChip,
@@ -23,6 +24,22 @@ const CATEGORY_LABELS = {
   weapon: 'Weapon',
 };
 
+const ARMOR_FILTER_CATEGORY_LABELS = {
+  unarmored: 'Unarmored',
+  light: 'Light Armor',
+  medium: 'Medium Armor',
+  heavy: 'Heavy Armor',
+  'light-barding': 'Light Barding',
+  'heavy-barding': 'Heavy Barding',
+};
+
+const WEAPON_FILTER_CATEGORY_LABELS = {
+  simple: 'Simple Weapon',
+  martial: 'Martial Weapon',
+  advanced: 'Advanced Weapon',
+  unarmed: 'Unarmed Attack',
+};
+
 export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, onSelect, options = {}) {
     super();
@@ -37,10 +54,16 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedCategories = new Set();
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
     this.selectedTraits = new Set();
+    this.selectedArmorFilters = new Set();
+    this.selectedWeaponFilters = new Set();
     this.traitLogic = 'or';
+    this.armorFilterLogic = 'or';
+    this.weaponFilterLogic = 'or';
     this.maxLevel = '';
     this._sourceKeys = [];
     this._categoryValues = [];
+    this._armorFilterValues = [];
+    this._weaponFilterValues = [];
     this._updateTimer = null;
     this._domListeners = null;
     this._loading = this.allItems.length === 0;
@@ -69,26 +92,38 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const sourceOptions = this._getSourceOptions();
     const categoryOptions = this._getCategoryOptions();
+    const armorFilterOptions = this._getArmorFilterOptions();
+    const weaponFilterOptions = this._getWeaponFilterOptions();
+    const showArmorFilters = this._shouldShowEquipmentFilters('armor');
+    const showWeaponFilters = this._shouldShowEquipmentFilters('weapon');
     this.filteredItems = this._filterItems();
 
     const RENDER_LIMIT = 200;
     const capped = !this._hasActiveFilter() && this.filteredItems.length > RENDER_LIMIT;
+    const renderedItems = capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems;
     return {
       loading: false,
-      items: (capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems).map((item) => this._toTemplateItem(item)),
+      items: renderedItems.map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
+      renderedCount: renderedItems.length,
       capped,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
       allVisibleSelected: this._areAllVisibleSelected(),
       sourceOptions,
       categoryOptions,
+      armorFilterOptions,
+      weaponFilterOptions,
+      showArmorFilters,
+      showWeaponFilters,
       rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
       }),
       traitOptions: this._getTraitOptions(),
       selectedTraitChips: this._getTraitOptions().filter((o) => o.selected),
       traitLogic: this.traitLogic,
+      armorFilterLogic: this.armorFilterLogic,
+      weaponFilterLogic: this.weaponFilterLogic,
       searchText: this.searchText,
       maxLevel: this.maxLevel,
       levelOptions: this._getLevelOptions(),
@@ -109,6 +144,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       itemLevel: Number(item.system?.level?.value ?? 0),
       category: normalizeItemCategory(item),
       traits: [...new Set(item.system?.traits?.value ?? [])].filter((t) => t !== normalizeItemCategory(item)),
+      equipmentTags: getEquipmentItemTags(item),
       isRecommended: item.isRecommended ?? false,
       isDisallowed: item.isDisallowed ?? false,
       _levelerSelected: this.selectedItemUuids.has(item.uuid),
@@ -125,6 +161,12 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.selectedTraits.size > 0) {
       items = applyTraitFilter(items, this.selectedTraits, (item) => item.system?.traits?.value ?? [], this.traitLogic);
     }
+    if (this._shouldApplyEquipmentFilters('armor')) {
+      items = items.filter((item) => this._matchesEquipmentFilters(item, 'armor'));
+    }
+    if (this._shouldApplyEquipmentFilters('weapon')) {
+      items = items.filter((item) => this._matchesEquipmentFilters(item, 'weapon'));
+    }
     if (this.maxLevel !== '') {
       const max = Number(this.maxLevel);
       items = items.filter((item) => Number(item.system?.level?.value ?? 0) <= max);
@@ -140,8 +182,10 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.searchText) return true;
     if (this.maxLevel !== '') return true;
     if (this.selectedTraits.size > 0) return true;
-    if (this.selectedCategories.size > 0 && !this._categoryValues.every((v) => this.selectedCategories.has(v))) return true;
-    if (this._sourceKeys.length > 0 && !this._sourceKeys.every((k) => this.selectedSourcePackages.has(k))) return true;
+    if (this._shouldApplyEquipmentFilters('armor') && !this._armorFilterValues.every((v) => this.selectedArmorFilters.has(v))) return true;
+    if (this._shouldApplyEquipmentFilters('weapon') && !this._weaponFilterValues.every((v) => this.selectedWeaponFilters.has(v))) return true;
+    if (!isUnrestrictedSelection(this.selectedCategories, this._categoryValues)) return true;
+    if (!isUnrestrictedSelection(this.selectedSourcePackages, this._sourceKeys)) return true;
     if (!['common', 'uncommon', 'rare', 'unique'].every((r) => this.selectedRarities.has(r))) return true;
     return false;
   }
@@ -165,6 +209,26 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._categoryValues = categories;
     this.selectedCategories = initializeSelectionSet(this.selectedCategories, categories, { defaultValues: [] });
     return buildChipOptions(categories, this.selectedCategories, { labels: CATEGORY_LABELS });
+  }
+
+  _getArmorFilterOptions() {
+    const values = collectEquipmentFilterValues(this.allItems, 'armor');
+    this._armorFilterValues = values.map((entry) => entry.value);
+    this.selectedArmorFilters = initializeSelectionSet(this.selectedArmorFilters, this._armorFilterValues, { defaultValues: [] });
+    return values.map((entry) => ({
+      ...entry,
+      selected: this.selectedArmorFilters.has(entry.value),
+    }));
+  }
+
+  _getWeaponFilterOptions() {
+    const values = collectEquipmentFilterValues(this.allItems, 'weapon');
+    this._weaponFilterValues = values.map((entry) => entry.value);
+    this.selectedWeaponFilters = initializeSelectionSet(this.selectedWeaponFilters, this._weaponFilterValues, { defaultValues: [] });
+    return values.map((entry) => ({
+      ...entry,
+      selected: this.selectedWeaponFilters.has(entry.value),
+    }));
   }
 
   _getLevelOptions() {
@@ -259,9 +323,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!listContainer) return;
     const RENDER_LIMIT = 200;
     const capped = !this._hasActiveFilter() && this.filteredItems.length > RENDER_LIMIT;
+    const renderedItems = capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems;
     const context = {
-      items: (capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems).map((item) => this._toTemplateItem(item)),
+      items: renderedItems.map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
+      renderedCount: renderedItems.length,
       capped,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
@@ -273,7 +339,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const newList = temp.querySelector('.item-list');
     if (newList) listContainer.innerHTML = newList.innerHTML;
     const countEl = root?.querySelector('.picker__results-count');
-    if (countEl) countEl.textContent = String(this.filteredItems.length);
+    if (countEl) countEl.textContent = capped ? `${renderedItems.length}/${this.filteredItems.length}` : String(this.filteredItems.length);
 
     const traitChipContainer = root?.querySelector('[data-role="selected-trait-chips"]');
     if (traitChipContainer) {
@@ -290,6 +356,30 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this._cachedVisibleTraits = this._getVisibleTraits();
     this._updateSelectionUI();
+  }
+
+  _matchesEquipmentFilters(item, kind) {
+    const selected = kind === 'armor' ? this.selectedArmorFilters : this.selectedWeaponFilters;
+    const logic = kind === 'armor' ? this.armorFilterLogic : this.weaponFilterLogic;
+    const available = kind === 'armor' ? this._armorFilterValues : this._weaponFilterValues;
+    if (selected.size === 0) return true;
+    if (selected.size > 0 && available.every((value) => selected.has(value))) return true;
+
+    const itemValues = getEquipmentFilterValuesForItem(item, kind);
+    if (itemValues.size === 0) return false;
+    if (logic === 'and') return [...selected].every((value) => itemValues.has(value));
+    return [...selected].some((value) => itemValues.has(value));
+  }
+
+  _shouldShowEquipmentFilters(kind) {
+    const category = kind === 'armor' ? 'armor' : 'weapon';
+    const available = kind === 'armor' ? this._armorFilterValues : this._weaponFilterValues;
+    return available.length > 0 && this.selectedCategories.has(category);
+  }
+
+  _shouldApplyEquipmentFilters(kind) {
+    const selected = kind === 'armor' ? this.selectedArmorFilters : this.selectedWeaponFilters;
+    return this._shouldShowEquipmentFilters(kind) && selected.size > 0;
   }
 
   _scheduleUpdate() {
@@ -381,14 +471,41 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
       if (action === 'toggleCategory') {
         this.selectedCategories = toggleSelectableChip(this.selectedCategories, target.dataset.category, this._categoryValues);
-        target.classList.toggle('selected', this.selectedCategories.has(target.dataset.category));
-        this._updateList();
+        this.render(false);
         return;
       }
 
       if (action === 'toggleRarityChip') {
         this.selectedRarities = toggleSelectableChip(this.selectedRarities, target.dataset.rarity, ['common', 'uncommon', 'rare', 'unique']);
         target.classList.toggle('selected', this.selectedRarities.has(target.dataset.rarity));
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleArmorFilter') {
+        this.selectedArmorFilters = toggleSelectableChip(this.selectedArmorFilters, target.dataset.filter, this._armorFilterValues);
+        target.classList.toggle('selected', this.selectedArmorFilters.has(target.dataset.filter));
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleArmorFilterLogic') {
+        this.armorFilterLogic = this.armorFilterLogic === 'and' ? 'or' : 'and';
+        target.textContent = this.armorFilterLogic === 'and' ? 'AND' : 'OR';
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleWeaponFilter') {
+        this.selectedWeaponFilters = toggleSelectableChip(this.selectedWeaponFilters, target.dataset.filter, this._weaponFilterValues);
+        target.classList.toggle('selected', this.selectedWeaponFilters.has(target.dataset.filter));
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleWeaponFilterLogic') {
+        this.weaponFilterLogic = this.weaponFilterLogic === 'and' ? 'or' : 'and';
+        target.textContent = this.weaponFilterLogic === 'and' ? 'AND' : 'OR';
         this._updateList();
         return;
       }
@@ -595,4 +712,91 @@ function compactSourceOwnerLabel(label) {
   text = text.replace(/\s+for\s+Pathfinder\s+2e\s+by\s+Roll\s+For\s+Combat$/i, '');
   text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
   return text;
+}
+
+function collectEquipmentFilterValues(items, kind) {
+  const values = new Map();
+  for (const item of items ?? []) {
+    for (const value of getEquipmentFilterValuesForItem(item, kind)) {
+      if (!values.has(value)) {
+        values.set(value, {
+          value,
+          label: getEquipmentFilterLabel(value, kind),
+        });
+      }
+    }
+  }
+  return [...values.values()].sort(compareEquipmentFilterOptions);
+}
+
+function getEquipmentFilterValuesForItem(item, kind) {
+  const values = new Set();
+  const type = String(item?.type ?? '').toLowerCase();
+  const category = normalizeEquipmentProperty(
+    item?.system?.category?.value ?? item?.system?.category ?? item?.category ?? '',
+  );
+  const group = normalizeEquipmentProperty(
+    item?.system?.group?.value ?? item?.system?.group ?? '',
+  );
+  const traits = new Set((item?.system?.traits?.value ?? []).map((trait) => normalizeEquipmentProperty(trait)).filter(Boolean));
+
+  if (kind === 'armor') {
+    if (type !== 'armor') return values;
+    if (category) values.add(`category:${category}`);
+    if (group) values.add(`group:${group}`);
+    for (const fallback of ['chain', 'cloth', 'composite', 'leather', 'plate', 'skeletal', 'wood', 'ceramic', 'polymer']) {
+      if (traits.has(fallback)) values.add(`group:${fallback}`);
+    }
+    return values;
+  }
+
+  if (type !== 'weapon') return values;
+  if (category) values.add(`category:${category}`);
+  if (group) values.add(`group:${group}`);
+  return values;
+}
+
+function normalizeEquipmentProperty(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+}
+
+function getEquipmentFilterLabel(value, kind) {
+  const [type, raw] = String(value ?? '').split(':');
+  if (!raw) return value;
+  if (type === 'category' && kind === 'armor') return ARMOR_FILTER_CATEGORY_LABELS[raw] ?? humanizeEquipmentFilterValue(raw);
+  if (type === 'category' && kind === 'weapon') return WEAPON_FILTER_CATEGORY_LABELS[raw] ?? humanizeEquipmentFilterValue(raw);
+  return humanizeEquipmentFilterValue(raw);
+}
+
+function getEquipmentItemTags(item) {
+  const type = String(item?.type ?? '').toLowerCase();
+  if (type !== 'armor' && type !== 'weapon') return [];
+
+  const values = getEquipmentFilterValuesForItem(item, type);
+  const tags = [];
+  for (const value of values) {
+    const [tagType] = String(value).split(':');
+    if (tagType !== 'category' && tagType !== 'group') continue;
+    const label = getEquipmentFilterLabel(value, type);
+    if (!tags.includes(label)) tags.push(label);
+  }
+  return tags;
+}
+
+function humanizeEquipmentFilterValue(value) {
+  return String(value ?? '')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function compareEquipmentFilterOptions(a, b) {
+  const [typeA] = String(a?.value ?? '').split(':');
+  const [typeB] = String(b?.value ?? '').split(':');
+  if (typeA !== typeB) return typeA === 'category' ? -1 : 1;
+  return String(a?.label ?? '').localeCompare(String(b?.label ?? ''));
 }

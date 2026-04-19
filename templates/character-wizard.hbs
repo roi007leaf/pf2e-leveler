@@ -107,7 +107,27 @@
 
         {{#if browserStep.backgroundSkillFilters}}
         <div class="wizard-browser-filter">
-          <div class="wizard-browser-filter__label">Skills</div>
+          <div class="wizard-browser-filter__labelRow">
+            <div class="wizard-browser-filter__label">Skills</div>
+            <div class="wizard-filter-logic" role="group" aria-label="Skill filter logic">
+              <button
+                type="button"
+                class="wizard-filter-logic__button {{#if (eq browserStep.backgroundSkillLogic "or")}}selected{{/if}}"
+                data-action="setBackgroundSkillLogic"
+                data-logic="or"
+                aria-pressed="{{#if (eq browserStep.backgroundSkillLogic "or")}}true{{else}}false{{/if}}">
+                Any
+              </button>
+              <button
+                type="button"
+                class="wizard-filter-logic__button {{#if (eq browserStep.backgroundSkillLogic "and")}}selected{{/if}}"
+                data-action="setBackgroundSkillLogic"
+                data-logic="and"
+                aria-pressed="{{#if (eq browserStep.backgroundSkillLogic "and")}}true{{else}}false{{/if}}">
+                All
+              </button>
+            </div>
+          </div>
           <div class="wizard-source-filters__chips">
             {{#each browserStep.backgroundSkillFilters}}
             <button type="button" class="wizard-source-filter {{#if this.selected}}selected{{/if}}" data-action="toggleBackgroundSkillFilter" data-skill="{{this.value}}">
@@ -120,7 +140,27 @@
 
         {{#if browserStep.backgroundAttributeFilters}}
         <div class="wizard-browser-filter">
-          <div class="wizard-browser-filter__label">Attributes</div>
+          <div class="wizard-browser-filter__labelRow">
+            <div class="wizard-browser-filter__label">Attributes</div>
+            <div class="wizard-filter-logic" role="group" aria-label="Attribute filter logic">
+              <button
+                type="button"
+                class="wizard-filter-logic__button {{#if (eq browserStep.backgroundAttributeLogic "or")}}selected{{/if}}"
+                data-action="setBackgroundAttributeLogic"
+                data-logic="or"
+                aria-pressed="{{#if (eq browserStep.backgroundAttributeLogic "or")}}true{{else}}false{{/if}}">
+                Any
+              </button>
+              <button
+                type="button"
+                class="wizard-filter-logic__button {{#if (eq browserStep.backgroundAttributeLogic "and")}}selected{{/if}}"
+                data-action="setBackgroundAttributeLogic"
+                data-logic="and"
+                aria-pressed="{{#if (eq browserStep.backgroundAttributeLogic "and")}}true{{else}}false{{/if}}">
+                All
+              </button>
+            </div>
+          </div>
           <div class="wizard-source-filters__chips">
             {{#each browserStep.backgroundAttributeFilters}}
             <button type="button" class="wizard-source-filter {{#if this.selected}}selected{{/if}}" data-action="toggleBackgroundAttributeFilter" data-attribute="{{this.value}}">

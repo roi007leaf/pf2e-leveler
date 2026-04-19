@@ -9,6 +9,7 @@ import {
   loadBackgrounds,
   loadHeritages,
   loadRawHeritages,
+  invalidateCharacterWizardCompendiumCaches,
 } from '../../../scripts/ui/character-wizard/loaders.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { saveCreationData } from '../../../scripts/creation/creation-store.js';
@@ -281,7 +282,7 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
   it('loads background browser entries with trained skills and boosts for filtering', async () => {
     const wizard = new CharacterWizard(createMockActor());
-    wizard._compendiumCache.backgrounds = [
+    wizard._loadCompendium = jest.fn(async () => [
       {
         uuid: 'background-1',
         name: 'Warrior',
@@ -296,8 +297,9 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         traits: [],
         trainedSkills: ['athletics'],
         boosts: ['str', 'con'],
+        boostSets: [['str', 'con']],
       },
-    ];
+    ]);
 
     const items = await loadBackgrounds(wizard);
 
@@ -306,8 +308,232 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         uuid: 'background-1',
         trainedSkills: ['athletics'],
         boosts: ['str', 'con'],
+        backgroundAttributes: ['str', 'con'],
       }),
     ]);
+  });
+
+  it('loads background browser attributes from key ability data when boosts are empty', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._loadCompendium = jest.fn(async () => [
+      {
+        uuid: 'background-1',
+        name: 'Acolyte',
+        type: 'background',
+        sourcePack: 'pf2e.backgrounds',
+        sourceLabel: 'Backgrounds',
+        sourcePackage: 'pf2e',
+        sourcePackageLabel: 'PF2E',
+        slug: 'acolyte',
+        rarity: 'common',
+        description: '',
+        traits: [],
+        trainedSkills: ['religion'],
+        boosts: [],
+        boostSets: [['int', 'wis'], ['str', 'dex', 'con', 'int', 'wis', 'cha']],
+        keyAbility: ['int', 'wis'],
+      },
+    ]);
+
+    const items = await loadBackgrounds(wizard);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        uuid: 'background-1',
+        backgroundAttributes: ['int', 'wis'],
+      }),
+    ]);
+  });
+
+  it('hydrates cached background entries with derived background attributes', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._compendiumCache.backgrounds = [
+      {
+        uuid: 'background-1',
+        name: 'Acolyte',
+        type: 'background',
+        trainedSkills: ['religion'],
+        boosts: ['int', 'wis', 'str', 'dex', 'con', 'cha'],
+        boostSets: [['int', 'wis'], ['str', 'dex', 'con', 'int', 'wis', 'cha']],
+        keyAbility: ['int', 'wis'],
+      },
+    ];
+
+    const items = await loadBackgrounds(wizard);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        uuid: 'background-1',
+        backgroundAttributes: ['int', 'wis'],
+      }),
+    ]);
+  });
+
+  it('prefers the narrow specific background attribute choices over free-choice rows', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._loadCompendium = jest.fn(async () => [
+      {
+        uuid: 'background-1',
+        name: 'Acolyte',
+        type: 'background',
+        sourcePack: 'pf2e.backgrounds',
+        sourceLabel: 'Backgrounds',
+        sourcePackage: 'pf2e',
+        sourcePackageLabel: 'PF2E',
+        slug: 'acolyte',
+        rarity: 'common',
+        description: '',
+        traits: [],
+        trainedSkills: ['religion'],
+        boosts: ['int', 'wis', 'str', 'dex', 'con', 'cha'],
+        boostSets: [
+          ['intelligence', 'wisdom'],
+          ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
+        ],
+        keyAbility: ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
+      },
+    ]);
+
+    const items = await loadBackgrounds(wizard);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        uuid: 'background-1',
+        backgroundAttributes: ['int', 'wis'],
+      }),
+    ]);
+  });
+
+  it('filters background browser items by selected attributes', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundAttributeFilter" data-attribute="str"></button>
+      <div class="wizard-item" data-name="Warrior" data-rarity="common" data-skills="athletics" data-attributes="str,con"></div>
+      <div class="wizard-item" data-name="Scholar" data-rarity="common" data-skills="arcana" data-attributes="int,wis"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundAttributeFilters.add('str');
+
+    wizard._filterItems(document.body, '');
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
+  });
+
+  it('supports AND logic for background skill filters', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundSkillFilter" data-skill="arcana"></button>
+      <div class="wizard-item" data-name="Sage" data-rarity="common" data-skills="arcana,occultism" data-attributes="int"></div>
+      <div class="wizard-item" data-name="Researcher" data-rarity="common" data-skills="arcana" data-attributes="int,wis"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundSkillFilters = new Set(['arcana', 'occultism']);
+    wizard._backgroundSkillFilterLogic = 'and';
+
+    wizard._filterItems(document.body, '');
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
+  });
+
+  it('supports AND logic for background attribute filters', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundAttributeFilter" data-attribute="str"></button>
+      <div class="wizard-item" data-name="Warrior" data-rarity="common" data-skills="athletics" data-attributes="str,con"></div>
+      <div class="wizard-item" data-name="Brawler" data-rarity="common" data-skills="athletics" data-attributes="str"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundAttributeFilters = new Set(['str', 'con']);
+    wizard._backgroundAttributeFilterLogic = 'and';
+
+    wizard._filterItems(document.body, '');
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
+  });
+
+  it('matches background attribute filters against full attribute names', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundAttributeFilter" data-attribute="int"></button>
+      <div class="wizard-item" data-name="Acolyte" data-rarity="common" data-skills="religion" data-attributes="intelligence,wisdom"></div>
+      <div class="wizard-item" data-name="Warrior" data-rarity="common" data-skills="athletics" data-attributes="strength,constitution"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundAttributeFilters.add('int');
+
+    wizard._filterItems(document.body, '');
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
+  });
+
+  it('filters background browser items by key ability-backed attributes', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundAttributeFilter" data-attribute="int"></button>
+      <div class="wizard-item" data-name="Acolyte" data-rarity="common" data-skills="religion" data-attributes="int,wis"></div>
+      <div class="wizard-item" data-name="Warrior" data-rarity="common" data-skills="athletics" data-attributes="str,con"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundAttributeFilters.add('int');
+
+    wizard._filterItems(document.body, '');
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
+  });
+
+  it('updates visible background result count when browser filters run', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="toggleBackgroundAttributeFilter" data-attribute="str"></button>
+      <div class="wizard-browser__count">2</div>
+      <div class="wizard-item" data-name="Warrior" data-rarity="common" data-skills="athletics" data-attributes="str,con"></div>
+      <div class="wizard-item" data-name="Scholar" data-rarity="common" data-skills="arcana" data-attributes="int,wis"></div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._backgroundAttributeFilters.add('str');
+
+    wizard._filterItems(document.body, '');
+
+    expect(document.querySelector('.wizard-browser__count').textContent).toBe('1');
+  });
+
+  it('reapplies background browser filters after rerender', () => {
+    document.body.innerHTML = `
+      <div class="wizard-browser">
+        <button type="button" data-action="toggleBackgroundSkillFilter" data-skill="religion"></button>
+        <button type="button" data-action="toggleBackgroundSkillFilter" data-skill="arcana"></button>
+        <div class="wizard-browser__count">2</div>
+        <div class="wizard-item" data-name="Acolyte" data-rarity="common" data-skills="religion" data-attributes="int,wis"></div>
+        <div class="wizard-item" data-name="Scholar" data-rarity="common" data-skills="religion,arcana" data-attributes="int,wis"></div>
+      </div>
+    `;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.element = document.body;
+    wizard._restoreWizardScroll = jest.fn();
+    wizard._activateListeners = jest.fn();
+    wizard._ensureBootstrapped = jest.fn();
+    wizard._syncSpellLayout = jest.fn();
+    wizard.currentStep = 3;
+    wizard._backgroundSkillFilters = new Set(['religion', 'arcana']);
+    wizard._backgroundSkillFilterLogic = 'and';
+
+    wizard._onRender();
+
+    const items = Array.from(document.querySelectorAll('.wizard-item'));
+    expect(items[0].style.display).toBe('none');
+    expect(items[1].style.display).toBe('');
+    expect(document.querySelector('.wizard-browser__count').textContent).toBe('1');
   });
 
   it('heritage step only shows actual heritage documents from mixed assigned packs', async () => {
@@ -441,6 +667,73 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         ancestrySlug: 'dragon',
       }),
     ]);
+  });
+
+  it('drops stale cached heritages after compendium settings invalidation', async () => {
+    game.user.isGM = false;
+    global._testSettings = {
+      'pf2e-leveler': {
+        customCompendiums: {},
+        restrictPlayerCompendiumAccess: true,
+        playerCompendiumAccess: {
+          enabled: true,
+          selections: {
+            heritages: ['pf2e.heritages'],
+          },
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._compendiumCache = {
+      heritages: [
+        {
+          uuid: 'Compendium.custom.heritages.Item.hidden',
+          name: 'Hidden Heritage',
+          type: 'heritage',
+          sourcePack: 'custom.heritages',
+          sourcePackage: 'custom-module',
+          sourcePackageLabel: 'Custom Module',
+          ancestrySlug: 'human',
+          traits: ['human'],
+          rarity: 'common',
+        },
+      ],
+    };
+    wizard._compendiumCacheVersion = 0;
+
+    game.packs.get.mockImplementation((key) => {
+      if (key !== 'pf2e.heritages') return null;
+      return {
+        metadata: {
+          label: 'PF2E Heritages',
+          packageName: 'pf2e',
+        },
+        collection: 'pf2e.heritages',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.heritages.Item.versatile',
+            name: 'Versatile Heritage',
+            img: 'icons/svg/mystery-man.svg',
+            type: 'heritage',
+            slug: 'versatile-heritage',
+            system: {
+              traits: { value: ['human'], rarity: 'common' },
+              ancestry: { slug: 'human' },
+            },
+          },
+        ]),
+      };
+    });
+
+    invalidateCharacterWizardCompendiumCaches();
+    const items = await loadRawHeritages(wizard);
+
+    expect(items.map((item) => item.uuid)).toEqual([
+      'Compendium.pf2e.heritages.Item.versatile',
+    ]);
+
+    game.user.isGM = true;
   });
 
   it('class step only shows actual class documents from mixed assigned packs', async () => {
@@ -1097,6 +1390,42 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         target: 'dualClass',
       }),
     ]);
+  });
+
+  it('includes selected class uuid in browser context for single-class class step', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return false;
+      if (scope === 'pf2e-leveler' && key === 'allowIncompleteCreation') return false;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 4;
+    wizard.data.class = {
+      uuid: 'class-1',
+      name: 'Alchemist',
+      img: 'alchemist.png',
+      slug: 'alchemist',
+    };
+    wizard._ensureClassMetadata = jest.fn(async () => {});
+    wizard._ensureDualClassMetadata = jest.fn(async () => {});
+    wizard._hasClassFeatAtLevel1 = jest.fn(async () => false);
+    wizard._getRequiredClassBoostSelections = jest.fn(async () => 0);
+    wizard._computeBoostStepComplete = jest.fn(async () => true);
+    wizard._getAdditionalLanguageCount = jest.fn(async () => 0);
+    wizard._getAdditionalSkillCount = jest.fn(async () => 0);
+    wizard._loadClasses = jest.fn(async () => []);
+    jest.spyOn(wizard, 'visibleSteps', 'get').mockReturnValue(['class']);
+    jest.spyOn(wizard, '_isStepComplete').mockReturnValue(false);
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.selected).toEqual(expect.objectContaining({
+      uuid: 'class-1',
+      slug: 'alchemist',
+      name: 'Alchemist',
+    }));
   });
 
   it('binds grouped clearClass buttons independently so dual class can be cleared', async () => {

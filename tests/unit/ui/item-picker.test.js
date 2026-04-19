@@ -101,6 +101,361 @@ describe('ItemPicker', () => {
     expect(picker.close).toHaveBeenCalled();
   });
 
+  test('builds dedicated armor and weapon filter options from item metadata', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            group: { value: 'chain' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+      ],
+    });
+
+    const armorOptions = picker._getArmorFilterOptions();
+    const weaponOptions = picker._getWeaponFilterOptions();
+
+    expect(armorOptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'category:medium', label: 'Medium Armor' }),
+      expect.objectContaining({ value: 'group:chain', label: 'Chain' }),
+    ]));
+    expect(weaponOptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'category:martial', label: 'Martial Weapon' }),
+      expect.objectContaining({ value: 'group:sword', label: 'Sword' }),
+    ]));
+  });
+
+  test('filters items by dedicated armor filters', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            group: { value: 'chain' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'armor-2',
+          name: 'Leather Armor',
+          type: 'armor',
+          system: {
+            category: { value: 'light' },
+            group: { value: 'leather' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+      ],
+    });
+
+    picker._getArmorFilterOptions();
+    picker.selectedCategories = new Set(['armor']);
+    picker.selectedArmorFilters = new Set(['category:medium']);
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['armor-1']);
+  });
+
+  test('supports AND logic for dedicated weapon filters', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-2',
+          name: 'Greatsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-3',
+          name: 'Longbow',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'bow' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-4',
+          name: 'Dagger',
+          type: 'weapon',
+          system: {
+            category: { value: 'simple' },
+            group: { value: 'knife' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+      ],
+    });
+
+    picker._getWeaponFilterOptions();
+    picker.selectedCategories = new Set(['weapon']);
+    picker.selectedWeaponFilters = new Set(['category:martial', 'group:sword']);
+    picker.weaponFilterLogic = 'and';
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['weapon-1', 'weapon-2']);
+  });
+
+  test('hides armor and weapon filters before parent category is explicitly selected', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            group: { value: 'chain' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.showArmorFilters).toBe(false);
+    expect(context.showWeaponFilters).toBe(false);
+  });
+
+  test('hides armor filters when armor category is not selected', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            group: { value: 'chain' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+      ],
+    });
+
+    picker._getCategoryOptions();
+    picker.selectedCategories = new Set(['weapon']);
+
+    const context = await picker._prepareContext();
+
+    expect(context.showArmorFilters).toBe(false);
+    expect(context.showWeaponFilters).toBe(true);
+  });
+
+  test('ignores hidden armor filters until armor category is active again', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            group: { value: 'chain' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'armor-2',
+          name: 'Leather Armor',
+          type: 'armor',
+          system: {
+            category: { value: 'light' },
+            group: { value: 'leather' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          system: {
+            category: { value: 'martial' },
+            group: { value: 'sword' },
+            traits: { rarity: 'common', value: [] },
+          },
+        },
+      ],
+    });
+
+    picker._getCategoryOptions();
+    picker._getArmorFilterOptions();
+    picker.selectedCategories = new Set(['armor']);
+    picker.selectedArmorFilters = new Set(['category:medium']);
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['armor-1']);
+
+    picker.selectedCategories = new Set(['weapon']);
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['weapon-1']);
+
+    picker.selectedCategories = new Set(['armor']);
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['armor-1']);
+  });
+
+  test('builds special equipment tags for armor and weapon items', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [],
+    });
+
+    const armorItem = picker._toTemplateItem({
+      uuid: 'armor-1',
+      name: 'Chain Mail',
+      type: 'armor',
+      system: {
+        category: { value: 'medium' },
+        group: { value: 'chain' },
+        traits: { rarity: 'common', value: [] },
+        level: { value: 1 },
+      },
+    });
+    const weaponItem = picker._toTemplateItem({
+      uuid: 'weapon-1',
+      name: 'Longsword',
+      type: 'weapon',
+      system: {
+        category: { value: 'martial' },
+        group: { value: 'sword' },
+        traits: { rarity: 'common', value: [] },
+        level: { value: 1 },
+      },
+    });
+
+    expect(armorItem.equipmentTags).toEqual(['Medium Armor', 'Chain']);
+    expect(weaponItem.equipmentTags).toEqual(['Martial Weapon', 'Sword']);
+  });
+
+  test('caps initial item picker results to first 200 items with no active filters', async () => {
+    const items = Array.from({ length: 250 }, (_, i) => ({
+      uuid: `item-${i}`,
+      name: `Item ${String(i).padStart(3, '0')}`,
+      type: 'equipment',
+      system: {
+        traits: { rarity: 'common', value: [] },
+        level: { value: 1 },
+      },
+    }));
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), { items });
+
+    const context = await picker._prepareContext();
+
+    expect(context.filteredCount).toBe(250);
+    expect(context.renderedCount).toBe(200);
+    expect(context.items).toHaveLength(200);
+    expect(context.capped).toBe(true);
+  });
+
+  test('caps initial item picker results even when source packages are present but no source filter is selected', async () => {
+    const items = Array.from({ length: 250 }, (_, i) => ({
+      uuid: `item-${i}`,
+      name: `Item ${String(i).padStart(3, '0')}`,
+      type: 'equipment',
+      sourcePackage: i < 220 ? 'pf2e' : 'custom',
+      sourcePackageLabel: i < 220 ? 'PF2E' : 'Custom',
+      system: {
+        traits: { rarity: 'common', value: [] },
+        level: { value: 1 },
+      },
+    }));
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), { items });
+
+    const context = await picker._prepareContext();
+
+    expect(context.filteredCount).toBe(250);
+    expect(context.renderedCount).toBe(200);
+    expect(context.items).toHaveLength(200);
+    expect(context.capped).toBe(true);
+  });
+
+  test('shows all matching item picker results once a specific filter is active', async () => {
+    const items = Array.from({ length: 250 }, (_, i) => ({
+      uuid: `item-${i}`,
+      name: `Item ${String(i).padStart(3, '0')}`,
+      type: 'equipment',
+      sourcePackage: i < 220 ? 'pf2e' : 'custom',
+      sourcePackageLabel: i < 220 ? 'PF2E' : 'Custom',
+      system: {
+        traits: { rarity: 'common', value: [] },
+        level: { value: 1 },
+      },
+    }));
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), { items });
+
+    picker._getSourceOptions();
+    picker.selectedSourcePackages = new Set(['custom']);
+    const context = await picker._prepareContext();
+
+    expect(context.filteredCount).toBe(30);
+    expect(context.renderedCount).toBe(30);
+    expect(context.items).toHaveLength(30);
+    expect(context.capped).toBe(false);
+  });
+
   test('toggle select all only affects visible items', () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       multiSelect: true,

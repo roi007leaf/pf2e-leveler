@@ -159,6 +159,15 @@ const SKILL_SLUG_ALIASES = {
   thi: 'thievery',
 };
 
+const ATTRIBUTE_SLUG_ALIASES = {
+  strength: 'str',
+  dexterity: 'dex',
+  constitution: 'con',
+  intelligence: 'int',
+  wisdom: 'wis',
+  charisma: 'cha',
+};
+
 const STEPS = [
   'ancestry',
   'heritage',
@@ -239,6 +248,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._activeSystemPrompt = null;
     this._backgroundSkillFilters = new Set();
     this._backgroundAttributeFilters = new Set();
+    this._backgroundSkillFilterLogic = 'or';
+    this._backgroundAttributeFilterLogic = 'or';
     const sanitizedDisabledDualClassState = this._sanitizeDisabledDualClassState();
     this._featChoiceDataDirty = !this._hasReusableFeatChoiceData(this.data);
     if (sanitizedDisabledDualClassState) this._featChoiceDataDirty = true;
@@ -519,20 +530,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       compendiumSourceOptions,
     );
     const browserStep = buildBrowserStepContext(this.stepId, this.data, stepContext);
-    if (browserStep?.stepId === 'background') {
-      browserStep.backgroundSkillFilters = (browserStep.backgroundSkillFilters ?? []).map(
-        (entry) => ({
-          ...entry,
-          selected: this._backgroundSkillFilters.has(entry.value),
-        }),
-      );
-      browserStep.backgroundAttributeFilters = (browserStep.backgroundAttributeFilters ?? []).map(
-        (entry) => ({
-          ...entry,
-          selected: this._backgroundAttributeFilters.has(entry.value),
-        }),
-      );
-    }
+      if (browserStep?.stepId === 'background') {
+        browserStep.backgroundSkillFilters = (browserStep.backgroundSkillFilters ?? []).map(
+          (entry) => ({
+            ...entry,
+            selected: this._backgroundSkillFilters.has(entry.value),
+          }),
+        );
+        browserStep.backgroundAttributeFilters = (browserStep.backgroundAttributeFilters ?? []).map(
+          (entry) => ({
+            ...entry,
+            selected: this._backgroundAttributeFilters.has(entry.value),
+          }),
+        );
+        browserStep.backgroundSkillLogic = this._backgroundSkillFilterLogic;
+        browserStep.backgroundAttributeLogic = this._backgroundAttributeFilterLogic;
+      }
     const applyOverlay = this.isApplying ? await this._buildApplyOverlayContext() : {};
 
     return {
@@ -560,6 +573,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const el = this.element;
     this._restoreWizardScroll(el);
     this._activateListeners(el);
+    this._applyBrowserFilters(el);
     this._ensureBootstrapped();
     this._syncSpellLayout(el);
   }
@@ -1612,26 +1626,37 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const requiredAttributes = el.querySelector?.('[data-action="toggleBackgroundAttributeFilter"]')
       ? new Set(this._backgroundAttributeFilters)
       : new Set();
-
+    let visibleCount = 0;
     el.querySelectorAll('.wizard-item, .skill-btn[data-name]').forEach((item) => {
       const name = item.dataset.name?.toLowerCase() ?? '';
       const rarity = item.dataset.rarity || 'common';
       const itemSkills = String(item.dataset.skills ?? '')
         .split(',')
+        .map((value) => normalizeBackgroundSkillValue(value))
         .filter(Boolean);
       const itemAttributes = String(item.dataset.attributes ?? '')
         .split(',')
+        .map((value) => normalizeBackgroundAttributeValue(value))
         .filter(Boolean);
       const matchesQuery = name.includes(effectiveQuery);
       const matchesRarity = !hiddenRarities.has(rarity);
-      const matchesSkills =
-        requiredSkills.size === 0 || itemSkills.some((skill) => requiredSkills.has(skill));
-      const matchesAttributes =
-        requiredAttributes.size === 0 ||
-        itemAttributes.some((attr) => requiredAttributes.has(attr));
-      item.style.display =
-        matchesQuery && matchesRarity && matchesSkills && matchesAttributes ? '' : 'none';
+      const matchesSkills = this._matchesBackgroundFilterSet(
+        itemSkills,
+        requiredSkills,
+        this._backgroundSkillFilterLogic,
+      );
+      const matchesAttributes = this._matchesBackgroundFilterSet(
+        itemAttributes,
+        requiredAttributes,
+        this._backgroundAttributeFilterLogic,
+      );
+      const visible = matchesQuery && matchesRarity && matchesSkills && matchesAttributes;
+      item.style.display = visible ? '' : 'none';
+      if (visible && item.classList.contains('wizard-item')) visibleCount += 1;
     });
+
+    const countEl = el.querySelector?.('.wizard-browser__count');
+    if (countEl) countEl.textContent = String(visibleCount);
   }
 
   _toggleBackgroundSkillFilter(skill) {
@@ -1647,6 +1672,45 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       this._backgroundAttributeFilters.delete(attribute);
     else this._backgroundAttributeFilters.add(attribute);
     this._filterItems(this.element, '');
+  }
+
+  _toggleBackgroundSkillFilterLogic() {
+    this._backgroundSkillFilterLogic = this._backgroundSkillFilterLogic === 'and' ? 'or' : 'and';
+    this.render(true);
+  }
+
+  _setBackgroundSkillFilterLogic(logic) {
+    const normalized = logic === 'and' ? 'and' : 'or';
+    if (this._backgroundSkillFilterLogic === normalized) return;
+    this._backgroundSkillFilterLogic = normalized;
+    this.render(true);
+  }
+
+  _toggleBackgroundAttributeFilterLogic() {
+    this._backgroundAttributeFilterLogic =
+      this._backgroundAttributeFilterLogic === 'and' ? 'or' : 'and';
+    this.render(true);
+  }
+
+  _setBackgroundAttributeFilterLogic(logic) {
+    const normalized = logic === 'and' ? 'and' : 'or';
+    if (this._backgroundAttributeFilterLogic === normalized) return;
+    this._backgroundAttributeFilterLogic = normalized;
+    this.render(true);
+  }
+
+  _applyBrowserFilters(el = this.element) {
+    if (!el || this.stepId !== 'background') return;
+    if (!el.querySelector?.('.wizard-browser')) return;
+    this._filterItems(el, null);
+  }
+
+  _matchesBackgroundFilterSet(itemValues, requiredValues, logic = 'or') {
+    if (!(requiredValues instanceof Set) || requiredValues.size === 0) return true;
+    const normalizedItemValues = new Set((itemValues ?? []).map((value) => String(value).trim().toLowerCase()).filter(Boolean));
+    if (normalizedItemValues.size === 0) return false;
+    if (logic === 'and') return [...requiredValues].every((value) => normalizedItemValues.has(String(value).trim().toLowerCase()));
+    return [...requiredValues].some((value) => normalizedItemValues.has(String(value).trim().toLowerCase()));
   }
 
   _prevStep() {
@@ -2112,7 +2176,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
               .filter((i) => i.uuid !== this.data.class?.uuid),
             selected: this.data.class
               ? {
-                  name: this.data.class.name,
+                  ...this.data.class,
                   img: this.data.class.img ?? null,
                 }
               : null,
@@ -3401,7 +3465,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
     annotateGuidance(groupedItems ?? baseItems).map((item) => ({
       ...item,
       trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
-      boostsText: Array.isArray(item?.boosts) ? item.boosts.join(',') : '',
+      boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
     })),
     (a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? '')),
   );
@@ -3446,7 +3510,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
         annotateGuidance(group.items ?? []).map((item) => ({
           ...item,
           trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
-          boostsText: Array.isArray(item?.boosts) ? item.boosts.join(',') : '',
+          boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
         })),
         (a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? '')),
       ),
@@ -3472,6 +3536,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
       globalThis.CONFIG?.PF2E?.skills ?? {},
     );
     context.backgroundAttributeFilters = buildBackgroundFilterOptions(items, 'boosts', ATTRIBUTES, {
+      fieldValues: (item) => item?.backgroundAttributes ?? item?.boosts ?? [],
       str: 'STR',
       dex: 'DEX',
       con: 'CON',
@@ -3552,10 +3617,17 @@ function compactSourceOwnerLabel(label) {
 }
 
 function buildBackgroundFilterOptions(items, field, allowedValues, labels) {
+  const resolveValues =
+    typeof labels?.fieldValues === 'function'
+      ? labels.fieldValues
+      : (item) => item?.[field] ?? [];
   const available = new Set();
   for (const item of items) {
-    for (const value of item?.[field] ?? []) {
-      const normalized = String(value ?? '').toLowerCase();
+    for (const value of resolveValues(item)) {
+      const normalized =
+        field === 'trainedSkills'
+          ? normalizeBackgroundSkillValue(value)
+          : normalizeBackgroundAttributeValue(value);
       if (allowedValues.includes(normalized)) available.add(normalized);
     }
   }
@@ -3571,4 +3643,14 @@ function buildBackgroundFilterOptions(items, field, allowedValues, labels) {
             : labels[value]
           : value.toUpperCase(),
     }));
+}
+
+function normalizeBackgroundSkillValue(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return SKILL_SLUG_ALIASES[normalized] ?? normalized;
+}
+
+function normalizeBackgroundAttributeValue(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return ATTRIBUTE_SLUG_ALIASES[normalized] ?? normalized;
 }

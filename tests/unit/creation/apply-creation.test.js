@@ -1457,6 +1457,123 @@ describe('applyCreation ancestry paragon', () => {
     }));
   });
 
+  it('adds description-linked focus spells from selected ancestry feats during creation', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const createdDocs = [];
+    const actor = createMockActor({
+      items: [],
+      system: {
+        resources: { focus: { max: 0, value: 0 } },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-human') {
+        return {
+          uuid,
+          name: 'Human',
+          toObject: () => ({
+            name: 'Human',
+            type: 'ancestry',
+            system: { description: { value: '' }, rules: [] },
+          }),
+        };
+      }
+
+      if (uuid === 'ancestry-feat-timber-magic') {
+        return {
+          uuid,
+          name: 'Timber Magic',
+          toObject: () => ({
+            name: 'Timber Magic',
+            type: 'feat',
+            system: {
+              level: { value: 1 },
+              rules: [],
+              description: {
+                value: '<p>Cast @UUID[Compendium.pf2e.spells-srd.Item.protector-tree]{Protector Tree}.</p>',
+              },
+            },
+          }),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.protector-tree') {
+        return {
+          uuid,
+          name: 'Protector Tree',
+          toObject: () => ({
+            name: 'Protector Tree',
+            type: 'spell',
+            system: {
+              traits: { value: ['focus'], traditions: [] },
+            },
+          }),
+          system: {
+            traits: { value: ['focus'], traditions: [] },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: { uuid: 'ancestry-human', name: 'Human', slug: 'human' },
+      heritage: null,
+      background: null,
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: {
+        uuid: 'ancestry-feat-timber-magic',
+        name: 'Timber Magic',
+        choices: {},
+      },
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(createdDocs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spellcastingEntry',
+        system: expect.objectContaining({
+          prepared: expect.objectContaining({ value: 'focus' }),
+        }),
+      }),
+      expect.objectContaining({
+        name: 'Protector Tree',
+        type: 'spell',
+        system: expect.objectContaining({
+          location: expect.objectContaining({ value: 'created-0' }),
+        }),
+      }),
+    ]));
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.resources.focus.max': 1,
+      'system.resources.focus.value': 1,
+    });
+  });
+
   it('does not manually apply the selected subclass item during creation', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;

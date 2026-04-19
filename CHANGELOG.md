@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.1.12
+
+### Character Wizard
+
+- **Player compendium restrictions now refresh correctly in open creation wizards** - Changing GM compendium assignments or allowed player sources now invalidates stale wizard-side caches immediately, so removed custom ancestry, heritage, background, and similar packs stop showing to players without needing a reopen
+- **Selected class names in the wizard now open their item sheets correctly** - Single-class browser cards now keep the selected class UUID in browser context, so clicking the chosen class title opens its details instead of doing nothing
+- **Background skill and attribute filters now apply consistently after rerenders** - Switching filter logic or rerendering the Background step now reapplies the active filter state and updates the visible result count, so entries like `Acolyte` no longer reappear incorrectly after toggling `AND` / `OR`
+- **Background attribute filters now match PF2E's full ability names** - Attribute chips such as `INT` and `WIS` now normalize values like `intelligence` and `wisdom` from PF2E-authored background data, so the attribute filter works on more backgrounds instead of silently missing valid matches
+- **Background attribute filters now ignore free-boost rows when matching specific background stats** - Background browser entries now derive their attribute tags from the narrow authored boost choice set instead of flattening the free boost row into all six abilities, so backgrounds like `Acolyte` only match `INT` / `WIS` instead of every attribute
+- **Background filter logic controls are now clearer** - The old one-button `AND` / `OR` chip was replaced with explicit `Any` / `All` segmented controls for skills and attributes, making it clearer that the control changes filter mode rather than selecting another filter value
+- **Selected feats with direct spell grants now apply their spells during creation** - Character creation now scans selected ancestry, class, skill, paragon, and granted follow-up feats for direct `GrantItem` spell rules and description-linked spell UUIDs, so feats like `Timber Sentinel` correctly create their spellcasting entry and granted spell even when PF2E does not expose a separate rule element
+
+### Item Picker
+
+- **Armor and weapon subfilters now stay hidden until their parent category is selected** - The equipment picker only shows `Armor Filters` after selecting `Armor` and `Weapon Filters` after selecting `Weapon`, instead of surfacing both blocks immediately on first open
+- **Armor and weapon subfilters now only affect matching parent categories** - Hidden armor or weapon subfilters no longer keep filtering results in the background when their parent category is not active, preventing confusing empty or over-restricted equipment lists
+- **Equipment cards now show curated armor and weapon metadata tags** - Weapon and armor rows now display extra tags such as `Martial Weapon`, `Sword`, `Medium Armor`, or `Chain` to make key PF2E item classification easier to see at a glance
+- **Unfiltered equipment browsing now stays capped to the first 200 items** - The item picker once again treats empty category and source selections as unrestricted instead of as active filters, so the initial equipment browser stops rendering all ~5k results at once and only expands beyond 200 after a real filter or search is applied
+
 ## 3.1.11
 
 ### Level Planner

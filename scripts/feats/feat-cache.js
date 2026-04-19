@@ -4,7 +4,10 @@ import {
   discoverCompendiumsByCategory,
   getCompendiumKeysForCategory,
 } from '../compendiums/catalog.js';
-import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
+import {
+  getAllowedCompendiumKeysForCurrentUser,
+  isRarityAllowedForCurrentUser,
+} from '../access/player-content.js';
 
 let cachedFeats = null;
 const RAW_FEAT_DISCOVERY_STORAGE_KEY = `${MODULE_ID}.raw-feat-pack-discovery`;
@@ -35,13 +38,19 @@ async function getAdditionalCompendiumKeys() {
     .filter(Boolean);
   const rawDiscoveredKeys = await discoverRawFeatPackKeys();
   if (configuredKeys.length > 0) {
-    return [...new Set([...baseKeys, ...officialDiscoveredKeys, ...rawDiscoveredKeys])];
+    return filterAllowedFeatCompendiumKeys([
+      ...new Set([...baseKeys, ...officialDiscoveredKeys, ...rawDiscoveredKeys]),
+    ]);
   }
 
   const discoveredKeys = (discovered?.feats ?? []).map((pack) => pack.key).filter(Boolean);
-  return [
+  return filterAllowedFeatCompendiumKeys([
     ...new Set([...baseKeys, ...officialDiscoveredKeys, ...discoveredKeys, ...rawDiscoveredKeys]),
-  ];
+  ]);
+}
+
+function filterAllowedFeatCompendiumKeys(keys) {
+  return getAllowedCompendiumKeysForCurrentUser('feats', [], keys);
 }
 
 async function discoverRawFeatPackKeys() {

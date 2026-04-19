@@ -448,6 +448,53 @@
   color: var(--leveler-accent-light);
 }
 
+.pf2e-leveler .wizard-browser-filter__labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pf2e-leveler .wizard-browser-filter__labelRow .wizard-browser-filter__label {
+  margin-bottom: 0;
+}
+
+.pf2e-leveler .wizard-filter-logic {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid rgba(196, 180, 158, 0.2);
+  border-radius: 999px;
+  background: rgba(9, 11, 16, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.pf2e-leveler .wizard-filter-logic__button {
+  min-width: 52px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--leveler-text-muted);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pf2e-leveler .wizard-filter-logic__button:hover {
+  color: var(--leveler-text-bright);
+}
+
+.pf2e-leveler .wizard-filter-logic__button.selected {
+  background: rgba(198, 161, 91, 0.2);
+  color: #f3d89f;
+  box-shadow: inset 0 0 0 1px rgba(198, 161, 91, 0.5);
+}
+
 .pf2e-leveler .wizard-browser-section {
   display: flex;
   flex-direction: column;

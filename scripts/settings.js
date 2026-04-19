@@ -5,11 +5,13 @@ import { invalidateCache } from './feats/feat-cache.js';
 import { invalidateGuidanceCache } from './access/content-guidance.js';
 import { invalidateItemCache } from './ui/item-picker.js';
 import { clearSpellPickerCache } from './ui/spell-picker.js';
+import { invalidateCharacterWizardCompendiumCaches } from './ui/character-wizard/loaders.js';
 
 function invalidateContentPickers() {
   invalidateCache();
   invalidateItemCache();
   clearSpellPickerCache();
+  invalidateCharacterWizardCompendiumCaches();
 }
 
 export function registerSettings() {
@@ -189,7 +191,7 @@ export function registerSettings() {
     scope: 'world',
     config: true,
     type: Boolean,
-    default: true,
+    default: false,
     requiresReload: true,
   });
 

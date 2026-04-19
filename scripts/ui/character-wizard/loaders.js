@@ -4,7 +4,14 @@ import { filterEntriesByRarityForCurrentUser } from '../../access/player-content
 import { createMixedAncestryHeritage } from '../../heritages/mixed-ancestry.js';
 import { slugify } from '../../utils/pf2e-api.js';
 
+let compendiumCacheVersion = 0;
+
+export function invalidateCharacterWizardCompendiumCaches() {
+  compendiumCacheVersion += 1;
+}
+
 export async function loadCompendium(wizard, key) {
+  ensureFreshCompendiumCache(wizard);
   if (wizard._compendiumCache[key]) return wizard._compendiumCache[key];
   const pack = game.packs.get(key);
   if (!pack) return [];
@@ -37,6 +44,7 @@ export async function loadCompendium(wizard, key) {
     isMagical: (d.system?.traits?.value ?? []).includes('magical'),
     trainedSkills: d.system?.trainedSkills?.value ?? [],
     boosts: normalizeBoostEntries(d.system?.boosts ?? {}),
+    boostSets: normalizeBoostChoiceSets(d.system?.boosts ?? {}),
     font: d.system?.font ?? [],
     sanctification: d.system?.sanctification ?? {},
     domains: d.system?.domains ?? { primary: [], alternate: [] },
@@ -49,6 +57,7 @@ export async function loadCompendium(wizard, key) {
 }
 
 export async function loadCompendiumCategory(wizard, category, cacheKey = `category-${category}`) {
+  ensureFreshCompendiumCache(wizard);
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
 
   const keys = getCompendiumKeysForCategory(category);
@@ -90,27 +99,14 @@ export async function loadAncestries(wizard) {
 
 export async function loadBackgrounds(wizard) {
   const cacheKey = 'backgrounds';
-  if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
+  if (wizard._compendiumCache[cacheKey]) {
+    wizard._compendiumCache[cacheKey] = wizard._compendiumCache[cacheKey].map(normalizeBackgroundEntry);
+    return wizard._compendiumCache[cacheKey];
+  }
   const all = await loadCompendiumCategory(wizard, 'backgrounds', cacheKey);
   const items = all
     .filter((d) => d.type === 'background')
-    .map((d) => ({
-      uuid: d.uuid,
-      name: d.name,
-      img: d.img,
-      type: 'background',
-      sourcePack: d.sourcePack,
-      sourceLabel: d.sourceLabel,
-      sourcePackage: d.sourcePackage,
-      sourcePackageLabel: d.sourcePackageLabel,
-      slug: d.slug ?? null,
-      keyAbility: d.keyAbility ?? [],
-      rarity: d.rarity ?? 'common',
-      description: d.description ?? '',
-      traits: d.traits ?? [],
-      trainedSkills: d.trainedSkills ?? [],
-      boosts: d.boosts ?? [],
-    }))
+    .map(normalizeBackgroundEntry)
     .sort((a, b) => a.name.localeCompare(b.name));
   wizard._compendiumCache[cacheKey] = items;
   return items;
@@ -202,12 +198,108 @@ function normalizeBoostEntries(boosts) {
     .filter((value) => typeof value === 'string' && value.length > 0);
 }
 
+function normalizeBoostChoiceSets(boosts) {
+  return Object.values(boosts ?? {})
+    .map((entry) => {
+      if (Array.isArray(entry?.value)) return entry.value;
+      if (typeof entry?.selected === 'string') return [entry.selected];
+      return [];
+    })
+    .map((values) => normalizeAttributeChoices(values))
+    .filter((values) => values.length > 0);
+}
+
+function normalizeBackgroundEntry(d) {
+  const boosts = normalizeAttributeChoices(d?.boosts);
+  const keyAbility = normalizeAttributeChoices(d?.keyAbility);
+  const boostSets = Array.isArray(d?.boostSets)
+    ? d.boostSets.map((values) => normalizeAttributeChoices(values)).filter((values) => values.length > 0)
+    : [];
+  return {
+    uuid: d.uuid,
+    name: d.name,
+    img: d.img,
+    type: 'background',
+    sourcePack: d.sourcePack,
+    sourceLabel: d.sourceLabel,
+    sourcePackage: d.sourcePackage,
+    sourcePackageLabel: d.sourcePackageLabel,
+    slug: d.slug ?? null,
+    keyAbility,
+    rarity: d.rarity ?? 'common',
+    description: d.description ?? '',
+    traits: d.traits ?? [],
+    trainedSkills: d.trainedSkills ?? [],
+    boosts,
+    boostSets,
+    backgroundAttributes: deriveBackgroundAttributes({ boosts, boostSets, keyAbility }),
+  };
+}
+
 function normalizeKeyAbilityOptions(keyAbility) {
   if (Array.isArray(keyAbility?.value)) {
-    return keyAbility.value.filter((value) => typeof value === 'string' && value.length > 0);
+    return normalizeAttributeChoices(keyAbility.value);
   }
-  if (typeof keyAbility?.selected === 'string' && keyAbility.selected.length > 0) return [keyAbility.selected];
+  if (typeof keyAbility?.selected === 'string' && keyAbility.selected.length > 0) {
+    return normalizeAttributeChoices([keyAbility.selected]);
+  }
   return [];
+}
+
+const ATTRIBUTE_SLUG_ALIASES = {
+  strength: 'str',
+  dexterity: 'dex',
+  constitution: 'con',
+  intelligence: 'int',
+  wisdom: 'wis',
+  charisma: 'cha',
+};
+
+const ALL_BACKGROUND_ATTRIBUTES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+
+function normalizeAttributeChoices(values) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(
+    values
+      .map((value) => {
+        if (typeof value !== 'string') return null;
+        const normalized = String(value).trim().toLowerCase();
+        return ATTRIBUTE_SLUG_ALIASES[normalized] ?? normalized;
+      })
+      .filter((value) => ALL_BACKGROUND_ATTRIBUTES.includes(value)),
+  )];
+}
+
+function deriveBackgroundAttributes({ boosts = [], boostSets = [], keyAbility = [] } = {}) {
+  const normalizedBoosts = normalizeAttributeChoices(boosts);
+  const normalizedKeyAbility = normalizeAttributeChoices(keyAbility);
+  const normalizedBoostSets = boostSets
+    .map((values) => normalizeAttributeChoices(values))
+    .filter((values) => values.length > 0);
+
+  const specificBoostChoices = [...new Set(
+    normalizedBoostSets
+      .filter((values) => values.length > 0 && values.length < ALL_BACKGROUND_ATTRIBUTES.length)
+      .flat(),
+  )];
+
+  const intersectedBoostChoices = normalizedBoostSets.reduce((common, values) => {
+    if (!common) return [...values];
+    return common.filter((value) => values.includes(value));
+  }, null) ?? [];
+
+  const candidates = [specificBoostChoices, intersectedBoostChoices, normalizedKeyAbility, normalizedBoosts]
+    .map((values) => [...new Set(values)])
+    .filter((values, index, all) =>
+      values.length > 0
+      && all.findIndex((other) => other.length === values.length && other.every((value, i) => value === values[i])) === index,
+    );
+
+  const preferredSpecific = candidates
+    .filter((values) => values.length < ALL_BACKGROUND_ATTRIBUTES.length)
+    .sort((a, b) => a.length - b.length)[0];
+
+  return preferredSpecific ?? candidates[0] ?? [];
 }
 
 function isRangedWeaponData(system) {
@@ -506,6 +598,7 @@ export function parseCurriculum(html) {
 }
 
 export async function loadRawHeritages(wizard) {
+  ensureFreshCompendiumCache(wizard);
   const cacheKey = 'heritages';
   if (wizard._compendiumCache[cacheKey]) return wizard._compendiumCache[cacheKey];
   const docs = await loadCompendiumCategory(wizard, 'heritages', cacheKey);
@@ -730,4 +823,16 @@ function compactSourceOwnerLabel(label) {
   text = text.replace(/\s+by\s+Roll\s+For\s+Combat$/i, '');
 
   return text;
+}
+
+function ensureFreshCompendiumCache(wizard) {
+  if (!wizard) return;
+  if (wizard._compendiumCacheVersion == null) {
+    wizard._compendiumCacheVersion = compendiumCacheVersion;
+    if (!wizard._compendiumCache) wizard._compendiumCache = {};
+    return;
+  }
+  if (wizard._compendiumCacheVersion === compendiumCacheVersion && wizard._compendiumCache) return;
+  wizard._compendiumCache = {};
+  wizard._compendiumCacheVersion = compendiumCacheVersion;
 }

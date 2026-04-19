@@ -124,11 +124,21 @@ export function activateCharacterWizardListeners(wizard, el) {
       wizard._toggleBackgroundSkillFilter(btn.dataset.skill);
     });
   });
+  el.querySelectorAll('[data-action="setBackgroundSkillLogic"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._setBackgroundSkillFilterLogic(btn.dataset.logic);
+    });
+  });
 
   el.querySelectorAll('[data-action="toggleBackgroundAttributeFilter"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       btn.classList.toggle('selected');
       wizard._toggleBackgroundAttributeFilter(btn.dataset.attribute);
+    });
+  });
+  el.querySelectorAll('[data-action="setBackgroundAttributeLogic"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._setBackgroundAttributeFilterLogic(btn.dataset.logic);
     });
   });
 

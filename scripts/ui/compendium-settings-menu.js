@@ -12,6 +12,7 @@ import { createDefaultPlayerCompendiumSelections } from '../access/player-conten
 import { invalidateCache, loadFeats } from '../feats/feat-cache.js';
 import { invalidateItemCache, loadItems } from './item-picker.js';
 import { clearSpellPickerCache, loadSpells } from './spell-picker.js';
+import { invalidateCharacterWizardCompendiumCaches } from './character-wizard/loaders.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -238,6 +239,7 @@ export class CompendiumSettingsMenu extends HandlebarsApplicationMixin(Applicati
       invalidateCache();
       invalidateItemCache();
       clearSpellPickerCache();
+      invalidateCharacterWizardCompendiumCaches();
       await Promise.allSettled([
         loadFeats(),
         loadItems(),
