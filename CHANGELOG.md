@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.11
+
+### Level Planner
+
+- **Investigators now get their odd-level `Skillful Lessons` feat slots with the right skill limits** - Investigator progression now includes the extra odd-level skill feat slots, and those odd-level feat pickers are restricted to Intelligence-, Wisdom-, and Charisma-based skill feats plus the methodology-granted skill instead of omitting the slot or allowing invalid picks
+- **Cleric into Champion dedication grant prompts no longer crash the planner** - Choice-set filter parsing now safely handles non-serializable PF2E filter shapes when building granted feat preview prompts, so deity, sanctification, and related Champion Dedication follow-up selections render instead of failing with `Cannot read properties of undefined (reading 'includes')` or `toLowerCase`
+
 ## 3.1.10
 
 ### Character Wizard

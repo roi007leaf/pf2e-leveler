@@ -574,6 +574,51 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.isImportingPlan).toBe(true);
   });
 
+  it('limits investigator odd-level skill feats to mental skills plus methodology skill', async () => {
+    const actor = createMockActor({
+      class: { slug: 'investigator' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'feat',
+          slug: 'forensic-medicine-methodology',
+          name: 'Forensic Medicine Methodology',
+          system: {
+            traits: { value: ['investigator'], otherTags: ['investigator-methodology'] },
+            rules: [
+              { key: 'ActiveEffectLike', path: 'system.skills.stealth.rank', value: 1 },
+            ],
+          },
+        },
+      ],
+    });
+
+    const planner = new LevelPlanner(actor);
+    const preset = await planner._buildFeatPickerPreset('skillFeats', 3, {
+      class: { slug: 'investigator' },
+    });
+
+    expect(preset.requiredSkills).toEqual(expect.arrayContaining([
+      'arcana',
+      'crafting',
+      'occultism',
+      'society',
+      'medicine',
+      'nature',
+      'religion',
+      'survival',
+      'deception',
+      'diplomacy',
+      'intimidation',
+      'performance',
+      'stealth',
+    ]));
+    expect(preset.requiredSkills).not.toContain('athletics');
+    expect(preset.selectedFeatTypes).toEqual(['skill']);
+  });
+
   it('exposes existing and planned custom spellcasting entries in custom spell context', async () => {
     const actor = createMockActor({
       class: { slug: 'alchemist' },

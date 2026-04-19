@@ -582,6 +582,37 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(context.maxLevel).toBe('7');
   });
 
+  test('required skill filters still enforce feat limitations even if visible skill chips change', () => {
+    const deceptionFeat = createFeat({
+      name: 'Charming Liar',
+      uuid: 'charming-liar',
+      slug: 'charming-liar',
+    });
+    deceptionFeat.system.level.value = 3;
+    deceptionFeat.system.traits.value = ['skill'];
+    deceptionFeat.system.prerequisites.value = [{ value: 'trained in Deception' }];
+
+    const arcanaFeat = createFeat({
+      name: 'Arcane Sense',
+      uuid: 'arcane-sense',
+      slug: 'arcane-sense',
+    });
+    arcanaFeat.system.level.value = 3;
+    arcanaFeat.system.traits.value = ['skill'];
+    arcanaFeat.system.prerequisites.value = [{ value: 'trained in Arcana' }];
+
+    const picker = new FeatPicker(createActor(), 'skill', 3, createBuildState({ level: 3 }), jest.fn(), {
+      preset: {
+        requiredSkills: ['deception', 'diplomacy'],
+        selectedSkills: ['deception', 'diplomacy'],
+      },
+    });
+    picker.allFeats = [deceptionFeat, arcanaFeat];
+    picker.selectedSkills.clear();
+
+    expect(picker._applyFilters().map((feat) => feat.slug)).toEqual(['charming-liar']);
+  });
+
   test('custom feat picker starts with all rarities enabled regardless of hide settings', () => {
     global._testSettings = {
       ...(global._testSettings ?? {}),

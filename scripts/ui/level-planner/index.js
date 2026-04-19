@@ -1,4 +1,4 @@
-import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES } from '../../constants.js';
+import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES, SKILLS } from '../../constants.js';
 import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
@@ -87,6 +87,20 @@ const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats'
 const FEAT_SKILL_RULES_VERSION = 3;
 const FEAT_ALIASES_VERSION = 1;
 const FEAT_SPELLCASTING_VERSION = FEAT_SPELLCASTING_METADATA_VERSION;
+const INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS = [
+  'arcana',
+  'crafting',
+  'occultism',
+  'society',
+  'medicine',
+  'nature',
+  'religion',
+  'survival',
+  'deception',
+  'diplomacy',
+  'intimidation',
+  'performance',
+];
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -1737,6 +1751,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['skill'],
           lockedFeatTypes: ['skill'],
+          ...await this._buildInvestigatorSkillFeatLimitations(level, buildState),
           maxLevel: level,
         };
       case 'generalFeats':
@@ -1800,6 +1815,52 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     else this._customPlanOpenLevels.add(level);
     this._capturePlannerScroll();
     this.render(true);
+  }
+
+  async _buildInvestigatorSkillFeatLimitations(level, buildState) {
+    const classSlug = String(buildState?.class?.slug ?? this.actor?.class?.slug ?? '').toLowerCase();
+    if (classSlug !== 'investigator' || level < 3 || level % 2 === 0) return {};
+
+    const requiredSkills = new Set(INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS);
+    for (const skill of await this._getInvestigatorMethodologySkills()) {
+      requiredSkills.add(skill);
+    }
+
+    return {
+      requiredSkills: [...requiredSkills],
+      selectedSkills: [...requiredSkills],
+    };
+  }
+
+  async _getInvestigatorMethodologySkills() {
+    const items = Array.isArray(this.actor?.items)
+      ? this.actor.items
+      : Array.isArray(this.actor?.items?.contents)
+        ? this.actor.items.contents
+        : [];
+    const methodologyItems = items.filter((item) => this._isInvestigatorMethodologyItem(item));
+    const skills = new Set();
+
+    for (const item of methodologyItems) {
+      const rules = await extractFeatSkillRules(item).catch(() => []);
+      for (const rule of rules) {
+        const skill = String(rule?.skill ?? '').trim().toLowerCase();
+        const value = Number(rule?.value ?? 0);
+        if (!SKILLS.includes(skill) || !Number.isFinite(value) || value < 1) continue;
+        skills.add(skill);
+      }
+    }
+
+    return [...skills];
+  }
+
+  _isInvestigatorMethodologyItem(item) {
+    const otherTags = [
+      ...(item?.otherTags ?? []),
+      ...(item?.system?.traits?.otherTags ?? []),
+    ].map((tag) => String(tag ?? '').trim().toLowerCase());
+
+    return otherTags.some((tag) => tag === 'investigator-methodology' || tag.startsWith('investigator-methodology-'));
   }
 
   _buildDualClassOptions() {

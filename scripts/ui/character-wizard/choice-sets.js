@@ -446,7 +446,7 @@ function getHandlerManagedChoiceValue(wizard, choiceSet) {
   const filters = Array.isArray(choiceSet?.choices?.filter)
     ? choiceSet.choices.filter.filter((entry) => typeof entry === 'string')
     : [];
-  const filterText = JSON.stringify(filters).toLowerCase();
+  const filterText = safeSerializeChoiceFilters(filters).toLowerCase();
 
   if (
     choiceSet?.flag === 'deity'
@@ -1547,7 +1547,7 @@ function isAncestryChoiceSet(rule) {
   const itemType = String(rule?.choices?.itemType ?? '').toLowerCase();
   if (itemType === 'ancestry') return true;
 
-  const filters = JSON.stringify(rule?.choices?.filter ?? []);
+  const filters = safeSerializeChoiceFilters(rule?.choices?.filter);
   return filters.includes('item:type:ancestry');
 }
 
@@ -1799,7 +1799,7 @@ function getChoiceSetPackKeys(itemType, filters) {
   if (normalizedType === 'heritage') addCategoryKeys(keys, 'heritages');
   if (normalizedType === 'deity') addCategoryKeys(keys, 'deities');
 
-  const flattenedFilters = JSON.stringify(filters ?? []);
+  const flattenedFilters = safeSerializeChoiceFilters(filters);
   if (flattenedFilters.includes('item:type:feat')) addCategoryKeys(keys, 'feats');
   if (flattenedFilters.includes('item:type:deity') || flattenedFilters.includes('item:category:deity')) addCategoryKeys(keys, 'deities');
   if (flattenedFilters.includes('item:type:spell')) addCategoryKeys(keys, 'spells');
@@ -1818,6 +1818,10 @@ function getChoiceSetPackKeys(itemType, filters) {
   }
 
   return [...keys];
+}
+
+function safeSerializeChoiceFilters(filters) {
+  return String(JSON.stringify(filters ?? []) ?? '');
 }
 
 function addCategoryKeys(target, category) {

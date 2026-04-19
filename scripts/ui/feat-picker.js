@@ -49,6 +49,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this.selectedRarities.add('unique');
     }
     this.selectedSkills = new Set();
+    this.requiredSkills = new Set();
     this.skillLogic = 'or';
     this.showDedications = category !== 'class';
     this.showSkillFeats = false;
@@ -285,6 +286,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feats = feats.filter((feat) => !this.excludedFeatUuids.has(this._getFeatUuid(feat)));
     }
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
+    if (this.requiredSkills.size > 0) feats = filterBySkill(feats, [...this.requiredSkills], this.skillLogic);
     if (this._showSkillFilter && this.selectedSkills.size > 0) feats = filterBySkill(feats, [...this.selectedSkills], this.skillLogic);
     if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
     if (this.selectedFeatTypes.size > 0) {
@@ -1456,6 +1458,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.excludedTraits)) this.excludedTraits = new Set(preset.excludedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.lockedTraits)) this.lockedTraitValues = new Set(preset.lockedTraits.map((trait) => String(trait).toLowerCase()));
+    if (Array.isArray(preset.selectedSkills)) this.selectedSkills = new Set(preset.selectedSkills.map((skill) => String(skill).toLowerCase()));
+    if (Array.isArray(preset.requiredSkills)) this.requiredSkills = new Set(preset.requiredSkills.map((skill) => String(skill).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
     if (Array.isArray(preset.extraVisibleFeatTypes)) this._extraVisibleFeatTypes = new Set(preset.extraVisibleFeatTypes);
     if (typeof preset.showDedications === 'boolean') this.showDedications = preset.showDedications;

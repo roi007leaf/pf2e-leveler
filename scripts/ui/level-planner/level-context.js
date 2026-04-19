@@ -930,10 +930,10 @@ async function buildPlannerDedicationChoiceSetFallbacks(planner, feat, source) {
   const candidates = [...classFeatures, ...feats];
 
   return choiceRules
-    .filter((rule) => JSON.stringify(rule?.choices?.filter ?? []).toLowerCase().includes(`item:tag:${subclassTag}`))
+    .filter((rule) => serializeChoiceSetFilter(rule?.choices?.filter).includes(`item:tag:${subclassTag}`))
     .map((rule) => {
       const filters = rule?.choices?.filter ?? [];
-      const excludeClassArchetype = JSON.stringify(filters).toLowerCase().includes('item:tag:class-archetype');
+      const excludeClassArchetype = serializeChoiceSetFilter(filters).includes('item:tag:class-archetype');
       const options = candidates
         .filter((entry) => matchesTagFamily(entry?.otherTags ?? [], subclassTag))
         .filter((entry) => !excludeClassArchetype || !matchesTagFamily(entry?.otherTags ?? [], 'class-archetype'))
@@ -961,6 +961,10 @@ async function buildPlannerDedicationChoiceSetFallbacks(planner, feat, source) {
       };
     })
     .filter((entry) => entry?.flag && entry.options.length > 0);
+}
+
+function serializeChoiceSetFilter(filter) {
+  return String(JSON.stringify(filter ?? []) ?? '').toLowerCase();
 }
 
 function getPlannerDedicationArchetypeSlug(feat, source) {

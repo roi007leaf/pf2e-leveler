@@ -249,4 +249,63 @@ describe('level planner grant previews', () => {
       }),
     ]));
   });
+
+  test('does not crash when granted dedication choice filters are not JSON-serializable strings', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Root Feat',
+          system: {
+            rules: [
+              { key: 'GrantItem', uuid: 'feat-granted' },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'feat-granted') {
+        return {
+          uuid,
+          slug: 'advanced-maneuver',
+          name: 'Advanced Maneuver',
+          system: {
+            traits: { value: ['archetype', 'fighter'] },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'grantedFeat',
+                prompt: 'Select a fighter feat.',
+                choices: {
+                  filter: () => ['item:tag:fighter'],
+                },
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const preview = await buildFeatGrantPreview({
+      actor: { items: [] },
+      plan: { levels: {} },
+      selectedLevel: 8,
+      _compendiumCache: {
+        'category-classFeatures': [],
+        'category-feats': [],
+      },
+    }, {
+      uuid: 'feat-root',
+      choices: {},
+    });
+
+    expect(preview).toEqual({
+      grantedItems: [
+        expect.objectContaining({ uuid: 'feat-granted', name: 'Advanced Maneuver' }),
+      ],
+      grantChoiceSets: [],
+    });
+  });
 });
