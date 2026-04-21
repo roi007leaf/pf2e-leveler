@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.1.16
+
+### Suggested Character Options
+
+- **Sources search no longer breaks multi-word typing** - The `Sources` tab now filters the visible list in place while you type and reapplies the active query after rerenders, so spaces and later words no longer get interrupted by full rerenders
+
+### Character Wizard
+
+- **Creation feat prerequisite checks now include subclass identity and selected subclass aliases** - Level-1 feat pickers in character creation now carry class subclass types plus selected subclass feat aliases into prerequisite evaluation, fixing bard muse checks like `Muse de barde` and `Muse Maestro` in French and similar subclass-gated requirements
+
 ## 3.1.15
 
 ### Suggested Character Options

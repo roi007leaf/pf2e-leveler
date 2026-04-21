@@ -189,6 +189,29 @@ describe('ContentGuidanceMenu', () => {
     document.querySelector('[data-action="search-guidance"]').dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(menu.searchText).toBe('');
-    expect(menu.render).toHaveBeenCalledTimes(2);
+    expect(menu.render).toHaveBeenCalledTimes(0);
+  });
+
+  test('render reapplies active search filter to current DOM list', () => {
+    document.body.innerHTML = `
+      <div class="compendium-manager__panelWrap" style="overflow:auto">
+        <input type="text" data-action="search-guidance" value="player core">
+        <div class="guidance-item"><span class="guidance-item__name">Pathfinder Player Core</span></div>
+        <div class="guidance-item"><span class="guidance-item__name">Lost Omens Divine Mysteries</span></div>
+      </div>
+    `;
+
+    const menu = new ContentGuidanceMenu();
+    menu.activeCategory = 'sources';
+    menu.searchText = 'player core';
+    menu._draft = {};
+    menu.element = document.body;
+    menu.render = jest.fn();
+
+    menu._onRender();
+
+    const items = [...document.querySelectorAll('.guidance-item')];
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
   });
 });

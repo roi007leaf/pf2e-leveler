@@ -1309,6 +1309,88 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
+  it('includes bard muse subclass identity and alias feats in creation feat build state', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-bard',
+      slug: 'bard',
+      name: 'Bard',
+    };
+    wizard.data.subclass = {
+      uuid: 'subclass-maestro',
+      slug: 'maestro',
+      name: 'Maestro',
+      traits: ['bard', 'muse'],
+    };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.class).toEqual(expect.objectContaining({
+      slug: 'bard',
+      subclassType: 'muse',
+    }));
+    expect(buildState.feats.has('maestro')).toBe(true);
+    expect(buildState.feats.has('maestro-muse')).toBe(true);
+    expect(buildState.featAliasSources.get('maestro-muse')?.has('maestro')).toBe(true);
+  });
+
+  it('uses bard muse creation build state to satisfy French muse prerequisites', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'featSortMethod') return 'name';
+      if (scope === 'pf2e-leveler' && key === 'defaultEligibleOnly') return false;
+      if (scope === 'pf2e-leveler' && key === 'hideUncommonFeats') return false;
+      if (scope === 'pf2e-leveler' && key === 'hideRareFeats') return false;
+      if (scope === 'pf2e-leveler' && key === 'enforcePrerequisites') return true;
+      if (scope === 'pf2e-leveler' && key === 'showPrerequisites') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-bard',
+      slug: 'bard',
+      name: 'Bard',
+    };
+    wizard.data.subclass = {
+      uuid: 'subclass-maestro',
+      slug: 'maestro',
+      name: 'Maestro',
+      traits: ['bard', 'muse'],
+    };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+    const feat = {
+      uuid: 'Compendium.test.feats.Item.bard-feat',
+      slug: 'bard-feat',
+      name: 'En cadence',
+      img: 'bard-feat.png',
+      system: {
+        level: { value: 4 },
+        maxTakable: 1,
+        traits: { value: ['bard'], rarity: 'common' },
+        prerequisites: { value: [{ value: 'Muse Maestro' }, { value: 'Muse de barde' }] },
+      },
+    };
+    const picker = new FeatPicker(createMockActor(), 'class', 4, buildState, jest.fn(), {
+      preset: {
+        allowedFeatUuids: [feat.uuid],
+        maxLevel: 4,
+        lockMaxLevel: true,
+      },
+    });
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: 'Muse Maestro (via Maestro)', met: true }),
+      expect.objectContaining({ text: 'Muse de barde', met: true }),
+    ]));
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
   it('shows a dedicated mixed ancestry step when Mixed Ancestry heritage is selected', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };

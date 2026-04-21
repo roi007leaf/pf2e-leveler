@@ -256,7 +256,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
 
     root.querySelector('[data-action="search-guidance"]')?.addEventListener('input', (e) => {
       this.searchText = e.target.value ?? '';
-      this._rerenderPreservingScroll();
+      this._applySearchFilterToList();
     });
 
     root.querySelector('[data-action="save-guidance"]')?.addEventListener('click', () => this._save());
@@ -274,7 +274,22 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
       this._rerenderPreservingScroll();
     });
 
+    const searchInput = root.querySelector('[data-action="search-guidance"]');
+    if (searchInput && searchInput.value !== this.searchText) {
+      searchInput.value = this.searchText;
+    }
+    this._applySearchFilterToList();
     this._restoreScrollPosition();
+  }
+
+  _applySearchFilterToList() {
+    const root = this.element;
+    if (!root) return;
+    const query = this.searchText.trim().toLowerCase();
+    root.querySelectorAll('.guidance-item').forEach((el) => {
+      const name = el.querySelector('.guidance-item__name')?.textContent?.toLowerCase() ?? '';
+      el.style.display = !query || name.includes(query) ? '' : 'none';
+    });
   }
 
   async _save() {

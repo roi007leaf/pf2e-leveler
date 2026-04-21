@@ -140,6 +140,30 @@ import {
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
 
+const CREATION_CLASS_SUBCLASS_TYPES = {
+  alchemist: 'research field',
+  animist: 'practice',
+  barbarian: 'instinct',
+  bard: 'muse',
+  champion: 'cause',
+  cleric: 'doctrine',
+  druid: 'order',
+  gunslinger: 'way',
+  inventor: 'innovation',
+  investigator: 'methodology',
+  kineticist: 'gate',
+  magus: 'study',
+  oracle: 'mystery',
+  psychic: 'conscious mind',
+  ranger: "hunter's edge",
+  rogue: 'racket',
+  sorcerer: 'bloodline',
+  summoner: 'eidolon',
+  swashbuckler: 'style',
+  witch: 'patron',
+  wizard: 'school',
+};
+
 const SKILL_SLUG_ALIASES = {
   acr: 'acrobatics',
   arc: 'arcana',
@@ -1258,11 +1282,28 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
     const attributes = await this._buildCreationAbilityModifiers();
     const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;
+    const classState = {
+      slug: classSlug,
+      subclassType: classSlug ? CREATION_CLASS_SUBCLASS_TYPES[classSlug] ?? null : null,
+    };
+    const classes = classState.slug ? [classState] : [];
+    const featState = this._buildCreationSelectedFeatState([
+      subclassEntry,
+      target === 'dualClass' ? this.data.subclass : this.data.dualSubclass,
+      this.data.ancestryFeat,
+      this.data.ancestryParagonFeat,
+      this.data.classFeat,
+      this.data.dualClassFeat,
+      this.data.skillFeat,
+      ...(this.data.grantedFeatSections ?? []),
+    ], classState);
 
     return {
       level,
-      class: { slug: classSlug },
-      feats: new Set(),
+      class: classState,
+      classes,
+      feats: featState.feats,
+      featAliasSources: featState.featAliasSources,
       ancestryTraits: new Set(ancestryTraits),
       senses,
       attributes,
@@ -1279,6 +1320,30 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         Number(summary.find((entry) => entry.key === attribute)?.mod ?? 0),
       ]),
     );
+  }
+
+  _buildCreationSelectedFeatState(entries, classState) {
+    const feats = new Set();
+    const featAliasSources = new Map();
+
+    for (const entry of entries) {
+      const slug = String(entry?.slug ?? '').trim().toLowerCase();
+      if (!slug) continue;
+      feats.add(slug);
+      const alias = this._getCreationSubclassFeatAlias(slug, classState);
+      if (!alias) continue;
+      feats.add(alias);
+      if (!featAliasSources.has(alias)) featAliasSources.set(alias, new Map());
+      featAliasSources.get(alias).set(slug, entry?.name ?? slug);
+    }
+
+    return { feats, featAliasSources };
+  }
+
+  _getCreationSubclassFeatAlias(slug, classState) {
+    if (!slug || !classState?.slug || !classState?.subclassType) return null;
+    if (classState.slug === 'bard' && classState.subclassType === 'muse') return `${slug}-muse`;
+    return null;
   }
 
   _getFeatChoiceContainer(slot) {
