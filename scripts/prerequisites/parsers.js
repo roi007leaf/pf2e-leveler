@@ -66,6 +66,7 @@ const SPELLCASTING_TRADITION_PATTERN =
   /^ability to cast\s+(arcane|divine|occult|primal)\s+spells?$/i;
 const SUBCLASS_TRADITION_PATTERN =
   /(bloodline|mystery|patron|order|conscious mind)\s+(?:that\s+grants?|with)\s+(?:the\s+)?(arcane|divine|occult|primal)\s+(?:spells?|spell list)/i;
+const GENERIC_BARD_MUSE_PATTERN = /^(?:bard muse|muse de barde)$/i;
 const CLASS_FEATURE_PATTERN = /^(.+?)\s+class feature$/i;
 const BACKGROUND_PATTERN = /^(.+?)\s+background$/i;
 const HERITAGE_PATTERN = /^(.+?)\s+heritage$/i;
@@ -183,6 +184,9 @@ export function parsePrerequisite(text) {
 
   const divineFontMatch = tryParseDivineFontRequirement(baseText, trimmed);
   if (divineFontMatch) return divineFontMatch;
+
+  const classIdentityMatch = tryParseClassIdentityRequirement(baseText, trimmed);
+  if (classIdentityMatch) return classIdentityMatch;
 
   const equipmentMatch = tryParseEquipmentRequirement(baseText, trimmed);
   if (equipmentMatch) return equipmentMatch;
@@ -539,6 +543,15 @@ function tryParseDivineFontRequirement(text, fullText = text) {
   };
 }
 
+function tryParseClassIdentityRequirement(text, fullText = text) {
+  if (!GENERIC_BARD_MUSE_PATTERN.test(String(text ?? '').trim())) return null;
+  return {
+    type: 'classIdentity',
+    subclassType: 'muse',
+    text: fullText,
+  };
+}
+
 function slugifySense(value) {
   return String(value ?? '')
     .trim()
@@ -703,6 +716,13 @@ function tryParseFeatRequirement(text) {
     const choiceText = parentheticalMatch[2].trim();
     const baseRequirement = tryParseFeatRequirement(baseText);
     const choiceRequirement = tryParseFeatRequirement(choiceText);
+    if (baseRequirement?.type === 'feat' && isBardMuseQualifier(choiceText)) {
+      return {
+        type: 'feat',
+        slug: `${baseRequirement.slug}-muse`,
+        text,
+      };
+    }
     if (
       baseRequirement?.type === 'feat'
       && choiceRequirement?.type === 'feat'
@@ -726,6 +746,18 @@ function tryParseFeatRequirement(text) {
     }
   }
 
+  const prefixedBardMuseName = extractPrefixedBardMuseName(text);
+  if (prefixedBardMuseName) {
+    const slug = slugify(prefixedBardMuseName);
+    if (slug) {
+      return {
+        type: 'feat',
+        slug: `${slug}-muse`,
+        text,
+      };
+    }
+  }
+
   const slug = slugify(text);
   if (!slug) return { type: 'unknown', text };
 
@@ -736,6 +768,21 @@ function shouldTreatParentheticalFeatSuffixAsClarifier(text) {
   const normalized = String(text ?? '').trim();
   if (!normalized) return false;
   return /^\p{Ll}/u.test(normalized);
+}
+
+function isBardMuseQualifier(text) {
+  const normalized = slugify(text);
+  return normalized === 'bard-muse' || normalized === 'muse-de-barde';
+}
+
+function extractPrefixedBardMuseName(text) {
+  const normalized = String(text ?? '').trim();
+  const match = normalized.match(/^muse\s+(.+)$/iu);
+  if (!match) return null;
+  const suffix = match[1].trim();
+  if (!suffix) return null;
+  if (isBardMuseQualifier(normalized) || isBardMuseQualifier(suffix)) return null;
+  return suffix;
 }
 
 function tryParseRankWithEitherNode(text) {

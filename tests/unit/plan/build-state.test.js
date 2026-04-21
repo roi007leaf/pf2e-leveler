@@ -871,6 +871,27 @@ describe('computeBuildState', () => {
     expect(state.featAliasSources.get('warrior-muse')?.has('bard-muse-warrior')).toBe(true);
   });
 
+  test('tracks subclass aliases from plain subclass feat slugs when subclass tag is present', () => {
+    const actor = createMockActor();
+    actor.items = {
+      filter: jest.fn((predicate) => {
+        const items = [
+          {
+            type: 'feat',
+            slug: 'maestro',
+            system: { traits: { otherTags: ['bard-muse'] } },
+          },
+        ];
+        return items.filter(predicate);
+      }),
+    };
+
+    const state = computeBuildState(actor, createPlan('alchemist'), 4);
+    expect(state.feats.has('maestro')).toBe(true);
+    expect(state.feats.has('maestro-muse')).toBe(true);
+    expect(state.featAliasSources.get('maestro-muse')?.has('maestro')).toBe(true);
+  });
+
   test('infers variable bloodline tradition from subclass choice without an embedded spellcasting entry', () => {
     const actor = createMockActor();
     actor.items = {

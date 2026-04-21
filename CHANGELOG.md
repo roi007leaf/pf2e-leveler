@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.15
+
+### Suggested Character Options
+
+- **Source guidance now filters wizard ancestries, heritages, backgrounds, and classes correctly** - Character Wizard loaders now preserve publication titles on browser entries, so source-level suggested, warning, and disallowed rules inherit properly beyond feats
+- **Sources tab search now refreshes correctly after changing guidance** - Clearing the `Sources` search box now rerenders from current search state instead of leaving a stale filtered subset behind until you switch categories
+
 ## 3.1.14
 
 ### Level Planner

@@ -500,14 +500,62 @@ describe('parsePrerequisiteNode', () => {
     ]);
   });
 
-  test('treats lowercase French parenthetical feat clarifiers as part of one feat requirement', () => {
+  test('parses English bard muse parentheticals as subclass feat aliases', () => {
+    const result = parsePrerequisiteNode('Maestro (Bard Muse)');
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'feat',
+        slug: 'maestro-muse',
+        text: 'Maestro (Bard Muse)',
+      }),
+    );
+  });
+
+  test('parses French bard muse parentheticals as subclass feat aliases', () => {
     const result = parsePrerequisiteNode('Virtuose (muse de barde)');
     expect(result).toEqual(
       expect.objectContaining({
         kind: 'leaf',
         type: 'feat',
-        slug: 'virtuose',
+        slug: 'virtuose-muse',
         text: 'Virtuose (muse de barde)',
+      }),
+    );
+  });
+
+  test('parses prefixed English bard muse feat aliases', () => {
+    const result = parsePrerequisiteNode('Muse Maestro');
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'feat',
+        slug: 'maestro-muse',
+        text: 'Muse Maestro',
+      }),
+    );
+  });
+
+  test('parses prefixed French bard muse feat aliases', () => {
+    const result = parsePrerequisiteNode('Muse Virtuose');
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'feat',
+        slug: 'virtuose-muse',
+        text: 'Muse Virtuose',
+      }),
+    );
+  });
+
+  test('parses generic French bard muse prerequisite as class identity', () => {
+    const result = parsePrerequisiteNode('Muse de barde');
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'classIdentity',
+        subclassType: 'muse',
+        text: 'Muse de barde',
       }),
     );
   });

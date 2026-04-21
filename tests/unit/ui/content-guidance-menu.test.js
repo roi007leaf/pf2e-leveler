@@ -167,4 +167,28 @@ describe('ContentGuidanceMenu', () => {
     expect(menu._pendingScrollTop).toBe(240);
     expect(menu.render).toHaveBeenCalledWith(true);
   });
+
+  test('source search input rerenders instead of only hiding stale DOM rows', () => {
+    document.body.innerHTML = `
+      <div class="compendium-manager__panelWrap" style="overflow:auto">
+        <input type="text" data-action="search-guidance" value="">
+        <div class="guidance-item"><span class="guidance-item__name">Pathfinder Player Core</span></div>
+      </div>
+    `;
+
+    const menu = new ContentGuidanceMenu();
+    menu.activeCategory = 'sources';
+    menu._draft = {};
+    menu.element = document.body;
+    menu.render = jest.fn();
+
+    menu._onRender();
+    document.querySelector('[data-action="search-guidance"]').value = 'player core';
+    document.querySelector('[data-action="search-guidance"]').dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('[data-action="search-guidance"]').value = '';
+    document.querySelector('[data-action="search-guidance"]').dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(menu.searchText).toBe('');
+    expect(menu.render).toHaveBeenCalledTimes(2);
+  });
 });

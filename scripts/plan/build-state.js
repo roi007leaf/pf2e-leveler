@@ -1284,6 +1284,7 @@ function getSubclassAliases(feat) {
 
   for (const [classSlug, subclassType] of Object.entries(CLASS_SUBCLASS_TYPES)) {
     const subclassSlug = slugify(subclassType);
+    const subclassTag = `${classSlug}-${subclassSlug}`;
     const classPrefix = `${classSlug}-${subclassSlug}-`;
     const barePrefix = `${subclassSlug}-`;
     const suffix = slug.startsWith(classPrefix)
@@ -1291,8 +1292,11 @@ function getSubclassAliases(feat) {
       : slug.startsWith(barePrefix)
         ? slug.slice(barePrefix.length)
         : '';
-    if (!suffix) continue;
-    aliases.add(`${suffix}-${subclassSlug}`);
+    if (suffix) aliases.add(`${suffix}-${subclassSlug}`);
+
+    if (matchesTagFamily(feat, subclassTag) && !slug.endsWith(`-${subclassSlug}`)) {
+      aliases.add(`${slug}-${subclassSlug}`);
+    }
   }
 
   return aliases;

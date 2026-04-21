@@ -7,7 +7,9 @@ import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
 import { buildFeatChoicesContext } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { activateCharacterWizardListeners } from '../../../scripts/ui/character-wizard/listeners.js';
 import {
+  loadAncestries,
   loadBackgrounds,
+  loadClasses,
   loadHeritages,
   loadRawHeritages,
   invalidateCharacterWizardCompendiumCaches,
@@ -16,6 +18,7 @@ import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { saveCreationData } from '../../../scripts/creation/creation-store.js';
 import { getClassHandler } from '../../../scripts/creation/class-handlers/registry.js';
 import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
+import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 const { getCreationData } = jest.requireMock('../../../scripts/creation/creation-store.js');
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -236,6 +239,59 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         type: 'background',
       }),
     ]);
+  });
+
+  it('marks ancestry browser entries disallowed when inherited from source guidance', async () => {
+    global._testSettings = {
+      'pf2e-leveler': {
+        gmContentGuidance: {
+          'source-title:pathfinder player core': 'disallowed',
+        },
+      },
+    };
+    invalidateGuidanceCache();
+    game.settings.get = jest.fn((moduleId, settingId) => global._testSettings?.[moduleId]?.[settingId] ?? false);
+    game.user.isGM = false;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 0;
+    game.packs.get.mockImplementation((key) => {
+      if (key !== 'pf2e.ancestries') return null;
+      return {
+        metadata: {
+          label: 'PF2E Ancestries',
+          packageName: 'pf2e',
+        },
+        collection: 'pf2e.ancestries',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.ancestries.Item.elf',
+            name: 'Elf',
+            img: 'elf.png',
+            type: 'ancestry',
+            slug: 'elf',
+            system: {
+              traits: { value: ['elf'], rarity: 'common' },
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+        ]),
+      };
+    });
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.items).toEqual([
+      expect.objectContaining({
+        uuid: 'Compendium.pf2e.ancestries.Item.elf',
+        publicationTitle: 'Pathfinder Player Core',
+        isDisallowed: true,
+        guidanceInherited: true,
+      }),
+    ]);
+
+    game.user.isGM = true;
   });
 
   it('registers selected custom world classes into the class registry', async () => {
@@ -764,6 +820,60 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         type: 'class',
       }),
     ]);
+  });
+
+  it.each([
+    ['ancestries', loadAncestries, 'pf2e.ancestries', 'ancestry', {
+      traits: { value: ['elf'], rarity: 'common' },
+    }],
+    ['backgrounds', loadBackgrounds, 'pf2e.backgrounds', 'background', {
+      traits: { value: [], rarity: 'common' },
+      boosts: {},
+      keyAbility: { value: ['wis'] },
+      trainedSkills: { value: [] },
+    }],
+    ['classes', loadClasses, 'pf2e.classes', 'class', {
+      traits: { value: [], rarity: 'common' },
+    }],
+    ['heritages', loadRawHeritages, 'pf2e.heritages', 'heritage', {
+      traits: { value: ['elf'], rarity: 'common' },
+      ancestry: { slug: 'elf' },
+    }],
+  ])('preserves publication titles for %s loader results', async (_label, loader, packKey, type, system) => {
+    const wizard = new CharacterWizard(createMockActor());
+    if (packKey === 'pf2e.heritages') {
+      wizard.data.ancestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
+    }
+
+    game.packs.get.mockImplementation((key) => {
+      if (key !== packKey) return null;
+      return {
+        metadata: {
+          label: `Test ${type}`,
+          packageName: 'pf2e',
+        },
+        collection: packKey,
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: `Compendium.${packKey}.Item.test`,
+            name: `Test ${type}`,
+            img: `${type}.png`,
+            type,
+            slug: `test-${type}`,
+            system: {
+              ...system,
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+        ]),
+      };
+    });
+
+    const [item] = await loader(wizard);
+
+    expect(item).toEqual(expect.objectContaining({
+      publicationTitle: 'Pathfinder Player Core',
+    }));
   });
 
   it('stores a second class when dual class support is enabled', async () => {

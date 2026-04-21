@@ -210,7 +210,51 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
-  test('treats lowercase French feat parentheticals as clarifiers instead of separate feat prerequisites', () => {
+  test('matches English bard muse feat prerequisites against subclass aliases', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Maestro (Bard Muse)' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['maestro-muse']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        met: true,
+        text: 'Maestro (Bard Muse)',
+      }),
+    );
+  });
+
+  test('matches plain English bard muse feat prerequisites when build state includes subclass alias', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'maestro muse' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['maestro', 'maestro-muse']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        met: true,
+        text: 'maestro muse',
+      }),
+    );
+  });
+
+  test('matches French bard muse feat prerequisites against subclass aliases', () => {
     const feat = {
       system: {
         prerequisites: {
@@ -220,7 +264,7 @@ describe('checkPrerequisites', () => {
     };
     const result = checkPrerequisites(feat, {
       ...buildState,
-      feats: new Set(['virtuose']),
+      feats: new Set(['virtuose-muse']),
     });
     expect(result.met).toBe(true);
     expect(result.results).toHaveLength(1);
@@ -228,6 +272,48 @@ describe('checkPrerequisites', () => {
       expect.objectContaining({
         met: true,
         text: 'Virtuose (muse de barde)',
+      }),
+    );
+  });
+
+  test('matches prefixed English bard muse feat prerequisites against subclass aliases', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Muse Maestro' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['maestro-muse']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        met: true,
+        text: 'Muse Maestro',
+      }),
+    );
+  });
+
+  test('matches generic French bard muse prerequisites from bard subclass identity', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Muse de barde' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      classes: [{ slug: 'bard', subclassType: 'muse', traditions: new Set(['occult']) }],
+    });
+    expect(result.met).toBe(true);
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        met: true,
+        text: 'Muse de barde',
       }),
     );
   });

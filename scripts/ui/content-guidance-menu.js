@@ -256,7 +256,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
 
     root.querySelector('[data-action="search-guidance"]')?.addEventListener('input', (e) => {
       this.searchText = e.target.value ?? '';
-      this._updateListOnly();
+      this._rerenderPreservingScroll();
     });
 
     root.querySelector('[data-action="save-guidance"]')?.addEventListener('click', () => this._save());
@@ -275,16 +275,6 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     });
 
     this._restoreScrollPosition();
-  }
-
-  _updateListOnly() {
-    const root = this.element;
-    if (!root) return;
-    const query = this.searchText.toLowerCase();
-    root.querySelectorAll('.guidance-item').forEach((el) => {
-      const name = el.querySelector('.guidance-item__name')?.textContent?.toLowerCase() ?? '';
-      el.style.display = !query || name.includes(query) ? '' : 'none';
-    });
   }
 
   async _save() {
