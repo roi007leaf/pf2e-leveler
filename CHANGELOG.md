@@ -5,6 +5,9 @@
 ### Level Planner
 
 - **Picker rarity chips now hide empty rarities in the current view** - Feat, spell, and item pickers now rebuild their rarity filters from the active non-rarity result set, so rarities with no matching entries at the current level, rank, or other filter state no longer show as dead options
+- **Planner feat pickers no longer expose the old Dedications toggle** - Class feat pickers now open with locked `Class` plus selectable `Archetype` feat types, while Free Archetype pickers stay locked to the `Archetype` feat type and show `Dedication` as a locked excluded trait with a ban icon instead of a separate toggle
+- **Planner dedication filtering is now trait-only** - The leftover hidden `showDedications` gating path has been removed, so class and free-archetype feat browsing now relies entirely on feat type and trait chips instead of a second internal dedication filter that could conflict with the visible UI
+- **French feat prerequisites with lowercase parenthetical clarifiers no longer split into fake extra badges** - Requirements such as `Virtuose (muse de barde)` now stay one feat prerequisite keyed to the base feat instead of being misread as separate `Virtuose` and `muse de barde` requirements in the planner picker
 
 ### Suggested Character Options
 
@@ -12,12 +15,6 @@
 - **Item guidance badges now resolve inherited source rules** - Content guidance rows and existing wizard/planner consumers now resolve status by item first and publication source second, so options from books like `Pathfinder Player Core` can inherit suggested or banned status automatically without manually tagging each document
 
 ## 3.1.13
-
-### Level Planner
-
-- **Planner feat pickers no longer expose the old Dedications toggle** - Class feat pickers now open with locked `Class` plus selectable `Archetype` feat types, while Free Archetype pickers stay locked to the `Archetype` feat type and show `Dedication` as a locked excluded trait with a ban icon instead of a separate toggle
-- **Planner dedication filtering is now trait-only** - The leftover hidden `showDedications` gating path has been removed, so class and free-archetype feat browsing now relies entirely on feat type and trait chips instead of a second internal dedication filter that could conflict with the visible UI
-- **French feat prerequisites with lowercase parenthetical clarifiers no longer split into fake extra badges** - Requirements such as `Virtuose (muse de barde)` now stay one feat prerequisite keyed to the base feat instead of being misread as separate `Virtuose` and `muse de barde` requirements in the planner picker
 
 ### Character Wizard
 
