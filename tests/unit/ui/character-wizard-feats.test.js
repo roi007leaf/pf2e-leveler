@@ -3,6 +3,7 @@ import {
   buildCompendiumSourceOptions,
   filterStepContextByCompendiumSource,
 } from '../../../scripts/ui/character-wizard/index.js';
+import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
 import { buildFeatChoicesContext } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { activateCharacterWizardListeners } from '../../../scripts/ui/character-wizard/listeners.js';
 import {
@@ -1079,6 +1080,123 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(buildState.ancestryTraits.has('person')).toBe(true);
     expect(buildState.ancestryTraits.has('human')).toBe(true);
     expect(buildState.ancestryTraits.has('beast-folk')).toBe(true);
+  });
+
+  it('includes selected level-1 ability modifiers in creation feat build state', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
+    wizard.data.background = { uuid: 'background-scholar', slug: 'scholar', name: 'Scholar' };
+    wizard.data.class = { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' };
+    wizard.data.boosts = {
+      ancestry: ['int'],
+      background: ['dex', 'int'],
+      class: ['int'],
+      free: ['int', 'con', 'wis', 'cha'],
+    };
+    wizard._documentCache.set('ancestry-elf', {
+      system: {
+        boosts: {
+          0: { value: ['dex'] },
+          1: { value: ['int', 'wis', 'str', 'dex', 'con', 'cha'] },
+        },
+        flaws: {
+          0: { value: ['con'] },
+        },
+      },
+    });
+    wizard._documentCache.set('background-scholar', {
+      system: {
+        boosts: {
+          0: { value: ['int', 'wis'] },
+          1: { value: ['int', 'wis', 'str', 'dex', 'con', 'cha'] },
+        },
+      },
+    });
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.level).toBe(1);
+    expect(buildState.attributes).toEqual({
+      str: 0,
+      dex: 2,
+      con: 0,
+      int: 3,
+      wis: 1,
+      cha: 1,
+    });
+  });
+
+  it('uses creation ability modifiers to unlock dedication feat choices', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'featSortMethod') return 'name';
+      if (scope === 'pf2e-leveler' && key === 'defaultEligibleOnly') return false;
+      if (scope === 'pf2e-leveler' && key === 'hideUncommonFeats') return false;
+      if (scope === 'pf2e-leveler' && key === 'hideRareFeats') return false;
+      if (scope === 'pf2e-leveler' && key === 'enforcePrerequisites') return true;
+      if (scope === 'pf2e-leveler' && key === 'showPrerequisites') return true;
+      return false;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf' };
+    wizard.data.background = { uuid: 'background-scholar', slug: 'scholar', name: 'Scholar' };
+    wizard.data.class = { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' };
+    wizard.data.boosts = {
+      ancestry: ['int'],
+      background: ['dex', 'int'],
+      class: ['int'],
+      free: ['int', 'con', 'wis', 'cha'],
+    };
+    wizard._documentCache.set('ancestry-elf', {
+      system: {
+        boosts: {
+          0: { value: ['dex'] },
+          1: { value: ['int', 'wis', 'str', 'dex', 'con', 'cha'] },
+        },
+        flaws: {
+          0: { value: ['con'] },
+        },
+      },
+    });
+    wizard._documentCache.set('background-scholar', {
+      system: {
+        boosts: {
+          0: { value: ['int', 'wis'] },
+          1: { value: ['int', 'wis', 'str', 'dex', 'con', 'cha'] },
+        },
+      },
+    });
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+    const dedicationFeat = {
+      uuid: 'Compendium.test.feats.Item.wizard-dedication',
+      slug: 'wizard-dedication',
+      name: 'Wizard Dedication',
+      img: 'wizard-dedication.png',
+      system: {
+        level: { value: 1 },
+        maxTakable: 1,
+        traits: { value: ['archetype', 'dedication', 'wizard'], rarity: 'common' },
+        prerequisites: { value: [{ value: 'Intelligence +2' }] },
+      },
+    };
+    const picker = new FeatPicker(createMockActor(), 'custom', 1, buildState, jest.fn(), {
+      preset: {
+        allowedFeatUuids: [dedicationFeat.uuid],
+        maxLevel: 1,
+        lockMaxLevel: true,
+      },
+    });
+    picker.allFeats = [dedicationFeat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toEqual([
+      expect.objectContaining({ text: 'Intelligence +2', met: true }),
+    ]);
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
   });
 
   it('shows a dedicated mixed ancestry step when Mixed Ancestry heritage is selected', async () => {

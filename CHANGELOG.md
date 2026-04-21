@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.13
+
+### Character Wizard
+
+- **Ancient Elf dedication choices now use earlier level-1 ability boosts for prerequisite checks** - Free dedication pickers opened from `Ancient Elf` now build feat prerequisite state from already selected ancestry, background, class, and free boosts, so multiclass dedications unlock as soon as their Ability Modifier requirements are met instead of all appearing locked
+
 ## 3.1.12
 
 ### Character Wizard

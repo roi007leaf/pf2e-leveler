@@ -1258,15 +1258,29 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ...this.data.skills,
     ];
     const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
+    const attributes = await this._buildCreationAbilityModifiers();
+    const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;
 
     return {
+      level,
       class: { slug: classSlug },
       feats: new Set(),
       ancestryTraits: new Set(ancestryTraits),
       senses,
+      attributes,
       skills: skillsMap,
       divineFont: classSelections.divineFont,
     };
+  }
+
+  async _buildCreationAbilityModifiers() {
+    const { summary } = await this._buildBoostContext();
+    return Object.fromEntries(
+      ATTRIBUTES.map((attribute) => [
+        attribute,
+        Number(summary.find((entry) => entry.key === attribute)?.mod ?? 0),
+      ]),
+    );
   }
 
   _getFeatChoiceContainer(slot) {
