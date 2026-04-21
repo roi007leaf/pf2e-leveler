@@ -699,8 +699,21 @@ function tryParseFeatRequirement(text) {
     .trim()
     .match(/^(.+?)\s*\(([^()]+)\)\s*$/u);
   if (parentheticalMatch) {
-    const baseRequirement = tryParseFeatRequirement(parentheticalMatch[1].trim());
-    const choiceRequirement = tryParseFeatRequirement(parentheticalMatch[2].trim());
+    const baseText = parentheticalMatch[1].trim();
+    const choiceText = parentheticalMatch[2].trim();
+    const baseRequirement = tryParseFeatRequirement(baseText);
+    const choiceRequirement = tryParseFeatRequirement(choiceText);
+    if (
+      baseRequirement?.type === 'feat'
+      && choiceRequirement?.type === 'feat'
+      && shouldTreatParentheticalFeatSuffixAsClarifier(choiceText)
+    ) {
+      return {
+        type: 'feat',
+        slug: baseRequirement.slug,
+        text,
+      };
+    }
     if (baseRequirement?.type === 'feat' && choiceRequirement?.type === 'feat') {
       return {
         kind: 'all',
@@ -717,6 +730,12 @@ function tryParseFeatRequirement(text) {
   if (!slug) return { type: 'unknown', text };
 
   return { type: 'feat', slug, text };
+}
+
+function shouldTreatParentheticalFeatSuffixAsClarifier(text) {
+  const normalized = String(text ?? '').trim();
+  if (!normalized) return false;
+  return /^\p{Ll}/u.test(normalized);
 }
 
 function tryParseRankWithEitherNode(text) {

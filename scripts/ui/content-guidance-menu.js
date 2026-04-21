@@ -1,6 +1,10 @@
 import { MODULE_ID, SKILLS } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
-import { getContentGuidance, invalidateGuidanceCache } from '../access/content-guidance.js';
+import {
+  getContentGuidance,
+  getSourceGuidanceKey,
+  invalidateGuidanceCache,
+} from '../access/content-guidance.js';
 import { getLanguageMap, getLanguageRarityMap } from './character-wizard/skills-languages.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -10,11 +14,23 @@ const GUIDANCE_CATEGORIES = [
   { key: 'heritages', type: 'heritage' },
   { key: 'backgrounds', type: 'background' },
   { key: 'classes', type: 'class' },
+  { key: 'sources', type: null, labelKey: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.SOURCES' },
   { key: 'skills', type: null },
   { key: 'languages', type: null },
 ];
 
 const BULK_GUIDANCE_STATES = ['recommended', 'not-recommended', 'disallowed', 'default'];
+const SOURCE_SCAN_CATEGORIES = [
+  ['ancestries', (doc) => doc.type === 'ancestry'],
+  ['heritages', (doc) => doc.type === 'heritage'],
+  ['backgrounds', (doc) => doc.type === 'background'],
+  ['classes', (doc) => doc.type === 'class'],
+  ['feats', (doc) => doc.type === 'feat'],
+  ['spells', (doc) => doc.type === 'spell'],
+  ['equipment', (doc) => ['weapon', 'armor', 'equipment', 'consumable', 'ammo', 'treasure', 'backpack', 'shield', 'kit'].includes(String(doc?.type ?? '').toLowerCase())],
+  ['actions', (doc) => doc.type === 'action'],
+  ['deities', (doc) => doc.type === 'deity'],
+];
 
 export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(options = {}) {
@@ -55,8 +71,9 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
       : items;
 
     const categories = GUIDANCE_CATEGORIES.map((cat) => {
-      const label = game.i18n.localize(`PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.${cat.key.toUpperCase()}`);
+      const label = game.i18n.localize(cat.labelKey ?? `PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.${cat.key.toUpperCase()}`);
       const count = Object.entries(this._draft).filter(([uuid]) => {
+        if (cat.key === 'sources') return String(uuid).startsWith('source-title:');
         const cached = this._findCachedItem(uuid);
         return cached?.categoryKey === cat.key;
       }).length;
@@ -70,23 +87,32 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
 
     const totalMarked = Object.keys(this._draft).length;
 
-    const displayItems = filtered.map((item) => ({
+    const displayItems = filtered.map((item) => {
+      const resolved = this._resolveDraftStatus(item);
+      return {
       uuid: item.uuid,
       name: item.name,
       img: item.img,
       ancestrySlug: item.ancestrySlug ?? null,
       ancestryLabel: item.ancestryLabel ?? null,
+      publicationTitle: item.publicationTitle ?? null,
       openable: typeof item.uuid === 'string' && item.uuid.startsWith('Compendium.'),
       rarity: item.rarity ?? 'common',
       level: item.level ?? null,
-      status: this._draft[item.uuid] ?? 'default',
-      isRecommended: this._draft[item.uuid] === 'recommended',
-      isNotRecommended: this._draft[item.uuid] === 'not-recommended',
-      isDisallowed: this._draft[item.uuid] === 'disallowed',
-    }));
+      matchedCount: item.matchedCount ?? null,
+      categorySummary: item.categorySummary ?? null,
+      status: resolved.status ?? 'default',
+      isRecommended: resolved.status === 'recommended',
+      isNotRecommended: resolved.status === 'not-recommended',
+      isDisallowed: resolved.status === 'disallowed',
+      guidanceInherited: resolved.inherited,
+    };
+    });
 
     return {
       categories,
+      primaryCategories: categories.filter((category) => category.key !== 'sources'),
+      secondaryCategories: categories.filter((category) => category.key === 'sources'),
       items: displayItems,
       useGridLayout: this.activeCategory !== 'heritages',
       searchText: this.searchText,
@@ -135,6 +161,12 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
       return items;
     }
 
+    if (categoryKey === 'sources') {
+      const items = await this._loadSourceItems();
+      this._itemCache[categoryKey] = items;
+      return items;
+    }
+
     const keys = getCompendiumKeysForCategory(catDef.key);
     const items = [];
     for (const key of keys) {
@@ -150,6 +182,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
           rarity: doc.system?.traits?.rarity ?? 'common',
           level: doc.system?.level?.value ?? null,
           ancestrySlug: doc.system?.ancestry?.slug ?? null,
+          publicationTitle: doc.system?.publication?.title ?? null,
         })),
       );
     }
@@ -231,6 +264,10 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
 
     root.querySelector('[data-action="clear-all-guidance"]')?.addEventListener('click', () => {
       for (const [uuid] of Object.entries(this._draft ?? {})) {
+        if (this.activeCategory === 'sources' && String(uuid).startsWith('source-title:')) {
+          delete this._draft[uuid];
+          continue;
+        }
         const cached = this._findCachedItem(uuid);
         if (cached?.categoryKey === this.activeCategory) delete this._draft[uuid];
       }
@@ -282,6 +319,67 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
       return scopeValue === 'versatile' ? !ancestrySlug : ancestrySlug === scopeValue;
     }
     return false;
+  }
+
+  _resolveDraftStatus(item) {
+    const direct = item?.uuid ? (this._draft?.[item.uuid] ?? null) : null;
+    if (direct) return { status: direct, inherited: false };
+
+    const sourceKey = getSourceGuidanceKey(item?.publicationTitle ?? item?.name ?? '');
+    const inherited = sourceKey ? (this._draft?.[sourceKey] ?? null) : null;
+    if (inherited) return { status: inherited, inherited: item?.uuid !== sourceKey };
+
+    return { status: null, inherited: false };
+  }
+
+  async _loadSourceItems() {
+    const aggregated = new Map();
+
+    for (const [categoryKey, matcher] of SOURCE_SCAN_CATEGORIES) {
+      const docs = await this._loadSourceDocumentsForCategory(categoryKey, matcher);
+      for (const doc of docs) {
+        const title = String(doc?.system?.publication?.title ?? '').trim();
+        if (!title) continue;
+        const sourceKey = getSourceGuidanceKey(title);
+        if (!sourceKey) continue;
+        if (!aggregated.has(sourceKey)) {
+          aggregated.set(sourceKey, {
+            uuid: sourceKey,
+            name: title,
+            img: null,
+            rarity: 'common',
+            level: null,
+            publicationTitle: title,
+            matchedCount: 0,
+            categories: new Set(),
+          });
+        }
+        const entry = aggregated.get(sourceKey);
+        entry.matchedCount += 1;
+        entry.categories.add(categoryKey);
+      }
+    }
+
+    return [...aggregated.values()]
+      .map((entry) => ({
+        ...entry,
+        categorySummary: [...entry.categories]
+          .map((categoryKey) => game.i18n.localize(`PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.${categoryKey.toUpperCase()}`))
+          .join(', '),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async _loadSourceDocumentsForCategory(categoryKey, matcher) {
+    const items = [];
+    for (const key of getCompendiumKeysForCategory(categoryKey)) {
+      const pack = game.packs.get(key);
+      if (!pack) continue;
+      const docs = await pack.getDocuments().catch(() => []);
+      items.push(...docs.filter((doc) => matcher(doc)));
+    }
+    items.push(...getAllWorldItems().filter((doc) => matcher(doc)));
+    return items;
   }
 
   async _loadAncestryLabels() {
@@ -381,4 +479,12 @@ function humanizeSlug(value) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function getAllWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
 }

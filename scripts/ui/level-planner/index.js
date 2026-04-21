@@ -1735,7 +1735,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['class', 'archetype'],
           lockedFeatTypes: ['class'],
-          showDedications: true,
+          extraVisibleFeatTypes: ['archetype'],
           allowedFeatUuids,
           requiredFeatLimitation: !!requiredSecondLevelFeat,
           maxLevel: level,
@@ -1769,22 +1769,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           maxLevel: level,
         };
       case 'archetypeFeats': {
-        const hasDedication = (buildState?.archetypeDedications?.size ?? 0) > 0;
-        const dedicationLocked = buildState?.canTakeNewArchetypeDedication === false;
-        const ignoreFreeArchetypeDedicationLock = game.settings.get(MODULE_ID, 'ignoreFreeArchetypeDedicationLock') === true;
-        const selectedTraits = !hasDedication
-          ? ['dedication']
-          : (dedicationLocked && !ignoreFreeArchetypeDedicationLock)
-            ? ['archetype']
-            : ['archetype', 'dedication'];
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
-          selectedTraits,
-          lockedTraits: selectedTraits,
-          traitLogic: 'or',
-          showDedications: !hasDedication || !dedicationLocked || ignoreFreeArchetypeDedicationLock,
-          ignoreDedicationLock: ignoreFreeArchetypeDedicationLock,
+          selectedTraits: ['archetype'],
+          excludedTraits: ['dedication'],
+          lockedTraits: ['archetype', 'dedication'],
+          traitLogic: 'and',
           maxLevel: level,
         };
       }

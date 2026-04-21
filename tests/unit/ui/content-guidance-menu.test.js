@@ -3,6 +3,10 @@ import { ContentGuidanceMenu } from '../../../scripts/ui/content-guidance-menu.j
 jest.mock('../../../scripts/access/content-guidance.js', () => ({
   getContentGuidance: jest.fn(() => ({})),
   invalidateGuidanceCache: jest.fn(),
+  getSourceGuidanceKey: jest.fn((title) => {
+    const normalized = String(title ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return normalized ? `source-title:${normalized}` : null;
+  }),
 }));
 
 describe('ContentGuidanceMenu', () => {
@@ -69,6 +73,25 @@ describe('ContentGuidanceMenu', () => {
       expect.objectContaining({ scopeValue: 'common' }),
       expect.objectContaining({ scopeValue: 'rare' }),
     ]);
+  });
+
+  test('separates sources tab from primary category row', async () => {
+    const menu = new ContentGuidanceMenu();
+    menu.activeCategory = 'ancestries';
+    menu._draft = {};
+    menu._itemCache.ancestries = [];
+
+    const context = await menu._prepareContext();
+
+    expect(context.primaryCategories.map((entry) => entry.key)).toEqual([
+      'ancestries',
+      'heritages',
+      'backgrounds',
+      'classes',
+      'skills',
+      'languages',
+    ]);
+    expect(context.secondaryCategories.map((entry) => entry.key)).toEqual(['sources']);
   });
 
   test('bulk guidance applies to matching rarity within the active category', () => {

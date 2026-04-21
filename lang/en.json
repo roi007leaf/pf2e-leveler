@@ -639,13 +639,16 @@
         "BADGE_SUGGESTED": "Suggested",
         "BADGE_NOT_RECOMMENDED": "Not Recommended",
         "BADGE_DISALLOWED": "Disallowed",
+        "BADGE_INHERITED": "Inherited",
         "BULK_RARITY": "Bulk by Rarity",
         "BULK_RECOMMENDED": "Suggest",
         "BULK_NOT_RECOMMENDED": "Warn",
         "BULK_DISALLOWED": "Ban",
         "BULK_DEFAULT": "Clear",
         "CLEAR_ALL": "Clear Tab",
-        "COUNT": "{count} marked"
+        "COUNT": "{count} marked",
+        "SOURCES": "Sources",
+        "MATCHED_COUNT": "{count} items"
       }
     }
   }

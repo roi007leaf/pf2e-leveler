@@ -101,6 +101,30 @@ describe('ItemPicker', () => {
     expect(picker.close).toHaveBeenCalled();
   });
 
+  test('hides rarity chips that have no items in the current max-level view', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'item-common',
+          name: 'Common Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-rare',
+          name: 'Rare Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'rare', value: [] }, level: { value: 5 } },
+        },
+      ],
+    });
+    picker.maxLevel = '1';
+
+    const context = await picker._prepareContext();
+
+    expect(context.rarityOptions.map((entry) => entry.value)).toEqual(['common']);
+  });
+
   test('builds dedicated armor and weapon filter options from item metadata', () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       items: [
@@ -454,6 +478,48 @@ describe('ItemPicker', () => {
     expect(context.renderedCount).toBe(30);
     expect(context.items).toHaveLength(30);
     expect(context.capped).toBe(false);
+  });
+
+  test('keeps rarity chips rendered after an item list update', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'item-common',
+          name: 'Common Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-rare',
+          name: 'Rare Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'rare', value: [] }, level: { value: 1 } },
+        },
+      ],
+    });
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="pf2e-leveler item-picker">
+        <div data-role="rarity-chips"></div>
+        <div class="item-list"></div>
+        <div class="picker__results-count"></div>
+      </div>
+    `;
+
+    const renderSpy = jest.spyOn(foundry.applications.handlebars, 'renderTemplate').mockImplementation(async (_template, context) => `
+      <div class="pf2e-leveler item-picker">
+        <div data-role="rarity-chips">${(context.rarityOptions ?? []).map((entry) => `<button data-action="toggleRarityChip" data-rarity="${entry.value}">${entry.label}</button>`).join('')}</div>
+        <div class="item-list"></div>
+      </div>
+    `);
+
+    await picker._prepareContext();
+    await picker._updateList();
+
+    expect(renderSpy).toHaveBeenCalled();
+    expect(picker.element.querySelectorAll('[data-role="rarity-chips"] [data-action="toggleRarityChip"]')).toHaveLength(2);
+
+    renderSpy.mockRestore();
   });
 
   test('toggle select all only affects visible items', () => {

@@ -98,7 +98,7 @@
 
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
-        <div class="picker__source-list">
+        <div class="picker__source-list" data-role="rarity-chips">
           {{#each rarityOptions}}
           <button type="button"
             class="picker__source-chip {{#if this.selected}}selected{{/if}}"

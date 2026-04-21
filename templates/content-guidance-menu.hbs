@@ -7,18 +7,36 @@
   </header>
 
   <div class="compendium-manager__tabs" role="tablist">
-    {{#each categories}}
-    <button
-      type="button"
-      class="compendium-manager__tab {{#if this.active}}is-active{{/if}}"
-      data-action="select-category"
-      data-category="{{this.key}}">
-      <span class="compendium-manager__tabLabel">{{this.label}}</span>
-      {{#if this.markedCount}}
-      <span class="tag tag--info">{{this.markedCount}}</span>
-      {{/if}}
-    </button>
-    {{/each}}
+    <div class="compendium-manager__tabsGroup">
+      {{#each primaryCategories}}
+      <button
+        type="button"
+        class="compendium-manager__tab {{#if this.active}}is-active{{/if}}"
+        data-action="select-category"
+        data-category="{{this.key}}">
+        <span class="compendium-manager__tabLabel">{{this.label}}</span>
+        {{#if this.markedCount}}
+        <span class="tag tag--info">{{this.markedCount}}</span>
+        {{/if}}
+      </button>
+      {{/each}}
+    </div>
+    {{#if secondaryCategories.length}}
+    <div class="compendium-manager__tabsGroup compendium-manager__tabsGroup--secondary">
+      {{#each secondaryCategories}}
+      <button
+        type="button"
+        class="compendium-manager__tab {{#if this.active}}is-active{{/if}}"
+        data-action="select-category"
+        data-category="{{this.key}}">
+        <span class="compendium-manager__tabLabel">{{this.label}}</span>
+        {{#if this.markedCount}}
+        <span class="tag tag--info">{{this.markedCount}}</span>
+        {{/if}}
+      </button>
+      {{/each}}
+    </div>
+    {{/if}}
   </div>
 
   <div class="compendium-manager__panelWrap">
@@ -87,11 +105,18 @@
                 {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                 {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
                 {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                {{#if this.guidanceInherited}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_INHERITED"}}</span>{{/if}}
                 {{#if (notEqual this.rarity "common")}}
                 <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
                 {{/if}}
                 {{#if this.level}}
                 <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
+                {{/if}}
+                {{#if this.matchedCount}}
+                <span class="tag tag--muted tag--tiny">{{format "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.MATCHED_COUNT" count=this.matchedCount}}</span>
+                {{/if}}
+                {{#if this.categorySummary}}
+                <span class="tag tag--info tag--tiny">{{this.categorySummary}}</span>
                 {{/if}}
               </div>
               <button
@@ -125,11 +150,18 @@
               {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
               {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
               {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+              {{#if this.guidanceInherited}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_INHERITED"}}</span>{{/if}}
               {{#if (notEqual this.rarity "common")}}
               <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
               {{/if}}
               {{#if this.level}}
               <span class="tag tag--muted tag--tiny">Lv {{this.level}}</span>
+              {{/if}}
+              {{#if this.matchedCount}}
+              <span class="tag tag--muted tag--tiny">{{format "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.MATCHED_COUNT" count=this.matchedCount}}</span>
+              {{/if}}
+              {{#if this.categorySummary}}
+              <span class="tag tag--info tag--tiny">{{this.categorySummary}}</span>
               {{/if}}
             </div>
             <button

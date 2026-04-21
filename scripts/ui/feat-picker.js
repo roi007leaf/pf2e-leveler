@@ -5,7 +5,6 @@ import {
   collectAdditionalArchetypeFeatLevels,
   collectAdditionalArchetypeFeatTraits,
   getAdditionalArchetypeMatchKeys,
-  filterByDedication,
   filterBySearch,
   filterBySkill,
   sortFeats,
@@ -18,12 +17,14 @@ import {
   applySourceFilter,
   applyTraitFilter,
   buildChipOptions,
+  getAvailableRarityValues,
   initializeSelectionSet,
   toggleSelectableChip,
 } from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
+const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
 
 export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, category, targetLevel, buildState, onSelect, options = {}) {
@@ -51,7 +52,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSkills = new Set();
     this.requiredSkills = new Set();
     this.skillLogic = 'or';
-    this.showDedications = category !== 'class';
     this.showSkillFeats = false;
     this.minLevel = '';
     this.maxLevel = Number.isFinite(Number(targetLevel)) && Number(targetLevel) > 0 ? String(targetLevel) : '';
@@ -134,6 +134,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const featTypeOptions = this._getFeatTypeOptions();
     const traitOptions = this._getTraitOptions();
     const skillChips = this._getSkillChipOptions();
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredFeats = this._applyFilters();
 
     return {
@@ -147,7 +151,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       minLevelLocked: this._minLevelLocked,
       maxLevelLocked: this._maxLevelLocked,
       hideFailedPrereqs: this.hideFailedPrereqs,
-      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
       sortMethod: this.sortMethod,
@@ -155,8 +159,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       maxLevel: this.maxLevel,
       showSkillFilter: this._showSkillFilter ?? false,
       showGeneralSkillToggle: false,
-      showDedicationToggle: ['class', 'archetype'].includes(this.category),
-      showDedications: this.showDedications,
       showFeatTypeFilter: featTypeOptions.length > 0,
       skillChips,
       selectedSkillChips: skillChips.filter((o) => o.selected),
@@ -226,7 +228,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       minLevelLocked: this._minLevelLocked,
       maxLevelLocked: this._maxLevelLocked,
       hideFailedPrereqs: this.hideFailedPrereqs,
-      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
       sortMethod: this.sortMethod,
@@ -234,8 +236,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       maxLevel: this.maxLevel,
       showSkillFilter: false,
       showGeneralSkillToggle: false,
-      showDedicationToggle: ['class', 'archetype'].includes(this.category),
-      showDedications: this.showDedications,
       showFeatTypeFilter: false,
       skillChips: [],
       selectedSkillChips: [],
@@ -267,10 +267,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._updateFilterControlState();
   }
 
-  _applyFilters() {
+  _applyFilters({ ignoreRarity = false } = {}) {
     let feats = [...this.allFeats];
     feats = applySourceFilter(feats, this.selectedSourcePackages, (feat) => feat.sourcePackage ?? feat.sourcePack, this._sourceKeys);
-    feats = applyRarityFilter(feats, this.selectedRarities, (feat) => feat.system?.traits?.rarity ?? 'common');
     if (this.minLevel !== '') {
       const minLevel = Number(this.minLevel);
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) >= minLevel);
@@ -288,7 +287,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.searchText) feats = filterBySearch(feats, this.searchText);
     if (this.requiredSkills.size > 0) feats = filterBySkill(feats, [...this.requiredSkills], this.skillLogic);
     if (this._showSkillFilter && this.selectedSkills.size > 0) feats = filterBySkill(feats, [...this.selectedSkills], this.skillLogic);
-    if (['class', 'archetype'].includes(this.category)) feats = filterByDedication(feats, this.showDedications);
     if (this.selectedFeatTypes.size > 0) {
       const hideSkillFromGeneral = this.selectedFeatTypes.has('general') && !this.selectedFeatTypes.has('skill');
       feats = feats.filter((feat) => {
@@ -305,9 +303,25 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return ![...this.excludedTraits].some((trait) => featTraits.has(String(trait).toLowerCase()));
       });
     }
+    if (!ignoreRarity) {
+      feats = applyRarityFilter(
+        feats,
+        this.selectedRarities,
+        (feat) => feat.system?.traits?.rarity ?? 'common',
+        this._availableRarityValues ?? RARITY_VALUES,
+      );
+    }
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
     return sortFeats(feats, this.sortMethod);
+  }
+
+  _getAvailableRarityValues() {
+    return getAvailableRarityValues(
+      this._applyFilters({ ignoreRarity: true }),
+      (feat) => feat.system?.traits?.rarity ?? 'common',
+      RARITY_VALUES,
+    );
   }
 
   _createBuildStateSignature() {
@@ -538,15 +552,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }, { signal });
     }
 
-    const dedicationToggle = el.querySelector('[data-action="toggleDedications"]');
-    if (dedicationToggle) {
-      dedicationToggle.addEventListener('click', () => {
-        this.showDedications = !this.showDedications;
-        dedicationToggle.classList.toggle('active', this.showDedications);
-        this._scheduleListUpdate();
-      }, { signal });
-    }
-
     el.querySelectorAll('[data-action="toggleFeatType"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.type;
@@ -566,16 +571,20 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this._bindTraitChipListeners(el, signal);
 
-    el.querySelectorAll('[data-action="toggleRarityChip"]').forEach((btn) => {
+    this._bindRarityChipListeners(el, signal);
+
+    this._bindActionButtons(el, signal);
+  }
+
+  _bindRarityChipListeners(root, signal) {
+    root.querySelectorAll('[data-action="toggleRarityChip"]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const rarity = String(btn.dataset.rarity ?? '').trim().toLowerCase();
         if (!rarity) return;
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique']);
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._availableRarityValues ?? RARITY_VALUES);
         this._scheduleListUpdate();
       }, { signal });
     });
-
-    this._bindActionButtons(el, signal);
   }
 
   _getRootElement() {
@@ -594,6 +603,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _updateFeatList() {
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredFeats = this._applyFilters();
 
     const root = this._getRootElement();
@@ -606,6 +619,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       category: this.category,
       targetLevel: this.targetLevel,
       sortMethod: this.sortMethod,
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+        labels: this._getRarityLabels(),
+      }),
       selectedTraitChips: this._getSelectedTraitChips(this._getTraitOptions()),
       selectedTraits: [...this.selectedTraits],
       excludedTraits: [...this.excludedTraits],
@@ -623,7 +639,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       listContainer.innerHTML = newList.innerHTML;
     }
 
+    const rarityContainer = root?.querySelector('[data-role="rarity-chips"]');
+    const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
+    if (rarityContainer && newRarityContainer) {
+      rarityContainer.innerHTML = newRarityContainer.innerHTML;
+    }
+
     if (this._domListeners?.signal) {
+      this._bindRarityChipListeners(root, this._domListeners.signal);
       this._bindActionButtons(root, this._domListeners.signal);
     }
 
@@ -1254,9 +1277,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const prereqToggle = root.querySelector('[data-action="togglePrereqFilter"]');
     if (prereqToggle) prereqToggle.classList.toggle('active', this.hideFailedPrereqs);
 
-    const dedicationToggle = root.querySelector('[data-action="toggleDedications"]');
-    if (dedicationToggle) dedicationToggle.classList.toggle('active', this.showDedications);
-
     const skillFeatToggle = root.querySelector('[data-action="toggleGeneralSkillFeats"]');
     if (skillFeatToggle) skillFeatToggle.classList.toggle('active', this.showSkillFeats);
 
@@ -1284,19 +1304,22 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       traitChipContainer.style.display = selectedTraitChips.length > 0 ? '' : 'none';
       traitChipContainer.innerHTML = selectedTraitChips.map((chip) => `
         <div
-          class="picker__source-chip ${chip.excluded ? 'excluded' : 'selected'} ${chip.locked ? 'locked' : ''}"
-          data-trait="${chip.value}"
-          ${chip.locked ? `data-tooltip="${game.i18n.localize('PF2E_LEVELER.UI.LOCKED_FILTER_HINT')}"` : ''}>
+          class="picker__source-chip picker__source-chip--trait ${chip.excluded ? 'excluded' : 'selected'} ${chip.locked ? 'locked' : ''}"
+          data-trait="${chip.value}">
           <span>${chip.label}</span>
-          ${chip.locked ? '' : `
-            <span class="picker__chip-actions">
-              <button type="button"
-                class="picker__chip-action"
-                data-action="toggleTraitExclude"
-                data-trait="${chip.value}"
-                data-tooltip="${game.i18n.localize(chip.excluded ? 'PF2E_LEVELER.FEAT_PICKER.TRAIT_INCLUDE' : 'PF2E_LEVELER.FEAT_PICKER.TRAIT_EXCLUDE')}">
-                <i class="fa-solid ${chip.excluded ? 'fa-circle-check' : 'fa-ban'}" aria-hidden="true"></i>
-              </button>
+          <span class="picker__chip-actions">
+            <button type="button"
+              class="picker__chip-action"
+              data-action="toggleTraitExclude"
+              data-trait="${chip.value}"
+              data-tooltip="${game.i18n.localize(chip.excluded ? 'PF2E_LEVELER.FEAT_PICKER.TRAIT_INCLUDE' : 'PF2E_LEVELER.FEAT_PICKER.TRAIT_EXCLUDE')}">
+              <i class="fa-solid ${chip.excluded ? 'fa-circle-check' : 'fa-ban'}" aria-hidden="true"></i>
+            </button>
+            ${chip.locked ? `
+              <span class="picker__chip-action picker__chip-action--locked" data-tooltip="${game.i18n.localize('PF2E_LEVELER.UI.LOCKED_FILTER_HINT')}" aria-hidden="true">
+                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+              </span>
+            ` : `
               <button type="button"
                 class="picker__chip-action"
                 data-action="removeTraitChip"
@@ -1304,8 +1327,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
                 data-tooltip="${game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.TRAIT_REMOVE')}">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
               </button>
-            </span>
-          `}
+            `}
+          </span>
         </div>
       `).join('');
       if (this._domListeners?.signal) this._bindTraitChipListeners(root, this._domListeners.signal);
@@ -1415,7 +1438,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         event.preventDefault();
         event.stopPropagation();
         const trait = String(btn.dataset.trait ?? '').trim().toLowerCase();
-        if (!trait || this.lockedTraitValues.has(trait)) return;
+        if (!trait) return;
         if (this.excludedTraits.has(trait)) {
           this.excludedTraits.delete(trait);
           this.selectedTraits.add(trait);
@@ -1462,8 +1485,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.requiredSkills)) this.requiredSkills = new Set(preset.requiredSkills.map((skill) => String(skill).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
     if (Array.isArray(preset.extraVisibleFeatTypes)) this._extraVisibleFeatTypes = new Set(preset.extraVisibleFeatTypes);
-    if (typeof preset.showDedications === 'boolean') this.showDedications = preset.showDedications;
-    if (typeof preset.lockDedications === 'boolean') this._dedicationsLocked = preset.lockDedications;
     if (typeof preset.showSkillFeats === 'boolean') this.showSkillFeats = preset.showSkillFeats;
     if (typeof preset.requiredFeatLimitation === 'boolean') this._requiredFeatLimitation = preset.requiredFeatLimitation;
     if (preset.minLevel != null) this.minLevel = String(preset.minLevel);

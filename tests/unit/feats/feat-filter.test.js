@@ -2,7 +2,6 @@ import {
   collectAdditionalArchetypeFeatLevels,
   filterFeatsByCategory,
   filterByArchetypeRestrictions,
-  filterByDedication,
   filterByGeneralSkillFeats,
   getFeatsForSelection,
   filterBySearch,
@@ -511,18 +510,6 @@ describe('dedication and skill filters', () => {
         },
       },
     };
-  });
-
-  test('filterByDedication hides dedication feats when disabled', () => {
-    const feats = [
-      makeFeat('Wizard Dedication', 2, ['archetype', 'dedication']),
-      makeFeat('Basic Wizard Spellcasting', 4, ['archetype']),
-    ];
-
-    const result = filterByDedication(feats, false);
-    expect(result).toEqual([
-      expect.objectContaining({ name: 'Basic Wizard Spellcasting' }),
-    ]);
   });
 
   test('filterBySkill matches skill feats by prerequisite skill text', () => {

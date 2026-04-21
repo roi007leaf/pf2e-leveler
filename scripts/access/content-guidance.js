@@ -23,6 +23,20 @@ export function getGuidanceForKey(key) {
   return guidance[key] ?? null;
 }
 
+export function normalizeSourceTitle(title) {
+  return String(title ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function getSourceGuidanceKey(title) {
+  const normalized = normalizeSourceTitle(title);
+  return normalized ? `source-title:${normalized}` : null;
+}
+
+export function getGuidanceForSourceTitle(title) {
+  const key = getSourceGuidanceKey(title);
+  return key ? getGuidanceForKey(key) : null;
+}
+
 export function getGuidanceForUuid(uuid) {
   return getGuidanceForKey(uuid);
 }
@@ -48,22 +62,31 @@ export function annotateGuidanceBySlug(items, prefix) {
   for (const item of items) {
     const key = `${prefix}:${item.slug}`;
     const status = guidance[key] ?? null;
-    item.isRecommended = status === 'recommended';
-    item.isNotRecommended = status === 'not-recommended';
-    item.isDisallowed = status === 'disallowed';
+    applyResolvedStatus(item, status, false);
   }
   return items;
 }
 
 export function annotateGuidance(items) {
-  const guidance = getContentGuidance();
   for (const item of items) {
-    const status = guidance[item.uuid] ?? null;
-    item.isRecommended = status === 'recommended';
-    item.isNotRecommended = status === 'not-recommended';
-    item.isDisallowed = status === 'disallowed';
+    const resolved = resolveGuidanceStatus(item);
+    applyResolvedStatus(item, resolved.status, resolved.inherited);
   }
   return items;
+}
+
+export function resolveGuidanceStatus(item) {
+  const uuid = item?.uuid ?? null;
+  const directStatus = uuid ? getGuidanceForUuid(uuid) : null;
+  if (directStatus) return { status: directStatus, inherited: false };
+
+  const publicationTitle = item?.publicationTitle
+    ?? item?.system?.publication?.title
+    ?? null;
+  const sourceStatus = getGuidanceForSourceTitle(publicationTitle);
+  if (sourceStatus) return { status: sourceStatus, inherited: true };
+
+  return { status: null, inherited: false };
 }
 
 export function sortRecommendedFirst(items) {
@@ -98,4 +121,12 @@ export async function setGuidance(uuid, status) {
   }
   await game.settings.set(MODULE_ID, 'gmContentGuidance', guidance);
   cachedGuidance = guidance;
+}
+
+function applyResolvedStatus(item, status, inherited = false) {
+  item.isRecommended = status === 'recommended';
+  item.isNotRecommended = status === 'not-recommended';
+  item.isDisallowed = status === 'disallowed';
+  item.guidanceInherited = inherited === true && !!status;
+  item.guidanceStatus = status ?? 'default';
 }

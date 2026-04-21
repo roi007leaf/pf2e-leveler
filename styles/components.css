@@ -100,6 +100,10 @@
   opacity: 1;
 }
 
+.pf2e-leveler .picker__chip-action--locked {
+  cursor: default;
+}
+
 .pf2e-leveler .feat-slot {
   display: flex;
   align-items: center;
@@ -561,8 +565,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: space-between;
+  align-items: flex-start;
   position: relative;
   z-index: 1;
+}
+
+.pf2e-leveler .compendium-manager__tabsGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.pf2e-leveler .compendium-manager__tabsGroup--secondary {
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 .pf2e-leveler .compendium-manager__modeTabs {

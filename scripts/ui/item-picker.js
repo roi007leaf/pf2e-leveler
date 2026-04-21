@@ -5,6 +5,7 @@ import {
   applySourceFilter,
   applyTraitFilter,
   buildChipOptions,
+  getAvailableRarityValues,
   isUnrestrictedSelection,
   initializeSelectionSet,
   normalizeItemCategory,
@@ -13,6 +14,7 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
+const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
 
 const CATEGORY_LABELS = {
   ammunition: 'Ammunition',
@@ -96,6 +98,10 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const weaponFilterOptions = this._getWeaponFilterOptions();
     const showArmorFilters = this._shouldShowEquipmentFilters('armor');
     const showWeaponFilters = this._shouldShowEquipmentFilters('weapon');
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredItems = this._filterItems();
 
     const RENDER_LIMIT = 200;
@@ -116,7 +122,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       weaponFilterOptions,
       showArmorFilters,
       showWeaponFilters,
-      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
       }),
       traitOptions: this._getTraitOptions(),
@@ -151,10 +157,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
-  _filterItems() {
+  _filterItems({ ignoreRarity = false } = {}) {
     let items = [...this.allItems];
     items = applySourceFilter(items, this.selectedSourcePackages, (item) => item.sourcePackage ?? item.sourcePack, this._sourceKeys);
-    items = applyRarityFilter(items, this.selectedRarities, (item) => item.system?.traits?.rarity ?? 'common');
     if (this.selectedCategories.size > 0 && !this._categoryValues.every((v) => this.selectedCategories.has(v))) {
       items = items.filter((item) => this.selectedCategories.has(normalizeItemCategory(item)));
     }
@@ -175,7 +180,23 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const query = this.searchText.toLowerCase();
       items = items.filter((item) => String(item.name ?? '').toLowerCase().includes(query));
     }
+    if (!ignoreRarity) {
+      items = applyRarityFilter(
+        items,
+        this.selectedRarities,
+        (item) => item.system?.traits?.rarity ?? 'common',
+        this._availableRarityValues ?? RARITY_VALUES,
+      );
+    }
     return items;
+  }
+
+  _getAvailableRarityValues() {
+    return getAvailableRarityValues(
+      this._filterItems({ ignoreRarity: true }),
+      (item) => item.system?.traits?.rarity ?? 'common',
+      RARITY_VALUES,
+    );
   }
 
   _hasActiveFilter() {
@@ -186,7 +207,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._shouldApplyEquipmentFilters('weapon') && !this._weaponFilterValues.every((v) => this.selectedWeaponFilters.has(v))) return true;
     if (!isUnrestrictedSelection(this.selectedCategories, this._categoryValues)) return true;
     if (!isUnrestrictedSelection(this.selectedSourcePackages, this._sourceKeys)) return true;
-    if (!['common', 'uncommon', 'rare', 'unique'].every((r) => this.selectedRarities.has(r))) return true;
+    if (!isUnrestrictedSelection(this.selectedRarities, this._availableRarityValues ?? RARITY_VALUES)) return true;
     return false;
   }
 
@@ -317,6 +338,10 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _updateList() {
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredItems = this._filterItems();
     const root = this._getRootElement();
     const listContainer = root?.querySelector('.item-list');
@@ -332,12 +357,18 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
       allVisibleSelected: this._areAllVisibleSelected(),
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+        labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
+      }),
     };
     const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/item-picker.hbs`, context);
     const temp = document.createElement('div');
     temp.innerHTML = html;
     const newList = temp.querySelector('.item-list');
     if (newList) listContainer.innerHTML = newList.innerHTML;
+    const rarityContainer = root?.querySelector('[data-role="rarity-chips"]');
+    const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
+    if (rarityContainer && newRarityContainer) rarityContainer.innerHTML = newRarityContainer.innerHTML;
     const countEl = root?.querySelector('.picker__results-count');
     if (countEl) countEl.textContent = capped ? `${renderedItems.length}/${this.filteredItems.length}` : String(this.filteredItems.length);
 
@@ -476,7 +507,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
 
       if (action === 'toggleRarityChip') {
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, target.dataset.rarity, ['common', 'uncommon', 'rare', 'unique']);
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, target.dataset.rarity, this._availableRarityValues ?? RARITY_VALUES);
         target.classList.toggle('selected', this.selectedRarities.has(target.dataset.rarity));
         this._updateList();
         return;

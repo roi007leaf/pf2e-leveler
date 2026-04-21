@@ -852,6 +852,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     expect(preset.selectedFeatTypes).toEqual(['class', 'archetype']);
     expect(preset.lockedFeatTypes).toEqual(['class']);
+    expect(preset.extraVisibleFeatTypes).toEqual(['archetype']);
     expect(preset.selectedTraits).toBeUndefined();
     expect(preset.lockedTraits).toBeUndefined();
   });
@@ -1819,9 +1820,12 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     expect(buildState.classArchetypeDedications.has('druid-dedication')).toBe(true);
     expect(buildState.classArchetypeTraits.has('druid')).toBe(true);
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['archetype']);
     expect(preset.selectedTraits).toEqual(['archetype']);
-    expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.showDedications).toBe(false);
+    expect(preset.excludedTraits).toEqual(['dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.traitLogic).toBe('and');
   });
 
   it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', async () => {
@@ -1843,9 +1847,12 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const preset = await planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
 
     expect(buildState.archetypeDedications.has('aldori-duelist-dedication')).toBe(true);
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['archetype']);
     expect(preset.selectedTraits).toEqual(['archetype']);
-    expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.showDedications).toBe(false);
+    expect(preset.excludedTraits).toEqual(['dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.traitLogic).toBe('and');
   });
 
   it('reopens dedication feats once the current dedication is completed', async () => {
@@ -1885,9 +1892,12 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const preset = await planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
 
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
-    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.excludedTraits).toEqual(['dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
-    expect(preset.showDedications).toBe(true);
+    expect(preset.traitLogic).toBe('and');
   });
 
   it('can ignore the free archetype dedication lock via setting', async () => {
@@ -1926,10 +1936,13 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const preset = await planner._buildFeatPickerPreset('archetypeFeats', 8, buildState);
 
     expect(buildState.canTakeNewArchetypeDedication).toBe(false);
-    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.excludedTraits).toEqual(['dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
-    expect(preset.showDedications).toBe(true);
-    expect(preset.ignoreDedicationLock).toBe(true);
+    expect(preset.traitLogic).toBe('and');
+    expect(preset.ignoreDedicationLock).toBeUndefined();
   });
 
   it('reopens dedication browsing after two completed dedications', async () => {
@@ -1991,9 +2004,12 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     const preset = await planner._buildFeatPickerPreset('archetypeFeats', 14, buildState);
 
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
-    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.lockedFeatTypes).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.excludedTraits).toEqual(['dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
-    expect(preset.showDedications).toBe(true);
+    expect(preset.traitLogic).toBe('and');
   });
 
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {

@@ -95,6 +95,32 @@ describe('SpellPicker', () => {
     expect(uuids).not.toContain('magic-missile');
   });
 
+  test('hides rarity chips that have no spells in the current rank view', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => {
+          const commonSpell = makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']);
+          commonSpell.system.traits.rarity = 'common';
+          const rareSpell = makeSpell('rare-burst', 'Rare Burst', 2, ['arcane']);
+          rareSpell.system.traits.rarity = 'rare';
+          return [commonSpell, rareSpell];
+        }),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      exactRank: true,
+      excludedSelections: [],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.rarityOptions.map((entry) => entry.value)).toEqual(['common']);
+  });
+
   test('loads spells from configured spell compendium categories', async () => {
     clearSpellPickerCache();
     getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd', 'custom.spells']);

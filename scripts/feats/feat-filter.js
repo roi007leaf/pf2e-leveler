@@ -112,11 +112,6 @@ export function filterBySkill(feats, skillSlugs, logic = 'or') {
   });
 }
 
-export function filterByDedication(feats, showDedications) {
-  if (showDedications) return feats;
-  return feats.filter((feat) => !(feat.system.traits?.value ?? []).map((trait) => String(trait).toLowerCase()).includes('dedication'));
-}
-
 export function filterByGeneralSkillFeats(feats, showSkillFeats) {
   if (showSkillFeats) return feats;
   return feats.filter((feat) => {

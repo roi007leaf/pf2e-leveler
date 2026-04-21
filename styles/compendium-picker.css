@@ -188,6 +188,10 @@
   opacity: 0.75;
 }
 
+.pf2e-leveler .picker__source-chip--trait.locked::after {
+  content: none;
+}
+
 .pf2e-leveler .picker__source-chip i.fa-xmark {
   font-size: 0.72rem;
   opacity: 0.72;

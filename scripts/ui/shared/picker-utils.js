@@ -64,6 +64,19 @@ export function applyRarityFilter(entries, selectedRarities, getRarity, availabl
   return (entries ?? []).filter((entry) => selectedRarities.has(String(getRarity(entry) ?? 'common').toLowerCase()));
 }
 
+export function getAvailableRarityValues(entries, getRarity, availableValues = ['common', 'uncommon', 'rare', 'unique']) {
+  const normalizedAvailable = [...new Set((availableValues ?? []).map((value) => String(value).toLowerCase()).filter(Boolean))];
+  if (normalizedAvailable.length === 0) return [];
+
+  const seen = new Set();
+  for (const entry of (entries ?? [])) {
+    const rarity = String(getRarity(entry) ?? 'common').toLowerCase();
+    if (normalizedAvailable.includes(rarity)) seen.add(rarity);
+  }
+
+  return normalizedAvailable.filter((value) => seen.has(value));
+}
+
 export function buildChipOptions(availableValues, selectedValues, { lockedValues = [], labels = {} } = {}) {
   const locked = new Set(lockedValues ?? []);
   return (availableValues ?? []).map((value) => ({

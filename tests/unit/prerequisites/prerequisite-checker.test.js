@@ -210,6 +210,28 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('treats lowercase French feat parentheticals as clarifiers instead of separate feat prerequisites', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Virtuose (muse de barde)' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['virtuose']),
+    });
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]).toEqual(
+      expect.objectContaining({
+        met: true,
+        text: 'Virtuose (muse de barde)',
+      }),
+    );
+  });
+
   test('meets multi-ancestry feat access prerequisites via adopted ancestry', () => {
     const feat = {
       system: {

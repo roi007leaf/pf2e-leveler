@@ -6,6 +6,7 @@ import {
   applySourceFilter,
   applyTraitFilter,
   buildChipOptions,
+  getAvailableRarityValues,
   initializeSelectionSet,
   normalizeSpellCategory,
   toggleSelectableChip,
@@ -13,6 +14,7 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
+const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
 
 let cachedSpells = null;
 let cachedSpellSourceSignature = '';
@@ -134,6 +136,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       for (const trait of (spell.system?.traits?.value ?? [])) allTraits.add(trait);
     }
     this._allTraitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      lockedValues: this._getLockedRarities(),
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredSpells = this._filterSpells();
     this._sortSpells(this.filteredSpells);
 
@@ -148,7 +155,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredSpells.length,
       traitOptions: buildChipOptions(this._allTraitOptions, this.selectedTraits),
       selectedTraitChips: buildChipOptions(this._allTraitOptions, this.selectedTraits).filter((option) => option.selected),
-      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
         lockedValues: this._getLockedRarities(),
       }),
@@ -235,7 +242,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const rarity = String(toggle.dataset.rarity ?? '').trim().toLowerCase();
         const lockedRarities = this._getLockedRarities();
         if (!lockedRarities.includes(rarity)) {
-          this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique'], lockedRarities);
+          this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._availableRarityValues ?? RARITY_VALUES, lockedRarities);
           for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
             const chipRarity = String(chip.dataset.rarity ?? '').trim().toLowerCase();
             chip.classList.toggle('selected', this.selectedRarities.has(chipRarity));
@@ -360,7 +367,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const rarity = String(target.dataset.rarity ?? '').trim().toLowerCase();
         const lockedRarities = this._getLockedRarities();
         if (!rarity || lockedRarities.includes(rarity)) return;
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, ['common', 'uncommon', 'rare', 'unique'], lockedRarities);
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._availableRarityValues ?? RARITY_VALUES, lockedRarities);
         for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
           const chipRarity = String(chip.dataset.rarity ?? '').trim().toLowerCase();
           chip.classList.toggle('selected', this.selectedRarities.has(chipRarity));
@@ -403,6 +410,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _updateList() {
+    this._availableRarityValues = this._getAvailableRarityValues();
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
+      lockedValues: this._getLockedRarities(),
+      defaultValues: this._availableRarityValues,
+    });
     this.filteredSpells = this._filterSpells();
     this._sortSpells(this.filteredSpells);
 
@@ -420,7 +432,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
       selectedTraitChips: buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected),
-      rarityOptions: buildChipOptions(['common', 'uncommon', 'rare', 'unique'], this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
         lockedValues: this._getLockedRarities(),
       }),
@@ -442,16 +454,20 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (newList) {
       listContainer.innerHTML = newList.innerHTML;
     }
+    const rarityContainer = root?.querySelector('[data-role="rarity-chips"]');
+    const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
+    if (rarityContainer && newRarityContainer) {
+      rarityContainer.innerHTML = newRarityContainer.innerHTML;
+    }
 
     this._updateResultCount();
     this._updateFilterControlState();
     this._updateSelectionUI();
   }
 
-  _filterSpells() {
+  _filterSpells({ ignoreRarity = false } = {}) {
     let spells = [...this.allSpells];
     spells = applySourceFilter(spells, this.selectedSourcePackages, (spell) => spell.sourcePackage ?? spell.sourcePack, this._sourceKeys);
-    spells = applyRarityFilter(spells, this.selectedRarities, (spell) => spell.system?.traits?.rarity ?? 'common');
     if (this.selectedTraditions.size > 0 && !this._allSelected(this.selectedTraditions, this._traditionValues)) {
       spells = spells.filter((spell) => {
         const traits = spell.system?.traits?.value ?? [];
@@ -472,7 +488,23 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
       spells = spells.filter((spell) => !this.selectedSpellUuids.has(spell.uuid) && !preSelectedUuids.has(spell.uuid));
     }
+    if (!ignoreRarity) {
+      spells = applyRarityFilter(
+        spells,
+        this.selectedRarities,
+        (spell) => spell.system?.traits?.rarity ?? 'common',
+        this._availableRarityValues ?? RARITY_VALUES,
+      );
+    }
     return spells;
+  }
+
+  _getAvailableRarityValues() {
+    return getAvailableRarityValues(
+      this._filterSpells({ ignoreRarity: true }),
+      (spell) => spell.system?.traits?.rarity ?? 'common',
+      RARITY_VALUES,
+    );
   }
 
   _sortSpells(spells) {

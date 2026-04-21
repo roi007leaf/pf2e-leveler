@@ -333,6 +333,142 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.name).toBe('Quick Draw');
   });
 
+  test('class feat picker preset hides dedication toggle and keeps archetype feat type selected', async () => {
+    const classFeat = createFeat({
+      name: 'Power Attack',
+      uuid: 'class-power-attack',
+      slug: 'power-attack',
+    });
+    classFeat.system.traits.value = ['cleric'];
+    const archetypeFeat = createFeat({
+      name: 'Medic Dedication',
+      uuid: 'medic-dedication',
+      slug: 'medic-dedication',
+    });
+    archetypeFeat.system.traits.value = ['archetype', 'dedication', 'medic'];
+
+    const picker = new FeatPicker(createActor(), 'class', 4, createBuildState(), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['class', 'archetype'],
+        lockedFeatTypes: ['class'],
+        extraVisibleFeatTypes: ['archetype'],
+      },
+    });
+    picker.allFeats = [classFeat, archetypeFeat];
+
+    const context = await picker._prepareContext();
+
+    expect([...picker.selectedFeatTypes].sort()).toEqual(['archetype', 'class']);
+    expect([...picker.lockedFeatTypes]).toEqual(['class']);
+    expect(context.featTypeOptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'class', locked: true, selected: true }),
+      expect.objectContaining({ value: 'archetype', locked: false, selected: true }),
+    ]));
+  });
+
+  test('free archetype preset can show locked dedication trait chip with no-entry icon while dedication toggle stays hidden', async () => {
+    const archetypeFeat = createFeat({
+      name: 'Medic Dedication',
+      uuid: 'medic-dedication',
+      slug: 'medic-dedication',
+    });
+    archetypeFeat.system.traits.value = ['archetype', 'dedication', 'medic'];
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState(), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['archetype'],
+        lockedFeatTypes: ['archetype'],
+        selectedTraits: ['archetype'],
+        excludedTraits: ['dedication'],
+        lockedTraits: ['archetype', 'dedication'],
+        traitLogic: 'and',
+      },
+    });
+    picker.allFeats = [archetypeFeat];
+
+    const context = await picker._prepareContext();
+
+    expect(context.traitLogic).toBe('and');
+    expect(context.selectedTraitChips).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        value: 'archetype',
+        excluded: false,
+        locked: true,
+      }),
+      expect.objectContaining({
+        value: 'dedication',
+        excluded: true,
+        locked: true,
+      }),
+    ]));
+  });
+
+  test('free archetype dedication trait narrows archetypes when re-enabled', () => {
+    const dedicationFeat = createFeat({
+      name: 'Medic Dedication',
+      uuid: 'medic-dedication',
+      slug: 'medic-dedication',
+    });
+    dedicationFeat.system.traits.value = ['archetype', 'dedication', 'medic'];
+
+    const followupFeat = createFeat({
+      name: 'Treat Condition',
+      uuid: 'treat-condition',
+      slug: 'treat-condition',
+    });
+    followupFeat.system.traits.value = ['archetype', 'medic'];
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState(), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['archetype'],
+        lockedFeatTypes: ['archetype'],
+        selectedTraits: ['archetype'],
+        lockedTraits: ['archetype', 'dedication'],
+        traitLogic: 'and',
+      },
+    });
+    picker.allFeats = [dedicationFeat, followupFeat];
+
+    picker.excludedTraits = new Set(['dedication']);
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Treat Condition']);
+
+    picker.excludedTraits.clear();
+    picker.selectedTraits.add('dedication');
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Medic Dedication']);
+  });
+
+  test('locked trait chips can still toggle between included and excluded states', () => {
+    const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn(), {
+      preset: {
+        selectedTraits: ['dedication'],
+        lockedTraits: ['dedication'],
+      },
+    });
+
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <button type="button" data-action="toggleTraitExclude" data-trait="dedication"></button>
+      <button type="button" data-action="removeTraitChip" data-trait="dedication"></button>
+    `;
+    const controller = new AbortController();
+
+    picker._bindTraitChipListeners(root, controller.signal);
+
+    root.querySelector('[data-action="toggleTraitExclude"]').click();
+    expect([...picker.selectedTraits]).toEqual([]);
+    expect([...picker.excludedTraits]).toEqual(['dedication']);
+
+    root.querySelector('[data-action="toggleTraitExclude"]').click();
+    expect([...picker.selectedTraits]).toEqual(['dedication']);
+    expect([...picker.excludedTraits]).toEqual([]);
+
+    root.querySelector('[data-action="removeTraitChip"]').click();
+    expect([...picker.selectedTraits]).toEqual(['dedication']);
+    expect([...picker.excludedTraits]).toEqual([]);
+
+    controller.abort();
+  });
+
   test('template feats expose dedication unlock level for additional archetype feats', () => {
     const feat = createFeat({
       name: 'Twin Parry',
@@ -654,6 +790,34 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Common Feat', 'Rare Feat', 'Uncommon Feat']);
   });
 
+  test('hides rarity chips that have no feats in the current non-rarity view', async () => {
+    const commonFeat = createFeat({
+      name: 'Common Feat',
+      uuid: 'common-feat',
+      slug: 'common-feat',
+    });
+    commonFeat.system.level.value = 4;
+    commonFeat.system.traits.value = ['general'];
+    commonFeat.system.traits.rarity = 'common';
+
+    const rareFeat = createFeat({
+      name: 'Rare Feat',
+      uuid: 'rare-feat',
+      slug: 'rare-feat',
+    });
+    rareFeat.system.level.value = 6;
+    rareFeat.system.traits.value = ['general'];
+    rareFeat.system.traits.rarity = 'rare';
+
+    const picker = new FeatPicker(createActor(), 'custom', 6, createBuildState({ level: 6 }), jest.fn());
+    picker.allFeats = [commonFeat, rareFeat];
+    picker.maxLevel = '4';
+
+    const context = await picker._prepareContext();
+
+    expect(context.rarityOptions.map((entry) => entry.value)).toEqual(['common']);
+  });
+
   test('restricts custom feat picker results to allowed feat uuids from a preset', () => {
     const allowedFeat = createFeat({
       name: 'Allowed Feat',
@@ -772,6 +936,50 @@ describe('FeatPicker prerequisite enforcement', () => {
       expect.objectContaining({ uuid: 'power-attack', name: 'Power Attack' }),
     ]);
     expect(picker.close).toHaveBeenCalled();
+  });
+
+  test('keeps rarity chips rendered after a list update', async () => {
+    const commonFeat = createFeat({
+      name: 'Common Feat',
+      uuid: 'common-feat',
+      slug: 'common-feat',
+    });
+    commonFeat.system.traits.value = ['general'];
+    commonFeat.system.traits.rarity = 'common';
+
+    const rareFeat = createFeat({
+      name: 'Rare Feat',
+      uuid: 'rare-feat',
+      slug: 'rare-feat',
+    });
+    rareFeat.system.traits.value = ['general'];
+    rareFeat.system.traits.rarity = 'rare';
+
+    const picker = new FeatPicker(createActor(), 'custom', 6, createBuildState({ level: 6 }), jest.fn());
+    picker.allFeats = [commonFeat, rareFeat];
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="pf2e-leveler feat-picker">
+        <div data-role="rarity-chips"></div>
+        <div class="feat-list"></div>
+        <div class="picker__results-count"></div>
+      </div>
+    `;
+
+    const renderSpy = jest.spyOn(foundry.applications.handlebars, 'renderTemplate').mockImplementation(async (_template, context) => `
+      <div class="pf2e-leveler feat-picker">
+        <div data-role="rarity-chips">${(context.rarityOptions ?? []).map((entry) => `<button data-action="toggleRarityChip" data-rarity="${entry.value}">${entry.label}</button>`).join('')}</div>
+        <div class="feat-list"></div>
+      </div>
+    `);
+
+    await picker._prepareContext();
+    await picker._updateFeatList();
+
+    expect(renderSpy).toHaveBeenCalled();
+    expect(picker.element.querySelectorAll('[data-role="rarity-chips"] [data-action="toggleRarityChip"]')).toHaveLength(2);
+
+    renderSpy.mockRestore();
   });
 
   test('uses sourceId fallback when feat uuid is missing', async () => {

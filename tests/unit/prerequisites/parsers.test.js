@@ -500,6 +500,18 @@ describe('parsePrerequisiteNode', () => {
     ]);
   });
 
+  test('treats lowercase French parenthetical feat clarifiers as part of one feat requirement', () => {
+    const result = parsePrerequisiteNode('Virtuose (muse de barde)');
+    expect(result).toEqual(
+      expect.objectContaining({
+        kind: 'leaf',
+        type: 'feat',
+        slug: 'virtuose',
+        text: 'Virtuose (muse de barde)',
+      }),
+    );
+  });
+
   test('parses semicolon-separated prerequisites as an all node', () => {
     const result = parsePrerequisiteNode('Champion Dedication; 4th level');
     expect(result.kind).toBe('all');

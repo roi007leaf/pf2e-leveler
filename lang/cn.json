@@ -669,7 +669,10 @@
         "BULK_DISALLOWED": "禁止",
         "BULK_DEFAULT": "清除",
         "CLEAR_ALL": "清空标签页",
-        "COUNT": "已标记 {count} 个"
+        "COUNT": "已标记 {count} 个",
+        "BADGE_INHERITED": "继承",
+        "SOURCES": "来源",
+        "MATCHED_COUNT": "{count} 个条目"
       }
     }
   }
