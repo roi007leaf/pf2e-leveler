@@ -7,6 +7,10 @@
 - **Source guidance now filters wizard ancestries, heritages, backgrounds, and classes correctly** - Character Wizard loaders now preserve publication titles on browser entries, so source-level suggested, warning, and disallowed rules inherit properly beyond feats
 - **Sources tab search now refreshes correctly after changing guidance** - Clearing the `Sources` search box now rerenders from current search state instead of leaving a stale filtered subset behind until you switch categories
 
+### Prerequisites
+
+- **Bard muse prerequisites now understand more English and French phrasing variants** - Muse requirements now treat generic `Bard Muse` / `Muse de barde` as the bard `muse` subclass identity and normalize specific forms like `Muse Maestro`, `Maestro (Bard Muse)`, and `Virtuose (muse de barde)` to the correct named muse aliases
+
 ## 3.1.14
 
 ### Level Planner
