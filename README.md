@@ -1,3 +1,10 @@
+[![Latest Version](https://img.shields.io/github/v/release/roi007leaf/pf2e-leveler?display_name=tag&sort=semver&label=Latest%20Version)](https://github.com/roi007leaf/pf2e-leveler/releases/latest)
+
+[![GitHub all releases](https://img.shields.io/github/downloads/roi007leaf/pf2e-leveler/total)](https://github.com/roi007leaf/pf2e-leveler/releases)
+
+[![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fpf2e-leveler)](https://forge-vtt.com/bazaar)
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/roileaf)
 # PF2e Leveler
 
 A Foundry VTT module for Pathfinder 2nd Edition that provides a **Character Creation Wizard**, a **Level-Up Planner** with automatic application on level change, and a **GM Content Guidance** system for controlling what options players see.
