@@ -112,6 +112,18 @@ export function filterDisallowedForCurrentUser(items) {
   return items.filter((item) => !item.isDisallowed);
 }
 
+export function isGuidanceSelectionBlocked(item) {
+  return item?.isDisallowed === true && shouldRestrictContentForUser();
+}
+
+export function getGuidanceSelectionTooltip(item) {
+  if (item?.isDisallowed !== true) return '';
+  if (shouldRestrictContentForUser()) {
+    return game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED');
+  }
+  return game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED');
+}
+
 export async function setGuidance(uuid, status) {
   const guidance = { ...getContentGuidance() };
   if (!status || status === 'default') {
@@ -129,4 +141,6 @@ function applyResolvedStatus(item, status, inherited = false) {
   item.isDisallowed = status === 'disallowed';
   item.guidanceInherited = inherited === true && !!status;
   item.guidanceStatus = status ?? 'default';
+  item.guidanceSelectionBlocked = isGuidanceSelectionBlocked(item);
+  item.guidanceSelectionTooltip = getGuidanceSelectionTooltip(item);
 }

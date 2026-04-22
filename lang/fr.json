@@ -49,6 +49,8 @@
       "PARTIAL_BOOST_SELECTED": "Complete une augmentation partielle de +1",
       "CUSTOM_SPELL_RANK_REMINDER": "Cette classe obtient ici un nouveau rang de sort. Utilisez le plan personnalise pour noter les sorts dont vous pensez avoir besoin a ce rang.",
       "LOCKED_FILTER_HINT": "Ce filtre est verrouille pour ce selecteur et ne peut pas etre modifie.",
+      "PUBLICATIONS": "Publications",
+      "SEARCH_PUBLICATIONS": "Rechercher des publications...",
       "NOT_SELECTED": "Non sélectionné",
       "BROWSE": "Parcourir...",
       "ADD": "Ajouter",

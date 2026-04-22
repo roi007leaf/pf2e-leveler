@@ -140,7 +140,15 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
   const rankSpells = sectionPlannedSpells.filter((spell) => !(spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0));
   const cantripSpells = sectionPlannedSpells.filter((spell) => spell.isCantrip === true || spell.rank === 0 || spell.displayRank === 0);
   const grantedSpells = await getGrantedSpellsForLevel(planner, classDef, level, classSlug);
-  const spellSlots = buildSpellSlotDisplay(planner, currentSlots, prevSlots, sectionPlannedSpells, grantedSpells);
+  const selectionAdjustments = getSpellSelectionAdjustments(classDef, level);
+  const spellSlots = buildSpellSlotDisplay(
+    planner,
+    currentSlots,
+    prevSlots,
+    sectionPlannedSpells,
+    grantedSpells,
+    selectionAdjustments,
+  );
   const hasNewRank = detectNewSpellRank(currentSlots, prevSlots);
   const highestRank = getHighestRank(currentSlots);
   const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
@@ -488,7 +496,14 @@ export function findFeatLevel(planner, slugs) {
   return null;
 }
 
-export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells = []) {
+export function buildSpellSlotDisplay(
+  planner,
+  currentSlots,
+  prevSlots,
+  plannedSpells,
+  grantedSpells = [],
+  selectionAdjustments = {},
+) {
   const plannedByRank = {};
   for (const spell of plannedSpells) {
     plannedByRank[spell.rank] = (plannedByRank[spell.rank] ?? 0) + 1;
@@ -529,7 +544,8 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
     const isNew = prevTotal === null;
     const gainedSlots = isNew ? total : total - prevTotal;
     const grantedCount = grantedByRank[rankNum] ?? 0;
-    const newSlots = Math.max(0, gainedSlots - grantedCount);
+    const adjustedSelections = Number(selectionAdjustments?.[rankNum] ?? 0);
+    const newSlots = Math.max(0, gainedSlots - grantedCount) + Math.max(0, adjustedSelections);
     const changed = isNew || prevTotal !== total;
     const planned = plannedByRank[rankNum] ?? 0;
     const isFull = planned >= newSlots;
@@ -552,6 +568,17 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
     });
   }
   return display;
+}
+
+function getSpellSelectionAdjustments(classDef, level) {
+  if (classDef?.spellcasting?.type !== 'spontaneous') return {};
+
+  const rawAdjustments = classDef?.spellcasting?.selectionAdjustmentsByLevel?.[level] ?? {};
+  return Object.fromEntries(
+    Object.entries(rawAdjustments)
+      .map(([rank, count]) => [Number(rank), Number(count ?? 0)])
+      .filter(([rank, count]) => Number.isFinite(rank) && rank > 0 && Number.isFinite(count) && count > 0),
+  );
 }
 
 export function detectNewSpellRank(currentSlots, prevSlots) {

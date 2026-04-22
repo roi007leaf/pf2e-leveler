@@ -123,7 +123,7 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     ]));
   });
 
-  it('marks disallowed planner bonus languages as disabled', () => {
+  it('keeps disallowed planner bonus languages selectable for GMs', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';
     actor.system.details.languages = { value: ['common'] };
@@ -177,7 +177,12 @@ describe('LevelPlanner intelligence boost planner choices', () => {
 
     const languages = planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5);
     expect(languages.find((entry) => entry.slug === 'draconic')).toEqual(
-      expect.objectContaining({ isDisallowed: true, disabled: true }),
+      expect.objectContaining({
+        isDisallowed: true,
+        disabled: false,
+        guidanceSelectionBlocked: false,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED',
+      }),
     );
   });
 

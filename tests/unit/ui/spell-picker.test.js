@@ -3,17 +3,30 @@ jest.mock('../../../scripts/compendiums/catalog.js', () => ({
 }));
 
 import { clearSpellPickerCache, SpellPicker } from '../../../scripts/ui/spell-picker.js';
+import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 
 const { getCompendiumKeysForCategory } = jest.requireMock('../../../scripts/compendiums/catalog.js');
 
 describe('SpellPicker', () => {
   beforeEach(() => {
     clearSpellPickerCache();
+    invalidateGuidanceCache();
     game.items = [];
+    game.user.isGM = true;
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      'pf2e-leveler': {
+        ...((global._testSettings ?? {})['pf2e-leveler'] ?? {}),
+        gmContentGuidance: {},
+      },
+    };
     getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd']);
     game.packs.get = jest.fn((key) => {
       if (key !== 'pf2e.spells-srd') return null;
       return {
+        metadata: {
+          packageName: 'pf2e',
+        },
         getDocuments: jest.fn(async () => [
           makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
           makeSpell('acid-grip', 'Acid Grip', 2, ['arcane']),
@@ -462,15 +475,126 @@ describe('SpellPicker', () => {
     picker.selectedCategories = new Set(['focus']);
     expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['force-barrage']);
   });
+
+  test('keeps source-disallowed spells visible but blocks players from selecting them', async () => {
+    clearSpellPickerCache();
+    invalidateGuidanceCache();
+    game.user.isGM = false;
+    global._testSettings['pf2e-leveler'].gmContentGuidance = {
+      'source-title:pathfinder player core': 'disallowed',
+    };
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        metadata: {
+          packageName: 'pf2e',
+        },
+        getDocuments: jest.fn(async () => [
+          makeSpell('core-spell', 'Core Spell', 1, ['arcane'], [], 'Pathfinder Player Core'),
+          makeSpell('other-spell', 'Other Spell', 1, ['arcane'], [], 'Lost Omens Divine Mysteries'),
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), {
+      excludedSelections: [],
+      multiSelect: true,
+    });
+    const context = await picker._prepareContext();
+
+    expect(context.spells.map((spell) => spell.uuid)).toEqual(['core-spell', 'other-spell']);
+    expect(context.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'core-spell',
+        isDisallowed: true,
+        guidanceSelectionBlocked: true,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED',
+        selectionBlocked: true,
+      }),
+      expect.objectContaining({
+        uuid: 'other-spell',
+        isDisallowed: false,
+        guidanceSelectionBlocked: false,
+        selectionBlocked: false,
+      }),
+    ]));
+
+    picker.filteredSpells = context.spells.map((spell) => ({
+      uuid: spell.uuid,
+      guidanceSelectionBlocked: spell.guidanceSelectionBlocked,
+    }));
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="pf2e-leveler spell-picker">
+        <div class="spell-picker__selected-count"></div>
+        <button data-action="toggleSelectAll"></button>
+        <button data-action="confirmSelection"></button>
+        <div class="spell-option wizard-item--disallowed" data-uuid="core-spell" data-already-taken="false" data-selectable="false">
+          <button data-action="selectSpell"></button>
+        </div>
+        <div class="spell-option" data-uuid="other-spell" data-already-taken="false" data-selectable="true">
+          <button data-action="selectSpell"></button>
+        </div>
+      </div>
+    `;
+
+    picker._toggleSelectedSpell('core-spell');
+    expect(picker.selectedSpellUuids.has('core-spell')).toBe(false);
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedSpellUuids.has('core-spell')).toBe(false);
+    expect(picker.selectedSpellUuids.has('other-spell')).toBe(true);
+    expect(picker.element.querySelector('[data-uuid="core-spell"] [data-action="selectSpell"]').disabled).toBe(true);
+    expect(picker.element.querySelector('[data-uuid="core-spell"] [data-action="selectSpell"]').textContent)
+      .toBe('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED');
+  });
+
+  test('keeps source-disallowed spells selectable for GMs with override tooltip', async () => {
+    clearSpellPickerCache();
+    invalidateGuidanceCache();
+    game.user.isGM = true;
+    global._testSettings['pf2e-leveler'].gmContentGuidance = {
+      'source-title:pathfinder player core': 'disallowed',
+    };
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        metadata: {
+          packageName: 'pf2e',
+        },
+        getDocuments: jest.fn(async () => [
+          makeSpell('core-spell', 'Core Spell', 1, ['arcane'], [], 'Pathfinder Player Core'),
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    const context = await picker._prepareContext();
+
+    expect(context.spells).toEqual([
+      expect.objectContaining({
+        uuid: 'core-spell',
+        isDisallowed: true,
+        guidanceSelectionBlocked: false,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED',
+        selectionBlocked: false,
+      }),
+    ]);
+  });
 });
 
-function makeSpell(uuid, name, level, traditions, extraTraits = []) {
+function makeSpell(uuid, name, level, traditions, extraTraits = [], publicationTitle = null) {
   return {
     uuid,
     name,
     type: 'spell',
     system: {
       level: { value: level },
+      publication: publicationTitle ? { title: publicationTitle } : {},
       traits: {
         value: extraTraits,
         traditions,
@@ -478,3 +602,110 @@ function makeSpell(uuid, name, level, traditions, extraTraits = []) {
     },
   };
 }
+
+describe('SpellPicker publication filtering', () => {
+  it('treats multiple selected publications as OR', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+
+    picker.allSpells = [
+      makeSpell('ghost', 'Ghost Cantrip', 1, ['arcane'], ['cantrip'], "Pathfinder #186: Ghost King's Rage"),
+      makeSpell('core1', 'Core One', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core'),
+      makeSpell('core2', 'Core Two', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core 2'),
+      makeSpell('other', 'Other Cantrip', 1, ['arcane'], ['cantrip'], 'Pathfinder Secrets of Magic'),
+    ];
+
+    picker._getPublicationOptions();
+    picker.selectedPublications = new Set([
+      "Pathfinder #186: Ghost King's Rage",
+      'Pathfinder Player Core',
+      'Pathfinder Player Core 2',
+    ]);
+
+    const filtered = picker._filterSpells();
+
+    expect(filtered.map((spell) => spell.uuid)).toEqual(['ghost', 'core1', 'core2']);
+  });
+
+  it('keeps previously selected publications when adding another publication chip through the DOM click path', () => {
+    jest.useFakeTimers();
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+
+    picker.allSpells = [
+      makeSpell('ghost', 'Ghost Cantrip', 1, ['arcane'], ['cantrip'], "Pathfinder #186: Ghost King's Rage"),
+      makeSpell('core1', 'Core One', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core'),
+      makeSpell('core2', 'Core Two', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core 2'),
+      makeSpell('other', 'Other Cantrip', 1, ['arcane'], ['cantrip'], 'Pathfinder Secrets of Magic'),
+    ];
+    picker.filteredSpells = [...picker.allSpells];
+    picker._publicationTitles = [
+      "Pathfinder #186: Ghost King's Rage",
+      'Pathfinder Player Core',
+      'Pathfinder Player Core 2',
+      'Pathfinder Secrets of Magic',
+    ];
+    picker.selectedPublications = new Set([
+      'Pathfinder Player Core',
+      'Pathfinder Player Core 2',
+    ]);
+
+    document.body.innerHTML = `
+      <div class="pf2e-leveler spell-picker">
+        <button type="button" class="picker__source-chip" data-action="togglePublication" data-publication="Pathfinder #186: Ghost King's Rage"></button>
+        <button type="button" class="picker__source-chip selected" data-action="togglePublication" data-publication="Pathfinder Player Core"></button>
+        <button type="button" class="picker__source-chip selected" data-action="togglePublication" data-publication="Pathfinder Player Core 2"></button>
+        <div class="spell-picker__list"></div>
+      </div>
+    `;
+    picker.element = document.body.firstElementChild;
+    picker._updateList = jest.fn(function updateList() {
+      this.filteredSpells = this._filterSpells();
+    });
+
+    picker._onRender();
+    picker.element.querySelector('[data-publication="Pathfinder #186: Ghost King\'s Rage"]').click();
+    jest.runAllTimers();
+
+    expect([...picker.selectedPublications]).toEqual([
+      'Pathfinder Player Core',
+      'Pathfinder Player Core 2',
+      "Pathfinder #186: Ghost King's Rage",
+    ]);
+    expect(picker.filteredSpells.map((spell) => spell.uuid)).toEqual(['ghost', 'core1', 'core2']);
+
+    jest.useRealTimers();
+  });
+
+  it('does not permanently narrow rarity selection when publications temporarily hide some rarities', () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+
+    picker.allSpells = [
+      makeSpell('ghost', 'Ghost Cantrip', 1, ['arcane'], ['cantrip'], "Pathfinder #186: Ghost King's Rage"),
+      makeSpell('core1', 'Core One', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core'),
+      makeSpell('core2', 'Core Two', 1, ['arcane'], ['cantrip'], 'Pathfinder Player Core 2'),
+    ];
+    picker.allSpells[0].system.traits.rarity = 'uncommon';
+    picker.allSpells[1].system.traits.rarity = 'common';
+    picker.allSpells[2].system.traits.rarity = 'common';
+
+    picker._getPublicationOptions();
+
+    picker.selectedPublications = new Set(["Pathfinder #186: Ghost King's Rage"]);
+    picker._availableRarityValues = picker._getAvailableRarityValues();
+    picker._normalizeSelectedRarities();
+    expect([...picker.selectedRarities]).toEqual(expect.arrayContaining(['common', 'uncommon']));
+
+    picker.selectedPublications = new Set([
+      "Pathfinder #186: Ghost King's Rage",
+      'Pathfinder Player Core',
+      'Pathfinder Player Core 2',
+    ]);
+    picker._availableRarityValues = picker._getAvailableRarityValues();
+    picker._normalizeSelectedRarities();
+
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['ghost', 'core1', 'core2']);
+  });
+});

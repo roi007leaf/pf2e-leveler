@@ -1135,4 +1135,18 @@ describe('checkPrerequisites', () => {
     expect(result.results).toHaveLength(1);
     expect(result.results[0].met).toBeNull();
   });
+
+  test('treats age prerequisites as unverified legacy text instead of unmet', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'At Least 100 Years Old' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
+  });
 });

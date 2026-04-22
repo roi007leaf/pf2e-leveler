@@ -65,10 +65,6 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     }
 
     const items = await this._loadCategoryItems(this.activeCategory);
-    const query = this.searchText.toLowerCase();
-    const filtered = query
-      ? items.filter((item) => item.name.toLowerCase().includes(query))
-      : items;
 
     const categories = GUIDANCE_CATEGORIES.map((cat) => {
       const label = game.i18n.localize(cat.labelKey ?? `PF2E_LEVELER.SETTINGS.COMPENDIUM_CATEGORIES.${cat.key.toUpperCase()}`);
@@ -87,7 +83,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
 
     const totalMarked = Object.keys(this._draft).length;
 
-    const displayItems = filtered.map((item) => {
+    const displayItems = items.map((item) => {
       const resolved = this._resolveDraftStatus(item);
       return {
       uuid: item.uuid,

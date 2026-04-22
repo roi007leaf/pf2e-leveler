@@ -206,7 +206,7 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
 
   return annotateGuidanceBySlug([...entries, ...loreEntries], 'skill').map((entry) => ({
     ...entry,
-    disabled: entry.disabled || entry.isDisallowed === true,
+    disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));
 }
 
@@ -234,7 +234,7 @@ export function buildIntBonusLanguageContext(planner, levelData, level) {
 
   return annotateGuidanceBySlug(entries, 'language').map((entry) => ({
     ...entry,
-    disabled: entry.disabled || entry.isDisallowed === true,
+    disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));
 }
 
@@ -335,7 +335,7 @@ export function buildSkillContext(planner, levelData, level) {
     'skill',
   ).map((entry) => ({
     ...entry,
-    disabled: entry.disabled || entry.isDisallowed === true,
+    disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));
 }
 

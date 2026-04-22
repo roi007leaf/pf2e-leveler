@@ -1,6 +1,6 @@
 import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
-import { getClassSelectionData } from '../../creation/creation-model.js';
+import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
@@ -83,7 +83,7 @@ export async function buildFeatChoicesContext(wizard) {
       target: inferGrantedFeatChoiceTarget(wizard, section),
       featName: await resolveChoiceSectionName(wizard, { uuid: section.slot, name: section.featName }),
       sourceName: section.sourceName ?? null,
-      choiceSets: await hydrateChoiceSets(wizard, section.choiceSets ?? [], wizard.data.grantedFeatChoices?.[section.slot] ?? {}),
+      choiceSets: await hydrateChoiceSets(wizard, section.choiceSets ?? [], getGrantedFeatChoiceValues(wizard.data, section.slot)),
     });
   }
   return { featChoiceSections: sections };
@@ -164,7 +164,7 @@ export async function getSelectedFeatChoiceLabels(wizard, slot) {
         : slot === 'dualClass' ? wizard.data.dualClassFeat
         : slot === 'skill' ? wizard.data.skillFeat
           : grantedSection
-            ? { choiceSets: grantedSection.choiceSets ?? [], choices: wizard.data.grantedFeatChoices?.[slot] ?? {} }
+            ? { choiceSets: grantedSection.choiceSets ?? [], choices: getGrantedFeatChoiceValues(wizard.data, slot) }
             : null;
   return getSelectedChoiceLabels(wizard, feat);
 }
@@ -217,7 +217,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     if (!item?.uuid || scannedItems.has(item.uuid)) return;
     scannedItems.add(item.uuid);
 
-    const currentChoices = choiceSource?.choices ?? wizard.data.grantedFeatChoices?.[item.uuid] ?? {};
+    const currentChoices = choiceSource?.choices ?? getGrantedFeatChoiceValues(wizard.data, item.uuid);
     let parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
     if (isAssuranceGrant(item) && inheritedSkillChoiceSet) {
       parsedChoiceSets = constrainAssuranceChoiceSets(parsedChoiceSets, inheritedSkillChoiceSet);
@@ -525,9 +525,9 @@ export async function getPendingChoices(wizard) {
       if (hasSubclass && rule.choices?.filter?.some?.((f) => typeof f === 'string' && f.includes(subclassTag))) continue;
       if (hasSubclass && rule.flag && subclassTag?.includes(rule.flag)) continue;
       if (optionSource?.choices?.[rule.flag]) continue;
-      if (optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[rule.flag]) continue;
+      if (optionSource?.uuid && getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)?.[rule.flag]) continue;
       const storedChoices = optionSource?.choices
-        ?? (optionSource?.uuid ? wizard.data.grantedFeatChoices?.[optionSource.uuid] ?? {} : {});
+        ?? (optionSource?.uuid ? getGrantedFeatChoiceValues(wizard.data, optionSource.uuid) : {});
       if (isAssuranceGrant(item) && isSkillChoiceSet(rule) && hasMeaningfulStoredChoice(storedChoices)) continue;
       if (wizard.data.implement && rule.flag === 'implement') continue;
       if (wizard.data.tactics?.length >= 5 && ['firstTactic', 'secondTactic', 'thirdTactic', 'fourthTactic', 'fifthTactic'].includes(rule.flag)) continue;
@@ -569,7 +569,7 @@ export async function getPendingChoices(wizard) {
     for (const choiceSet of (optionSource?.choiceSets ?? [])) {
       if (!choiceSet?.prompt) continue;
       if (optionSource?.choices?.[choiceSet.flag]) continue;
-      if (optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[choiceSet.flag]) continue;
+      if (optionSource?.uuid && getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)?.[choiceSet.flag]) continue;
       addChoice(sourceLabel, choiceSet.prompt);
     }
   };
@@ -663,6 +663,22 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
   if (!sourceItem) return [];
 
   const syntheticRules = [];
+  const directSkillChoiceCount = getDirectSkillChoiceCount(sourceItem?.system?.description?.value ?? '');
+  if (directSkillChoiceCount > 0 && !hasAuthoredSkillChoiceSet(rules)) {
+    syntheticRules.push(
+      ...Array.from({ length: directSkillChoiceCount }, (_entry, index) => ({
+        key: 'ChoiceSet',
+        flag: `levelerSkillChoice${index + 1}`,
+        prompt: 'Select a skill.',
+        choices: { config: 'skills' },
+        leveler: {
+          syntheticType: 'skill-training-choice',
+          grantsSkillTraining: true,
+          sourceName: sourceItem?.name ?? null,
+        },
+      })),
+    );
+  }
 
   if (!hasSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return syntheticRules;
 
@@ -683,18 +699,43 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
   return [
     ...syntheticRules,
     ...overlaps.map((skill, index) => ({
-    key: 'ChoiceSet',
-    flag: `levelerSkillFallback${index + 1}`,
-    prompt: 'Select a skill.',
-    choices: { config: 'skills' },
-    leveler: {
-      syntheticType: 'skill-training-fallback',
-      grantsSkillTraining: true,
-      sourceSkill: skill,
-      blockedSkills: grantedSkills.filter((entry) => entry !== skill),
-      sourceName: sourceItem?.name ?? null,
-    },
-  }))];
+      key: 'ChoiceSet',
+      flag: `levelerSkillFallback${index + 1}`,
+      prompt: 'Select a skill.',
+      choices: { config: 'skills' },
+      leveler: {
+        syntheticType: 'skill-training-fallback',
+        grantsSkillTraining: true,
+        sourceSkill: skill,
+        blockedSkills: grantedSkills.filter((entry) => entry !== skill),
+        sourceName: sourceItem?.name ?? null,
+      },
+    }))];
+}
+
+function getDirectSkillChoiceCount(html) {
+  if (!html || hasSkillFallbackText(html)) return 0;
+
+  const description = String(html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!description) return 0;
+
+  const matches = description.match(
+    /\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+(?:one|a|an)\s+skill\s+of\s+your\s+choice\b/gu,
+  );
+  return matches?.length ?? 0;
+}
+
+function hasAuthoredSkillChoiceSet(rules) {
+  return (rules ?? []).some((rule) => {
+    if (rule?.key !== 'ChoiceSet') return false;
+    if (rule?.choices === 'CONFIG.PF2E.skills') return true;
+    return String(rule?.choices?.config ?? '').trim().toLowerCase() === 'skills';
+  });
 }
 
 function isAutoTrainedBySource(entry, sourceItem) {
@@ -1107,7 +1148,7 @@ function collectAssuranceSelectedSkills(wizard, excludeFlag = null, currentChoic
 
   for (const section of (wizard?.data?.grantedFeatSections ?? [])) {
     if (!isAssuranceChoiceSource(section)) continue;
-    const sectionChoices = wizard?.data?.grantedFeatChoices?.[section.slot] ?? {};
+    const sectionChoices = getGrantedFeatChoiceValues(wizard?.data, section.slot);
     for (const [flag, value] of Object.entries(sectionChoices)) {
       collectChoiceValue(value, flag);
     }

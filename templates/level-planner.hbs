@@ -143,7 +143,7 @@
               <button type="button"
                 class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="toggleIntBonusSkill" data-skill="{{this.slug}}"
-                {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
+                {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -171,7 +171,7 @@
               <button type="button"
                 class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
                 data-action="toggleIntBonusLanguage" data-language="{{this.slug}}"
-                {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
+                {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -215,7 +215,7 @@
             {{else if (eq this.choiceType "language")}}
             <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
-              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="classFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="classFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -301,7 +301,7 @@
             {{else if (eq this.choiceType "language")}}
             <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
-              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -403,7 +403,7 @@
             {{else if (eq this.choiceType "language")}}
             <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
-              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="ancestryFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="ancestryFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -460,7 +460,7 @@
                 data-action="selectSkillIncrease" data-skill="{{this.slug}}"
                 data-locked="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
                 aria-disabled="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
-                {{#if (or this.isDisallowed (and this.disabled (not this.lockedByFeat)))}}disabled{{/if}}>
+                {{#if (or this.guidanceSelectionBlocked (and this.disabled (not this.lockedByFeat)))}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">
                     {{this.label}}
@@ -512,7 +512,7 @@
             {{else if (eq this.choiceType "language")}}
             <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
-              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+              <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>
                   <span class="skill-btn__tags">
@@ -696,7 +696,7 @@
               {{else if (eq this.choiceType "language")}}
               <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}
-                <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+                <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                   <span class="skill-btn__content">
                     <span class="skill-btn__name">{{this.label}}</span>
                     <span class="skill-btn__tags">
@@ -751,7 +751,7 @@
               {{else if (eq this.choiceType "language")}}
               <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}
-                <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.isDisallowed}}disabled{{/if}}>
+                <button type="button" class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="customFeats" data-index="{{../../index}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                   <span class="skill-btn__content">
                     <span class="skill-btn__name">{{this.label}}</span>
                     <span class="skill-btn__tags">
@@ -821,7 +821,7 @@
               {{/each}}
               <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each customAvailableSkills}}
-                <button type="button" class="skill-btn skill-btn--stacked {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="addCustomSkillIncrease" data-skill="{{this.slug}}" {{#if (or this.disabled this.isDisallowed)}}disabled{{/if}}>
+                <button type="button" class="skill-btn skill-btn--stacked {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="addCustomSkillIncrease" data-skill="{{this.slug}}" {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                   <span class="skill-btn__content">
                     <span class="skill-btn__name">{{this.label}}</span>
                     <span class="skill-btn__tags">

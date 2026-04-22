@@ -1,5 +1,5 @@
 import { getClassHandler } from './class-handlers/registry.js';
-import { getClassSelectionData } from './creation-model.js';
+import { getClassSelectionData, getGrantedFeatChoiceValues } from './creation-model.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
@@ -378,7 +378,7 @@ export function getAdditionalSelectedItems(data) {
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
     ...((data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
-      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+      choices: getGrantedFeatChoiceValues(data, section.slot),
     }))),
   ];
 
@@ -412,7 +412,7 @@ export function getAdditionalSelectedSkills(data) {
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
     ...((data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
-      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+      choices: getGrantedFeatChoiceValues(data, section.slot),
     }))),
   ];
 
@@ -549,10 +549,10 @@ function getStoredChoiceSelections(data, uuid) {
   if (data.skillFeat?.uuid === uuid) return data.skillFeat.choices ?? {};
   if (uuid === MIXED_ANCESTRY_UUID) {
     const selected = getMixedAncestrySelectedValue(data.mixedAncestry)
-      ?? getMixedAncestrySelectedValue(data.grantedFeatChoices?.[MIXED_ANCESTRY_UUID]);
+      ?? getMixedAncestrySelectedValue(getGrantedFeatChoiceValues(data, MIXED_ANCESTRY_UUID));
     return selected ? { [MIXED_ANCESTRY_CHOICE_FLAG]: selected } : {};
   }
-  return data.grantedFeatChoices?.[uuid] ?? {};
+  return getGrantedFeatChoiceValues(data, uuid);
 }
 
 function actorHasItemSource(actor, uuid) {
@@ -598,7 +598,7 @@ function shouldApplyManualGrantedSection(data, section) {
   const sourceSection = findManualGrantedSourceSection(data, section);
   if (!sourceSection) return true;
 
-  const sourceChoices = data?.grantedFeatChoices?.[sourceSection.slot] ?? {};
+  const sourceChoices = getGrantedFeatChoiceValues(data, sourceSection.slot);
   const sourceChoiceSet = (sourceSection.choiceSets ?? []).find((choiceSet) =>
     Array.isArray(choiceSet?.options) && choiceSet.options.length > 0 && choiceSet.flag,
   );
@@ -935,7 +935,7 @@ async function createCreationMessage(actor, data) {
   for (const section of (data.grantedFeatSections ?? [])) {
     const labels = await getSelectedSubclassChoiceLabels({
       choiceSets: section.choiceSets ?? [],
-      choices: data.grantedFeatChoices?.[section.slot] ?? {},
+      choices: getGrantedFeatChoiceValues(data, section.slot),
     });
     if (labels.length > 0) {
       const sourceSuffix = section.sourceName ? ` (${section.sourceName})` : '';

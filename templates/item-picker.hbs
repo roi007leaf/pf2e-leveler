@@ -110,18 +110,20 @@
         </div>
       </div>
 
-      {{#if sourceOptions.length}}
+      {{#if publicationOptions.length}}
       <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
+        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
         <div class="picker__source-list">
-          {{#each sourceOptions}}
+          {{#each publicationOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
-            data-action="toggleCompendiumSource"
-            data-package="{{this.key}}"
+            class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
+            data-action="togglePublication"
+            data-publication="{{this.key}}"
+            data-publication-name="{{this.label}}"
             data-tooltip="{{this.key}}">
-            {{this.label}}
+            <span class="picker__source-chip-label">{{this.label}}</span>
           </button>
           {{/each}}
         </div>
@@ -152,7 +154,7 @@
 
       <div class="item-list">
         {{#each items}}
-        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}}" data-uuid="{{this.uuid}}">
+        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-selectable="{{#if this.guidanceSelectionBlocked}}false{{else}}true{{/if}}">
           <img class="item-option__img" src="{{this.img}}" alt="">
           <div class="item-option__info">
             <div class="item-option__header">
@@ -171,18 +173,27 @@
               {{#if (notEqual this.rarity "common")}}
               <span class="tag tag--rarity-{{this.rarity}}">{{this.rarity}}</span>
               {{/if}}
+              {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+              {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
             </div>
           </div>
           <div class="item-option__actions">
-            <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}">
+            <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
               {{#if ../multiSelect}}
-                {{#if this._levelerSelected}}
+                {{#if this.guidanceSelectionBlocked}}
+                  {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
+                {{else if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
                 {{else}}
                   {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
                 {{/if}}
               {{else}}
-                {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{#if this.guidanceSelectionBlocked}}
+                  {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
+                {{else}}
+                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                {{/if}}
               {{/if}}
             </button>
           </div>

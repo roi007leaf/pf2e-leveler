@@ -1,7 +1,9 @@
 import {
   annotateGuidance,
+  getGuidanceSelectionTooltip,
   getGuidanceForSourceTitle,
   getSourceGuidanceKey,
+  isGuidanceSelectionBlocked,
   invalidateGuidanceCache,
   normalizeSourceTitle,
 } from '../../../scripts/access/content-guidance.js';
@@ -9,6 +11,8 @@ import {
 jest.mock('../../../scripts/access/player-content.js', () => ({
   shouldRestrictContentForUser: jest.fn(() => true),
 }));
+
+const { shouldRestrictContentForUser } = jest.requireMock('../../../scripts/access/player-content.js');
 
 describe('content guidance source rules', () => {
   beforeEach(() => {
@@ -66,5 +70,31 @@ describe('content guidance source rules', () => {
     expect(item.isNotRecommended).toBe(false);
     expect(item.isDisallowed).toBe(false);
     expect(item.guidanceInherited).toBe(false);
+  });
+
+  test('disallowed guidance blocks players but not GMs', () => {
+    global._testSettings['pf2e-leveler'].gmContentGuidance = {
+      'source-title:pathfinder player core': 'disallowed',
+    };
+
+    shouldRestrictContentForUser.mockReturnValue(true);
+    const [playerItem] = annotateGuidance([{
+      uuid: 'Compendium.test.spells.Item.abc',
+      publicationTitle: 'Pathfinder Player Core',
+    }]);
+
+    expect(isGuidanceSelectionBlocked(playerItem)).toBe(true);
+    expect(playerItem.guidanceSelectionBlocked).toBe(true);
+    expect(getGuidanceSelectionTooltip(playerItem)).toBe('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED');
+
+    shouldRestrictContentForUser.mockReturnValue(false);
+    const [gmItem] = annotateGuidance([{
+      uuid: 'Compendium.test.spells.Item.xyz',
+      publicationTitle: 'Pathfinder Player Core',
+    }]);
+
+    expect(isGuidanceSelectionBlocked(gmItem)).toBe(false);
+    expect(gmItem.guidanceSelectionBlocked).toBe(false);
+    expect(getGuidanceSelectionTooltip(gmItem)).toBe('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED');
   });
 });

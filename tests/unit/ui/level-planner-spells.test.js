@@ -99,6 +99,24 @@ describe('level planner spell context', () => {
     expect(context.hasSpellbook).toBe(false);
   });
 
+  test('sorcerer bloodline paragon grants two 10th-rank repertoire picks at level 19', async () => {
+    const planner = {
+      actor: { items: [] },
+      plan: { classSlug: 'sorcerer' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+
+    const context = await buildSpellContext(planner, SORCERER, 19);
+    const rankTen = context.spellSlots.find((slot) => slot.rankNum === 10);
+
+    expect(rankTen).toEqual(expect.objectContaining({
+      rankNum: 10,
+      gainedSlots: 1,
+      newSlots: 2,
+      hasNew: true,
+    }));
+  });
+
   test('new-rank granted spells reduce spontaneous free picks', async () => {
     resolveSubclassSpells.mockReturnValueOnce({ grantedSpell: 'granted-rank-2' });
     global.fromUuid = jest.fn(async (uuid) => ({

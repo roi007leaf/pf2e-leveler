@@ -1,6 +1,8 @@
 import {
   CharacterWizard,
+  buildPublicationOptions,
   buildCompendiumSourceOptions,
+  filterStepContextByPublication,
   filterStepContextByCompendiumSource,
 } from '../../../scripts/ui/character-wizard/index.js';
 import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
@@ -288,10 +290,136 @@ describe('CharacterWizard feat step ancestry filtering', () => {
         publicationTitle: 'Pathfinder Player Core',
         isDisallowed: true,
         guidanceInherited: true,
+        guidanceSelectionBlocked: true,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED',
       }),
     ]);
 
     game.user.isGM = true;
+  });
+
+  it('keeps ancestry browser entries selectable for GMs when disallowed by source guidance', async () => {
+    global._testSettings = {
+      'pf2e-leveler': {
+        gmContentGuidance: {
+          'source-title:pathfinder player core': 'disallowed',
+        },
+      },
+    };
+    invalidateGuidanceCache();
+    game.settings.get = jest.fn((moduleId, settingId) => global._testSettings?.[moduleId]?.[settingId] ?? false);
+    game.user.isGM = true;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 0;
+    game.packs.get.mockImplementation((key) => {
+      if (key !== 'pf2e.ancestries') return null;
+      return {
+        metadata: {
+          label: 'PF2E Ancestries',
+          packageName: 'pf2e',
+        },
+        collection: 'pf2e.ancestries',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.ancestries.Item.elf',
+            name: 'Elf',
+            img: 'elf.png',
+            type: 'ancestry',
+            slug: 'elf',
+            system: {
+              traits: { value: ['elf'], rarity: 'common' },
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+        ]),
+      };
+    });
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.items).toEqual([
+      expect.objectContaining({
+        uuid: 'Compendium.pf2e.ancestries.Item.elf',
+        isDisallowed: true,
+        guidanceSelectionBlocked: false,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED',
+      }),
+    ]);
+  });
+
+  it('keeps versatile heritage browser entries selectable for GMs when disallowed by source guidance', async () => {
+    global._testSettings = {
+      'pf2e-leveler': {
+        gmContentGuidance: {
+          'source-title:pathfinder player core': 'disallowed',
+        },
+      },
+    };
+    invalidateGuidanceCache();
+    game.settings.get = jest.fn((moduleId, settingId) => global._testSettings?.[moduleId]?.[settingId] ?? false);
+    game.user.isGM = true;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 1;
+    wizard.data.ancestry = {
+      uuid: 'Compendium.pf2e.ancestries.Item.elf',
+      slug: 'elf',
+      name: 'Elf',
+      img: 'elf.png',
+    };
+
+    game.packs.get.mockImplementation((key) => {
+      if (key !== 'pf2e.heritages') return null;
+      return {
+        metadata: {
+          label: 'PF2E Heritages',
+          packageName: 'pf2e',
+        },
+        collection: 'pf2e.heritages',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.heritages.Item.elf-atavism',
+            name: 'Elf Atavism',
+            img: 'elf-atavism.png',
+            type: 'heritage',
+            slug: 'elf-atavism',
+            system: {
+              traits: { value: ['elf'], rarity: 'common' },
+              ancestry: { slug: 'elf' },
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+          {
+            uuid: 'Compendium.pf2e.heritages.Item.aiuvarin',
+            name: 'Aiuvarin',
+            img: 'aiuvarin.png',
+            type: 'heritage',
+            slug: 'aiuvarin',
+            system: {
+              traits: { value: ['aiuvarin'], rarity: 'common' },
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+        ]),
+      };
+    });
+
+    const context = await wizard._prepareContext();
+    const versatileGroup = context.browserStep.groups.find((group) =>
+      group.items.some((item) => item.uuid === 'Compendium.pf2e.heritages.Item.aiuvarin'),
+    );
+
+    expect(versatileGroup.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'Compendium.pf2e.heritages.Item.aiuvarin',
+        isDisallowed: true,
+        guidanceSelectionBlocked: false,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED',
+      }),
+    ]));
   });
 
   it('registers selected custom world classes into the class registry', async () => {
@@ -876,6 +1004,56 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     }));
   });
 
+  it('buildPublicationOptions starts with all publications unselected', () => {
+    const options = buildPublicationOptions({
+      items: [
+        { uuid: 'a', publicationTitle: 'Pathfinder Player Core' },
+        { uuid: 'b', publicationTitle: 'Pathfinder Book of the Dead' },
+      ],
+    });
+
+    expect(options).toEqual([
+      expect.objectContaining({ key: 'Pathfinder Book of the Dead', selected: false }),
+      expect.objectContaining({ key: 'Pathfinder Player Core', selected: false }),
+    ]);
+  });
+
+  it('publication filter can return to empty selection to show all results', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.render = jest.fn();
+    wizard.currentStep = 0;
+    wizard._publicationFilters.ancestry = ['Pathfinder Player Core'];
+
+    wizard._togglePublicationFilter('Pathfinder Player Core', [
+      'Pathfinder Player Core',
+      'Pathfinder Book of the Dead',
+    ]);
+
+    expect(wizard._publicationFilters.ancestry).toEqual([]);
+    expect(wizard.render).toHaveBeenCalledWith(true);
+  });
+
+  it('filters ancestry items by publication even when synthetic entries have no publication title', () => {
+    const filtered = filterStepContextByPublication(
+      {
+        items: [
+          { uuid: 'synthetic', name: 'Mixed Ancestry', publicationTitle: null },
+          { uuid: 'core', name: 'Elf', publicationTitle: 'Pathfinder Player Core' },
+          { uuid: 'dead', name: 'Skeleton', publicationTitle: 'Book of the Dead' },
+        ],
+      },
+      [
+        { key: 'Pathfinder Player Core', label: 'Pathfinder Player Core', selected: true },
+        { key: 'Book of the Dead', label: 'Book of the Dead', selected: false },
+      ],
+    );
+
+    expect(filtered.items).toEqual([
+      expect.objectContaining({ uuid: 'synthetic' }),
+      expect.objectContaining({ uuid: 'core' }),
+    ]);
+  });
+
   it('stores a second class when dual class support is enabled', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'enableDualClassSupport') return true;
@@ -1150,6 +1328,73 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(context.hasClassFeat).toBe(false);
     expect(context.hasSkillFeat).toBe(false);
     expect(context.ancestralParagonEnabled).toBe(false);
+  });
+
+  it('restores adopted ancestry granted feat choices after reopening saved creation data', async () => {
+    game.settings.get = jest.fn(() => false);
+    getCreationData.mockReturnValueOnce({
+      version: 1,
+      ancestry: { uuid: 'ancestry-human', slug: 'human', name: 'Human' },
+      heritage: null,
+      mixedAncestry: null,
+      background: null,
+      class: { uuid: 'class-fighter', slug: 'fighter', name: 'Fighter' },
+      dualClass: null,
+      subclass: null,
+      dualSubclass: null,
+      boosts: { free: [] },
+      languages: [],
+      lores: [],
+      skills: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+          featName: 'Adopted Ancestry',
+          choiceSets: [
+            {
+              flag: 'ancestry',
+              prompt: 'Select a common ancestry.',
+              options: [
+                { value: 'dwarf', label: 'Dwarf', type: 'ancestry' },
+                { value: 'elf', label: 'Elf', type: 'ancestry' },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        Compendium: {
+          pf2e: {
+            'feats-srd': {
+              Item: {
+                'adopted-ancestry': {
+                  ancestry: 'dwarf',
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    expect(wizard._getFeatChoiceValues('Compendium.pf2e.feats-srd.Item.adopted-ancestry')).toEqual({
+      ancestry: 'dwarf',
+    });
+
+    const context = await buildFeatChoicesContext(wizard);
+    expect(context.featChoiceSections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          slot: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+        }),
+      ]),
+    );
   });
 
   it('includes mixed ancestry secondary ancestry traits in the creation feat build state', async () => {

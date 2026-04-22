@@ -47,6 +47,14 @@ export function applySourceFilter(entries, selectedSources, getSource, available
   return (entries ?? []).filter((entry) => selectedSources.has(getSource(entry)));
 }
 
+export function applyPublicationFilter(entries, selectedPublications, getPublication, availableValues) {
+  if (isUnrestrictedSelection(selectedPublications, availableValues)) return [...entries];
+  return (entries ?? []).filter((entry) => {
+    const publication = String(getPublication(entry) ?? '').trim();
+    return publication.length > 0 && selectedPublications.has(publication);
+  });
+}
+
 export function applyTraitFilter(entries, selectedTraits, getTraits, logic = 'or') {
   const traits = [...(selectedTraits ?? [])].filter(Boolean);
   if (traits.length === 0) return [...entries];

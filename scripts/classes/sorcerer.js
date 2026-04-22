@@ -32,6 +32,9 @@ export const SORCERER = {
   spellcasting: {
     tradition: 'bloodline',
     type: 'spontaneous',
+    selectionAdjustmentsByLevel: {
+      19: { 10: 1 },
+    },
     slots: {
       1: { cantrips: 5, 1: 3 },
       2: { cantrips: 5, 1: 4 },

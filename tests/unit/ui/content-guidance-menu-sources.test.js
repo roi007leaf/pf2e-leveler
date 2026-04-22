@@ -31,19 +31,27 @@ describe('ContentGuidanceMenu sources tab', () => {
     ]));
   });
 
-  test('filters sources tab by source title', async () => {
+  test('filters sources tab in the rendered DOM by source title', () => {
+    document.body.innerHTML = `
+      <div class="compendium-manager__panelWrap" style="overflow:auto">
+        <input type="text" data-action="search-guidance" value="">
+        <div class="guidance-item"><span class="guidance-item__name">Pathfinder Player Core</span></div>
+        <div class="guidance-item"><span class="guidance-item__name">Lost Omens Divine Mysteries</span></div>
+      </div>
+    `;
+
     const menu = new ContentGuidanceMenu();
     menu.activeCategory = 'sources';
     menu.searchText = 'player core';
     menu._draft = {};
-    menu._itemCache.sources = [
-      { uuid: 'source-title:pathfinder player core', name: 'Pathfinder Player Core', matchedCount: 3 },
-      { uuid: 'source-title:lost omens divine mysteries', name: 'Lost Omens Divine Mysteries', matchedCount: 1 },
-    ];
+    menu.element = document.body;
+    menu.render = jest.fn();
 
-    const context = await menu._prepareContext();
+    menu._onRender();
 
-    expect(context.items.map((entry) => entry.uuid)).toEqual(['source-title:pathfinder player core']);
+    const items = [...document.querySelectorAll('.guidance-item')];
+    expect(items[0].style.display).toBe('');
+    expect(items[1].style.display).toBe('none');
   });
 
   test('existing item tabs expose inherited source guidance status', async () => {

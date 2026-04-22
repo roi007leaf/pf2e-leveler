@@ -11,7 +11,6 @@ import {
   PERMANENT_ITEM_TYPES,
   expandPermanentItemSlots,
 } from '../../constants.js';
-import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { ensureClassItemRegistered } from '../../classes/ensure.js';
 import {
@@ -40,6 +39,7 @@ import {
   setDualClassFeat,
   setSkillFeat,
   setFeatChoice,
+  getGrantedFeatChoiceValues,
   addEquipment,
   setPermanentItem,
 } from '../../creation/creation-model.js';
@@ -56,6 +56,7 @@ import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { isAncestralParagonEnabled, isDualClassEnabled, slugify } from '../../utils/pf2e-api.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
+import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import {
   createMixedAncestryHeritage,
   getMixedAncestrySelectedValue,
@@ -278,7 +279,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._featChoiceDataDirty = !this._hasReusableFeatChoiceData(this.data);
     if (sanitizedDisabledDualClassState) this._featChoiceDataDirty = true;
     this._applyPromptRowsCache = null;
-    this._compendiumSourceFilters = {};
+    this._publicationFilters = {};
     this._spellLayoutObserver = null;
     this._isBooting = true;
     this._bootstrapPromise = null;
@@ -291,6 +292,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _sanitizeDisabledDualClassState() {
     if (this._isDualClassCreationEnabled()) return false;
 
+    const dualClassLabels = [
+      String(this.data?.dualSubclass?.name ?? '').trim().toLowerCase(),
+      String(this.data?.dualClass?.name ?? '').trim().toLowerCase(),
+    ].filter(Boolean);
+    const isDualClassGrantedSection = (section) => {
+      const sourceName = String(section?.sourceName ?? '').trim().toLowerCase();
+      return dualClassLabels.some((label) => label && sourceName.startsWith(label));
+    };
+    const dualClassSectionSlots = new Set(
+      (this.data?.grantedFeatSections ?? [])
+        .filter((section) => isDualClassGrantedSection(section))
+        .map((section) => section.slot),
+    );
+
     const hasDualClassState = !!(
       this.data?.dualClass
       || this.data?.dualSubclass
@@ -299,15 +314,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       || (this.data?.dualSpells?.rank1?.length ?? 0) > 0
       || (this.data?.dualCurriculumSpells?.cantrips?.length ?? 0) > 0
       || (this.data?.dualCurriculumSpells?.rank1?.length ?? 0) > 0
-      || (this.data?.grantedFeatSections?.length ?? 0) > 0
-      || Object.keys(this.data?.grantedFeatChoices ?? {}).length > 0
+      || dualClassSectionSlots.size > 0
+      || [...dualClassSectionSlots].some((slot) => {
+        const choices = getGrantedFeatChoiceValues(this.data, slot);
+        return Object.keys(choices).length > 0;
+      })
     );
 
     if (!hasDualClassState) return false;
 
     setDualClass(this.data, null);
-    this.data.grantedFeatSections = [];
-    this.data.grantedFeatChoices = {};
+    this.data.grantedFeatSections = (this.data.grantedFeatSections ?? []).filter(
+      (section) => !dualClassSectionSlots.has(section.slot),
+    );
+    this.data.grantedFeatChoices = Object.fromEntries(
+      Object.entries(this.data.grantedFeatChoices ?? {}).filter(([slot]) => !dualClassSectionSlots.has(slot)),
+    );
     return true;
   }
 
@@ -527,9 +549,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         isSummary: this.stepId === 'summary',
         allComplete: false,
         browserStep: null,
-        compendiumSourceOptions: [],
-        hasCompendiumSourceFilter: false,
-        showGlobalCompendiumSourceFilter: false,
+        publicationOptions: [],
+        hasPublicationFilter: false,
+        showGlobalPublicationFilter: false,
       };
     }
 
@@ -544,14 +566,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const canApplyCreation = allComplete || game.settings.get(MODULE_ID, 'allowIncompleteCreation');
 
     const rawStepContext = await this._getStepContext();
-    const compendiumSourceOptions = buildCompendiumSourceOptions(
-      this.stepId,
+    const publicationOptions = buildPublicationOptions(
       rawStepContext,
-      this._compendiumSourceFilters[this.stepId] ?? [],
+      this._publicationFilters[this.stepId] ?? [],
     );
-    const stepContext = filterStepContextByCompendiumSource(
+    const stepContext = filterStepContextByPublication(
       rawStepContext,
-      compendiumSourceOptions,
+      publicationOptions,
     );
     const browserStep = buildBrowserStepContext(this.stepId, this.data, stepContext);
       if (browserStep?.stepId === 'background') {
@@ -585,9 +606,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       allComplete,
       canApplyCreation,
       browserStep,
-      compendiumSourceOptions,
-      hasCompendiumSourceFilter: compendiumSourceOptions.length > 0,
-      showGlobalCompendiumSourceFilter: compendiumSourceOptions.length > 0 && !browserStep,
+      publicationOptions,
+      hasPublicationFilter: publicationOptions.length > 0,
+      showGlobalPublicationFilter: publicationOptions.length > 0 && !browserStep,
       ...applyOverlay,
       ...stepContext,
     };
@@ -600,6 +621,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._applyBrowserFilters(el);
     this._ensureBootstrapped();
     this._syncSpellLayout(el);
+    this._syncPublicationTooltips(el);
   }
 
   _activateListeners(el) {
@@ -640,6 +662,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     results.style.removeProperty('width');
     results.style.removeProperty('max-width');
     results.style.removeProperty('min-width');
+  }
+
+  _syncPublicationTooltips(root) {
+    for (const button of root.querySelectorAll('[data-action="togglePublication"]')) {
+      const label = button.querySelector('.wizard-source-filter__label');
+      if (!label) continue;
+
+      const shouldTooltip = label.scrollWidth > label.clientWidth + 1;
+      if (shouldTooltip) {
+        button.dataset.tooltip = button.dataset.publicationName ?? label.textContent?.trim() ?? '';
+      } else {
+        delete button.dataset.tooltip;
+      }
+    }
   }
 
   async _getCachedDocument(uuid) {
@@ -745,7 +781,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _normalizeLegacyMixedAncestrySelection() {
     if (this.data?.mixedAncestry || !this._hasMixedAncestry()) return;
     const legacyValue = getMixedAncestrySelectedValue(
-      this.data?.grantedFeatChoices?.[MIXED_ANCESTRY_UUID],
+      getGrantedFeatChoiceValues(this.data, MIXED_ANCESTRY_UUID),
     );
     if (!legacyValue) return;
     const mixedAncestryRef = await this._resolveMixedAncestryRef(legacyValue);
@@ -1361,7 +1397,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (slot === 'class') return this.data.classFeat?.choices ?? {};
     if (slot === 'dualClass') return this.data.dualClassFeat?.choices ?? {};
     if (slot === 'skill') return this.data.skillFeat?.choices ?? {};
-    return this.data.grantedFeatChoices?.[slot] ?? {};
+    return getGrantedFeatChoiceValues(this.data, slot);
   }
 
   _inferFeatChoiceTarget(slot) {
@@ -1516,7 +1552,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             ? (this.data.classFeat?.choices ?? {})
             : slot === 'skill'
               ? (this.data.skillFeat?.choices ?? {})
-              : (this.data.grantedFeatChoices?.[slot] ?? {});
+              : getGrantedFeatChoiceValues(this.data, slot);
     const choiceSets = await this._hydrateChoiceSets(
       choiceContainer.choiceSets ?? [],
       currentChoices,
@@ -1884,22 +1920,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.render({ force: true, parts: ['wizard'] });
   }
 
-  _toggleCompendiumSourceFilter(pack, allPacks = []) {
-    if (!pack) return;
+  _togglePublicationFilter(publication, allPublications = []) {
+    if (!publication) return;
+    const available = new Set((allPublications ?? []).filter(Boolean));
     const current = new Set(
-      this._compendiumSourceFilters[this.stepId]?.length
-        ? this._compendiumSourceFilters[this.stepId]
-        : allPacks,
+      (this._publicationFilters[this.stepId] ?? []).filter((entry) => available.has(entry)),
     );
 
-    if (current.has(pack)) {
-      if (current.size > 1) current.delete(pack);
+    if (current.has(publication)) {
+      current.delete(publication);
     } else {
-      current.add(pack);
+      current.add(publication);
     }
 
-    this._compendiumSourceFilters[this.stepId] =
-      current.size === allPacks.length ? [] : [...current];
+    this._publicationFilters[this.stepId] = [...current];
     this.render(true);
   }
 
@@ -2155,7 +2189,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             .map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
             choiceSets: section.choiceSets ?? [],
-            choices: this.data.grantedFeatChoices?.[section.slot] ?? {},
+            choices: getGrantedFeatChoiceValues(this.data, section.slot),
           })),
         ];
         return sections.every((section) =>
@@ -3273,7 +3307,7 @@ async function getAdoptedAncestryFeatTraits(wizard) {
     )
       continue;
 
-    const currentChoices = wizard.data.grantedFeatChoices?.[section.slot] ?? {};
+    const currentChoices = getGrantedFeatChoiceValues(wizard.data, section.slot);
     for (const choiceSet of section.choiceSets ?? []) {
       const selectedValue = currentChoices?.[choiceSet.flag];
       if (typeof selectedValue !== 'string' || selectedValue.length === 0) continue;
@@ -3309,7 +3343,7 @@ async function getMixedAncestryFeatTraits(wizard) {
 
   const selectedValue =
     getMixedAncestrySelectedValue(wizard.data.mixedAncestry) ??
-    getMixedAncestrySelectedValue(wizard.data.grantedFeatChoices?.[MIXED_ANCESTRY_UUID]);
+    getMixedAncestrySelectedValue(getGrantedFeatChoiceValues(wizard.data, MIXED_ANCESTRY_UUID));
   if (typeof selectedValue !== 'string' || selectedValue.length === 0) return [];
   const selectedSlug =
     wizard.data.mixedAncestry?.slug ?? (await resolveAncestrySlugFromChoice(wizard, selectedValue));
@@ -3373,7 +3407,7 @@ function intersectStringSets(sets) {
   return [...normalizedSets[0]].filter((value) => normalizedSets.every((set) => set.has(value)));
 }
 
-const SOURCE_FILTERABLE_KEYS = new Set([
+const PUBLICATION_FILTERABLE_KEYS = new Set([
   'items',
   'options',
   'ancestryFeats',
@@ -3385,13 +3419,78 @@ const SOURCE_FILTERABLE_KEYS = new Set([
   'focusSpells',
 ]);
 
+export function buildPublicationOptions(stepContext, storedSelection = []) {
+  const publications = collectPublications(stepContext);
+  if (publications.length === 0) return [];
+
+  const allKeys = new Set(publications.map((publication) => publication.key));
+  const selectedKeys = new Set((storedSelection ?? []).filter((key) => allKeys.has(key)));
+
+  return publications.map((publication) => ({
+    ...publication,
+    selected: selectedKeys.has(publication.key),
+  }));
+}
+
+export function filterStepContextByPublication(stepContext, publicationOptions = []) {
+  const selectedKeys = new Set(
+    publicationOptions.filter((option) => option.selected).map((option) => option.key),
+  );
+  if (selectedKeys.size === 0) return stepContext;
+
+  return filterPublicationValue(stepContext, selectedKeys);
+}
+
+function collectPublications(value, found = new Map()) {
+  if (Array.isArray(value)) {
+    for (const entry of value) collectPublications(entry, found);
+    return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  if (!value || typeof value !== 'object')
+    return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+
+  const title = String(value.publicationTitle ?? '').trim();
+  if (title.length > 0) {
+    found.set(title, {
+      key: title,
+      label: title,
+    });
+  }
+
+  for (const nested of Object.values(value)) {
+    collectPublications(nested, found);
+  }
+
+  return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function filterPublicationValue(value, selectedKeys, parentKey = null) {
+  if (Array.isArray(value)) {
+    if (PUBLICATION_FILTERABLE_KEYS.has(parentKey)) {
+      return value.filter((entry) => {
+        if (!entry || typeof entry !== 'object') return true;
+        const publicationTitle = String(entry.publicationTitle ?? '').trim();
+        if (!publicationTitle) return true;
+        return selectedKeys.has(publicationTitle);
+      });
+    }
+
+    return value.map((entry) => filterPublicationValue(entry, selectedKeys, parentKey));
+  }
+
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nested]) => [
+      key,
+      filterPublicationValue(nested, selectedKeys, key),
+    ]),
+  );
+}
+
 export function buildCompendiumSourceOptions(stepId, stepContext, storedSelection = []) {
-  const configuredSources = getConfiguredStepCompendiumSources(stepId);
-  const discoveredSources = collectCompendiumSources(stepContext);
-  const sources =
-    configuredSources.length > 0
-      ? mergeCompendiumSources(configuredSources, discoveredSources)
-      : discoveredSources;
+  const sources = collectCompendiumSources(stepId, stepContext);
   if (sources.length === 0) return [];
 
   const allKeys = new Set(sources.map((source) => source.key));
@@ -3405,40 +3504,6 @@ export function buildCompendiumSourceOptions(stepId, stepContext, storedSelectio
   }));
 }
 
-function mergeCompendiumSources(...groups) {
-  const merged = new Map();
-  for (const group of groups) {
-    for (const source of group ?? []) {
-      if (!source?.key) continue;
-      if (!merged.has(source.key)) merged.set(source.key, source);
-    }
-  }
-  return [...merged.values()].sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function getConfiguredStepCompendiumSources(stepId) {
-  const categories = STEP_SOURCE_CATEGORIES[stepId] ?? [];
-  const sources = [];
-
-  for (const category of categories) {
-    for (const key of getCompendiumKeysForCategory(category)) {
-      const pack = game.packs.get(key);
-      const packageKey = pack?.metadata?.packageName ?? pack?.metadata?.package ?? key;
-      sources.push({
-        key: packageKey,
-        label: getSourceOwnerLabel(packageKey),
-      });
-    }
-  }
-
-  const unique = new Map();
-  for (const source of sources) {
-    if (!unique.has(source.key)) unique.set(source.key, source);
-  }
-
-  return [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-}
-
 export function filterStepContextByCompendiumSource(stepContext, sourceOptions = []) {
   const selectedKeys = new Set(
     sourceOptions.filter((option) => option.selected).map((option) => option.key),
@@ -3448,28 +3513,51 @@ export function filterStepContextByCompendiumSource(stepContext, sourceOptions =
   return filterCompendiumSourceValue(stepContext, selectedKeys);
 }
 
-function collectCompendiumSources(value, found = new Map()) {
+function collectCompendiumSources(stepId, value, found = new Map()) {
+  const category = LEGACY_BROWSER_STEP_COMPENDIUM_CATEGORIES[stepId];
+  const configuredKeys = category ? getCompendiumKeysForCategory(category) : [];
+  if (configuredKeys.length > 0) {
+    for (const key of configuredKeys) {
+      const pack = game.packs?.get?.(key);
+      if (!pack) continue;
+      const packageName = pack.metadata?.packageName ?? pack.metadata?.package ?? key;
+      const label = game.modules?.get?.(packageName)?.title ?? packageName;
+      if (!found.has(packageName)) {
+        found.set(packageName, { key: packageName, label });
+      }
+    }
+  }
+
+  return collectSourceEntries(value, found);
+}
+
+const LEGACY_BROWSER_STEP_COMPENDIUM_CATEGORIES = {
+  ancestry: 'ancestries',
+  heritage: 'heritages',
+  mixedAncestry: 'ancestries',
+  background: 'backgrounds',
+  class: 'classes',
+  subclass: 'classFeatures',
+};
+
+function collectSourceEntries(value, found = new Map()) {
   if (Array.isArray(value)) {
-    for (const entry of value) collectCompendiumSources(entry, found);
+    for (const entry of value) collectSourceEntries(entry, found);
     return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
   }
 
-  if (!value || typeof value !== 'object')
+  if (!value || typeof value !== 'object') {
     return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
 
-  const sourceKey =
-    typeof value.sourcePackage === 'string' && value.sourcePackage.length > 0
-      ? value.sourcePackage
-      : value.sourcePack;
-  if (typeof sourceKey === 'string' && sourceKey.length > 0) {
-    found.set(sourceKey, {
-      key: sourceKey,
-      label: value.sourcePackageLabel ?? value.sourceLabel ?? getSourceOwnerLabel(sourceKey),
-    });
+  const sourceKey = String(value.sourcePackage ?? value.sourcePack ?? '').trim();
+  if (sourceKey) {
+    const label = String(value.sourcePackageLabel ?? value.sourceLabel ?? sourceKey).trim() || sourceKey;
+    if (!found.has(sourceKey)) found.set(sourceKey, { key: sourceKey, label });
   }
 
   for (const nested of Object.values(value)) {
-    collectCompendiumSources(nested, found);
+    collectSourceEntries(nested, found);
   }
 
   return [...found.values()].sort((a, b) => a.label.localeCompare(b.label));
@@ -3477,11 +3565,13 @@ function collectCompendiumSources(value, found = new Map()) {
 
 function filterCompendiumSourceValue(value, selectedKeys, parentKey = null) {
   if (Array.isArray(value)) {
-    if (
-      SOURCE_FILTERABLE_KEYS.has(parentKey) &&
-      value.every((entry) => isCompendiumSourcedRecord(entry))
-    ) {
-      return value.filter((entry) => selectedKeys.has(entry.sourcePackage ?? entry.sourcePack));
+    if (PUBLICATION_FILTERABLE_KEYS.has(parentKey)) {
+      return value.filter((entry) => {
+        if (!entry || typeof entry !== 'object') return true;
+        const sourceKey = String(entry.sourcePackage ?? entry.sourcePack ?? '').trim();
+        if (!sourceKey) return true;
+        return selectedKeys.has(sourceKey);
+      });
     }
 
     return value.map((entry) => filterCompendiumSourceValue(entry, selectedKeys, parentKey));
@@ -3496,36 +3586,6 @@ function filterCompendiumSourceValue(value, selectedKeys, parentKey = null) {
     ]),
   );
 }
-
-function isCompendiumSourcedRecord(value) {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    typeof value.uuid === 'string' &&
-    ((typeof value.sourcePackage === 'string' && value.sourcePackage.length > 0) ||
-      (typeof value.sourcePack === 'string' && value.sourcePack.length > 0))
-  );
-}
-
-const STEP_SOURCE_CATEGORIES = {
-  ancestry: ['ancestries'],
-  heritage: ['heritages'],
-  mixedAncestry: ['ancestries'],
-  background: ['backgrounds'],
-  class: ['classes'],
-  subclass: ['classFeatures'],
-  deity: ['deities'],
-  implement: ['classFeatures'],
-  tactics: ['actions'],
-  ikons: ['classFeatures'],
-  innovationDetails: ['equipment', 'classFeatures'],
-  kineticGate: ['feats', 'classFeatures'],
-  subconsciousMind: ['classFeatures'],
-  thesis: ['classFeatures'],
-  apparitions: ['classFeatures'],
-  feats: ['feats'],
-  spells: ['spells'],
-};
 
 function buildBrowserStepContext(stepId, data, stepContext) {
   const config = BROWSER_STEP_CONFIG[stepId];
@@ -3674,14 +3734,7 @@ const BROWSER_STEP_CONFIG = {
   },
 };
 
-function getSourceOwnerLabel(packageKey) {
-  if (!packageKey) return '';
-  if (game.system?.id === packageKey)
-    return compactSourceOwnerLabel(game.system.title ?? packageKey);
-  return compactSourceOwnerLabel(game.modules?.get?.(packageKey)?.title ?? packageKey);
-}
-
-function compactSourceOwnerLabel(label) {
+function _compactSourceOwnerLabel(label) {
   let text = String(label ?? '').trim();
   if (!text) return '';
 

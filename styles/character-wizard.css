@@ -291,6 +291,10 @@
   padding-bottom: var(--leveler-spacing-lg);
 }
 
+.pf2e-leveler .wizard-main--browser {
+  overflow: hidden;
+}
+
 .pf2e-leveler .wizard-content h2 {
   margin: 0 0 var(--leveler-spacing-md) 0;
   font-size: 1.2rem;
@@ -351,6 +355,7 @@
   min-width: 0;
   width: 100%;
   flex: 1;
+  overflow: hidden;
 }
 
 .pf2e-leveler .wizard-browser--stacked .wizard-browser__filters,
@@ -364,7 +369,11 @@
   gap: var(--leveler-spacing-sm);
   flex: 0 0 300px;
   min-width: 0;
+  min-height: 0;
   width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .pf2e-leveler .wizard-browser__results {
@@ -375,12 +384,12 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .pf2e-leveler .wizard-browser--stacked .wizard-browser__results {
-  overflow-y: auto;
-  overflow-x: hidden;
   padding-right: 2px;
 }
 
@@ -655,12 +664,18 @@
   padding-right: 0;
 }
 
+.pf2e-leveler .wizard-browser-filter--publications .wizard-source-filters--sidebar .wizard-source-filters__chips {
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .pf2e-leveler .wizard-source-filters__search {
   margin-bottom: 10px;
 }
 
 .pf2e-leveler .wizard-source-filter {
-  padding: 5px 12px;
+  padding: 7px 12px;
   border: 1px solid rgba(196, 180, 158, 0.22);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
@@ -668,14 +683,28 @@
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.3;
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
   transition: all 0.15s ease;
 }
 
+.pf2e-leveler .wizard-source-filter__label {
+  display: block;
+}
+
 .pf2e-leveler .wizard-source-filters--sidebar .wizard-source-filter {
+  display: block;
+  width: 100%;
   max-width: 100%;
+  align-self: stretch;
+}
+
+.pf2e-leveler .wizard-source-filters--sidebar .wizard-source-filter__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pf2e-leveler .wizard-source-filter:hover {

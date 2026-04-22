@@ -147,6 +147,23 @@
   opacity: 0.78;
 }
 
+.pf2e-leveler .picker__source-chip-label {
+  display: block;
+  min-width: 0;
+}
+
+.pf2e-leveler .picker__source-chip--publication {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.pf2e-leveler .picker__source-chip--publication .picker__source-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pf2e-leveler .picker__source-chip::before {
   content: '';
   width: 10px;

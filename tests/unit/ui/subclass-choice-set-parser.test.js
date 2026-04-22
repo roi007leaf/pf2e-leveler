@@ -2819,6 +2819,50 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('synthesizes a skill-training choice set from direct trained-in-a-skill-of-your-choice wording', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          arcana: 'Arcana',
+          athletics: 'Athletics',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.arcane-evolution',
+      name: 'Arcane Evolution',
+      system: {
+        description: {
+          value: '<p>You become trained in one skill of your choice.</p>',
+        },
+        rules: [],
+      },
+    };
+
+    try {
+      const choiceSets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+      const skillSet = choiceSets.find((entry) => entry.flag === 'levelerSkillChoice1');
+
+      expect(skillSet).toEqual(expect.objectContaining({
+        flag: 'levelerSkillChoice1',
+        prompt: 'Select a skill.',
+        grantsSkillTraining: true,
+      }));
+      expect(skillSet.options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'arcana' }),
+        expect.objectContaining({ value: 'athletics' }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('preserves explicit authored skill choice arrays without expanding them to all skills', async () => {
     const wizard = new CharacterWizard(createMockActor());
 

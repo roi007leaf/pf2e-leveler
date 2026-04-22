@@ -43,7 +43,7 @@
   </div>
 
   <div class="wizard-content">
-    <div class="wizard-main">
+    <div class="wizard-main {{#if browserStep}}wizard-main--browser{{/if}}">
     {{#if isBooting}}
     <div class="wizard-loading">
       <div class="wizard-loading__card">
@@ -171,25 +171,24 @@
         </div>
         {{/if}}
 
-        {{#if hasCompendiumSourceFilter}}
-        <div class="wizard-browser-filter">
-          <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+        {{#if hasPublicationFilter}}
+        <div class="wizard-browser-filter wizard-browser-filter--publications">
+          <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
           <input
             type="text"
             class="picker__search wizard-source-filters__search"
-            placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
-            data-action="searchCompendiumSources">
+            placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}"
+            data-action="searchPublications">
           <div class="wizard-source-filters wizard-source-filters--sidebar">
             <div class="wizard-source-filters__chips">
-              {{#each compendiumSourceOptions}}
+              {{#each publicationOptions}}
               <button
                 type="button"
                 class="wizard-source-filter {{#if this.selected}}selected{{/if}}"
-                data-action="toggleCompendiumSource"
-                data-pack="{{this.key}}"
-                data-tooltip="{{this.key}}"
-                data-source-name="{{this.label}}">
-                {{this.label}}
+                data-action="togglePublication"
+                data-publication="{{this.key}}"
+                data-publication-name="{{this.label}}">
+                <span class="wizard-source-filter__label">{{this.label}}</span>
               </button>
               {{/each}}
             </div>
@@ -214,7 +213,7 @@
         </div>
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each this.items}}
-          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
+          <div class="wizard-item {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -246,7 +245,8 @@
               data-choicesets='{{json this.choiceSets}}'
               data-curriculum='{{json this.curriculum}}'
               {{/if}}
-              {{#if this.isDisallowed}}disabled{{/if}}>
+              {{#if this.guidanceSelectionBlocked}}disabled{{/if}}
+              data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
               {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
             </button>
           </div>
@@ -256,7 +256,7 @@
         {{else}}
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each browserStep.items}}
-          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
+          <div class="wizard-item {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
@@ -282,7 +282,8 @@
               class="wizard-item__select"
               data-action="{{../browserStep.selectAction}}"
               data-uuid="{{this.uuid}}"
-              {{#if this.isDisallowed}}disabled{{/if}}
+              {{#if this.guidanceSelectionBlocked}}disabled{{/if}}
+              data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}"
               {{#if (eq ../browserStep.stepId "subclass")}}
               data-target="{{this.targetKey}}"
               data-tradition="{{this.tradition}}"
@@ -303,24 +304,23 @@
     {{else}}
     {{#unless (eq stepId "feats")}}
     {{#unless (eq stepId "spells")}}
-    {{#if showGlobalCompendiumSourceFilter}}
+    {{#if showGlobalPublicationFilter}}
     <div class="wizard-source-filters">
-      <div class="wizard-source-filters__label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
+      <div class="wizard-source-filters__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
       <input
         type="text"
         class="picker__search wizard-source-filters__search"
-        placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}"
-        data-action="searchCompendiumSources">
+        placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}"
+        data-action="searchPublications">
       <div class="wizard-source-filters__chips">
-        {{#each compendiumSourceOptions}}
+        {{#each publicationOptions}}
         <button
           type="button"
           class="wizard-source-filter {{#if this.selected}}selected{{/if}}"
-          data-action="toggleCompendiumSource"
-          data-pack="{{this.key}}"
-          data-tooltip="{{this.key}}"
-          data-source-name="{{this.label}}">
-          {{this.label}}
+          data-action="togglePublication"
+          data-publication="{{this.key}}"
+          data-publication-name="{{this.label}}">
+          <span class="wizard-source-filter__label">{{this.label}}</span>
         </button>
         {{/each}}
       </div>
@@ -1212,7 +1212,7 @@
         {{#each choosableLanguages}}
         <button type="button"
           class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
-          data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}" {{#if this.isDisallowed}}disabled{{/if}}>
+          data-action="toggleLanguage" data-language="{{this.slug}}" data-name="{{this.label}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             <span class="skill-btn__tags">
@@ -1261,7 +1261,7 @@
         {{else}}
         <button type="button"
           class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
-          data-action="toggleSkill" data-skill="{{this.slug}}" {{#if this.isDisallowed}}disabled{{/if}}>
+          data-action="toggleSkill" data-skill="{{this.slug}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             <span class="skill-btn__tags">

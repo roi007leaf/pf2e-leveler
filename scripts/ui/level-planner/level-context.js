@@ -435,6 +435,8 @@ function buildPlannerSpecialChoiceSets(feat, source) {
         isRecommended: entry.isRecommended,
         isNotRecommended: entry.isNotRecommended,
         isDisallowed: entry.isDisallowed,
+        guidanceSelectionBlocked: entry.guidanceSelectionBlocked,
+        guidanceSelectionTooltip: entry.guidanceSelectionTooltip,
       })),
     });
   }

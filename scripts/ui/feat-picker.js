@@ -12,9 +12,10 @@ import {
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 import { parseAllPrerequisiteNodes } from '../prerequisites/parsers.js';
 import { isMythicEnabled } from '../utils/pf2e-api.js';
+import { annotateGuidance } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
-  applySourceFilter,
+  applyPublicationFilter,
   applyTraitFilter,
   buildChipOptions,
   getAvailableRarityValues,
@@ -56,8 +57,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.minLevel = '';
     this.maxLevel = Number.isFinite(Number(targetLevel)) && Number(targetLevel) > 0 ? String(targetLevel) : '';
     this.selectedFeatTypes = new Set();
-    this.selectedSourcePackages = new Set();
-    this._sourceFilterInitialized = false;
+    this.selectedPublications = new Set();
+    this._publicationFilterInitialized = false;
     this.additionalArchetypeFeatLevels = new Map();
     this.additionalArchetypeFeatTraits = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
@@ -130,20 +131,18 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
-    const sourceOptions = this._getSourceOptions();
+    const publicationOptions = this._getPublicationOptions();
     const featTypeOptions = this._getFeatTypeOptions();
     const traitOptions = this._getTraitOptions();
     const skillChips = this._getSkillChipOptions();
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredFeats = this._applyFilters();
 
     return {
       feats: this.filteredFeats.map((feat) => this._toTemplateFeat(feat)),
       filteredCount: this.filteredFeats.length,
-      sourceOptions,
+      publicationOptions,
       featTypeOptions,
       levelOptions: this._getLevelOptions(),
       category: this.category,
@@ -198,6 +197,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
       ignoreDedicationLock: this._ignoreDedicationLock,
     });
+    annotateGuidance(this.allFeats);
     this._showSkillFilter = this._featsHaveSkillRelevance();
   }
 
@@ -220,7 +220,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       feats: [],
       filteredCount: 0,
-      sourceOptions: [],
+      publicationOptions: [],
       featTypeOptions: [],
       levelOptions: this._getLevelOptions(),
       category: this.category,
@@ -269,7 +269,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _applyFilters({ ignoreRarity = false } = {}) {
     let feats = [...this.allFeats];
-    feats = applySourceFilter(feats, this.selectedSourcePackages, (feat) => feat.sourcePackage ?? feat.sourcePack, this._sourceKeys);
+    feats = applyPublicationFilter(
+      feats,
+      this.selectedPublications,
+      (feat) => feat.publicationTitle ?? feat.system?.publication?.title,
+      this._publicationTitles,
+    );
     if (this.minLevel !== '') {
       const minLevel = Number(this.minLevel);
       feats = feats.filter((feat) => Number(feat.system?.level?.value ?? 0) >= minLevel);
@@ -351,7 +356,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       feat.hasFailedPrerequisites = check.met === false;
       feat.hasUnknownPrerequisites = check.results.some((result) => result.met == null);
       feat.prerequisitesFailed = feat.hasFailedPrerequisites;
-      feat.selectionBlocked = enforcePrereqs && feat.hasFailedPrerequisites;
+      feat.selectionBlocked = feat.guidanceSelectionBlocked === true || (enforcePrereqs && feat.hasFailedPrerequisites);
 
       const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
       const featSlug = feat.slug ?? null;
@@ -368,7 +373,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         feat.prereqResults = showPrereqs ? [...feat.prereqResults, dedicationLockResult] : feat.prereqResults;
         feat.hasFailedPrerequisites = true;
         feat.prerequisitesFailed = true;
-        feat.selectionBlocked = enforcePrereqs;
+        feat.selectionBlocked = feat.guidanceSelectionBlocked === true || enforcePrereqs;
       }
 
       const slug = feat.slug ?? null;
@@ -486,26 +491,26 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this._scheduleListUpdate();
     }, { signal });
 
-    el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
+    el.querySelectorAll('[data-action="togglePublication"]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const sourceKey = btn.dataset.package;
-        if (!sourceKey) return;
-        this.selectedSourcePackages = toggleSelectableChip(
-          this.selectedSourcePackages,
-          sourceKey,
-          this._sourceKeys,
+        const publication = btn.dataset.publication;
+        if (!publication) return;
+        this.selectedPublications = toggleSelectableChip(
+          this.selectedPublications,
+          publication,
+          this._publicationTitles,
         );
-        for (const chip of el.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
-          chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
+        for (const chip of el.querySelectorAll('[data-action="togglePublication"]')) {
+          chip.classList.toggle('selected', this.selectedPublications.has(chip.dataset.publication));
         }
         this._scheduleListUpdate();
       }, { signal });
     });
 
-    el.querySelector('[data-action="searchCompendiumSources"]')?.addEventListener('input', (e) => {
+    el.querySelector('[data-action="searchPublications"]')?.addEventListener('input', (e) => {
       const query = e.target.value.trim().toLowerCase();
-      el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
-        const name = (btn.dataset.sourceName ?? btn.textContent ?? '').toLowerCase();
+      el.querySelectorAll('[data-action="togglePublication"]').forEach((btn) => {
+        const name = (btn.dataset.publicationName ?? btn.textContent ?? '').toLowerCase();
         btn.style.display = !query || name.includes(query) ? '' : 'none';
       });
     }, { signal });
@@ -604,9 +609,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _updateFeatList() {
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredFeats = this._applyFilters();
 
     const root = this._getRootElement();
@@ -878,27 +881,27 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     });
   }
 
-  _getSourceOptions() {
+  _getPublicationOptions() {
     const unique = new Map();
     for (const feat of this.allFeats) {
-      const key = feat.sourcePackage ?? feat.sourcePack ?? null;
-      if (!key) continue;
-      if (!unique.has(key)) {
-        unique.set(key, {
-          key,
-          label: feat.sourcePackageLabel ?? key,
+      const title = String(feat.publicationTitle ?? feat.system?.publication?.title ?? '').trim();
+      if (!title) continue;
+      if (!unique.has(title)) {
+        unique.set(title, {
+          key: title,
+          label: title,
         });
       }
     }
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-    this._sourceKeys = options.map((entry) => entry.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
-    this._sourceFilterInitialized = true;
+    this._publicationTitles = options.map((entry) => entry.key);
+    this.selectedPublications = initializeSelectionSet(this.selectedPublications, this._publicationTitles, { defaultValues: [] });
+    this._publicationFilterInitialized = true;
 
     return options.map((entry) => ({
       ...entry,
-      selected: this.selectedSourcePackages.has(entry.key),
+      selected: this.selectedPublications.has(entry.key),
     }));
   }
 
@@ -1352,9 +1355,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       chip.classList.toggle('locked', this.lockedFeatTypes.has(type));
     }
 
-    for (const chip of root.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
-      const source = String(chip.dataset.package ?? '').trim();
-      chip.classList.toggle('selected', this.selectedSourcePackages.has(source));
+    for (const chip of root.querySelectorAll('[data-action="togglePublication"]')) {
+      const publication = String(chip.dataset.publication ?? '').trim();
+      chip.classList.toggle('selected', this.selectedPublications.has(publication));
     }
 
     this._cachedVisibleTraits = this._getVisibleTraits();
@@ -1470,6 +1473,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rare: game.i18n.localize('PF2E.TraitRare'),
       unique: game.i18n.localize('PF2E.TraitUnique'),
     };
+  }
+
+  _normalizeSelectedRarities() {
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, RARITY_VALUES, {
+      defaultValues: RARITY_VALUES,
+    });
   }
 
   _applyPreset(preset) {

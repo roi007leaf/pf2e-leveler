@@ -1,9 +1,10 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
+import { annotateGuidance } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
-  applySourceFilter,
+  applyPublicationFilter,
   applyTraitFilter,
   buildChipOptions,
   getAvailableRarityValues,
@@ -50,8 +51,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.traitLogic = 'or';
     this.selectedRarities = getAllowedRaritiesForCurrentUser();
     this.lockedRarities = new Set();
-    this.selectedSourcePackages = new Set();
-    this._sourceFilterInitialized = false;
+    this.selectedPublications = new Set();
+    this._publicationFilterInitialized = false;
     this.searchText = '';
     this.sortMode = options.sortMode ?? this._getDefaultSortMode();
     this._updateListTimer = null;
@@ -126,7 +127,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       });
     }
 
-    const sourceOptions = this._getSourceOptions();
+    const publicationOptions = this._getPublicationOptions();
     const rankOptions = this._getRankOptions();
     const traditionOptions = this._getTraditionOptions();
     const categoryOptions = this._getCategoryOptions();
@@ -137,16 +138,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this._allTraitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      lockedValues: this._getLockedRarities(),
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredSpells = this._filterSpells();
     this._sortSpells(this.filteredSpells);
 
     return {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
-      sourceOptions,
+      publicationOptions,
       rankOptions,
       traditionOptions,
       categoryOptions,
@@ -188,11 +186,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      const sourceSearch = e.target.closest?.('[data-action="searchCompendiumSources"]');
-      if (sourceSearch) {
+      const publicationSearch = e.target.closest?.('[data-action="searchPublications"]');
+      if (publicationSearch) {
         const query = e.target.value.trim().toLowerCase();
-        el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
-          const name = (btn.dataset.sourceName ?? btn.textContent ?? '').toLowerCase();
+        el.querySelectorAll('[data-action="togglePublication"]').forEach((btn) => {
+          const name = (btn.dataset.publicationName ?? btn.textContent ?? '').toLowerCase();
           btn.style.display = !query || name.includes(query) ? '' : 'none';
         });
       }
@@ -263,6 +261,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const spell = this.filteredSpells.find((s) => s.uuid === uuid);
+        if (spell?.guidanceSelectionBlocked) return;
         if (spell && this.onSelect) {
           if (this.multiSelect) {
             this._toggleSelectedSpell(spell.uuid);
@@ -307,14 +306,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      if (action === 'toggleCompendiumSource') {
+      if (action === 'togglePublication') {
         e.preventDefault();
         e.stopPropagation();
-        const sourceKey = target.dataset.package;
-        if (!sourceKey) return;
-        this.selectedSourcePackages = toggleSelectableChip(this.selectedSourcePackages, sourceKey, this._sourceKeys);
-        for (const chip of el.querySelectorAll('[data-action="toggleCompendiumSource"]')) {
-          chip.classList.toggle('selected', this.selectedSourcePackages.has(chip.dataset.package));
+        const publication = target.dataset.publication;
+        if (!publication) return;
+        this.selectedPublications = toggleSelectableChip(this.selectedPublications, publication, this._publicationTitles);
+        for (const chip of el.querySelectorAll('[data-action="togglePublication"]')) {
+          chip.classList.toggle('selected', this.selectedPublications.has(chip.dataset.publication));
         }
         this._scheduleListUpdate();
         return;
@@ -411,10 +410,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _updateList() {
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      lockedValues: this._getLockedRarities(),
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredSpells = this._filterSpells();
     this._sortSpells(this.filteredSpells);
 
@@ -424,7 +420,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
-      sourceOptions: this._getSourceOptions(),
+      publicationOptions: this._getPublicationOptions(),
       rankOptions: this._getRankOptions(),
       traditionOptions: this._getTraditionOptions(),
       categoryOptions: this._getCategoryOptions(),
@@ -467,7 +463,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _filterSpells({ ignoreRarity = false } = {}) {
     let spells = [...this.allSpells];
-    spells = applySourceFilter(spells, this.selectedSourcePackages, (spell) => spell.sourcePackage ?? spell.sourcePack, this._sourceKeys);
+    spells = applyPublicationFilter(
+      spells,
+      this.selectedPublications,
+      (spell) => spell.publicationTitle ?? spell.system?.publication?.title,
+      this._publicationTitles,
+    );
     if (this.selectedTraditions.size > 0 && !this._allSelected(this.selectedTraditions, this._traditionValues)) {
       spells = spells.filter((spell) => {
         const traits = spell.system?.traits?.value ?? [];
@@ -550,6 +551,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _toggleSelectedSpell(uuid) {
     if (!uuid) return;
+    const spell = this.filteredSpells.find((entry) => entry.uuid === uuid)
+      ?? this.allSpells.find((entry) => entry.uuid === uuid);
+    if (spell?.guidanceSelectionBlocked) return;
     if (this.selectedSpellUuids.has(uuid)) {
       this.selectedSpellUuids.delete(uuid);
     } else {
@@ -576,8 +580,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _confirmSelection() {
     if (!this.multiSelect || this.selectedSpellUuids.size === 0 || !this.onSelect) return;
     const selectedSpells = this.allSpells
-      .filter((spell) => this.selectedSpellUuids.has(spell.uuid))
+      .filter((spell) => this.selectedSpellUuids.has(spell.uuid) && spell.guidanceSelectionBlocked !== true)
       .sort((a, b) => a.name.localeCompare(b.name));
+    if (selectedSpells.length === 0) return;
     await this.onSelect(selectedSpells);
     this.close();
   }
@@ -593,16 +598,19 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const uuid = option.dataset.uuid;
       const selected = this.selectedSpellUuids.has(uuid);
       const alreadyTaken = option.dataset.alreadyTaken === 'true';
+      const selectable = option.dataset.selectable !== 'false';
       option.classList.toggle('spell-option--selected', selected);
       const button = option.querySelector('[data-action="selectSpell"]');
       if (button) {
         button.classList.toggle('active', selected);
-        button.disabled = alreadyTaken || (!selected && atMax);
+        button.disabled = !selectable || (!selected && atMax);
         button.textContent = alreadyTaken
           ? game.i18n.localize('PF2E_LEVELER.SPELLS.TAKEN')
-          : selected
-            ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
-            : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
+          : !selectable
+            ? game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED')
+            : selected
+              ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
+              : game.i18n.localize('PF2E_LEVELER.SPELLS.SELECT');
       }
     }
 
@@ -689,11 +697,18 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _toTemplateSpell(spell) {
     const alreadyTaken = this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(spell, this._ownedIdentityKeys ?? new Set());
+    const isDisallowed = spell.isDisallowed === true;
     return {
       uuid: spell.uuid ?? spell.sourceId ?? spell.flags?.core?.sourceId ?? '',
       name: spell.name ?? '',
       img: spell.img ?? '',
       system: spell.system ?? {},
+      isRecommended: spell.isRecommended === true,
+      isNotRecommended: spell.isNotRecommended === true,
+      isDisallowed,
+      guidanceSelectionBlocked: spell.guidanceSelectionBlocked === true,
+      guidanceSelectionTooltip: spell.guidanceSelectionTooltip ?? '',
+      selectionBlocked: alreadyTaken || spell.guidanceSelectionBlocked === true,
       _levelerSelected: this.selectedSpellUuids.has(spell.uuid),
       alreadyTaken,
     };
@@ -722,27 +737,27 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     await this.render(true);
   }
 
-  _getSourceOptions() {
+  _getPublicationOptions() {
     const unique = new Map();
     for (const spell of this.allSpells) {
-      const key = spell.sourcePackage ?? spell.sourcePack ?? null;
-      if (!key) continue;
-      if (!unique.has(key)) {
-        unique.set(key, {
-          key,
-          label: spell.sourcePackageLabel ?? key,
+      const title = String(spell.publicationTitle ?? spell.system?.publication?.title ?? '').trim();
+      if (!title) continue;
+      if (!unique.has(title)) {
+        unique.set(title, {
+          key: title,
+          label: title,
         });
       }
     }
 
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-    this._sourceKeys = options.map((entry) => entry.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
-    this._sourceFilterInitialized = true;
+    this._publicationTitles = options.map((entry) => entry.key);
+    this.selectedPublications = initializeSelectionSet(this.selectedPublications, this._publicationTitles, { defaultValues: [] });
+    this._publicationFilterInitialized = true;
 
     return options.map((entry) => ({
       ...entry,
-      selected: this.selectedSourcePackages.has(entry.key),
+      selected: this.selectedPublications.has(entry.key),
     }));
   }
 
@@ -836,6 +851,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _getLockedRarities() {
     const allowed = getAllowedRaritiesForCurrentUser();
     return ['common', 'uncommon', 'rare', 'unique'].filter((r) => !allowed.has(r) || this.lockedRarities.has(r));
+  }
+
+  _normalizeSelectedRarities() {
+    const allowedRarities = [...getAllowedRaritiesForCurrentUser()];
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, allowedRarities, {
+      lockedValues: this._getLockedRarities(),
+      defaultValues: allowedRarities,
+    });
   }
 
   _allSelected(selected, available) {
@@ -996,6 +1019,7 @@ export async function loadSpells() {
         spell.sourcePack = key;
         spell.sourcePackage = sourcePackage || key;
         spell.sourcePackageLabel = sourcePackageLabel || key;
+        spell.publicationTitle = spell.publicationTitle ?? spell.system?.publication?.title ?? null;
         return spell;
       }));
   }
@@ -1009,11 +1033,13 @@ export async function loadSpells() {
       spell.sourcePack = spell.sourcePack ?? null;
       spell.sourcePackage = spell.sourcePackage ?? worldSourcePackage;
       spell.sourcePackageLabel = spell.sourcePackageLabel ?? worldSourcePackageLabel;
+      spell.publicationTitle = spell.publicationTitle ?? spell.system?.publication?.title ?? null;
       return spell;
     }));
 
   cachedSpells = dedupeSpellDocuments(allDocs);
   cachedSpellSourceSignature = signature;
+  annotateGuidance(cachedSpells);
   for (const spell of cachedSpells) {
     spell._levelerSearchName = spell.name.toLowerCase();
   }

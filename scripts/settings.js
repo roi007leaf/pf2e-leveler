@@ -268,7 +268,10 @@ export function registerSettings() {
     config: false,
     type: Object,
     default: {},
-    onChange: () => invalidateGuidanceCache(),
+    onChange: () => {
+      invalidateGuidanceCache();
+      invalidateContentPickers();
+    },
   });
 }
 

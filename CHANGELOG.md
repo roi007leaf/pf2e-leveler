@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.1.17
+
+### Level Planner
+
+- **Arcane Evolution now surfaces its missing skill training pick** - Direct feat wording such as `You become trained in one skill of your choice` now generates a planner skill-choice prompt, so sorcerers correctly get the Arcane Evolution training selection instead of losing it
+- **Bloodline Paragon now grants both 10th-rank repertoire picks** - Sorcerer level 19 spell planning now accounts for Bloodline Paragon's extra repertoire addition on top of the single 10th-rank slot, so the planner shows two spell selections instead of one
+- **Publication filters no longer silently narrow rarity selection in pickers** - Feat, spell, and item pickers now keep your rarity selection anchored to the full rarity set instead of rewriting it to only the temporarily visible rarities, so adding or removing publication filters no longer makes valid results disappear unexpectedly
+
+### Suggested Character Options
+
+- **Disallowed content now stays visible but follows GM/player selection rules across guided pickers and browsers** - Ancestries, heritages, backgrounds, classes, subclasses, feats, spells, and other guided options now keep their red `Disallowed` badge visible for everyone, block selection for players, and remain selectable for GMs with an override tooltip explaining why
+
+### Character Wizard
+
+- **Wizard browsers now include publication filters for source-title browsing** - Ancestry, heritage, background, class, and other browser steps now expose publication chips built from `system.publication.title`, letting you narrow wizard results by book while still starting in unrestricted `show all` mode when nothing is selected; the labels now localize correctly, and ancestry publication filtering now works even when the list mixes sourced entries with synthetic rows that have no publication title
+- **Wizard browser publication filters replace the old source-pack filter** - The previous compendium/source filter has been removed from the main browser steps so browsing now keys off publication titles instead of pack names, which is more intuitive for book-based filtering
+- **Wizard browser publication lists now scroll locally without leaving dead pane space** - The sidebar publication chip list now has its own scroll box, and browser layout overflow was tightened so both the left filter column and right results pane stop carrying useless extra scroll slack when their content is short
+
 ## 3.1.16
 
 ### Suggested Character Options

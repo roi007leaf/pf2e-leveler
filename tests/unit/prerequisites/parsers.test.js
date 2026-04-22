@@ -405,6 +405,11 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
+  test('treats age prerequisites as unknown legacy text', () => {
+    const result = parsePrerequisite('At Least 100 Years Old');
+    expect(result.type).toBe('unknown');
+  });
+
   test('parses multi-ancestry feat selection prerequisites', () => {
     const result = parsePrerequisite('Ability To Select Ancestry Feats From Multiple Ancestries');
     expect(result).toEqual(

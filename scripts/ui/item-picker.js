@@ -1,8 +1,10 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import { annotateGuidance } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
   applySourceFilter,
+  applyPublicationFilter,
   applyTraitFilter,
   buildChipOptions,
   getAvailableRarityValues,
@@ -52,6 +54,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.filteredItems = [];
     this.selectedItemUuids = new Set();
     this.searchText = '';
+    this.selectedPublications = new Set();
     this.selectedSourcePackages = new Set();
     this.selectedCategories = new Set();
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
@@ -62,13 +65,15 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.armorFilterLogic = 'or';
     this.weaponFilterLogic = 'or';
     this.maxLevel = '';
-    this._sourceKeys = [];
+    this._publicationTitles = [];
+    this._sourcePackageValues = [];
     this._categoryValues = [];
     this._armorFilterValues = [];
     this._weaponFilterValues = [];
     this._updateTimer = null;
     this._domListeners = null;
     this._loading = this.allItems.length === 0;
+    if (!this._loading) annotateGuidance(this.allItems);
   }
 
   static DEFAULT_OPTIONS = {
@@ -92,16 +97,14 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._loading) {
       return { loading: true };
     }
-    const sourceOptions = this._getSourceOptions();
+    const publicationOptions = this._getPublicationOptions();
     const categoryOptions = this._getCategoryOptions();
     const armorFilterOptions = this._getArmorFilterOptions();
     const weaponFilterOptions = this._getWeaponFilterOptions();
     const showArmorFilters = this._shouldShowEquipmentFilters('armor');
     const showWeaponFilters = this._shouldShowEquipmentFilters('weapon');
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredItems = this._filterItems();
 
     const RENDER_LIMIT = 200;
@@ -116,7 +119,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
       allVisibleSelected: this._areAllVisibleSelected(),
-      sourceOptions,
+      publicationOptions,
       categoryOptions,
       armorFilterOptions,
       weaponFilterOptions,
@@ -153,13 +156,26 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       equipmentTags: getEquipmentItemTags(item),
       isRecommended: item.isRecommended ?? false,
       isDisallowed: item.isDisallowed ?? false,
+      guidanceSelectionBlocked: item.guidanceSelectionBlocked === true,
+      guidanceSelectionTooltip: item.guidanceSelectionTooltip ?? '',
       _levelerSelected: this.selectedItemUuids.has(item.uuid),
     };
   }
 
   _filterItems({ ignoreRarity = false } = {}) {
     let items = [...this.allItems];
-    items = applySourceFilter(items, this.selectedSourcePackages, (item) => item.sourcePackage ?? item.sourcePack, this._sourceKeys);
+    items = applySourceFilter(
+      items,
+      this.selectedSourcePackages,
+      (item) => item.sourcePackage ?? item.sourcePack,
+      this._sourcePackageValues,
+    );
+    items = applyPublicationFilter(
+      items,
+      this.selectedPublications,
+      (item) => item.publicationTitle ?? item.system?.publication?.title,
+      this._publicationTitles,
+    );
     if (this.selectedCategories.size > 0 && !this._categoryValues.every((v) => this.selectedCategories.has(v))) {
       items = items.filter((item) => this.selectedCategories.has(normalizeItemCategory(item)));
     }
@@ -206,22 +222,50 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._shouldApplyEquipmentFilters('armor') && !this._armorFilterValues.every((v) => this.selectedArmorFilters.has(v))) return true;
     if (this._shouldApplyEquipmentFilters('weapon') && !this._weaponFilterValues.every((v) => this.selectedWeaponFilters.has(v))) return true;
     if (!isUnrestrictedSelection(this.selectedCategories, this._categoryValues)) return true;
-    if (!isUnrestrictedSelection(this.selectedSourcePackages, this._sourceKeys)) return true;
+    if (!isUnrestrictedSelection(this.selectedSourcePackages, this._sourcePackageValues)) return true;
+    if (!isUnrestrictedSelection(this.selectedPublications, this._publicationTitles)) return true;
     if (!isUnrestrictedSelection(this.selectedRarities, this._availableRarityValues ?? RARITY_VALUES)) return true;
     return false;
+  }
+
+  _getPublicationOptions() {
+    const unique = new Map();
+    for (const item of this.allItems) {
+      const title = String(item.publicationTitle ?? item.system?.publication?.title ?? '').trim();
+      if (!title || unique.has(title)) continue;
+      unique.set(title, { key: title, label: title });
+    }
+    const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
+    this._publicationTitles = options.map((e) => e.key);
+    this.selectedPublications = initializeSelectionSet(this.selectedPublications, this._publicationTitles, { defaultValues: [] });
+    return options.map((e) => ({ ...e, selected: this.selectedPublications.has(e.key) }));
   }
 
   _getSourceOptions() {
     const unique = new Map();
     for (const item of this.allItems) {
-      const key = item.sourcePackage ?? item.sourcePack ?? null;
+      const key = String(item.sourcePackage ?? item.sourcePack ?? '').trim();
       if (!key || unique.has(key)) continue;
-      unique.set(key, { key, label: item.sourcePackageLabel ?? key });
+      unique.set(key, {
+        key,
+        label: String(item.sourcePackageLabel ?? item.sourceLabel ?? key).trim() || key,
+      });
     }
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
-    this._sourceKeys = options.map((e) => e.key);
-    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourceKeys, { defaultValues: [] });
-    return options.map((e) => ({ ...e, selected: this.selectedSourcePackages.has(e.key) }));
+    this._sourcePackageValues = options.map((entry) => entry.key);
+    this.selectedSourcePackages = initializeSelectionSet(this.selectedSourcePackages, this._sourcePackageValues, {
+      defaultValues: this._sourcePackageValues,
+    });
+    return options.map((entry) => ({
+      ...entry,
+      selected: this.selectedSourcePackages.has(entry.key),
+    }));
+  }
+
+  _normalizeSelectedRarities() {
+    this.selectedRarities = initializeSelectionSet(this.selectedRarities, RARITY_VALUES, {
+      defaultValues: RARITY_VALUES,
+    });
   }
 
   _getCategoryOptions() {
@@ -339,9 +383,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _updateList() {
     this._availableRarityValues = this._getAvailableRarityValues();
-    this.selectedRarities = initializeSelectionSet(this.selectedRarities, this._availableRarityValues, {
-      defaultValues: this._availableRarityValues,
-    });
+    this._normalizeSelectedRarities();
     this.filteredItems = this._filterItems();
     const root = this._getRootElement();
     const listContainer = root?.querySelector('.item-list');
@@ -435,6 +477,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._loading) {
       loadItems().then((items) => {
         this.allItems = items;
+        annotateGuidance(this.allItems);
         this._loading = false;
         this.render(false);
       });
@@ -449,6 +492,14 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (e.target.closest?.('[data-action="searchItems"]')) {
         this.searchText = e.target.value;
         this._scheduleUpdate();
+        return;
+      }
+      if (e.target.closest?.('[data-action="searchPublications"]')) {
+        const query = e.target.value.trim().toLowerCase();
+        el.querySelectorAll('[data-action="togglePublication"]').forEach((btn) => {
+          const name = (btn.dataset.publicationName ?? btn.textContent ?? '').toLowerCase();
+          btn.style.display = !query || name.includes(query) ? '' : 'none';
+        });
       }
     }, { signal });
 
@@ -541,9 +592,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      if (action === 'toggleCompendiumSource') {
-        this.selectedSourcePackages = toggleSelectableChip(this.selectedSourcePackages, target.dataset.package, this._sourceKeys);
-        target.classList.toggle('selected', this.selectedSourcePackages.has(target.dataset.package));
+      if (action === 'togglePublication') {
+        this.selectedPublications = toggleSelectableChip(this.selectedPublications, target.dataset.publication, this._publicationTitles);
+        target.classList.toggle('selected', this.selectedPublications.has(target.dataset.publication));
         this._updateList();
         return;
       }
@@ -567,7 +618,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const uuid = target.closest('[data-uuid]')?.dataset.uuid ?? target.dataset.uuid;
-        const item = await fromUuid(uuid).catch(() => null);
+        const item = this.allItems.find((entry) => entry.uuid === uuid) ?? await fromUuid(uuid).catch(() => null);
+        if (item?.guidanceSelectionBlocked) return;
         if (item && this.onSelect) {
           if (this.multiSelect) {
             this._toggleSelectedItem(item.uuid);
@@ -604,6 +656,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getVisibleItemUuids() {
     return this._getVisibleItemOptions()
+      .filter((item) => item.dataset.selectable !== 'false')
       .map((item) => item.dataset.uuid)
       .filter((uuid) => typeof uuid === 'string' && uuid.length > 0);
   }
@@ -615,6 +668,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _toggleSelectedItem(uuid) {
     if (!uuid) return;
+    const item = this.allItems.find((entry) => entry.uuid === uuid);
+    if (item?.guidanceSelectionBlocked) return;
     if (this.selectedItemUuids.has(uuid)) this.selectedItemUuids.delete(uuid);
     else this.selectedItemUuids.add(uuid);
   }
@@ -633,8 +688,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _confirmSelection() {
     if (!this.multiSelect || this.selectedItemUuids.size === 0 || !this.onSelect) return;
     const selectedItems = this.allItems
-      .filter((item) => this.selectedItemUuids.has(item.uuid))
+      .filter((item) => this.selectedItemUuids.has(item.uuid) && item.guidanceSelectionBlocked !== true)
       .sort((a, b) => a.name.localeCompare(b.name));
+    if (selectedItems.length === 0) return;
     await this.onSelect(selectedItems);
     this.close();
   }
@@ -650,9 +706,13 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const button = option.querySelector('[data-action="selectItem"]');
       if (button) {
         button.classList.toggle('active', selected);
-        button.textContent = selected
-          ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
-          : game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.SELECT');
+        const selectable = option.dataset.selectable !== 'false';
+        button.disabled = !selectable;
+        button.textContent = !selectable
+          ? game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED')
+          : selected
+            ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
+            : game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.SELECT');
       }
     }
 
@@ -705,6 +765,7 @@ export async function loadItems() {
       doc.sourcePack = key;
       doc.sourcePackage = sourcePackage || key;
       doc.sourcePackageLabel = sourcePackageLabel || key;
+      doc.publicationTitle = doc.publicationTitle ?? doc.system?.publication?.title ?? null;
       return doc;
     }));
   }
@@ -716,9 +777,11 @@ export async function loadItems() {
       item.sourcePack = item.sourcePack ?? null;
       item.sourcePackage = item.sourcePackage ?? worldSourcePackage;
       item.sourcePackageLabel = item.sourcePackageLabel ?? worldSourcePackageLabel;
+      item.publicationTitle = item.publicationTitle ?? item.system?.publication?.title ?? null;
       return item;
     }));
   _itemCache = items;
+  annotateGuidance(_itemCache);
   return items;
 }
 

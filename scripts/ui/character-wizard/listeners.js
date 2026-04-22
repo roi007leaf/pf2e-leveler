@@ -48,18 +48,18 @@ export function activateCharacterWizardListeners(wizard, el) {
   el.querySelector('[data-action="prevStep"]')?.addEventListener('click', () => wizard._prevStep());
   el.querySelector('[data-action="nextStep"]')?.addEventListener('click', () => wizard._nextStep());
   el.querySelector('[data-action="applyCreation"]')?.addEventListener('click', () => wizard._apply());
-  el.querySelectorAll('[data-action="toggleCompendiumSource"]').forEach((btn) => {
+  el.querySelectorAll('[data-action="togglePublication"]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const allPacks = [...el.querySelectorAll('[data-action="toggleCompendiumSource"]')].map((entry) => entry.dataset.pack);
-      wizard._toggleCompendiumSourceFilter(btn.dataset.pack, allPacks);
+      const allPublications = [...el.querySelectorAll('[data-action="togglePublication"]')].map((entry) => entry.dataset.publication);
+      wizard._togglePublicationFilter(btn.dataset.publication, allPublications);
     });
   });
-  el.querySelectorAll('[data-action="searchCompendiumSources"]').forEach((input) => {
+  el.querySelectorAll('[data-action="searchPublications"]').forEach((input) => {
     input.addEventListener('input', () => {
       const query = input.value.trim().toLowerCase();
       const root = input.closest('.wizard-browser-filter, .wizard-source-filters');
-      root?.querySelectorAll?.('[data-action="toggleCompendiumSource"]').forEach((button) => {
-        const name = (button.dataset.sourceName ?? button.textContent ?? '').toLowerCase();
+      root?.querySelectorAll?.('[data-action="togglePublication"]').forEach((button) => {
+        const name = (button.dataset.publicationName ?? button.textContent ?? '').toLowerCase();
         button.style.display = !query || name.includes(query) ? '' : 'none';
       });
     });

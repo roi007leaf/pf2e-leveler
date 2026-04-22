@@ -1,5 +1,5 @@
 import { SKILLS } from '../../constants.js';
-import { getClassSelectionData } from '../../creation/creation-model.js';
+import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -400,7 +400,7 @@ function buildFutureSkillChoiceMap(wizard) {
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
       choiceSets: section.choiceSets ?? [],
-      choices: wizard.data.grantedFeatChoices?.[section.slot] ?? {},
+      choices: getGrantedFeatChoiceValues(wizard.data, section.slot),
     }))),
   ].filter(Boolean);
 
@@ -470,7 +470,7 @@ function buildResolvedSkillChoiceSet(wizard) {
       : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
-      choices: wizard.data.grantedFeatChoices?.[section.slot] ?? {},
+      choices: getGrantedFeatChoiceValues(wizard.data, section.slot),
     }))),
   ].filter(Boolean);
 

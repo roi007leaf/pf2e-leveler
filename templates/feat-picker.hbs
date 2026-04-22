@@ -153,20 +153,20 @@
         </div>
       </div>
 
-      {{#if sourceOptions.length}}
+      {{#if publicationOptions.length}}
       <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
+        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
         <div class="picker__source-list">
-          {{#each sourceOptions}}
+          {{#each publicationOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
-            data-action="toggleCompendiumSource"
-            data-package="{{this.key}}"
-            data-source-name="{{this.label}}"
+            class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
+            data-action="togglePublication"
+            data-publication="{{this.key}}"
+            data-publication-name="{{this.label}}"
             data-tooltip="{{this.key}}">
-            {{this.label}}
+            <span class="picker__source-chip-label">{{this.label}}</span>
           </button>
           {{/each}}
         </div>
@@ -213,6 +213,9 @@
               {{#if (notEqual this.system.traits.rarity "common")}}
               <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
               {{/if}}
+              {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
+              {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
               {{#if this.isAdditionalArchetypeFeat}}
               <span class="tag tag--info" data-tooltip="{{format 'PF2E_LEVELER.FEAT_PICKER.ARCHETYPE_UNLOCK_HINT' level=this.additionalArchetypeUnlockLevel}}">
                 <i class="fa-solid fa-diagram-project"></i>
@@ -251,9 +254,11 @@
             {{#if this.alreadyTaken}}
               <button type="button" class="feat-option__select-btn" disabled data-tooltip="{{#if this.takenAtLevel}}Taken at level {{this.takenAtLevel}} - {{/if}}{{localize 'PF2E_LEVELER.FEAT_PICKER.ALREADY_TAKEN'}}">Taken</button>
             {{else}}
-              <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.selectionBlocked}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNMET_BLOCKED'}}{{else if this.hasUnknownPrerequisites}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}{{/if}}">
+              <button type="button" class="feat-option__select-btn" data-action="selectFeat" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.guidanceSelectionBlocked}}{{this.guidanceSelectionTooltip}}{{else if this.selectionBlocked}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNMET_BLOCKED'}}{{else if this.hasUnknownPrerequisites}}{{localize 'PF2E_LEVELER.FEAT_PICKER.PREREQ_UNVERIFIED_HINT'}}{{else if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 {{#if ../multiSelect}}
-                  {{#if this._levelerSelected}}
+                  {{#if this.guidanceSelectionBlocked}}
+                    {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
+                  {{else if this._levelerSelected}}
                     {{localize "PF2E_LEVELER.UI.SELECTED"}}
                   {{else}}
                     {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}

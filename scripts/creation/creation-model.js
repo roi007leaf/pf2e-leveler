@@ -86,6 +86,10 @@ export function normalizeCreationData(data) {
   ensureClassSelections(data);
   if (data.subclass) data.subclass.choiceCurricula ??= {};
   if (data.dualSubclass) data.dualSubclass.choiceCurricula ??= {};
+  data.grantedFeatChoices = normalizeGrantedFeatChoices(
+    data.grantedFeatChoices,
+    data.grantedFeatSections,
+  );
 
   for (const key of HANDLER_SELECTION_KEYS) {
     const primaryBucket = data.classSelections.class;
@@ -96,6 +100,48 @@ export function normalizeCreationData(data) {
 
   syncPrimaryHandlerSelectionMirrors(data);
   return data;
+}
+
+function normalizeGrantedFeatChoices(choices, sections) {
+  const source = choices && typeof choices === 'object' ? choices : {};
+  const normalized = {};
+
+  for (const section of sections ?? []) {
+    const slot = String(section?.slot ?? '').trim();
+    if (!slot) continue;
+
+    const directValue = source[slot];
+    const nestedValue = foundry.utils.getProperty(source, slot);
+    const value = directValue && typeof directValue === 'object'
+      ? directValue
+      : nestedValue && typeof nestedValue === 'object'
+        ? nestedValue
+        : null;
+
+    if (value) normalized[slot] = foundry.utils.deepClone(value);
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    if (normalized[key] || !value || typeof value !== 'object' || Array.isArray(value)) continue;
+    normalized[key] = foundry.utils.deepClone(value);
+  }
+
+  return normalized;
+}
+
+export function getGrantedFeatChoiceValues(data, slot) {
+  const key = String(slot ?? '').trim();
+  if (!key) return {};
+  const source = data?.grantedFeatChoices;
+  if (!source || typeof source !== 'object') return {};
+
+  const direct = source[key];
+  if (direct && typeof direct === 'object' && !Array.isArray(direct)) return direct;
+
+  const nested = foundry.utils.getProperty(source, key);
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) return nested;
+
+  return {};
 }
 
 function setHandlerSelection(data, key, value, target = 'class') {

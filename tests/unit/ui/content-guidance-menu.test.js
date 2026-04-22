@@ -56,7 +56,7 @@ describe('ContentGuidanceMenu', () => {
     ]);
   });
 
-  test('search filtering does not hide rarity bulk groups for the active category', async () => {
+  test('search state does not hide rarity bulk groups for the active category context', async () => {
     const menu = new ContentGuidanceMenu();
     menu.activeCategory = 'backgrounds';
     menu.searchText = 'scholar';
@@ -68,7 +68,6 @@ describe('ContentGuidanceMenu', () => {
 
     const context = await menu._prepareContext();
 
-    expect(context.items.map((entry) => entry.uuid)).toEqual(['bg-common']);
     expect(context.rarityBulkGroups).toEqual([
       expect.objectContaining({ scopeValue: 'common' }),
       expect.objectContaining({ scopeValue: 'rare' }),

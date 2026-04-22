@@ -1,4 +1,5 @@
 import { SUBCLASS_TAGS } from '../../constants.js';
+import { getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import {
   getSelectedHandlerChoiceSourceItems,
   extractChoiceLabel,
@@ -103,8 +104,8 @@ export async function getApplyPromptRows(wizard) {
     let selectedValue = null;
     if (flag && optionSource?.choices?.[flag]) {
       selectedValue = optionSource.choices[flag];
-    } else if (flag && optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[flag]) {
-      selectedValue = wizard.data.grantedFeatChoices[optionSource.uuid][flag];
+    } else if (flag && optionSource?.uuid && getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)?.[flag]) {
+      selectedValue = getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)[flag];
     } else if (flag && wizard.data.subclass?.choices?.[flag]) {
       selectedValue = wizard.data.subclass.choices[flag];
     }
@@ -323,8 +324,8 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
     return option ? (extractChoiceLabel(option) ?? selectedValue) : String(selectedValue);
   }
 
-  if (flag && optionSource?.uuid && wizard.data.grantedFeatChoices?.[optionSource.uuid]?.[flag]) {
-    const selectedValue = wizard.data.grantedFeatChoices[optionSource.uuid][flag];
+  if (flag && optionSource?.uuid && getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)?.[flag]) {
+    const selectedValue = getGrantedFeatChoiceValues(wizard.data, optionSource.uuid)[flag];
     const section = (wizard.data.grantedFeatSections ?? []).find((entry) => entry.slot === optionSource.uuid);
     const option = findMatchingChoiceOption(
       section?.choiceSets?.find((cs) => cs.flag === flag)?.options,

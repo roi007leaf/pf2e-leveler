@@ -106,6 +106,7 @@ const SUBCLASS_SPELL_PATTERN = /^(?:a\s+)?(bloodline|mystery|patron)\s+spell$/i;
 const SENSE_PATTERN =
   /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
 const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
+const AGE_REQUIREMENT_PATTERN = /^(?:at\s+least\s+)?\d+\s+years?\s+old$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -282,6 +283,7 @@ function shouldKeepUnknownPrerequisiteAtomic(text) {
     CURSE_STATE_PATTERN,
     SIGNATURE_TRICK_PATTERN,
     MULTIPLE_ANCESTRY_FEATS_PATTERN,
+    AGE_REQUIREMENT_PATTERN,
   ].some((pattern) => pattern.test(normalized));
 }
 
@@ -855,6 +857,7 @@ function looksLikeDescriptiveRequirement(text) {
   if (CURSE_STATE_PATTERN.test(normalized)) return true;
   if (SIGNATURE_TRICK_PATTERN.test(normalized)) return true;
   if (MULTIPLE_ANCESTRY_FEATS_PATTERN.test(normalized)) return true;
+  if (AGE_REQUIREMENT_PATTERN.test(normalized)) return true;
   if (/\b(your|class granting|hit points per level|modifier)\b/i.test(normalized)) return true;
   if (/\d+\s*\+\s*your\s+[a-z]+\s+modifier/i.test(normalized)) return true;
 

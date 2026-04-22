@@ -131,20 +131,20 @@
       </div>
       {{/if}}
 
-      {{#if sourceOptions.length}}
+      {{#if publicationOptions.length}}
       <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SUMMARY"}}</div>
-        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.SETTINGS.COMPENDIUM_MANAGER.SEARCH'}}" data-action="searchCompendiumSources">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
+        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
         <div class="picker__source-list">
-          {{#each sourceOptions}}
+          {{#each publicationOptions}}
           <button
             type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
-            data-action="toggleCompendiumSource"
-            data-package="{{this.key}}"
-            data-source-name="{{this.label}}"
+            class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
+            data-action="togglePublication"
+            data-publication="{{this.key}}"
+            data-publication-name="{{this.label}}"
             data-tooltip="{{this.key}}">
-            {{this.label}}
+            <span class="picker__source-chip-label">{{this.label}}</span>
           </button>
           {{/each}}
         </div>
@@ -175,7 +175,7 @@
 
       <div class="spell-list spell-picker__list">
         {{#each spells}}
-        <div class="spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}spell-option--taken{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.alreadyTaken}}false{{else}}true{{/if}}">
+        <div class="spell-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}spell-option--taken{{/if}} {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-traits="{{this.system.traits.value}}" data-rarity="{{this.system.traits.rarity}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.selectionBlocked}}false{{else}}true{{/if}}">
           <img class="spell-option__img" src="{{this.img}}" alt="">
           <div class="spell-option__info">
             <div class="spell-option__header">
@@ -190,12 +190,17 @@
               {{#if (notEqual this.system.traits.rarity "common")}}
               <span class="tag tag--rarity-{{this.system.traits.rarity}}">{{this.system.traits.rarity}}</span>
               {{/if}}
+              {{#if this.isRecommended}}<span class="tag tag--success tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
             </div>
           </div>
           <div class="spell-option__actions">
-            <button type="button" class="spell-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}" {{#if this.alreadyTaken}}disabled data-tooltip="{{localize 'PF2E_LEVELER.SPELLS.ALREADY_TAKEN'}}"{{/if}}>
+            <button type="button" class="spell-option__select-btn" data-action="selectSpell" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.alreadyTaken}}{{localize 'PF2E_LEVELER.SPELLS.ALREADY_TAKEN'}}{{else if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
               {{#if this.alreadyTaken}}
                 {{localize "PF2E_LEVELER.SPELLS.TAKEN"}}
+              {{else if this.guidanceSelectionBlocked}}
+                {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
               {{else if ../multiSelect}}
                 {{#if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
