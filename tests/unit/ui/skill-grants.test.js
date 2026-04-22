@@ -1,6 +1,6 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
 import { MODULE_ID } from '../../../scripts/constants.js';
-import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
+import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from '../../../scripts/access/content-guidance.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -310,6 +310,9 @@ describe('CharacterWizard skills step grants', () => {
       if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
         return { 'language:draconic': 'disallowed' };
       }
+      if (moduleId === MODULE_ID && settingKey === 'playerDisallowedContentMode') {
+        return PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
+      }
       return {};
     });
 
@@ -342,6 +345,9 @@ describe('CharacterWizard skills step grants', () => {
       if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
         return { 'skill:arcana': 'disallowed' };
       }
+      if (moduleId === MODULE_ID && settingKey === 'playerDisallowedContentMode') {
+        return PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
+      }
       return {};
     });
 
@@ -350,6 +356,60 @@ describe('CharacterWizard skills step grants', () => {
     expect(context.skills).toEqual(expect.arrayContaining([
       expect.objectContaining({ slug: 'arcana', isDisallowed: true }),
     ]));
+  });
+
+  it('hides disallowed languages when player mode is hidden', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 22;
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };
+
+    global.game.user.isGM = false;
+    global.game.settings.get = jest.fn((moduleId, settingKey) => {
+      if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
+        return { 'language:draconic': 'disallowed' };
+      }
+      if (moduleId === MODULE_ID && settingKey === 'playerDisallowedContentMode') {
+        return PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN;
+      }
+      return {};
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-uuid') {
+        return {
+          system: {
+            languages: { value: ['common'] },
+            additionalLanguages: { value: ['draconic'], count: 1 },
+          },
+        };
+      }
+      return null;
+    });
+
+    const context = await wizard._getStepContext();
+
+    expect(context.choosableLanguages.find((entry) => entry.slug === 'draconic')).toBeUndefined();
+  });
+
+  it('hides disallowed skills when player mode is hidden', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+
+    global.game.user.isGM = false;
+    global.game.settings.get = jest.fn((moduleId, settingKey) => {
+      if (moduleId === MODULE_ID && settingKey === 'gmContentGuidance') {
+        return { 'skill:arcana': 'disallowed' };
+      }
+      if (moduleId === MODULE_ID && settingKey === 'playerDisallowedContentMode') {
+        return PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN;
+      }
+      return {};
+    });
+
+    const context = await wizard._getStepContext();
+
+    expect(context.skills.find((entry) => entry.slug === 'arcana')).toBeUndefined();
   });
 
   it('sorts recommended skills first and not-recommended skills last', async () => {

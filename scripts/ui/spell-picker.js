@@ -1,7 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
-import { annotateGuidance } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -462,7 +462,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _filterSpells({ ignoreRarity = false } = {}) {
-    let spells = [...this.allSpells];
+    let spells = filterDisallowedForCurrentUser([...this.allSpells]);
     spells = applyPublicationFilter(
       spells,
       this.selectedPublications,

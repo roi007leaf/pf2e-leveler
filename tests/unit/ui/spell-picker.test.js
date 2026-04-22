@@ -3,7 +3,7 @@ jest.mock('../../../scripts/compendiums/catalog.js', () => ({
 }));
 
 import { clearSpellPickerCache, SpellPicker } from '../../../scripts/ui/spell-picker.js';
-import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
+import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from '../../../scripts/access/content-guidance.js';
 
 const { getCompendiumKeysForCategory } = jest.requireMock('../../../scripts/compendiums/catalog.js');
 
@@ -18,6 +18,7 @@ describe('SpellPicker', () => {
       'pf2e-leveler': {
         ...((global._testSettings ?? {})['pf2e-leveler'] ?? {}),
         gmContentGuidance: {},
+        playerDisallowedContentMode: PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE,
       },
     };
     getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd']);
@@ -584,6 +585,37 @@ describe('SpellPicker', () => {
         selectionBlocked: false,
       }),
     ]);
+  });
+
+  test('hides source-disallowed spells for players when hidden mode is enabled', async () => {
+    clearSpellPickerCache();
+    invalidateGuidanceCache();
+    game.user.isGM = false;
+    global._testSettings['pf2e-leveler'].gmContentGuidance = {
+      'source-title:pathfinder player core': 'disallowed',
+    };
+    global._testSettings['pf2e-leveler'].playerDisallowedContentMode = PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN;
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        metadata: {
+          packageName: 'pf2e',
+        },
+        getDocuments: jest.fn(async () => [
+          makeSpell('core-spell', 'Core Spell', 1, ['arcane'], [], 'Pathfinder Player Core'),
+          makeSpell('other-spell', 'Other Spell', 1, ['arcane'], [], 'Lost Omens Divine Mysteries'),
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    const context = await picker._prepareContext();
+
+    expect(context.spells.map((spell) => spell.uuid)).toEqual(['other-spell']);
+
+    game.user.isGM = true;
+    global._testSettings['pf2e-leveler'].playerDisallowedContentMode = PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
   });
 });
 

@@ -349,6 +349,60 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
   });
 
+  it('keeps ancestry browser entries visible but blocked for players when disallowed mode is unselectable', async () => {
+    global._testSettings = {
+      'pf2e-leveler': {
+        gmContentGuidance: {
+          'source-title:pathfinder player core': 'disallowed',
+        },
+        playerDisallowedContentMode: 'unselectable',
+      },
+    };
+    invalidateGuidanceCache();
+    game.settings.get = jest.fn((moduleId, settingId) => global._testSettings?.[moduleId]?.[settingId] ?? false);
+    game.user.isGM = false;
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard.currentStep = 0;
+    game.packs.get.mockImplementation((key) => {
+      if (key !== 'pf2e.ancestries') return null;
+      return {
+        metadata: {
+          label: 'PF2E Ancestries',
+          packageName: 'pf2e',
+        },
+        collection: 'pf2e.ancestries',
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.ancestries.Item.elf',
+            name: 'Elf',
+            img: 'elf.png',
+            type: 'ancestry',
+            slug: 'elf',
+            system: {
+              traits: { value: ['elf'], rarity: 'common' },
+              publication: { title: 'Pathfinder Player Core' },
+            },
+          },
+        ]),
+      };
+    });
+
+    const context = await wizard._prepareContext();
+
+    expect(context.browserStep.items).toEqual([
+      expect.objectContaining({
+        uuid: 'Compendium.pf2e.ancestries.Item.elf',
+        isDisallowed: true,
+        guidanceSelectionBlocked: true,
+        guidanceSelectionTooltip: 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED',
+      }),
+    ]);
+
+    game.user.isGM = true;
+  });
+
   it('keeps versatile heritage browser entries selectable for GMs when disallowed by source guidance', async () => {
     global._testSettings = {
       'pf2e-leveler': {

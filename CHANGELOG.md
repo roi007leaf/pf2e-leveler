@@ -1,6 +1,12 @@
 # Changelog
 
-## 3.1.17
+## 3.2.1
+
+### Suggested Character Options
+
+- **GM guidance can now choose hidden vs unselectable player bans and refresh open windows immediately** - Suggested Character Options now includes a world setting that lets GMs decide whether disallowed player content is removed entirely or shown with a disabled `Select` state, and changing that mode now rerenders already open Leveler wizard, planner, feat, spell, and item picker windows so ancestry and other browser steps update live for players
+
+## 3.2.0
 
 ### Level Planner
 

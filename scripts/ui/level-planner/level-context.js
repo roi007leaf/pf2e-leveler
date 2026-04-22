@@ -6,7 +6,7 @@ import { computeBuildState } from '../../plan/build-state.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
-import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
+import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
 import { debug } from '../../utils/logger.js';
 import { getAvailableLanguages } from './context.js';
@@ -254,7 +254,7 @@ function buildCustomAvailableSkills(planner, levelData, level) {
     };
   }).filter((entry) => !entry.disabled);
 
-  return annotateGuidanceBySlug([...entries, ...loreEntries], 'skill');
+  return filterDisallowedForCurrentUser(annotateGuidanceBySlug([...entries, ...loreEntries], 'skill'));
 }
 
 export function buildLoreSkillIncreaseEntry(name, currentRank = 0) {
@@ -428,7 +428,7 @@ function buildPlannerSpecialChoiceSets(feat, source) {
       flag: 'levelerMultilingualLanguage',
       prompt: 'Select a language.',
       choiceType: 'language',
-      options: annotateGuidanceBySlug(getAvailableLanguages(), 'language').map((entry) => ({
+      options: filterDisallowedForCurrentUser(annotateGuidanceBySlug(getAvailableLanguages(), 'language')).map((entry) => ({
         value: entry.slug,
         label: entry.label,
         rarity: entry.rarity,

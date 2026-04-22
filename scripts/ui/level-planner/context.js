@@ -3,7 +3,7 @@ import { getGradualBoostGroupLevels } from '../../classes/progression.js';
 import { computeBuildState, computeSkillPickerState } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
-import { annotateGuidanceBySlug } from '../../access/content-guidance.js';
+import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
 import { getLanguageRarityMap, getLanguageMap, humanizeSkillLikeLabel } from '../character-wizard/skills-languages.js';
 
 export function buildAttributeContext(planner, levelData, choices) {
@@ -204,7 +204,7 @@ export function buildIntBonusSkillContext(planner, levelData, level) {
     isLore: true,
   })).filter((entry) => !entry.disabled || entry.selected);
 
-  return annotateGuidanceBySlug([...entries, ...loreEntries], 'skill').map((entry) => ({
+  return filterDisallowedForCurrentUser(annotateGuidanceBySlug([...entries, ...loreEntries], 'skill')).map((entry) => ({
     ...entry,
     disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));
@@ -232,7 +232,7 @@ export function buildIntBonusLanguageContext(planner, levelData, level) {
     suggested: ancestrySuggested.has(entry.slug),
   })).filter((entry) => !entry.disabled || entry.selected);
 
-  return annotateGuidanceBySlug(entries, 'language').map((entry) => ({
+  return filterDisallowedForCurrentUser(annotateGuidanceBySlug(entries, 'language')).map((entry) => ({
     ...entry,
     disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));
@@ -330,10 +330,10 @@ export function buildSkillContext(planner, levelData, level) {
     };
   });
 
-  return annotateGuidanceBySlug(
+  return filterDisallowedForCurrentUser(annotateGuidanceBySlug(
     [...skills, ...lores].filter((s) => !s.maxed || s.selected || s.featGranted),
     'skill',
-  ).map((entry) => ({
+  )).map((entry) => ({
     ...entry,
     disabled: entry.disabled || entry.guidanceSelectionBlocked === true,
   }));

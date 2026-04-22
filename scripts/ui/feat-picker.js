@@ -12,7 +12,7 @@ import {
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 import { parseAllPrerequisiteNodes } from '../prerequisites/parsers.js';
 import { isMythicEnabled } from '../utils/pf2e-api.js';
-import { annotateGuidance } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -268,7 +268,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _applyFilters({ ignoreRarity = false } = {}) {
-    let feats = [...this.allFeats];
+    let feats = filterDisallowedForCurrentUser([...this.allFeats]);
     feats = applyPublicationFilter(
       feats,
       this.selectedPublications,

@@ -1,6 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
-import { annotateGuidance } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -163,7 +163,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _filterItems({ ignoreRarity = false } = {}) {
-    let items = [...this.allItems];
+    let items = filterDisallowedForCurrentUser([...this.allItems]);
     items = applySourceFilter(
       items,
       this.selectedSourcePackages,

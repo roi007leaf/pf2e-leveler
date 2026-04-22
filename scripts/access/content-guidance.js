@@ -3,6 +3,11 @@ import { shouldRestrictContentForUser } from './player-content.js';
 
 let cachedGuidance = null;
 
+export const PLAYER_DISALLOWED_CONTENT_MODES = {
+  HIDDEN: 'hidden',
+  UNSELECTABLE: 'unselectable',
+};
+
 export function invalidateGuidanceCache() {
   cachedGuidance = null;
 }
@@ -39,6 +44,21 @@ export function getGuidanceForSourceTitle(title) {
 
 export function getGuidanceForUuid(uuid) {
   return getGuidanceForKey(uuid);
+}
+
+export function getPlayerDisallowedContentMode() {
+  try {
+    const mode = String(game.settings.get(MODULE_ID, 'playerDisallowedContentMode') ?? '').trim().toLowerCase();
+    return Object.values(PLAYER_DISALLOWED_CONTENT_MODES).includes(mode)
+      ? mode
+      : PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
+  } catch {
+    return PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
+  }
+}
+
+export function shouldHideDisallowedForCurrentUser() {
+  return shouldRestrictContentForUser() && getPlayerDisallowedContentMode() === PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN;
 }
 
 export function isRecommended(uuid) {
@@ -108,7 +128,7 @@ export function sortByGuidancePriority(items, fallback = null) {
 }
 
 export function filterDisallowedForCurrentUser(items) {
-  if (!shouldRestrictContentForUser()) return items;
+  if (!shouldHideDisallowedForCurrentUser()) return items;
   return items.filter((item) => !item.isDisallowed);
 }
 

@@ -2,7 +2,7 @@ import { MODULE_ID } from './constants.js';
 import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from './ui/compendium-settings-menu.js';
 import { ContentGuidanceMenu } from './ui/content-guidance-menu.js';
 import { invalidateCache } from './feats/feat-cache.js';
-import { invalidateGuidanceCache } from './access/content-guidance.js';
+import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from './access/content-guidance.js';
 import { invalidateItemCache } from './ui/item-picker.js';
 import { clearSpellPickerCache } from './ui/spell-picker.js';
 import { invalidateCharacterWizardCompendiumCaches } from './ui/character-wizard/loaders.js';
@@ -12,6 +12,29 @@ function invalidateContentPickers() {
   invalidateItemCache();
   clearSpellPickerCache();
   invalidateCharacterWizardCompendiumCaches();
+}
+
+function refreshOpenLevelerWindows() {
+  const windows = Object.values(ui.windows ?? {});
+  const rerenderableIds = new Set([
+    'pf2e-leveler-wizard',
+    'pf2e-leveler-feat-picker',
+    'pf2e-leveler-spell-picker',
+    'pf2e-leveler-item-picker',
+    'pf2e-leveler-planner',
+  ]);
+
+  for (const app of windows) {
+    const appId = app?.options?.id ?? app?.id ?? null;
+    if (!rerenderableIds.has(appId)) continue;
+    if (typeof app.render !== 'function') continue;
+    app.render(false);
+  }
+}
+
+function invalidateContentPickersAndRefreshWindows() {
+  invalidateContentPickers();
+  refreshOpenLevelerWindows();
 }
 
 export function registerSettings() {
@@ -270,8 +293,22 @@ export function registerSettings() {
     default: {},
     onChange: () => {
       invalidateGuidanceCache();
-      invalidateContentPickers();
+      invalidateContentPickersAndRefreshWindows();
     },
+  });
+
+  game.settings.register(MODULE_ID, 'playerDisallowedContentMode', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.PLAYER_DISALLOWED_MODE.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.PLAYER_DISALLOWED_MODE.HINT'),
+    scope: 'world',
+    config: true,
+    type: String,
+    default: PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE,
+    choices: {
+      [PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN]: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.PLAYER_DISALLOWED_MODE.HIDDEN'),
+      [PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE]: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.PLAYER_DISALLOWED_MODE.UNSELECTABLE'),
+    },
+    onChange: () => invalidateContentPickersAndRefreshWindows(),
   });
 }
 

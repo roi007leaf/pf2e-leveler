@@ -1,7 +1,10 @@
 import {
   annotateGuidance,
+  filterDisallowedForCurrentUser,
   getGuidanceSelectionTooltip,
   getGuidanceForSourceTitle,
+  getPlayerDisallowedContentMode,
+  PLAYER_DISALLOWED_CONTENT_MODES,
   getSourceGuidanceKey,
   isGuidanceSelectionBlocked,
   invalidateGuidanceCache,
@@ -19,9 +22,11 @@ describe('content guidance source rules', () => {
     global._testSettings = {
       'pf2e-leveler': {
         gmContentGuidance: {},
+        playerDisallowedContentMode: PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE,
       },
     };
     invalidateGuidanceCache();
+    shouldRestrictContentForUser.mockReturnValue(true);
   });
 
   test('normalizes source titles into stable keys', () => {
@@ -96,5 +101,29 @@ describe('content guidance source rules', () => {
     expect(isGuidanceSelectionBlocked(gmItem)).toBe(false);
     expect(gmItem.guidanceSelectionBlocked).toBe(false);
     expect(getGuidanceSelectionTooltip(gmItem)).toBe('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.GM_OVERRIDE_ALLOWED');
+  });
+
+  test('defaults player disallowed mode to unselectable when setting is unset', () => {
+    delete global._testSettings['pf2e-leveler'].playerDisallowedContentMode;
+
+    expect(getPlayerDisallowedContentMode()).toBe(PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE);
+  });
+
+  test('filters disallowed entries only when player mode is hidden', () => {
+    global._testSettings['pf2e-leveler'].gmContentGuidance = {
+      'source-title:pathfinder player core': 'disallowed',
+    };
+    invalidateGuidanceCache();
+
+    const annotated = annotateGuidance([
+      { uuid: 'allowed', publicationTitle: 'Other Book' },
+      { uuid: 'blocked', publicationTitle: 'Pathfinder Player Core' },
+    ]);
+
+    global._testSettings['pf2e-leveler'].playerDisallowedContentMode = PLAYER_DISALLOWED_CONTENT_MODES.UNSELECTABLE;
+    expect(filterDisallowedForCurrentUser(annotated).map((item) => item.uuid)).toEqual(['allowed', 'blocked']);
+
+    global._testSettings['pf2e-leveler'].playerDisallowedContentMode = PLAYER_DISALLOWED_CONTENT_MODES.HIDDEN;
+    expect(filterDisallowedForCurrentUser(annotated).map((item) => item.uuid)).toEqual(['allowed']);
   });
 });

@@ -630,9 +630,15 @@
       "CONTENT_GUIDANCE": {
         "NAME": "Suggested Character Options",
         "LABEL": "Configure Suggestions",
-        "HINT": "Mark character options as suggested, not recommended, or disallowed for players. Suggested items appear with a star badge and sort to the top. Not recommended items keep a warning badge without being blocked. Disallowed items are hidden from players.",
+        "HINT": "Mark character options as suggested, not recommended, or disallowed for players. Suggested items appear with a star badge and sort to the top. Not recommended items keep a warning badge without being blocked. Disallowed items can be hidden or shown as unselectable for players.",
         "SAVED": "Content guidance saved.",
-        "INTRO": "Mark items as suggested, not recommended, or disallowed. Suggested items get a star badge and sort to the top in pickers. Not recommended items stay available but display a warning badge. Disallowed items are hidden from non-GM users.",
+        "INTRO": "Mark items as suggested, not recommended, or disallowed. Suggested items get a star badge and sort to the top in pickers. Not recommended items stay available but display a warning badge. Disallowed items can be hidden or shown as unselectable for non-GM users.",
+        "PLAYER_DISALLOWED_MODE": {
+          "NAME": "Player Disallowed Content",
+          "HINT": "Choose whether player-disallowed options are hidden entirely or remain visible but unselectable for non-GM users.",
+          "HIDDEN": "Hide from Players",
+          "UNSELECTABLE": "Show as Unselectable"
+        },
         "SEARCH": "Search items...",
         "RECOMMENDED": "Suggested",
         "NOT_RECOMMENDED": "Not Recommended",

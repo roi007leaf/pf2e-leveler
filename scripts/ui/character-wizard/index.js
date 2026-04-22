@@ -135,6 +135,7 @@ import {
 import {
   annotateGuidance,
   annotateGuidanceBySlug,
+  filterDisallowedForCurrentUser,
   sortByGuidancePriority,
 } from '../../access/content-guidance.js';
 
@@ -2421,6 +2422,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'languages': {
         const langCtx = await this._buildLanguageContext();
         annotateGuidanceBySlug(langCtx.choosableLanguages, 'language');
+        langCtx.choosableLanguages = filterDisallowedForCurrentUser(langCtx.choosableLanguages);
         sortByGuidancePriority(langCtx.choosableLanguages, (a, b) => {
           if (a.suggested !== b.suggested) return a.suggested ? -1 : 1;
           return a.label.localeCompare(b.label);
@@ -2478,9 +2480,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         );
         const skills = await this._buildSkillContext();
         annotateGuidanceBySlug(skills, 'skill');
-        sortByGuidancePriority(skills, (a, b) => a.label.localeCompare(b.label));
+        const visibleSkills = filterDisallowedForCurrentUser(skills);
+        sortByGuidancePriority(visibleSkills, (a, b) => a.label.localeCompare(b.label));
         return {
-          skills,
+          skills: visibleSkills,
           maxSkills,
           selectedCount,
           skillsNote: this._getSkillsNote(),
@@ -3599,7 +3602,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
         : null;
   const baseItems = Array.isArray(stepContext?.items) ? stepContext.items : [];
   const items = sortByGuidancePriority(
-    annotateGuidance(groupedItems ?? baseItems).map((item) => ({
+    filterDisallowedForCurrentUser(annotateGuidance(groupedItems ?? baseItems)).map((item) => ({
       ...item,
       trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
       boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
@@ -3644,7 +3647,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
       slotLabel: group.slotLabel,
       selected: group.selected ?? null,
       items: sortByGuidancePriority(
-        annotateGuidance(group.items ?? []).map((item) => ({
+        filterDisallowedForCurrentUser(annotateGuidance(group.items ?? [])).map((item) => ({
           ...item,
           trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
           boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
