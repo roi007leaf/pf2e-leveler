@@ -84,7 +84,8 @@ describe('applySpells', () => {
     jest.restoreAllMocks();
   });
 
-  test('adds advanced subclass focus spell when advanced bloodline is applied', async () => {
+  test('adds dragon breath for draconic advanced bloodline even if stored focus UUID resolves to the wrong spell', async () => {
+    const originalGame = global.game;
     const plan = {
       classSlug: 'sorcerer',
       levels: {
@@ -96,29 +97,91 @@ describe('applySpells', () => {
       },
     };
 
-    const added = await applySpells(actor, plan, 8);
+    actor.items = [
+      actor.items[0],
+      {
+        type: 'feat',
+        slug: 'bloodline-draconic',
+        system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+        flags: { pf2e: { rulesSelections: { dragonBloodline: 'red' } } },
+      },
+    ];
 
-    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
-      expect.objectContaining({
-        name: 'Sorcerer Focus Spells',
-        type: 'spellcastingEntry',
-      }),
-    ]);
-    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
-      expect.objectContaining({
-        name: 'Wish-Twisted Form',
-        system: expect.objectContaining({
-          location: { value: 'created-entry-0' },
-        }),
-      }),
-    ]);
-    expect(actor.update).toHaveBeenCalledWith({
-      'system.resources.focus.max': 2,
-      'system.resources.focus.value': 2,
+    global.game = {
+      ...(originalGame ?? {}),
+      packs: new Map([
+        ['pf2e.spells-srd', {
+          getIndex: jest.fn(async () => [{
+            uuid: 'Compendium.pf2e.spells-srd.Item.dragon-breath',
+            name: 'Dragon Breath',
+          }]),
+        }],
+      ]),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.HWJODX2zPg5cg34F') {
+        return {
+          uuid,
+          name: 'Wrong Focus Spell',
+          img: 'wrong.png',
+          system: {
+            traits: { value: ['focus'], traditions: [] },
+          },
+          toObject: () => ({
+            name: 'Wrong Focus Spell',
+            system: {
+              traits: { value: ['focus'], traditions: [] },
+            },
+          }),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.dragon-breath') {
+        return {
+          uuid,
+          name: 'Dragon Breath',
+          img: 'dragon-breath.png',
+          system: {
+            traits: { value: ['focus'], traditions: [] },
+          },
+          toObject: () => ({
+            name: 'Dragon Breath',
+            system: {
+              traits: { value: ['focus'], traditions: [] },
+            },
+          }),
+        };
+      }
+      return null;
     });
-    expect(added).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'Wish-Twisted Form' }),
-    ]));
+
+    try {
+      const added = await applySpells(actor, plan, 8);
+
+      expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+        expect.objectContaining({
+          name: 'Sorcerer Focus Spells',
+          type: 'spellcastingEntry',
+        }),
+      ]);
+      expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+        expect.objectContaining({
+          name: 'Dragon Breath',
+          system: expect.objectContaining({
+            location: { value: 'created-entry-0' },
+          }),
+        }),
+      ]);
+      expect(actor.update).toHaveBeenCalledWith({
+        'system.resources.focus.max': 2,
+        'system.resources.focus.value': 2,
+      });
+      expect(added).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'Dragon Breath' }),
+      ]));
+    } finally {
+      global.game = originalGame;
+    }
   });
 
   test('creates and updates separate secondary dual-class spellcasting entries', async () => {

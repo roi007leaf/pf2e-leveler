@@ -40,6 +40,9 @@ export async function buildLevelContext(planner, classDef, options) {
   const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, classFeat);
   const generalFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, generalFeat);
   const ancestryFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, ancestryFeat);
+  const generalFeatGrantedAncestryFeat = generalFeatGrantsAncestryFeat
+    ? mergePlannerChoiceSetsIntoFeat(ancestryFeat, ancestryFeatChoiceSets)
+    : ancestryFeat;
   const archetypeFeat = await enrichPlannerFeat(planner, extractFeat(levelData.archetypeFeats));
   const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
   const customFeats = await buildCustomPlannerFeatEntries(planner, levelData.customFeats ?? []);
@@ -74,7 +77,7 @@ export async function buildLevelContext(planner, classDef, options) {
     ancestryFeat,
     ancestryFeatChoiceSets,
     showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat,
-    generalFeatGrantedAncestryFeat: ancestryFeat,
+    generalFeatGrantedAncestryFeat,
     showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
     showArchetypeFeat: choiceTypes.has('archetypeFeat'),
@@ -609,6 +612,14 @@ function dedupePlannerChoiceSets(choiceSets) {
   }
 
   return deduped;
+}
+
+function mergePlannerChoiceSetsIntoFeat(feat, choiceSets) {
+  if (!feat) return feat;
+  return {
+    ...feat,
+    grantChoiceSets: dedupePlannerChoiceSets([...(feat.grantChoiceSets ?? []), ...(choiceSets ?? [])]),
+  };
 }
 
 function getChoiceSetSignature(entry) {
