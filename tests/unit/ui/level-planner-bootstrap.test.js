@@ -857,6 +857,77 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.lockedTraits).toBeUndefined();
   });
 
+  it('defaults the free-archetype level 2 picker to dedication feats', async () => {
+    const actor = createMockActor({
+      class: { slug: 'magus' },
+      system: {
+        details: { level: { value: 1 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [],
+    });
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 2, computeBuildState(planner.actor, planner.plan, 2));
+
+    expect(preset.selectedFeatTypes).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.lockedTraits).toEqual(['archetype']);
+    expect(preset.excludedTraits).toBeUndefined();
+    expect(preset.traitLogic).toBe('and');
+  });
+
+  it('seeds applied dedication feats into the free-archetype slot even when the actor location says class', () => {
+    const originalSettings = global._testSettings;
+    global._testSettings = {
+      ...(originalSettings ?? {}),
+      pf2e: {
+        ...((originalSettings ?? {}).pf2e ?? {}),
+        freeArchetypeVariant: true,
+      },
+    };
+
+    const actor = createMockActor({
+      class: { slug: 'alchemist', name: 'Alchemist' },
+      system: {
+        details: { level: { value: 2 }, xp: { value: 0, max: 1000 } },
+      },
+      items: [
+        {
+          type: 'feat',
+          uuid: 'Actor.test.Item.wellspring-mage-dedication',
+          sourceId: 'Compendium.pf2e.feats-srd.Item.wellspring-mage-dedication',
+          name: 'Wellspring Mage Dedication',
+          slug: 'wellspring-mage-dedication',
+          img: 'wellspring.png',
+          system: {
+            category: 'class',
+            location: { value: 'class-2' },
+            level: { value: 2, taken: 2 },
+            traits: { value: ['class'] },
+            description: { value: '' },
+          },
+          flags: { pf2e: { rulesSelections: {} }, core: { sourceId: 'Compendium.pf2e.feats-srd.Item.wellspring-mage-dedication' } },
+        },
+      ],
+    });
+
+    try {
+      const planner = new LevelPlanner(actor);
+
+      expect(planner.plan.levels[2].archetypeFeats).toEqual([
+        expect.objectContaining({
+          slug: 'wellspring-mage-dedication',
+          name: 'Wellspring Mage Dedication',
+        }),
+      ]);
+      expect(planner.plan.levels[2].classFeats).toEqual([]);
+    } finally {
+      global._testSettings = originalSettings;
+    }
+  });
+
   it('seeds boosts when actor build boost data is stored as selected slot objects', () => {
     const actor = createMockActor({
       system: {

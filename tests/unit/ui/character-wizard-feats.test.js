@@ -775,6 +775,37 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(document.querySelector('.wizard-browser__count').textContent).toBe('1');
   });
 
+  it('restores spell-step scroll position from the wizard main scroller after rerender', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const initialRoot = document.createElement('div');
+    initialRoot.innerHTML = `
+      <div class="wizard-steps"></div>
+      <div class="wizard-content">
+        <div class="wizard-main wizard-main--browser" style="overflow-y:auto;"></div>
+      </div>
+      <div class="wizard-browser__filters"></div>
+      <div class="wizard-browser__results"></div>
+    `;
+    initialRoot.querySelector('.wizard-main').scrollTop = 172;
+    wizard.element = initialRoot;
+
+    wizard._captureWizardScroll();
+
+    const rerenderedRoot = document.createElement('div');
+    rerenderedRoot.innerHTML = `
+      <div class="wizard-steps"></div>
+      <div class="wizard-content">
+        <div class="wizard-main wizard-main--browser" style="overflow-y:auto;"></div>
+      </div>
+      <div class="wizard-browser__filters"></div>
+      <div class="wizard-browser__results"></div>
+    `;
+
+    wizard._restoreWizardScroll(rerenderedRoot);
+
+    expect(rerenderedRoot.querySelector('.wizard-main').scrollTop).toBe(172);
+  });
+
   it('heritage step only shows actual heritage documents from mixed assigned packs', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.currentStep = 1;

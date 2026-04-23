@@ -234,7 +234,7 @@ export function setAncestry(data, item) {
   return data;
 }
 
-export function setHeritage(data, item) {
+export function setHeritage(data, item, grantedSkills = []) {
   data.heritage = item
     ? {
         uuid: item.uuid,
@@ -242,6 +242,7 @@ export function setHeritage(data, item) {
         img: item.img,
         slug: item.slug ?? null,
         traits: cloneTraitList(item),
+        grantedSkills: Array.isArray(grantedSkills) ? [...grantedSkills] : [],
       }
     : null;
   if (

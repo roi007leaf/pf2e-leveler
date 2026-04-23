@@ -251,6 +251,17 @@ function normalizeSkillText(value) {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+function isArchetypeLikeFeat(feat) {
+  const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).trim().toLowerCase());
+  if (traits.includes('archetype') || traits.includes('dedication')) return true;
+
+  const slug = String(feat?.slug ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? '').trim().toLowerCase();
+  if (slug.includes('dedication') || /\bdedication\b/.test(name)) return true;
+
+  return getDedicationAliasesFromDescription(feat).length > 0;
+}
+
 export async function extractFeatSkillRules(feat, documentResolver = fromUuid, visited = new Set()) {
   if (!feat) return [];
 
@@ -768,7 +779,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getActorFeatPlanPlacement(feat, plan, options, actorLevel) {
-    const fromLocation = this._getActorFeatPlacementFromLocation(feat, plan, actorLevel);
+    const fromLocation = this._getActorFeatPlacementFromLocation(feat, plan, options, actorLevel);
     if (fromLocation) return fromLocation;
 
     const takenLevel = this._getActorFeatTakenLevel(feat);
@@ -780,7 +791,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return { level: takenLevel, category };
   }
 
-  _getActorFeatPlacementFromLocation(feat, plan, actorLevel) {
+  _getActorFeatPlacementFromLocation(feat, plan, options, actorLevel) {
     const rawLocation = feat?.system?.location?.value ?? feat?.system?.location ?? '';
     const match = String(rawLocation ?? '').match(/^([a-zA-Z_]+)-(\d+)$/);
     if (!match) return null;
@@ -790,6 +801,15 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > actorLevel) return null;
 
     const group = rawGroup.replace(/[^a-z_]/gi, '').toLowerCase();
+    if (
+      options?.freeArchetype
+      && group === 'class'
+      && Array.isArray(plan?.levels?.[level]?.archetypeFeats)
+      && isArchetypeLikeFeat(feat)
+    ) {
+      return { level, category: 'archetypeFeats' };
+    }
+
     const category = LOCATION_TO_PLAN_CATEGORY[group] ?? null;
     if (!category || !Array.isArray(plan?.levels?.[level]?.[category])) return null;
 
@@ -807,11 +827,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _inferActorFeatPlanCategory(feat, takenLevel, plan, options) {
     const category = String(feat?.system?.category?.value ?? feat?.system?.category ?? '').toLowerCase();
-    const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
     const levelData = plan?.levels?.[takenLevel] ?? {};
+    const traits = (feat?.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
 
     if (traits.includes('mythic') && Array.isArray(levelData.mythicFeats)) return 'mythicFeats';
-    if ((traits.includes('archetype') || traits.includes('dedication')) && Array.isArray(levelData.archetypeFeats) && options.freeArchetype) {
+    if (isArchetypeLikeFeat(feat) && Array.isArray(levelData.archetypeFeats) && options.freeArchetype) {
       return 'archetypeFeats';
     }
     if (category === 'ancestry' && Array.isArray(levelData.ancestryFeats)) return 'ancestryFeats';
@@ -1769,12 +1789,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           maxLevel: level,
         };
       case 'archetypeFeats': {
+        const isFreeArchetypeEntryLevel = level === 2;
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
-          selectedTraits: ['archetype'],
-          excludedTraits: ['dedication'],
-          lockedTraits: ['archetype', 'dedication'],
+          selectedTraits: isFreeArchetypeEntryLevel ? ['archetype', 'dedication'] : ['archetype'],
+          excludedTraits: isFreeArchetypeEntryLevel ? undefined : ['dedication'],
+          lockedTraits: isFreeArchetypeEntryLevel ? ['archetype'] : ['archetype', 'dedication'],
           traitLogic: 'and',
           maxLevel: level,
         };

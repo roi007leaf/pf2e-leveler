@@ -208,6 +208,9 @@ export async function buildSkillContext(wizard) {
     ...(Array.isArray(wizard.data.dualSubclass?.grantedSkills) ? wizard.data.dualSubclass.grantedSkills : []),
     ...selectedSubclassChoiceSkills.keys(),
   ];
+  const heritageGrantedSkills = Array.isArray(wizard.data.heritage?.grantedSkills)
+    ? wizard.data.heritage.grantedSkills
+    : [];
   const featGrantedSkills = [
     ...(Array.isArray(wizard.data.ancestryFeat?.grantedSkills) ? wizard.data.ancestryFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.ancestryParagonFeat?.grantedSkills) ? wizard.data.ancestryParagonFeat.grantedSkills : []),
@@ -227,10 +230,11 @@ export async function buildSkillContext(wizard) {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
+    const fromHeritage = heritageGrantedSkills.includes(slug);
     const fromDeity = deitySkills.has(slug);
     const fromFeatGrant = featGrantedSkills.includes(slug);
     const fromFeatChoices = featChoiceSkillSet.has(slug);
-    const autoTrained = fromClass || fromBg || fromSubclass || fromDeity || fromFeatGrant || fromFeatChoices;
+    const autoTrained = fromClass || fromBg || fromSubclass || fromHeritage || fromDeity || fromFeatGrant || fromFeatChoices;
     const source = fromClass
       ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
       : fromBg
@@ -240,6 +244,8 @@ export async function buildSkillContext(wizard) {
             ?? (wizard.data.subclass?.grantedSkills?.includes(slug)
               ? wizard.data.subclass.name
               : wizard.data.dualSubclass?.name))
+          : fromHeritage
+            ? wizard.data.heritage?.name ?? null
           : fromDeity
             ? deitySkills.get(slug)
             : fromFeatGrant

@@ -1702,4 +1702,85 @@ describe('applyCreation ancestry paragon', () => {
     ]));
     expect(createdDocs.some((doc) => doc.name === 'School of Unified Magical Theory' && doc.type === 'feat')).toBe(false);
   });
+
+  it('includes selected wizard school choices in the creation chat message when the stored selection uses the option UUID', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) =>
+      docs.map((doc, index) => ({ ...doc, id: `created-${index}` })),
+    );
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    getClassHandler.mockReturnValue({
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => false),
+    });
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid.includes('school') ? 'School of Unified Magical Theory' : 'Wizard',
+      toObject: () => ({
+        name: uuid.includes('school') ? 'School of Unified Magical Theory' : 'Wizard',
+        type: uuid.includes('school') ? 'feat' : 'class',
+        system: {
+          level: { value: 1 },
+          rules: [],
+          description: { value: '' },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-wizard', name: 'Wizard', slug: 'wizard', choices: {} },
+      subclass: {
+        uuid: 'subclass-unified-school',
+        name: 'School of Unified Magical Theory',
+        slug: 'school-of-unified-magical-theory',
+        curriculum: {},
+        choiceSets: [
+          {
+            flag: 'school',
+            prompt: 'Choose your school',
+            options: [
+              {
+                uuid: 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory',
+                value: 'unified-magical-theory',
+                label: 'Unified Magical Theory',
+              },
+            ],
+          },
+        ],
+        choices: {
+          school: 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory',
+        },
+      },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+    });
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('Unified Magical Theory'),
+    }));
+  });
 });

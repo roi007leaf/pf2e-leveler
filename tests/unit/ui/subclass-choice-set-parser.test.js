@@ -3978,6 +3978,53 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('includes selected primary subclass choice prompts in the apply overlay prompt rows when the stored selection uses the option UUID', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-wizard', slug: 'wizard', name: 'Wizard' };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.school-of-rune-magic',
+      name: 'School of Rune Magic',
+      choiceSets: [
+        {
+          flag: 'school',
+          prompt: 'Select a school.',
+          options: [
+            {
+              uuid: 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory',
+              value: 'unified-magical-theory',
+              label: 'Unified Magical Theory',
+            },
+          ],
+        },
+      ],
+      choices: {
+        school: 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.school-of-rune-magic') {
+        return {
+          uuid,
+          name: 'School of Rune Magic',
+          system: {
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'School of Rune Magic',
+        prompt: 'Select a school.',
+        value: 'Unified Magical Theory',
+      }),
+    ]);
+  });
+
   it('includes dual-class subclass-selection prompts in the apply overlay when resolved from the chosen dual subclass', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { uuid: 'class-barbarian', slug: 'barbarian', name: 'Barbarian' };
@@ -4972,6 +5019,53 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         label: 'Alchemist',
         prompt: 'Select a research field.',
         value: 'Bomber',
+      }),
+    ]);
+  });
+
+  it('falls back to the class subclass label in the apply overlay when no PF2E choice rule is available', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'class-wizard',
+      name: 'Wizard',
+      slug: 'wizard',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory',
+      name: 'School of Unified Magical Theory',
+      slug: 'school-of-unified-magical-theory',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-wizard') {
+        return {
+          uuid,
+          name: 'Wizard',
+          system: {
+            rules: [],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.school-of-unified-magical-theory') {
+        return {
+          uuid,
+          name: 'School of Unified Magical Theory',
+          system: {
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Wizard',
+        prompt: 'Select a school.',
+        value: 'School of Unified Magical Theory',
       }),
     ]);
   });

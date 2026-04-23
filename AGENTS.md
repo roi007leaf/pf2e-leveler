@@ -281,7 +281,55 @@ recommend splitting it along real responsibility boundaries.
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-leveler] recent context, 2026-04-16 10:56am GMT+3
+# [pf2e-leveler] recent context, 2026-04-23 2:38pm GMT+3
 
-No previous sessions found.
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 40 obs (13,797t read) | 516,466t work | 97% savings
+
+### Apr 23, 2026
+366 2:03p 🔴 Wizard School Missing from PF2e Prompt Context
+367 " 🔴 Free Archetype Dedication Filter Defaults to ON at Level 2
+368 2:11p 🔵 pf2e-leveler v3.2.2 Bug Report and Feature Requests
+369 " 🔵 npm test script conflicts with --runInBand flag
+370 2:12p 🔵 Three failing tests confirm active bugs in scroll restore and free archetype routing
+371 " 🔵 "Use These in PF2E Prompts" section location traced
+372 " 🔵 applyPromptRows template structure for PF2E prompts section
+373 " 🔵 _getApplyPromptRows() is the production method for building PF2E prompt rows
+374 " 🔵 apply-overlay.js is the production source for applyPromptRows logic
+375 2:13p 🔵 Subclass ChoiceSet rule pattern drives apply overlay prompt rows automatically
+376 " 🔴 Wizard scroll restore fixed: .wizard-content → .wizard-main
+377 " 🔴 Free archetype feat routing and dedication filter fixed in level planner
+378 2:14p 🟣 isArchetypeLikeFeat() helper added to level-planner
+379 " 🔴 Test fixture fixed: magus → alchemist for free-archetype dedication seeding test
+380 " 🔴 Test missing freeArchetypeVariant setting — added global._testSettings override
+381 " ✅ Test setting override uses try/finally to restore original settings
+382 " 🔴 level-planner-bootstrap.test.js: all 47 tests now pass
+383 2:15p 🔵 getApplyPromptRows scans a fixed topItems list — wizard subclass is already included
+384 " ✅ New test: subclass choice prompt resolves when stored value is a Compendium UUID
+385 2:20p 🔴 Wizard school now appears in "Use These in PF2E Prompts" section
+386 " 🔴 Wellspring Mage Dedication now stored as archetype feat under free archetype variant
+387 " 🔴 Dedication filter defaults ON at level 2 for free archetype feat picker
+388 " 🔴 Spell selection scroll reset fixed in character wizard
+389 " 🔵 Jest invocation: use `npx jest --runInBand`, not `npm test -- --runInBand`
+390 " 🔵 global._testSettings pattern for overriding game settings in Jest
+391 2:21p ✅ Full diff of all pf2e-leveler v3.2.2 bug fixes confirmed staged
+392 2:26p 🔵 Heritage skill grant pipeline traced in pf2e-leveler
+393 2:27p 🔵 Heritage slot missing from all skill grant aggregation paths — root cause identified
+394 " 🔵 wizard.data.heritage key exists but never wired into skill grant pipeline
+395 " 🔵 No test coverage for heritage.grantedSkills — gap confirmed across all skill test files
+396 2:28p 🔵 _parseGrantedSkills implementation confirmed — parses rules then falls back to description text
+397 " 🔵 setHeritage data model missing grantedSkills field — full fix scope mapped
+398 2:29p ⚖️ Heritage skill grant fix — exact implementation plan confirmed
+399 " 🔵 STEPS array confirms skills step at index 19 — test setup requirement
+400 2:30p 🔴 setHeritage updated to accept and store grantedSkills
+401 " 🔴 Both setHeritage call sites in index.js updated to parse and pass grantedSkills
+402 " 🔴 buildSkillContext updated — heritage skills now included in autoTrained computation
+403 " 🔴 Failing test added for heritage skill grant — Polychromatic Anadi grants Performance
+404 2:31p 🔴 Heritage skill grant fix complete — all 29 tests pass, ESLint clean
+405 2:32p 🔴 Full test suite passes after heritage skill grant fix — 509/509 tests green
+
+Access 516k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

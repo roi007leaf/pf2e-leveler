@@ -7,6 +7,30 @@ import {
 } from './choice-sets.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
+const CLASS_SUBCLASS_TYPES = {
+  alchemist: 'research field',
+  animist: 'practice',
+  barbarian: 'instinct',
+  bard: 'muse',
+  champion: 'cause',
+  cleric: 'doctrine',
+  druid: 'order',
+  gunslinger: 'way',
+  inventor: 'innovation',
+  investigator: 'methodology',
+  kineticist: 'gate',
+  magus: 'study',
+  oracle: 'mystery',
+  psychic: 'conscious mind',
+  ranger: "hunter's edge",
+  rogue: 'racket',
+  sorcerer: 'bloodline',
+  summoner: 'eidolon',
+  swashbuckler: 'style',
+  witch: 'patron',
+  wizard: 'school',
+};
+
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
   if (typeof wizard?._getCachedDocument === 'function') return wizard._getCachedDocument(uuid);
@@ -56,6 +80,44 @@ export async function getApplyPromptRows(wizard) {
   const scannedChoiceSources = new Set();
   const promptFlagIndex = new Map();
   const exactRows = new Set();
+
+  const addStaticRow = (label, prompt, value, flag = '') => {
+    const normalizedLabel = normalizeSourceLabel(label);
+    const normalizedPrompt = String(prompt ?? '').trim();
+    const rowValue = String(value ?? '').trim();
+    if (!normalizedLabel || !normalizedPrompt || !rowValue) return;
+
+    const exactKey = `${normalizedLabel}:${normalizedPrompt}:${flag}:${rowValue}`;
+    if (exactRows.has(exactKey)) return;
+
+    const promptKey = `${normalizedLabel}:${normalizedPrompt}:${flag}`;
+    const existingIndex = promptFlagIndex.get(promptKey);
+    if (existingIndex != null) {
+      const existing = promptRows[existingIndex];
+      if (!existing?.pending) return;
+      exactRows.delete(`${existing.label}:${existing.prompt}:${existing.flag ?? ''}:${existing.value}`);
+      promptRows[existingIndex] = {
+        ...existing,
+        label: normalizedLabel,
+        prompt: normalizedPrompt,
+        value: rowValue,
+        pending: false,
+        flag,
+      };
+      exactRows.add(exactKey);
+      return;
+    }
+
+    exactRows.add(exactKey);
+    promptFlagIndex.set(promptKey, promptRows.length);
+    promptRows.push({
+      label: normalizedLabel,
+      prompt: normalizedPrompt,
+      value: rowValue,
+      pending: false,
+      flag,
+    });
+  };
 
   const addRow = async (source, rule, optionSource = null) => {
     const prompt = getRulePrompt(rule);
@@ -208,7 +270,27 @@ export async function getApplyPromptRows(wizard) {
     }
   }
 
+  addFallbackSubclassSelectionRow(wizard.data.class, wizard.data.subclass, promptRows, addStaticRow);
+  addFallbackSubclassSelectionRow(wizard.data.dualClass, wizard.data.dualSubclass, promptRows, addStaticRow);
+
   return promptRows;
+}
+
+function addFallbackSubclassSelectionRow(classEntry, subclassEntry, promptRows, addStaticRow) {
+  const classSlug = String(classEntry?.slug ?? '').trim().toLowerCase();
+  const className = String(classEntry?.name ?? '').trim();
+  const subclassName = String(subclassEntry?.name ?? '').trim();
+  const subclassLabel = CLASS_SUBCLASS_TYPES[classSlug];
+  if (!className || !subclassName || !subclassLabel) return;
+  if ((subclassEntry?.choiceSets?.length ?? 0) > 0) return;
+
+  const prompt = `Select a ${subclassLabel}.`;
+  const hasEquivalentRow = (promptRows ?? []).some((row) =>
+    normalizePromptText(row?.prompt) === normalizePromptText(prompt)
+    && String(row?.value ?? '').trim() === subclassName);
+  if (hasEquivalentRow) return;
+
+  addStaticRow(className, prompt, subclassName, 'subclassSelection');
 }
 
 function matchesGrantPredicate(rule, wizard) {

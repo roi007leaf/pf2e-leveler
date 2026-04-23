@@ -794,13 +794,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const recoveredData = createCreationData();
     const ancestry = this._toRecoveredDocumentRef(this.actor?.ancestry);
-    const heritage = this._toRecoveredDocumentRef(this.actor?.heritage);
+    const actorHeritage = this.actor?.heritage;
+    const heritage = this._toRecoveredDocumentRef(actorHeritage);
     const background = this._toRecoveredDocumentRef(this.actor?.background);
     const classItem = this._toRecoveredDocumentRef(this.actor?.class);
     const deity = this._findActorItemByType('deity');
 
     if (ancestry) setAncestry(recoveredData, ancestry);
-    if (heritage) setHeritage(recoveredData, heritage);
+    if (heritage) {
+      const grantedSkills = this._parseGrantedSkills(
+        actorHeritage?.system?.rules ?? [],
+        actorHeritage?.system?.description?.value ?? '',
+      );
+      setHeritage(recoveredData, heritage, grantedSkills);
+    }
     if (heritage?.uuid === MIXED_ANCESTRY_UUID) {
       const selectedMixedAncestry =
         this.actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG] ??
@@ -971,7 +978,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         setAncestry(this.data, item);
         break;
       case 'heritage':
-        setHeritage(this.data, item);
+        setHeritage(
+          this.data,
+          item,
+          this._parseGrantedSkills(item.system?.rules ?? [], item.system?.description?.value ?? ''),
+        );
         break;
       case 'mixedAncestry':
         setMixedAncestry(this.data, item);
@@ -1980,7 +1991,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _captureWizardScroll() {
     this._scrollState = captureScrollState(this.element, {
       sidebar: '.wizard-steps',
-      content: '.wizard-content',
+      content: '.wizard-main',
       browserFilters: '.wizard-browser__filters',
       browserResults: '.wizard-browser__results',
     });
@@ -1989,7 +2000,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _restoreWizardScroll(root) {
     restoreScrollState(root, this._scrollState, {
       sidebar: '.wizard-steps',
-      content: '.wizard-content',
+      content: '.wizard-main',
       browserFilters: '.wizard-browser__filters',
       browserResults: '.wizard-browser__results',
     });

@@ -178,6 +178,59 @@ describe('CharacterWizard skills step grants', () => {
     ]));
   });
 
+  it('marks heritage-granted skills as auto-trained after selecting a heritage', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      if (uuid === 'heritage-uuid') {
+        return {
+          uuid: 'heritage-uuid',
+          name: 'Polychromatic Anadi',
+          img: 'heritage.png',
+          slug: 'polychromatic-anadi',
+          system: {
+            traits: { value: ['anadi'] },
+            rules: [],
+            description: {
+              value: `
+                <p>You become trained in Performance (or another skill if you were already trained in Performance), and you gain the Impressive Performance feat.</p>
+              `,
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 1;
+    wizard.data.class = { slug: 'bard', uuid: 'class-uuid', name: 'Bard' };
+
+    await wizard._selectItem('heritage-uuid');
+
+    expect(wizard.data.heritage).toEqual(expect.objectContaining({
+      name: 'Polychromatic Anadi',
+      grantedSkills: ['performance'],
+    }));
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context.find((entry) => entry.slug === 'performance')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Polychromatic Anadi',
+    }));
+  });
+
   it('parses multiple skills from direct trained-in feat wording', () => {
     const wizard = new CharacterWizard(createMockActor());
 
