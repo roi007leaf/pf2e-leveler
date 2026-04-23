@@ -95,6 +95,31 @@ export function buildChipOptions(availableValues, selectedValues, { lockedValues
   }));
 }
 
+export function buildFilterSectionState(sectionState = {}, activeCount = 0) {
+  const count = Number.isFinite(Number(activeCount)) && Number(activeCount) > 0 ? Number(activeCount) : 0;
+  return {
+    collapsed: sectionState !== false,
+    activeCount: count,
+    summary: count > 0 ? String(count) : '',
+  };
+}
+
+export function buildPublicationFilterSectionState(selectedValues, availableValues, sectionState = {}) {
+  const available = [...new Set((availableValues ?? []).map((value) => String(value ?? '').trim()).filter(Boolean))];
+  if (available.length === 0) return buildFilterSectionState(sectionState, 0);
+
+  const selected = selectedValues instanceof Set
+    ? [...selectedValues]
+    : [...new Set((selectedValues ?? []))];
+  const activeCount = selected
+    .map((value) => String(value ?? '').trim())
+    .filter((value) => value.length > 0 && available.includes(value))
+    .length;
+
+  if (activeCount === 0 || activeCount === available.length) return buildFilterSectionState(sectionState, 0);
+  return buildFilterSectionState(sectionState, activeCount);
+}
+
 export function normalizeItemCategory(item) {
   const type = String(item?.type ?? '').toLowerCase();
   const rawCategory = item?.system?.category;

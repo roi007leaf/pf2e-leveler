@@ -7,6 +7,7 @@ import {
   applyPublicationFilter,
   applyTraitFilter,
   buildChipOptions,
+  buildPublicationFilterSectionState,
   getAvailableRarityValues,
   initializeSelectionSet,
   normalizeSpellCategory,
@@ -14,7 +15,6 @@ import {
 } from './shared/picker-utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
-const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
 
 let cachedSpells = null;
@@ -52,7 +52,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedRarities = getAllowedRaritiesForCurrentUser();
     this.lockedRarities = new Set();
     this.selectedPublications = new Set();
-    this._publicationFilterInitialized = false;
+    this.filterSections = {
+      publications: true,
+    };
     this.searchText = '';
     this.sortMode = options.sortMode ?? this._getDefaultSortMode();
     this._updateListTimer = null;
@@ -144,6 +146,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
+      filterSections: this._getFilterSections(),
       publicationOptions,
       rankOptions,
       traditionOptions,
@@ -315,7 +318,15 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         for (const chip of el.querySelectorAll('[data-action="togglePublication"]')) {
           chip.classList.toggle('selected', this.selectedPublications.has(chip.dataset.publication));
         }
+        this._updateFilterControlState();
         this._scheduleListUpdate();
+        return;
+      }
+
+      if (action === 'toggleFilterSection') {
+        e.preventDefault();
+        e.stopPropagation();
+        this._toggleFilterSection(target.dataset.section);
         return;
       }
 
@@ -418,8 +429,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const listContainer = root?.querySelector('.spell-picker__list');
     if (!listContainer) return;
 
-    const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
+    const html = await resolveRenderHandlebarsTemplate()(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
+      filterSections: this._getFilterSections(),
       publicationOptions: this._getPublicationOptions(),
       rankOptions: this._getRankOptions(),
       traditionOptions: this._getTraditionOptions(),
@@ -658,6 +670,47 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         </button>
       `).join('');
     }
+
+    const publicationSection = root.querySelector('[data-section="publications"]');
+    if (publicationSection) {
+      const sectionState = buildPublicationFilterSectionState(
+        this.selectedPublications,
+        this._publicationTitles,
+        this.filterSections?.publications,
+      );
+      const summary = publicationSection.querySelector('[data-section-summary="publications"]');
+      if (summary) {
+        summary.textContent = sectionState.activeCount > 0 ? `(${sectionState.summary})` : '';
+      }
+      const toggle = publicationSection.querySelector('[data-action="toggleFilterSection"]');
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', sectionState.collapsed ? 'false' : 'true');
+      }
+      const body = publicationSection.querySelector('.picker__section-body');
+      if (body) body.hidden = sectionState.collapsed;
+      for (const chip of publicationSection.querySelectorAll('[data-action="togglePublication"]')) {
+        chip.classList.toggle('selected', this.selectedPublications.has(chip.dataset.publication));
+      }
+    }
+  }
+
+  _getFilterSections() {
+    return {
+      publications: buildPublicationFilterSectionState(
+        this.selectedPublications,
+        this._publicationTitles,
+        this.filterSections?.publications,
+      ),
+    };
+  }
+
+  _toggleFilterSection(section) {
+    if (!section) return;
+    this.filterSections = {
+      ...(this.filterSections ?? {}),
+      [section]: !this.filterSections?.[section],
+    };
+    this.render(false);
   }
 
   _scheduleListUpdate(delay = 0) {
@@ -753,8 +806,6 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const options = [...unique.values()].sort((a, b) => a.label.localeCompare(b.label));
     this._publicationTitles = options.map((entry) => entry.key);
     this.selectedPublications = initializeSelectionSet(this.selectedPublications, this._publicationTitles, { defaultValues: [] });
-    this._publicationFilterInitialized = true;
-
     return options.map((entry) => ({
       ...entry,
       selected: this.selectedPublications.has(entry.key),
@@ -1086,4 +1137,8 @@ function getAllWorldItems() {
 
 function getWorldSourceLabel() {
   return compactSourceOwnerLabel(game.world?.title ?? 'World');
+}
+
+function resolveRenderHandlebarsTemplate() {
+  return foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 }

@@ -281,55 +281,65 @@ recommend splitting it along real responsibility boundaries.
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-leveler] recent context, 2026-04-23 2:38pm GMT+3
+# [pf2e-leveler] recent context, 2026-04-23 4:09pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 40 obs (13,797t read) | 516,466t work | 97% savings
+Stats: 50 obs (17,737t read) | 616,036t work | 97% savings
 
 ### Apr 23, 2026
-366 2:03p 🔴 Wizard School Missing from PF2e Prompt Context
-367 " 🔴 Free Archetype Dedication Filter Defaults to ON at Level 2
-368 2:11p 🔵 pf2e-leveler v3.2.2 Bug Report and Feature Requests
-369 " 🔵 npm test script conflicts with --runInBand flag
-370 2:12p 🔵 Three failing tests confirm active bugs in scroll restore and free archetype routing
-371 " 🔵 "Use These in PF2E Prompts" section location traced
-372 " 🔵 applyPromptRows template structure for PF2E prompts section
-373 " 🔵 _getApplyPromptRows() is the production method for building PF2E prompt rows
-374 " 🔵 apply-overlay.js is the production source for applyPromptRows logic
-375 2:13p 🔵 Subclass ChoiceSet rule pattern drives apply overlay prompt rows automatically
-376 " 🔴 Wizard scroll restore fixed: .wizard-content → .wizard-main
-377 " 🔴 Free archetype feat routing and dedication filter fixed in level planner
-378 2:14p 🟣 isArchetypeLikeFeat() helper added to level-planner
-379 " 🔴 Test fixture fixed: magus → alchemist for free-archetype dedication seeding test
-380 " 🔴 Test missing freeArchetypeVariant setting — added global._testSettings override
-381 " ✅ Test setting override uses try/finally to restore original settings
-382 " 🔴 level-planner-bootstrap.test.js: all 47 tests now pass
-383 2:15p 🔵 getApplyPromptRows scans a fixed topItems list — wizard subclass is already included
-384 " ✅ New test: subclass choice prompt resolves when stored value is a Compendium UUID
-385 2:20p 🔴 Wizard school now appears in "Use These in PF2E Prompts" section
-386 " 🔴 Wellspring Mage Dedication now stored as archetype feat under free archetype variant
-387 " 🔴 Dedication filter defaults ON at level 2 for free archetype feat picker
-388 " 🔴 Spell selection scroll reset fixed in character wizard
-389 " 🔵 Jest invocation: use `npx jest --runInBand`, not `npm test -- --runInBand`
-390 " 🔵 global._testSettings pattern for overriding game settings in Jest
-391 2:21p ✅ Full diff of all pf2e-leveler v3.2.2 bug fixes confirmed staged
-392 2:26p 🔵 Heritage skill grant pipeline traced in pf2e-leveler
-393 2:27p 🔵 Heritage slot missing from all skill grant aggregation paths — root cause identified
-394 " 🔵 wizard.data.heritage key exists but never wired into skill grant pipeline
-395 " 🔵 No test coverage for heritage.grantedSkills — gap confirmed across all skill test files
-396 2:28p 🔵 _parseGrantedSkills implementation confirmed — parses rules then falls back to description text
-397 " 🔵 setHeritage data model missing grantedSkills field — full fix scope mapped
-398 2:29p ⚖️ Heritage skill grant fix — exact implementation plan confirmed
-399 " 🔵 STEPS array confirms skills step at index 19 — test setup requirement
-400 2:30p 🔴 setHeritage updated to accept and store grantedSkills
-401 " 🔴 Both setHeritage call sites in index.js updated to parse and pass grantedSkills
-402 " 🔴 buildSkillContext updated — heritage skills now included in autoTrained computation
-403 " 🔴 Failing test added for heritage skill grant — Polychromatic Anadi grants Performance
-404 2:31p 🔴 Heritage skill grant fix complete — all 29 tests pass, ESLint clean
-405 2:32p 🔴 Full test suite passes after heritage skill grant fix — 509/509 tests green
+544 3:34p 🔵 Spell Picker Task 3 Approved: Spec Compliant
+545 " 🔵 Spell Picker Task 3 Spec Compliance Review — All Three Files Read
+546 " 🔵 Spell Picker Task 3 — All 29 Tests Pass
+547 " 🔵 Agent Pool Hard Limit: 6 Concurrent Threads Maximum
+548 3:35p 🔵 Spell Picker Task 3 Code Quality Review Initiated
+549 " 🔵 SpellPicker Task 3: Architecture and Fast-Path Publication Sync
+550 " 🔵 SpellPicker Task 3: Template Structure Verified
+551 " 🔵 SpellPicker Task 3: Test Suite Coverage Assessment
+552 3:36p 🔵 Critical Bug Confirmed: Rarity Chip Toggle Fires Twice, Cancels Itself
+553 " 🔵 picker-utils.js Shared Utility Layer Confirmed Robust
+554 " 🔵 SpellPicker Event Delegation Confirmed Superior to FeatPicker Pattern
+556 " 🔵 Spell-Picker Tests Pass Clean; ESLint Zero Errors; Prettier HBS Attribute Block Known Limitation
+557 " 🔵 _publicationFilterInitialized Flag Is Dead State in Both Pickers
+555 " 🔵 Task 3 Code Quality Review Agent Timed Out (120s)
+558 3:37p 🔵 FeatPicker Has No Fast-Path _updateList — SpellPicker's Fast Path Is a New Capability
+559 " 🔵 Publication Filtering Describe Block Covers OR Logic and DOM Click Path
+560 " 🔵 Spell Picker Task 3 Code Quality Review: Approved with Minor Caveats
+561 3:38p ✅ Picker Redesign: Task 4 (Shared CSS Density Pass) Started
+563 " 🔵 Task 4 picker tests: 4 compact-styling tests failing pre-implementation
+564 " 🔵 jsdom getComputedStyle returning 16px vertical spacing on picker-search-row
+565 " 🔵 CSS file update alone cannot fix jsdom computed style — inline injection required
+566 " 🔵 Inline style attributes on picker-search-row not reflected by jsdom getComputedStyle
+567 " 🔵 jsdom does read inline styles when element attached to body — styles are correct, test setup must be the issue
+562 3:43p 🔵 Subagent timeout in pf2e-leveler session
+571 " 🔵 jest config lives in jest.config.js not package.json — setupFilesAfterFramework typo is inert
+572 " 🔵 jsdom returns 8px for all four spacing props despite inline style="margin:0;padding:4px" — UA stylesheet overriding inline styles
+573 " 🔴 Compact styling tests pass after switching from inline template-literal styles to post-render JS style assignment
+574 " 🟣 Task 4 complete: shared compact picker styling for feat and spell pickers
+568 3:44p 🟣 Compact picker-shell styling added to feat and spell pickers
+569 " 🟣 Collapsible publications section added to feat and spell picker sidebars
+570 " 🔵 JS source files modified beyond what subagent reported
+575 3:53p 🔵 buildPublicationFilterSectionState extracted to shared picker-utils.js
+576 " 🔄 Removed _publicationFilterInitialized flag and duplicate test assignments
+577 " 🔵 Test failure after duplicate-assignment cleanup: activeCount returns 0 instead of 1
+578 3:54p 🔴 Test fix: createFeat doesn't propagate publicationTitle, must be set post-construction
+579 " 🔵 Full test suite green after all cleanup: 73 suites, 1061 tests pass
+580 4:02p 🟣 Chevron Indicator for Collapsed Sections
+581 " 🔵 Existing Collapsed Section Toggle Infrastructure in pf2e-leveler
+582 " 🔵 picker__section-toggle Button Structure — No Chevron Icon Present
+583 4:03p 🔄 feat-picker OPTIONS Group Restructured to Inline Label Layout
+584 " 🟣 CSS Added for Inline Label Layout Modifiers in Picker Filter Groups
+585 4:04p 🔵 feat-picker Tests Pass Clean After OPTIONS Group Restructure
+586 " 🔄 Sort Filter Groups Converted to Inline Label Layout in Both Pickers
+587 " 🔵 Both Picker Test Suites Pass After Sort Group Inline Label Refactor
+588 4:05p 🔵 Test Files Contain Hardcoded Section Toggle HTML — Must Update When Chevrons Added
+589 4:06p 🟣 Chevron Icons Added to Collapsible Section Toggles in feat-picker and spell-picker
+590 " 🔵 Chevron Feature Passes All Tests — 78/78 Green
+591 " ✅ Inline Label Row CSS Refined for Label/Select Flex Sizing
+592 4:07p 🔄 LEVEL_RANGE Filter Group Converted to Inline Label Layout in feat-picker
+593 4:09p 🟣 LEVEL_RANGE Filter Redesigned as Compact Min–Max Range Selector
 
-Access 516k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 616k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

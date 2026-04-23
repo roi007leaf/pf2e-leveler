@@ -2,9 +2,9 @@
   <div class="picker__browser">
     <aside class="picker__sidebar">
       {{#if selectedSpells.length}}
-      <div class="picker__filter-group">
+      <div class="picker__filter-group picker__filter-group--compact">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ALREADY_SELECTED"}} ({{selectedSpells.length}})</div>
-        <div class="spell-picker__selected-sidebar">
+        <div class="spell-picker__selected-sidebar picker__selected-sidebar">
           {{#each selectedSpells}}
           <div class="spell-picker__selected-sidebar-item">
             <img src="{{this.img}}" alt="" class="spell-picker__selected-sidebar-img">
@@ -24,21 +24,19 @@
         </div>
       </div>
       {{/if}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact">
         <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
                data-action="searchSpells">
       </div>
 
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact">
         <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
           <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" autocomplete="off">
           <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
           <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
         </div>
-        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
+        <div class="picker__source-list picker__source-list--compact" data-role="selected-trait-chips" {{#unless selectedTraitChips.length}}style="display:none"{{/unless}}>
           {{#each selectedTraitChips}}
           <button
             type="button"
@@ -69,12 +67,14 @@
       </div>
 
       <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.SORT"}}</div>
-        <select class="picker__search" data-action="changeSort">
-          {{#each sortOptions}}
-          <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
-          {{/each}}
-        </select>
+        <div class="picker__utility-row picker__utility-row--inline-label">
+          <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.SORT"}}</div>
+          <select class="picker__select picker__select--compact" data-action="changeSort">
+            {{#each sortOptions}}
+            <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+        </div>
       </div>
 
       {{#if categoryOptions.length}}
@@ -132,22 +132,38 @@
       {{/if}}
 
       {{#if publicationOptions.length}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
-        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
-        <div class="picker__source-list">
-          {{#each publicationOptions}}
-          <button
-            type="button"
-            class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
-            data-action="togglePublication"
-            data-publication="{{this.key}}"
-            data-publication-name="{{this.label}}"
-            data-tooltip="{{this.key}}">
-            <span class="picker__source-chip-label">{{this.label}}</span>
-          </button>
-          {{/each}}
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="publications">
+        <button type="button"
+                class="picker__section-toggle"
+                data-action="toggleFilterSection"
+                data-section="publications"
+                aria-expanded="{{#if filterSections.publications.collapsed}}false{{else}}true{{/if}}">
+          <span>{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</span>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="publications">
+              {{#if filterSections.publications.activeCount}}({{filterSections.publications.summary}}){{/if}}
+            </span>
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </span>
+        </button>
+        {{#unless filterSections.publications.collapsed}}
+        <div class="picker__section-body">
+          <input type="text" class="picker__search picker__search--compact" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
+          <div class="picker__source-list picker__source-list--stacked">
+            {{#each publicationOptions}}
+            <button
+              type="button"
+              class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
+              data-action="togglePublication"
+              data-publication="{{this.key}}"
+              data-publication-name="{{this.label}}"
+              data-tooltip="{{this.key}}">
+              <span class="picker__source-chip-label">{{this.label}}</span>
+            </button>
+            {{/each}}
+          </div>
         </div>
+        {{/unless}}
       </div>
       {{/if}}
     </aside>

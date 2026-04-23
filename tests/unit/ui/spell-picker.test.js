@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 jest.mock('../../../scripts/compendiums/catalog.js', () => ({
   getCompendiumKeysForCategory: jest.fn(() => ['pf2e.spells-srd']),
 }));
@@ -35,6 +38,151 @@ describe('SpellPicker', () => {
         ]),
       };
     });
+  });
+
+  test('prepares inactive publication metadata when all publications are selected', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    picker.allSpells = [
+      makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
+      makeSpell('acid-grip', 'Acid Grip', 2, ['arcane']),
+    ];
+    picker.allSpells[0].publicationTitle = 'Pathfinder Player Core';
+    picker.allSpells[1].publicationTitle = 'Rage of Elements';
+    picker.selectedPublications = new Set(['Pathfinder Player Core', 'Rage of Elements']);
+
+    const context = await picker._prepareContext();
+
+    expect(context.filterSections.publications).toEqual(expect.objectContaining({
+      collapsed: true,
+      activeCount: 0,
+      summary: '',
+    }));
+  });
+
+  test('uses the compact collapsible publications shell in the template', () => {
+    const template = fs.readFileSync(
+      path.join(process.cwd(), 'templates/spell-picker.hbs'),
+      'utf8',
+    );
+
+    expect(template).toContain('picker__filter-group--compact');
+    expect(template).toContain('picker__filter-group--collapsible');
+    expect(template).toContain('picker__source-list picker__source-list--compact');
+    expect(template).toContain('class="picker__select picker__select--compact"');
+    expect(template).toContain('spell-picker__selected-sidebar picker__selected-sidebar');
+    expect(template).toContain('data-section="publications"');
+    expect(template).toContain('picker__section-chevron');
+    expect(template).not.toContain('<div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>');
+    expect(template).not.toContain('<div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>');
+  });
+
+  test('toggling the publication section is reflected in the next prepared context', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    picker.render = jest.fn();
+    picker.filterSections = { publications: true };
+    picker.selectedPublications = new Set(['Pathfinder Player Core']);
+
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <button type="button" data-action="toggleFilterSection" data-section="publications"></button>
+    `;
+    picker.element = root;
+    picker._onRender();
+    root.querySelector('[data-action="toggleFilterSection"]').click();
+
+    expect(picker.filterSections.publications).toBe(false);
+    expect([...picker.selectedPublications]).toEqual(['Pathfinder Player Core']);
+    expect(picker.render).toHaveBeenCalledWith(false);
+
+    picker.allSpells = [
+      makeSpell('magic-missile', 'Magic Missile', 1, ['arcane']),
+      makeSpell('acid-grip', 'Acid Grip', 2, ['arcane']),
+    ];
+    picker.allSpells[0].publicationTitle = 'Pathfinder Player Core';
+    picker.allSpells[1].publicationTitle = 'Rage of Elements';
+    const context = await picker._prepareContext();
+
+    expect(context.filterSections.publications).toEqual(expect.objectContaining({
+      collapsed: false,
+      activeCount: 1,
+      summary: '1',
+    }));
+  });
+
+  test('refreshes the publications section during the fast update path when selections change', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    picker.allSpells = [
+      makeSpell('magic-missile', 'Magic Missile', 1, ['arcane'], [], 'Pathfinder Player Core'),
+      makeSpell('acid-grip', 'Acid Grip', 2, ['arcane'], [], 'Rage of Elements'),
+    ];
+    picker.selectedPublications = new Set(['Pathfinder Player Core']);
+    picker.filterSections = { publications: true };
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="pf2e-leveler spell-picker">
+        <aside class="picker__sidebar">
+          <div class="picker__filter-group picker__filter-group--collapsible" data-section="publications">
+            <button type="button" class="picker__section-toggle" data-action="toggleFilterSection" data-section="publications" aria-expanded="true">
+              <span>Publications</span>
+              <span class="picker__section-summary" data-section-summary="publications">(1)</span>
+            </button>
+            <div class="picker__section-body">
+              <input type="text" class="picker__search picker__search--compact" data-action="searchPublications">
+              <div class="picker__source-list picker__source-list--stacked">
+                <button type="button" class="picker__source-chip picker__source-chip--publication selected" data-action="togglePublication" data-publication="Pathfinder Player Core" data-publication-name="Pathfinder Player Core"></button>
+                <button type="button" class="picker__source-chip picker__source-chip--publication" data-action="togglePublication" data-publication="Rage of Elements" data-publication-name="Rage of Elements"></button>
+              </div>
+            </div>
+          </div>
+        </aside>
+        <section class="picker__results">
+          <div class="spell-list spell-picker__list"></div>
+          <div data-role="rarity-chips"></div>
+          <div class="picker__results-count"></div>
+        </section>
+      </div>
+    `;
+
+    const renderSpy = jest
+      .spyOn(foundry.applications.handlebars, 'renderTemplate')
+      .mockResolvedValue(`
+        <div class="spell-list spell-picker__list">
+          <div class="spell-option" data-uuid="magic-missile"></div>
+          <div class="spell-option" data-uuid="acid-grip"></div>
+        </div>
+        <div data-role="rarity-chips"></div>
+      `);
+
+    picker.selectedPublications = new Set(['Pathfinder Player Core', 'Rage of Elements']);
+    await picker._updateList();
+
+    expect(renderSpy).toHaveBeenCalled();
+    expect(renderSpy.mock.calls.at(-1)?.[1]).toEqual(expect.objectContaining({
+      filterSections: expect.objectContaining({
+        publications: expect.objectContaining({
+          collapsed: true,
+          activeCount: 0,
+          summary: '',
+        }),
+      }),
+    }));
+    expect(
+      picker.element.querySelector('[data-section-summary="publications"]')?.textContent,
+    ).toBe('');
+    expect(
+      picker.element.querySelector('[data-section="publications"] [data-action="toggleFilterSection"]')?.getAttribute('aria-expanded'),
+    ).toBe('false');
+    expect(
+      picker.element.querySelector('[data-section="publications"] .picker__section-body')?.hidden,
+    ).toBe(true);
+    expect(
+      picker.element.querySelectorAll('[data-action="togglePublication"].selected'),
+    ).toHaveLength(2);
+
+    renderSpy.mockRestore();
   });
 
   test('allows lower-rank spells for higher-rank spontaneous selections', async () => {

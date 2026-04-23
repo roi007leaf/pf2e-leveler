@@ -10,21 +10,19 @@
   {{/if}}
   <div class="picker__browser">
     <aside class="picker__sidebar">
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact">
         <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEARCH'}}"
                data-action="searchFeats">
       </div>
 
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact">
         <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
           <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" autocomplete="off">
           <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
           <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
         </div>
-        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
+        <div class="picker__source-list picker__source-list--compact" data-role="selected-trait-chips" {{#unless selectedTraitChips.length}}style="display:none"{{/unless}}>
           {{#each selectedTraitChips}}
           <div
             class="picker__source-chip picker__source-chip--trait {{#if this.excluded}}excluded{{else}}selected{{/if}} {{#if this.locked}}locked{{/if}}"
@@ -57,58 +55,13 @@
         </div>
       </div>
 
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
-        <div class="picker__toggle-list">
-          <button type="button" class="picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
-            <i class="fa-solid fa-filter"></i>
-            {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
-          </button>
-          {{#if showGeneralSkillToggle}}
-          <button type="button" class="picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-            {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
-          </button>
-          {{/if}}
-        </div>
-      </div>
-
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
-        <select data-action="sortFeats" class="picker__select">
-          <option value="LEVEL_DESC" {{#if (eq sortMethod "LEVEL_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
-          <option value="LEVEL_ASC" {{#if (eq sortMethod "LEVEL_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_ASC"}}</option>
-          <option value="ALPHA_ASC" {{#if (eq sortMethod "ALPHA_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_ASC"}}</option>
-          <option value="ALPHA_DESC" {{#if (eq sortMethod "ALPHA_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_DESC"}}</option>
-        </select>
-      </div>
-
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.LEVEL_RANGE"}}</div>
-        <div class="picker__toggle-list">
-          <select data-action="filterMinLevel" class="picker__select" {{#if minLevelLocked}}disabled{{/if}}>
-            <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
-            {{#each levelOptions}}
-            <option value="{{this.value}}" {{#if (eq ../minLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MIN_LEVEL" level=this.label}}</option>
-            {{/each}}
-          </select>
-          <select data-action="filterMaxLevel" class="picker__select" {{#if maxLevelLocked}}disabled{{/if}}>
-            <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
-            {{#each levelOptions}}
-            <option value="{{this.value}}" {{#if (eq ../maxLevel this.value)}}selected{{/if}}>{{format "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}</option>
-            {{/each}}
-          </select>
-        </div>
-      </div>
-
-      <div class="picker__filter-group" data-role="skill-filter-group" {{#unless showSkillFilter}}style="display:none"{{/unless}}>
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FILTER"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact" data-role="skill-filter-group" {{#unless showSkillFilter}}style="display:none"{{/unless}}>
         <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
           <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.FEAT_PICKER.SKILL_FILTER'}}" data-action="skillInput" autocomplete="off">
           <button type="button" class="picker__prereq-toggle" data-action="toggleSkillLogic">{{#if (eq skillLogic "and")}}AND{{else}}OR{{/if}}</button>
           <ul class="picker__trait-autocomplete" data-role="skill-autocomplete"></ul>
         </div>
-        <div class="picker__source-list" data-role="selected-skill-chips" style="margin-top: 8px;{{#unless selectedSkillChips.length}} display: none;{{/unless}}">
+        <div class="picker__source-list picker__source-list--compact" data-role="selected-skill-chips" {{#unless selectedSkillChips.length}}style="display:none"{{/unless}}>
           {{#each selectedSkillChips}}
           <button type="button"
             class="picker__source-chip selected"
@@ -118,6 +71,55 @@
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
           {{/each}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group picker__filter-group--utility">
+        <div class="picker__utility-row picker__utility-row--inline-label">
+          <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.OPTIONS"}}</div>
+          <div class="picker__toggle-list picker__toggle-list--inline-title">
+            <button type="button" class="picker__prereq-toggle {{#if hideFailedPrereqs}}active{{/if}}" data-action="togglePrereqFilter" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.HIDE_UNMET'}}">
+              <i class="fa-solid fa-filter"></i>
+              {{localize "PF2E_LEVELER.FEAT_PICKER.ELIGIBLE_ONLY"}}
+            </button>
+            {{#if showGeneralSkillToggle}}
+            <button type="button" class="picker__prereq-toggle {{#if showSkillFeats}}active{{/if}}" data-action="toggleGeneralSkillFeats">
+              <i class="fa-solid fa-screwdriver-wrench"></i>
+              {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
+            </button>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+
+      <div class="picker__filter-group picker__filter-group--utility">
+        <div class="picker__utility-row picker__utility-row--inline-label">
+          <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.SORT"}}</div>
+          <select data-action="sortFeats" class="picker__select picker__select--compact">
+            <option value="LEVEL_DESC" {{#if (eq sortMethod "LEVEL_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_DESC"}}</option>
+            <option value="LEVEL_ASC" {{#if (eq sortMethod "LEVEL_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.LEVEL_ASC"}}</option>
+            <option value="ALPHA_ASC" {{#if (eq sortMethod "ALPHA_ASC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_ASC"}}</option>
+            <option value="ALPHA_DESC" {{#if (eq sortMethod "ALPHA_DESC")}}selected{{/if}}>{{localize "PF2E_LEVELER.SETTINGS.FEAT_SORT.ALPHA_DESC"}}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="picker__filter-group picker__filter-group--utility">
+        <div class="picker__utility-row picker__utility-row--inline-label">
+          <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.LEVEL_RANGE"}}</div>
+          <select data-action="filterMinLevel" class="picker__select picker__select--compact" {{#if minLevelLocked}}disabled{{/if}}>
+            <option value="">-</option>
+            {{#each levelOptions}}
+            <option value="{{this.value}}" {{#if (eq ../minLevel this.value)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
+          <span class="picker__range-divider" aria-hidden="true">-</span>
+          <select data-action="filterMaxLevel" class="picker__select picker__select--compact" {{#if maxLevelLocked}}disabled{{/if}}>
+            <option value="">-</option>
+            {{#each levelOptions}}
+            <option value="{{this.value}}" {{#if (eq ../maxLevel this.value)}}selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </select>
         </div>
       </div>
 
@@ -154,22 +156,38 @@
       </div>
 
       {{#if publicationOptions.length}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
-        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
-        <div class="picker__source-list">
-          {{#each publicationOptions}}
-          <button
-            type="button"
-            class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
-            data-action="togglePublication"
-            data-publication="{{this.key}}"
-            data-publication-name="{{this.label}}"
-            data-tooltip="{{this.key}}">
-            <span class="picker__source-chip-label">{{this.label}}</span>
-          </button>
-          {{/each}}
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="publications">
+        <button type="button"
+                class="picker__section-toggle"
+                data-action="toggleFilterSection"
+                data-section="publications"
+                aria-expanded="{{#if filterSections.publications.collapsed}}false{{else}}true{{/if}}">
+          <span>{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</span>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="publications">
+              {{#if filterSections.publications.activeCount}}({{filterSections.publications.summary}}){{/if}}
+            </span>
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </span>
+        </button>
+        {{#unless filterSections.publications.collapsed}}
+        <div class="picker__section-body">
+          <input type="text" class="picker__search picker__search--compact" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
+          <div class="picker__source-list picker__source-list--stacked">
+            {{#each publicationOptions}}
+            <button
+              type="button"
+              class="picker__source-chip picker__source-chip--publication {{#if this.selected}}selected{{/if}}"
+              data-action="togglePublication"
+              data-publication="{{this.key}}"
+              data-publication-name="{{this.label}}"
+              data-tooltip="{{this.key}}">
+              <span class="picker__source-chip-label">{{this.label}}</span>
+            </button>
+            {{/each}}
+          </div>
         </div>
+        {{/unless}}
       </div>
       {{/if}}
     </aside>
