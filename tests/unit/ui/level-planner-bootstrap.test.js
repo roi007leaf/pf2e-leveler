@@ -1099,6 +1099,70 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.showAncestryFeat).toBe(false);
   });
 
+  it('surfaces direct choice sets on the ancestry feat granted by Ancestral Paragon', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      slug: 'ancestral-paragon',
+      name: 'Ancestral Paragon',
+      level: 3,
+    }];
+    planner.plan.levels[3].ancestryFeats = [{
+      uuid: 'Compendium.test.Item.clever-adaptation',
+      slug: 'clever-adaptation',
+      name: 'Clever Adaptation',
+      level: 1,
+      choices: { skill: 'stealth' },
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.test.Item.clever-adaptation') {
+        return {
+          uuid,
+          slug: 'clever-adaptation',
+          name: 'Clever Adaptation',
+          system: {
+            description: { value: '' },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'skill',
+              prompt: 'Select a skill.',
+              choices: [{ value: 'stealth', label: 'Stealth' }],
+              leveler: { grantsSkillTraining: true },
+            }],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.showGeneralFeatGrantedAncestryFeat).toBe(true);
+      expect(context.showAncestryFeat).toBe(false);
+      expect(context.generalFeatGrantedAncestryFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          grantsSkillTraining: true,
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'stealth', selected: true }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('shows an ancestry selector under Adopted Ancestry general feats', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'alchemist';

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.2
+
+### Level Planner
+
+- **Ancestral Paragon granted ancestry feats now keep their planned subchoices visible** - Granted ancestry-feat slots under `Ancestral Paragon` now surface their own choice sets in the planner UI, so picks that should appear nested under the granted feat no longer vanish from the select menu or fall back to odd bonus-feat placement behavior
+- **Arcane Evolution skill-training choices now apply during level-up** - Planned feat-driven skill training is now applied alongside normal skill increases, so choices like `Stealth` from `Arcane Evolution` correctly make the actor trained when the plan is applied
+- **Draconic Advanced Bloodline now applies Dragon Breath** - Sorcerer advanced bloodline focus-spell application now overrides bad draconic focus UUID data by resolving `Dragon Breath` directly, so draconic and wyrmblessed sorcerers get the correct advanced focus spell at apply time
+
 ## 3.2.1
 
 ### Suggested Character Options

@@ -14,6 +14,14 @@ const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'ad
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
 const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
+const SUBCLASS_FOCUS_SPELL_NAME_OVERRIDES = {
+  'bloodline-draconic': {
+    advanced: 'Dragon Breath',
+  },
+  'bloodline-wyrmblessed': {
+    advanced: 'Dragon Breath',
+  },
+};
 
 export async function applySpells(actor, plan, level) {
   const addedSpells = [];
@@ -513,9 +521,14 @@ async function addSubclassFocusSpells(actor, classDef, plan, level) {
 
   const subclassData = SUBCLASS_SPELLS[subclassItem.slug];
   const focusSpellUuid = subclassData?.focusSpells?.[focusTier];
-  if (!focusSpellUuid) return [];
+  const focusSpellNameOverride = SUBCLASS_FOCUS_SPELL_NAME_OVERRIDES[subclassItem.slug]?.[focusTier] ?? null;
+  if (!focusSpellUuid && !focusSpellNameOverride) return [];
 
-  const spell = await resolveSpell(focusSpellUuid);
+  let spell = focusSpellUuid ? await resolveSpell(focusSpellUuid) : null;
+  if (focusSpellNameOverride && spell?.name !== focusSpellNameOverride) {
+    const overrideSpell = await resolveSpellByName(focusSpellNameOverride);
+    if (overrideSpell) spell = overrideSpell;
+  }
   if (!spell) return [];
 
   const existing = actor.items?.find((i) =>
@@ -632,4 +645,21 @@ async function resolveSpell(uuid) {
     warn(`Failed to resolve spell: ${uuid}`);
     return null;
   }
+}
+
+async function resolveSpellByName(name) {
+  const pack = game?.packs?.get?.('pf2e.spells-srd')
+    ?? [...(game?.packs ?? [])].find((entry) => entry?.collection === 'pf2e.spells-srd');
+  if (!pack) return null;
+
+  const index = typeof pack.getIndex === 'function'
+    ? await pack.getIndex({ fields: ['name'] })
+    : (pack.index ?? []);
+  const match = [...index].find((entry) => String(entry?.name ?? '').trim().toLowerCase() === String(name).trim().toLowerCase());
+  if (!match) return null;
+
+  const uuid = typeof match.uuid === 'string' && match.uuid.length > 0
+    ? match.uuid
+    : (typeof match._id === 'string' && match._id.length > 0 ? `Compendium.pf2e.spells-srd.Item.${match._id}` : null);
+  return uuid ? resolveSpell(uuid) : null;
 }

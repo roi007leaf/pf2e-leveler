@@ -67,4 +67,33 @@ describe('applySkillIncreases', () => {
       { skill: 'acrobatics', toRank: 3 },
     ]);
   });
+
+  test('applies skill training granted by planned feat choice rules', async () => {
+    mockActor.system = {
+      skills: {
+        stealth: { rank: 0 },
+      },
+    };
+
+    const plan = {
+      levels: {
+        4: {
+          classFeats: [{
+            slug: 'arcane-evolution',
+            skillRules: [],
+            dynamicSkillRules: [{ skill: 'stealth', value: 1, source: 'choice:levelerskillchoice1' }],
+          }],
+        },
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 4);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.skills.stealth.rank': 1,
+    });
+    expect(result).toEqual([
+      { skill: 'stealth', toRank: 1, featChoice: true },
+    ]);
+  });
 });

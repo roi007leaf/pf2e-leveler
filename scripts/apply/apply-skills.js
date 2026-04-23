@@ -4,10 +4,11 @@ export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
   const skillIncreases = [...(levelData?.skillIncreases ?? []), ...(levelData?.customSkillIncreases ?? [])];
   const intBonusSkills = levelData?.intBonusSkills ?? [];
+  const featSkillRules = getLevelFeatSkillRules(levelData);
   const featLoreRules = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']
     .flatMap((key) => levelData?.[key] ?? [])
     .flatMap((feat) => feat?.dynamicLoreRules ?? []);
-  if (skillIncreases.length === 0 && intBonusSkills.length === 0 && featLoreRules.length === 0) return [];
+  if (skillIncreases.length === 0 && intBonusSkills.length === 0 && featSkillRules.length === 0 && featLoreRules.length === 0) return [];
 
   const updates = {};
   const applied = [];
@@ -36,6 +37,27 @@ export async function applySkillIncreases(actor, plan, level) {
       updates[`system.skills.${skill}.rank`] = 1;
     }
     applied.push({ skill, toRank: 1, intBonus: true });
+  }
+
+  for (const rule of featSkillRules) {
+    const skill = String(rule?.skill ?? '').trim().toLowerCase();
+    if (!skill) continue;
+
+    const currentRank = getPendingSkillRank(actor, updates, skill);
+    const rawTargetRank = currentRank >= 1 && rule?.valueIfAlreadyTrained != null
+      ? rule.valueIfAlreadyTrained
+      : rule?.value;
+    const toRank = Number(rawTargetRank ?? 1);
+    if (!Number.isFinite(toRank) || toRank <= currentRank) continue;
+
+    if (skill.endsWith('-lore') || !SKILLS.includes(skill)) {
+      loreItemsToCreate.push({ skill, toRank });
+      applied.push({ skill, toRank, featChoice: true });
+      continue;
+    }
+
+    updates[`system.skills.${skill}.rank`] = toRank;
+    applied.push({ skill, toRank, featChoice: true });
   }
 
   for (const rule of featLoreRules) {
@@ -82,6 +104,21 @@ export async function applySkillIncreases(actor, plan, level) {
   }
 
   return applied;
+}
+
+function getLevelFeatSkillRules(levelData) {
+  return ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']
+    .flatMap((key) => levelData?.[key] ?? [])
+    .flatMap((feat) => [
+      ...(Array.isArray(feat?.skillRules) ? feat.skillRules : []),
+      ...(Array.isArray(feat?.dynamicSkillRules) ? feat.dynamicSkillRules : []),
+    ]);
+}
+
+function getPendingSkillRank(actor, updates, skill) {
+  const pendingRank = updates[`system.skills.${skill}.rank`];
+  if (Number.isFinite(pendingRank)) return pendingRank;
+  return Number(actor.system?.skills?.[skill]?.rank ?? 0);
 }
 
 function slugify(value) {
