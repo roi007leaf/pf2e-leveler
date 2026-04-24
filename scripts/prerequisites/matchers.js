@@ -232,6 +232,13 @@ export function matchSpellcastingState(parsed, buildState) {
     };
   }
 
+  if (parsed.spellSlug) {
+    return {
+      met: !!buildState.spellcasting?.spellNames?.has(parsed.spellSlug),
+      text: parsed.text,
+    };
+  }
+
   if (parsed.spellTrait) {
     return {
       met: !!buildState.spellcasting?.spellTraits?.has(parsed.spellTrait),

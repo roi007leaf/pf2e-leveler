@@ -62,6 +62,10 @@ const FOCUS_SPELLS_PATTERN = /^ability to cast focus spells$/i;
 const SPECIFIC_SPELL_WITH_SLOT_PATTERN = /^able to cast\s+(.+?)\s+with a spell slot$/i;
 const SPELL_SLOTS_PATTERN = /^(?:ability|able) to cast spells (?:from|using) spell slots$/i;
 const SPELL_TRAIT_PATTERN = /^able to cast at least one\s+(.+?)\s+spell$/i;
+const SPECIFIC_CANTRIP_PATTERN =
+  /^(?:you\s+(?:can|must\s+be\s+able\s+to)\s+cast|able\s+to\s+cast|ability\s+to\s+cast|have)\s+(?:the\s+)?(.+?)\s+cantrip$/i;
+const SPECIFIC_SPELL_PATTERN =
+  /^(?:you\s+(?:can|must\s+be\s+able\s+to)\s+cast|able\s+to\s+cast|ability\s+to\s+cast)\s+the\s+(.+?)\s+spell$/i;
 const SPELLCASTING_TRADITION_PATTERN =
   /^ability to cast\s+(arcane|divine|occult|primal)\s+spells?$/i;
 const SUBCLASS_TRADITION_PATTERN =
@@ -481,6 +485,24 @@ function tryParseSpellcastingRequirement(text, fullText = text) {
       type: 'spellcastingState',
       spellSlots: true,
       spellSlug: slugify(specificSpellWithSlotMatch[1]),
+      text: fullText,
+    };
+  }
+
+  const cantripMatch = text.match(SPECIFIC_CANTRIP_PATTERN);
+  if (cantripMatch) {
+    return {
+      type: 'spellcastingState',
+      spellSlug: slugify(cantripMatch[1]),
+      text: fullText,
+    };
+  }
+
+  const specificSpellMatch = text.match(SPECIFIC_SPELL_PATTERN);
+  if (specificSpellMatch) {
+    return {
+      type: 'spellcastingState',
+      spellSlug: slugify(specificSpellMatch[1]),
       text: fullText,
     };
   }

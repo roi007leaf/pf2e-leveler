@@ -466,6 +466,22 @@ describe('matchSpellcastingState', () => {
     expect(result.met).toBe(true);
   });
 
+  test('meets specific-cantrip prerequisite when actor knows the cantrip', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', spellSlug: 'shield', text: 'you can cast the shield cantrip' },
+      { spellcasting: { spellNames: new Set(['shield']) } },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('fails specific-cantrip prerequisite when actor does not know the cantrip', () => {
+    const result = matchSpellcastingState(
+      { type: 'spellcastingState', spellSlug: 'shield', text: 'you can cast the shield cantrip' },
+      { spellcasting: { spellNames: new Set(['light']) } },
+    );
+    expect(result.met).toBe(false);
+  });
+
   test('meets spell-trait prerequisite when actor can cast a matching spell trait', () => {
     const result = matchSpellcastingState(
       { type: 'spellcastingState', spellTrait: 'necromancy', text: 'able to cast at least one necromancy spell' },
