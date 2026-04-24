@@ -1,4 +1,4 @@
-import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
+import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelFeatGrantSelection, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 import { debug } from '../../utils/logger.js';
 import { SKILLS } from '../../constants.js';
@@ -208,6 +208,25 @@ export function activateLevelPlannerListeners(planner, html) {
       const entryType = btn.dataset.entryType ?? 'primary';
       const rank = btn.dataset.rank != null ? Number(btn.dataset.rank) : null;
       removeLevelSpell(planner.plan, planner.selectedLevel, uuid, { entryType, rank });
+      planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="openFeatGrantPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const requirementId = btn.dataset.requirementId;
+      if (!requirementId || typeof planner._openFeatGrantPicker !== 'function') return;
+      planner._openFeatGrantPicker(requirementId);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeFeatGrantSelection"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const requirementId = btn.dataset.requirementId;
+      const uuid = btn.dataset.uuid;
+      if (!requirementId || !uuid) return;
+      removeLevelFeatGrantSelection(planner.plan, planner.selectedLevel, requirementId, uuid);
       planner._savePlanAndRender();
     });
   });

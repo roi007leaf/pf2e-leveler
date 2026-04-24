@@ -487,6 +487,43 @@
     {{else if (eq stepId "featChoices")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.FEAT_CHOICES"}}</h2>
 
+      {{#if featGrantRequirements.length}}
+      <div class="section-header wizard-choice-source" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-wand-magic-sparkles"></i>
+        Granted Choices
+      </div>
+      {{#each featGrantRequirements}}
+      <div class="wizard-choice-block">
+        <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+          <i class="section-header__icon fa-solid fa-list-check"></i>
+          {{this.sourceFeatName}}: {{titleCase this.kind}}
+        </div>
+        {{#if this.selections.length}}
+        <div class="wizard-spell-chips">
+          {{#each this.selections}}
+          <span class="wizard-spell-chip">
+            {{#if this.img}}<img src="{{this.img}}" alt="" class="wizard-spell-chip__img">{{/if}}
+            <span class="wizard-spell-chip__name" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.name}}</span>
+            <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeFeatGrantSelection" data-requirement-id="{{../id}}" data-uuid="{{this.uuid}}"></i>
+          </span>
+          {{/each}}
+        </div>
+        {{/if}}
+        {{#unless this.complete}}
+        <button type="button"
+          class="wizard-item__select"
+          data-action="openFeatGrantPicker"
+          data-requirement-id="{{this.id}}">
+          {{#if (eq this.confidence "manual-required")}}Configure{{else}}Choose{{/if}}
+        </button>
+        {{/unless}}
+        {{#if this.missingCount}}
+        <p class="wizard-hint">{{this.missingCount}} remaining.</p>
+        {{/if}}
+      </div>
+      {{/each}}
+      {{/if}}
+
       {{#each featChoiceSections}}
         <div class="section-header wizard-choice-source" style="margin-top: var(--leveler-spacing-md);">
           <i class="section-header__icon fa-solid fa-list-check"></i>

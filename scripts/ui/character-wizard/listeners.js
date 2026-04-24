@@ -380,6 +380,18 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
+  el.querySelectorAll('[data-action="openFeatGrantPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizard._openFeatGrantPicker(btn.dataset.requirementId);
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeFeatGrantSelection"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await wizard._removeFeatGrantSelection(btn.dataset.requirementId, btn.dataset.uuid);
+    });
+  });
+
   el.querySelector('[data-action="browseEquipment"]')?.addEventListener('click', () => {
     wizard._openItemPicker();
   });

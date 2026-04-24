@@ -680,6 +680,30 @@
                 {{/each}}
               </div>
               {{/if}}
+              {{#if this.feat.grantRequirements.length}}
+              <div class='feat-slot__note'>
+                <i class='fa-solid fa-gift'></i>
+                Granted choices
+              </div>
+              {{#each this.feat.grantRequirements}}
+              <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm);">
+                <span>{{this.kind}} {{this.selectedCount}}/{{this.requiredCount}}</span>
+                <button type="button" class="spell-add-btn" data-action="openFeatGrantPicker" data-requirement-id="{{this.id}}" style="margin-left: 8px; padding: 2px 8px;">
+                  {{#if (eq this.confidence "manual-required")}}Configure{{else}}Choose{{/if}}
+                </button>
+                {{#if this.selections.length}}
+                <span style="display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px;">
+                  {{#each this.selections}}
+                  <span class="wizard-spell-chip">
+                    {{this.name}}
+                    <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeFeatGrantSelection" data-requirement-id="{{../id}}" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                  </span>
+                  {{/each}}
+                </span>
+                {{/if}}
+              </div>
+              {{/each}}
+              {{/if}}
               {{#each this.choiceSets}}
               <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
                 <i class="fa-solid fa-circle-info"></i>

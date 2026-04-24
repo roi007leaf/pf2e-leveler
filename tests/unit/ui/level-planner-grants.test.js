@@ -1,4 +1,13 @@
-import { buildFeatGrantPreview } from '../../../scripts/ui/level-planner/level-context.js';
+import { buildFeatGrantPreview, buildLevelContext } from '../../../scripts/ui/level-planner/level-context.js';
+import { LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
+import { WIZARD } from '../../../scripts/classes/wizard.js';
+
+beforeAll(() => {
+  if (!ClassRegistry.get('alchemist')) ClassRegistry.register(ALCHEMIST);
+  if (!ClassRegistry.get('wizard')) ClassRegistry.register(WIZARD);
+});
 
 describe('level planner grant previews', () => {
   test('collects nested granted items and unresolved granted-item choices', async () => {
@@ -307,5 +316,232 @@ describe('level planner grant previews', () => {
       ],
       grantChoiceSets: [],
     });
+  });
+
+  test('attaches detected grant requirements and completion to enriched planner feats', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-formulas') {
+        return {
+          uuid,
+          name: 'Formula Feat',
+          system: {
+            description: {
+              value: '<p>You gain formulas for two common alchemical items of 1st level or lower.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    const planner = {
+      actor,
+      selectedLevel: 2,
+      plan: {
+        classSlug: 'alchemist',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-formulas', name: 'Formula Feat', slug: 'formula-feat' }],
+            skillFeats: [{ uuid: 'skill-feat', name: 'Skill Feat', slug: 'skill-feat' }],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {},
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, ALCHEMIST, {});
+
+    expect(context.classFeat.grantRequirements).toEqual([
+      expect.objectContaining({
+        kind: 'formula',
+        count: 2,
+        selectedCount: 0,
+        missingCount: 2,
+        complete: false,
+      }),
+    ]);
+    expect(context.classFeat.grantChoiceSets ?? []).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ syntheticType: 'formula-choice' }),
+    ]));
+  });
+
+  test('opens grant picker after resolving requirements from source feat text', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-formulas') {
+        return {
+          uuid,
+          name: 'Formula Feat',
+          system: {
+            description: {
+              value: '<p>You gain formulas for two common alchemical items of 1st level or lower.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        2: {
+          classFeats: [{ uuid: 'feat-formulas', name: 'Formula Feat', slug: 'formula-feat' }],
+          featGrants: [],
+        },
+      },
+    };
+    planner.selectedLevel = 2;
+    planner._openFeatGrantItemPicker = jest.fn(async () => {});
+
+    await planner._openFeatGrantPicker('feat-formulas:formula');
+
+    expect(planner._openFeatGrantItemPicker).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'feat-formulas:formula',
+      kind: 'formula',
+      count: 2,
+    }));
+  });
+
+  test('keeps detected formula filters when stored grant was manually configured', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-formulas') {
+        return {
+          uuid,
+          name: 'Formula Feat',
+          system: {
+            description: {
+              value: '<p>You gain formulas for two common alchemical items of 1st level or lower.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        2: {
+          classFeats: [{ uuid: 'feat-formulas', name: 'Formula Feat', slug: 'formula-feat' }],
+          featGrants: [{
+            requirementId: 'feat-formulas:formula',
+            sourceFeatUuid: 'feat-formulas',
+            sourceFeatName: 'Formula Feat',
+            kind: 'formula',
+            manual: { count: 2, filters: {} },
+            selections: [],
+          }],
+        },
+      },
+    };
+    planner.selectedLevel = 2;
+
+    const requirement = await planner._getFeatGrantRequirement('feat-formulas:formula');
+
+    expect(requirement).toEqual(expect.objectContaining({
+      confidence: 'manual',
+      filters: expect.objectContaining({
+        maxLevel: 1,
+        rarity: ['common'],
+        traits: ['alchemical'],
+      }),
+    }));
+  });
+
+  test('wizard dedication exposes school choice and cantrip spell grant filters', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-wizard-dedication') {
+        return {
+          uuid,
+          name: 'Wizard Dedication',
+          slug: 'wizard-dedication',
+          system: {
+            description: {
+              value: '<p>You gain a spellbook with four common arcane cantrips of your choice. Select a school.</p>',
+            },
+            rules: [],
+            traits: { value: ['archetype', 'dedication', 'multiclass', 'wizard'] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    const planner = {
+      actor,
+      selectedLevel: 2,
+      plan: {
+        classSlug: 'wizard',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-wizard-dedication', name: 'Wizard Dedication', slug: 'wizard-dedication' }],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-classFeatures': [
+          {
+            uuid: 'school-battle',
+            name: 'School of Battle Magic',
+            img: 'school.webp',
+            otherTags: ['wizard-arcane-school'],
+            rarity: 'common',
+          },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, WIZARD, {});
+
+    expect(context.classFeatChoiceSets).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        syntheticType: 'dedication-subclass-choice',
+        prompt: 'Select a School.',
+        options: [expect.objectContaining({ value: 'school-battle', label: 'School of Battle Magic' })],
+      }),
+    ]));
+    expect(context.classFeat.grantRequirements).toEqual([
+      expect.objectContaining({
+        kind: 'spell',
+        count: 4,
+        filters: expect.objectContaining({ rank: 0, tradition: 'arcane' }),
+      }),
+    ]);
   });
 });

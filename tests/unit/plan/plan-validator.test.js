@@ -43,6 +43,76 @@ describe('validateLevel', () => {
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
   });
 
+  test('incomplete inferred feat grants make the level incomplete', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', {
+      uuid: 'x',
+      name: 'Formula Feat',
+      slug: 'formula-feat',
+      grantRequirements: [
+        { id: 'req-formula', kind: 'formula', count: 2, confidence: 'inferred' },
+      ],
+    });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+    plan.levels[2].featGrants = [
+      { requirementId: 'req-formula', kind: 'formula', selections: [{ uuid: 'item-a', name: 'Item A' }] },
+    ];
+
+    const result = validateLevel(plan, ALCHEMIST, 2);
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'error', message: expect.stringContaining('Formula Feat') }),
+    ]));
+  });
+
+  test('manual-required feat grants produce warning until configured', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', {
+      uuid: 'x',
+      name: 'Ambiguous Feat',
+      slug: 'ambiguous-feat',
+      grantRequirements: [
+        { id: 'req-manual', kind: 'formula', count: null, confidence: 'manual-required' },
+      ],
+    });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+
+    const result = validateLevel(plan, ALCHEMIST, 2);
+
+    expect(result.status).toBe(PLAN_STATUS.WARNING);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringContaining('Ambiguous Feat') }),
+    ]));
+  });
+
+  test('complete feat grants pass validation', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 2, 'classFeats', {
+      uuid: 'x',
+      name: 'Formula Feat',
+      slug: 'formula-feat',
+      grantRequirements: [
+        { id: 'req-formula', kind: 'formula', count: 2, confidence: 'inferred' },
+      ],
+    });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+    plan.levels[2].featGrants = [
+      {
+        requirementId: 'req-formula',
+        kind: 'formula',
+        selections: [
+          { uuid: 'item-a', name: 'Item A' },
+          { uuid: 'item-b', name: 'Item B' },
+        ],
+      },
+    ];
+
+    const result = validateLevel(plan, ALCHEMIST, 2);
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
   test('missing class feat at level 2 is incomplete', () => {
     const plan = createPlan('alchemist');
     setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });

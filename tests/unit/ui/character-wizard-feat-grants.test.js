@@ -1,0 +1,124 @@
+import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+
+jest.mock('../../../scripts/creation/creation-store.js', () => ({
+  getCreationData: jest.fn(() => null),
+  saveCreationData: jest.fn(),
+  clearCreationData: jest.fn(),
+}));
+
+jest.mock('../../../scripts/creation/apply-creation.js', () => ({
+  applyCreation: jest.fn(),
+}));
+
+jest.mock('../../../scripts/utils/i18n.js', () => ({
+  localize: jest.fn((key) => key),
+}));
+
+describe('CharacterWizard feat grant choices', () => {
+  beforeEach(() => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-formulas' || uuid === 'option-formulas') {
+        return {
+          uuid,
+          name: uuid === 'feat-formulas' ? 'Alchemical Crafting' : 'Bomber Field',
+          system: {
+            description: {
+              value: '<p>You gain formulas for two common alchemical items.</p>',
+            },
+          },
+        };
+      }
+      return null;
+    });
+  });
+
+  it('adds generic formula grant requirements from selected creation feats', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.classFeat = {
+      uuid: 'feat-formulas',
+      name: 'Alchemical Crafting',
+      choiceSets: [],
+      choices: {},
+    };
+
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featGrantRequirements).toEqual([
+      expect.objectContaining({
+        id: 'feat-formulas:formula',
+        kind: 'formula',
+        count: 2,
+        complete: false,
+      }),
+    ]);
+    expect(wizard._isStepComplete('featChoices')).toBe(false);
+
+    wizard.data.featGrants = [{
+      requirementId: 'feat-formulas:formula',
+      sourceFeatUuid: 'feat-formulas',
+      sourceFeatName: 'Alchemical Crafting',
+      kind: 'formula',
+      selections: [
+        { uuid: 'formula-1', name: 'Formula One' },
+        { uuid: 'formula-2', name: 'Formula Two' },
+      ],
+    }];
+
+    expect(wizard._isStepComplete('featChoices')).toBe(true);
+  });
+
+  it('adds generic grant requirements from selected subclass option items', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.subclass = {
+      uuid: 'subclass-field',
+      name: 'Field',
+      choiceSets: [{
+        flag: 'field',
+        prompt: 'Research Field',
+        options: [{ value: 'option-formulas', uuid: 'option-formulas', label: 'Bomber Field' }],
+      }],
+      choices: { field: 'option-formulas' },
+    };
+
+    const requirements = await wizard._buildFeatGrantRequirements();
+
+    expect(requirements).toEqual([
+      expect.objectContaining({
+        id: 'option-formulas:formula',
+        sourceFeatUuid: 'option-formulas',
+        kind: 'formula',
+        count: 2,
+      }),
+    ]);
+  });
+
+  it('keeps detected formula filters when stored grant was manually configured', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.classFeat = {
+      uuid: 'feat-formulas',
+      name: 'Alchemical Crafting',
+      choiceSets: [],
+      choices: {},
+    };
+    wizard.data.featGrants = [{
+      requirementId: 'feat-formulas:formula',
+      sourceFeatUuid: 'feat-formulas',
+      sourceFeatName: 'Alchemical Crafting',
+      kind: 'formula',
+      manual: { count: 2, filters: {} },
+      selections: [],
+    }];
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+
+    const requirement = await wizard._getFeatGrantRequirement('feat-formulas:formula');
+
+    expect(requirement).toEqual(expect.objectContaining({
+      confidence: 'manual',
+      filters: expect.objectContaining({
+        rarity: ['common'],
+        traits: ['alchemical'],
+      }),
+    }));
+  });
+});

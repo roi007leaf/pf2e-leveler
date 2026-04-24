@@ -365,5 +365,42 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
   if (!Array.isArray(levelData.customSpellEntries)) levelData.customSpellEntries = [];
   if (!Array.isArray(levelData.customEquipment)) levelData.customEquipment = [];
+  if (!Array.isArray(levelData.featGrants)) levelData.featGrants = [];
   return levelData;
+}
+
+export function upsertLevelFeatGrant(plan, level, grantEntry) {
+  const levelData = ensureLevelData(plan, level);
+  const requirementId = String(grantEntry?.requirementId ?? '').trim();
+  if (!requirementId) return plan;
+
+  const normalized = {
+    ...grantEntry,
+    requirementId,
+    selections: Array.isArray(grantEntry?.selections) ? [...grantEntry.selections] : [],
+  };
+  const index = levelData.featGrants.findIndex((entry) => entry?.requirementId === requirementId);
+  if (index >= 0) levelData.featGrants[index] = normalized;
+  else levelData.featGrants.push(normalized);
+  return plan;
+}
+
+export function removeLevelFeatGrantSelection(plan, level, requirementId, uuid) {
+  const levelData = getLevelData(plan, level);
+  if (!levelData) return plan;
+
+  const targetId = String(requirementId ?? '').trim();
+  const targetUuid = String(uuid ?? '').trim();
+  if (!targetId || !targetUuid) return plan;
+
+  levelData.featGrants = levelData.featGrants
+    .map((entry) => {
+      if (entry?.requirementId !== targetId) return entry;
+      return {
+        ...entry,
+        selections: (entry.selections ?? []).filter((selection) => selection?.uuid !== targetUuid),
+      };
+    })
+    .filter((entry) => (entry?.selections ?? []).length > 0 || entry?.manual);
+  return plan;
 }

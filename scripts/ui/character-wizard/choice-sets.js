@@ -681,6 +681,10 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
     );
   }
 
+  syntheticRules.push(
+    ...buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules),
+  );
+
   if (!hasSkillFallbackText(sourceItem?.system?.description?.value ?? '')) return syntheticRules;
 
   const grantedSkills = await extractGrantedTrainedSkills(wizard, rules, currentChoices, sourceItem);
@@ -712,6 +716,74 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
         sourceName: sourceItem?.name ?? null,
       },
     }))];
+}
+
+function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
+  if (hasAuthoredSpellChoiceSet(rules)) return [];
+
+  const text = normalizeDescriptionText(sourceItem?.system?.description?.value ?? '');
+  if (!/\b(?:choose|select|pick)\b/.test(text)) return [];
+  if (!/\bspell(?:book|s)?\b|\brepertoire\b/.test(text)) return [];
+
+  const spellUuids = extractUniqueUuidLinks(sourceItem?.system?.description?.value ?? '', 'spells-srd');
+  if (spellUuids.length < 2) return [];
+
+  const count = inferChoiceCount(text, { defaultCount: /\bone of (?:the )?following\b/.test(text) ? 1 : null });
+  if (!count || count > spellUuids.length) return [];
+
+  return Array.from({ length: count }, (_entry, index) => ({
+    key: 'ChoiceSet',
+    flag: `levelerSpellChoice${index + 1}`,
+    prompt: 'Select a spell.',
+    choices: spellUuids.map((uuid) => ({ value: uuid, uuid, type: 'spell' })),
+    leveler: {
+      syntheticType: 'spell-choice',
+      sourceName: sourceItem?.name ?? null,
+    },
+  }));
+}
+
+function hasAuthoredSpellChoiceSet(rules) {
+  return (rules ?? []).some((rule) => {
+    if (rule?.key !== 'ChoiceSet') return false;
+    const itemType = String(rule?.choices?.itemType ?? '').trim().toLowerCase();
+    if (itemType === 'spell') return true;
+    return safeSerializeChoiceFilters(rule?.choices?.filter ?? []).includes('item:type:spell');
+  });
+}
+
+function normalizeDescriptionText(html) {
+  return String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function extractUniqueUuidLinks(html, packSlug) {
+  const escapedPack = packSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const uuids = new Set();
+  const uuidPattern = new RegExp(`@UUID\\[(Compendium\\.pf2e\\.${escapedPack}\\.Item\\.[^\\]]+)\\]|data-uuid="(Compendium\\.pf2e\\.${escapedPack}\\.Item\\.[^"]+)"`, 'gi');
+  let match;
+  while ((match = uuidPattern.exec(String(html ?? ''))) !== null) {
+    uuids.add(match[1] ?? match[2]);
+  }
+  return [...uuids];
+}
+
+function inferChoiceCount(text, { defaultCount = null } = {}) {
+  const words = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+  };
+  const match = String(text ?? '').match(/\b(one|two|three|four|five|six|[1-6])\b/);
+  if (!match) return defaultCount;
+  const raw = match[1];
+  return words[raw] ?? Number(raw);
 }
 
 function getDirectSkillChoiceCount(html) {
@@ -1876,7 +1948,7 @@ function getChoiceSetPackKeys(itemType, filters) {
   if (normalizedType === 'feat') addCategoryKeys(keys, 'feats');
   if (normalizedType === 'spell') addCategoryKeys(keys, 'spells');
   if (normalizedType === 'action') addCategoryKeys(keys, 'actions');
-  if (normalizedType === 'weapon' || normalizedType === 'armor' || normalizedType === 'equipment') addCategoryKeys(keys, 'equipment');
+  if (PHYSICAL_CHOICE_ITEM_TYPES.has(normalizedType)) addCategoryKeys(keys, 'equipment');
   if (normalizedType === 'ancestry') addCategoryKeys(keys, 'ancestries');
   if (normalizedType === 'heritage') addCategoryKeys(keys, 'heritages');
   if (normalizedType === 'deity') addCategoryKeys(keys, 'deities');
@@ -1886,7 +1958,7 @@ function getChoiceSetPackKeys(itemType, filters) {
   if (flattenedFilters.includes('item:type:deity') || flattenedFilters.includes('item:category:deity')) addCategoryKeys(keys, 'deities');
   if (flattenedFilters.includes('item:type:spell')) addCategoryKeys(keys, 'spells');
   if (flattenedFilters.includes('item:type:action')) addCategoryKeys(keys, 'actions');
-  if (flattenedFilters.includes('item:type:weapon') || flattenedFilters.includes('item:type:armor')) addCategoryKeys(keys, 'equipment');
+  if (PHYSICAL_CHOICE_ITEM_FILTERS.some((filter) => flattenedFilters.includes(filter))) addCategoryKeys(keys, 'equipment');
   if (flattenedFilters.includes('item:type:ancestry') || flattenedFilters.includes('item:ancestry:')) addCategoryKeys(keys, 'ancestries');
   if (flattenedFilters.includes('item:type:heritage') || flattenedFilters.includes('item:ancestry:')) addCategoryKeys(keys, 'heritages');
   if (flattenedFilters.includes('item:tag:') || flattenedFilters.includes('item:trait:')) {
@@ -1901,6 +1973,20 @@ function getChoiceSetPackKeys(itemType, filters) {
 
   return [...keys];
 }
+
+const PHYSICAL_CHOICE_ITEM_TYPES = new Set([
+  'weapon',
+  'armor',
+  'equipment',
+  'consumable',
+  'ammo',
+  'treasure',
+  'backpack',
+  'shield',
+  'kit',
+]);
+
+const PHYSICAL_CHOICE_ITEM_FILTERS = [...PHYSICAL_CHOICE_ITEM_TYPES].map((type) => `item:type:${type}`);
 
 function safeSerializeChoiceFilters(filters) {
   return String(JSON.stringify(filters ?? []) ?? '');

@@ -16,6 +16,8 @@ import {
   getAllPlannedBoosts,
   addLevelSpell,
   removeLevelSpell,
+  upsertLevelFeatGrant,
+  removeLevelFeatGrantSelection,
 } from '../../../scripts/plan/plan-model.js';
 
 beforeAll(() => {
@@ -81,6 +83,11 @@ describe('getLevelData', () => {
     const plan = createPlan('alchemist');
     expect(getLevelData(plan, 21)).toBeNull();
   });
+
+  test('initializes feat grant storage for existing level data', () => {
+    const plan = createPlan('alchemist');
+    expect(getLevelData(plan, 2).featGrants).toEqual([]);
+  });
 });
 
 describe('setLevelFeat', () => {
@@ -131,6 +138,46 @@ describe('removeLevelSpell', () => {
     removeLevelSpell(plan, 2, 'spell-rank-2', { entryType: 'primary', rank: 2 });
 
     expect(plan.levels[2].spells).toEqual([]);
+  });
+});
+
+describe('feat grant selections', () => {
+  test('upserts grant selections by requirement id', () => {
+    const plan = createPlan('alchemist');
+
+    upsertLevelFeatGrant(plan, 2, {
+      requirementId: 'req-a',
+      sourceFeatUuid: 'feat-a',
+      kind: 'formula',
+      selections: [{ uuid: 'item-a', name: 'Item A' }],
+    });
+    upsertLevelFeatGrant(plan, 2, {
+      requirementId: 'req-a',
+      sourceFeatUuid: 'feat-a',
+      kind: 'formula',
+      selections: [{ uuid: 'item-b', name: 'Item B' }],
+    });
+
+    expect(plan.levels[2].featGrants).toEqual([
+      expect.objectContaining({
+        requirementId: 'req-a',
+        selections: [{ uuid: 'item-b', name: 'Item B' }],
+      }),
+    ]);
+  });
+
+  test('removes one selected grant item and clears empty grant entries', () => {
+    const plan = createPlan('alchemist');
+    upsertLevelFeatGrant(plan, 2, {
+      requirementId: 'req-a',
+      sourceFeatUuid: 'feat-a',
+      kind: 'formula',
+      selections: [{ uuid: 'item-a', name: 'Item A' }],
+    });
+
+    removeLevelFeatGrantSelection(plan, 2, 'req-a', 'item-a');
+
+    expect(plan.levels[2].featGrants).toEqual([]);
   });
 });
 

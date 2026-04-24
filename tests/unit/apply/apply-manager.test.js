@@ -18,6 +18,14 @@ jest.mock('../../../scripts/apply/apply-spells.js', () => ({
   applySpells: jest.fn(async (_actor, _plan, level) => [{ name: `spell-${level}`, uuid: `Compendium.pf2e.spells-srd.Item.spell-${level}`, rank: 1 }]),
 }));
 
+jest.mock('../../../scripts/apply/apply-feat-grants.js', () => ({
+  applyFeatGrants: jest.fn(async () => ({
+    items: [],
+    formulas: [{ name: 'formula-5', uuid: 'Compendium.pf2e.equipment-srd.Item.formula-5' }],
+    spells: [],
+  })),
+}));
+
 jest.mock('../../../scripts/apply/apply-class-specific.js', () => ({
   applyClassSpecific: jest.fn(async () => {}),
 }));
@@ -26,6 +34,7 @@ import { applyPlan } from '../../../scripts/apply/apply-manager.js';
 import { applyBoosts } from '../../../scripts/apply/apply-boosts.js';
 import { applyFeats } from '../../../scripts/apply/apply-feats.js';
 import { applySpells } from '../../../scripts/apply/apply-spells.js';
+import { applyFeatGrants } from '../../../scripts/apply/apply-feat-grants.js';
 
 describe('applyPlan', () => {
   beforeEach(() => {
@@ -82,6 +91,7 @@ describe('applyPlan', () => {
     expect(applyFeats).toHaveBeenNthCalledWith(4, actor, plan, 8);
 
     expect(applySpells).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applyFeatGrants).toHaveBeenNthCalledWith(1, actor, plan, 5);
 
     expect(ChatMessage.create).toHaveBeenCalledTimes(4);
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -89,6 +99,9 @@ describe('applyPlan', () => {
     }));
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('@UUID[Compendium.pf2e.spells-srd.Item.spell-5]{spell-5} (1)'),
+    }));
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('@UUID[Compendium.pf2e.equipment-srd.Item.formula-5]{formula-5}'),
     }));
   });
 });

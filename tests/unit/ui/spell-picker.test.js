@@ -283,6 +283,37 @@ describe('SpellPicker', () => {
     expect(context.rarityOptions.map((entry) => entry.value)).toEqual(['common']);
   });
 
+  test('common-only locked presets show only common and exclude uncommon spells', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => {
+          const commonCantrip = makeSpell('detect-magic', 'Detect Magic', 0, ['arcane'], ['cantrip']);
+          commonCantrip.system.traits.rarity = 'common';
+          const uncommonCantrip = makeSpell('ancient-dust', 'Ancient Dust', 0, ['arcane'], ['cantrip']);
+          uncommonCantrip.system.traits.rarity = 'uncommon';
+          return [commonCantrip, uncommonCantrip];
+        }),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 0, jest.fn(), {
+      preset: {
+        selectedRarities: ['common'],
+        lockedRarities: ['uncommon', 'rare', 'unique'],
+      },
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.rarityOptions).toEqual([
+      expect.objectContaining({ value: 'common', selected: true, locked: true }),
+    ]);
+    expect(context.spells.map((spell) => spell.uuid)).toEqual(['detect-magic']);
+  });
+
   test('loads spells from configured spell compendium categories', async () => {
     clearSpellPickerCache();
     getCompendiumKeysForCategory.mockReturnValue(['pf2e.spells-srd', 'custom.spells']);

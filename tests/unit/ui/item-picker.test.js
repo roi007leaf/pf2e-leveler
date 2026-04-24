@@ -101,6 +101,119 @@ describe('ItemPicker', () => {
     expect(picker.close).toHaveBeenCalled();
   });
 
+  test('supports preset filters and max multi-select count for grant picking', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      maxSelect: 1,
+      preset: {
+        selectedCategories: ['consumable'],
+        selectedTraits: ['alchemical'],
+        selectedRarities: ['common'],
+        maxLevel: 1,
+      },
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Acid Flask',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-b',
+          name: 'Alchemist Fire',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-c',
+          name: 'Torch',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 0 } },
+        },
+      ],
+    });
+
+    picker._getCategoryOptions();
+    picker._toggleSelectedItem('item-a');
+    picker._toggleSelectedItem('item-b');
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-a', 'item-b']);
+    expect([...picker.selectedItemUuids]).toEqual(['item-a']);
+    expect(picker.maxLevel).toBe('1');
+  });
+
+  test('locks preset rarity filters for grant picking', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      preset: {
+        selectedCategories: ['consumable'],
+        selectedTraits: ['alchemical'],
+        selectedRarities: ['common'],
+        lockedRarities: ['uncommon', 'rare', 'unique'],
+        maxLevel: 1,
+      },
+      items: [
+        {
+          uuid: 'item-common',
+          name: 'Common Formula',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-uncommon',
+          name: 'Uncommon Formula',
+          type: 'consumable',
+          system: { traits: { rarity: 'uncommon', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-rare',
+          name: 'Rare Formula',
+          type: 'consumable',
+          system: { traits: { rarity: 'rare', value: ['alchemical'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.rarityOptions).toEqual([
+      expect.objectContaining({ value: 'common', selected: true, locked: true }),
+    ]);
+    expect(context.items.map((item) => item.uuid)).toEqual(['item-common']);
+    expect([...picker.selectedRarities]).toEqual(['common']);
+  });
+
+  test('caps max level options for grant picking', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      preset: {
+        maxLevel: 5,
+        maxLevelCap: 2,
+      },
+      items: [
+        {
+          uuid: 'item-level-2',
+          name: 'Plan-Level Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 2 } },
+        },
+        {
+          uuid: 'item-level-3',
+          name: 'Too-High Item',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 3 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.maxLevel).toBe('2');
+    expect(context.maxLevelCapped).toBe(true);
+    expect(context.levelOptions.map((entry) => entry.value)).toEqual(['0', '1', '2']);
+    expect(context.items.map((item) => item.uuid)).toEqual(['item-level-2']);
+    expect(picker._normalizeMaxLevel('3')).toBe('2');
+  });
+
   test('hides rarity chips that have no items in the current max-level view', async () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       items: [

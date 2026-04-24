@@ -2,8 +2,9 @@ import { PROFICIENCY_RANK_NAMES, SKILLS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getLevelData } from '../../plan/plan-model.js';
+import { buildFeatGrantRequirements, getFeatGrantCompletion } from '../../plan/feat-grants.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { loadCompendium, loadCompendiumCategory, loadDeities } from '../character-wizard/loaders.js';
+import { loadCompendium, loadCompendiumCategory, loadDeities, loadTaggedClassFeatures } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
 import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
@@ -209,7 +210,33 @@ async function enrichPlannerFeat(planner, feat) {
   const preview = await buildFeatGrantPreview(planner, annotated);
   annotated.grantedItems = preview.grantedItems;
   annotated.grantChoiceSets = preview.grantChoiceSets;
+  annotated.grantRequirements = await buildPlannerFeatGrantRequirements(planner, annotated);
   return annotated;
+}
+
+async function buildPlannerFeatGrantRequirements(planner, feat) {
+  const requirements = await buildFeatGrantRequirements({
+    actor: planner.actor,
+    plan: planner.plan,
+    level: planner.selectedLevel,
+    feats: [feat],
+  });
+  const levelData = getLevelData(planner.plan, planner.selectedLevel) ?? {};
+  const completion = getFeatGrantCompletion(levelData, requirements);
+
+  return requirements.map((requirement) => {
+    const status = completion[requirement.id] ?? {};
+    return {
+      ...requirement,
+      selectedCount: status.selected ?? 0,
+      requiredCount: status.required ?? requirement.count ?? null,
+      missingCount: status.missing ?? null,
+      complete: status.complete === true,
+      selections: (levelData.featGrants ?? [])
+        .find((entry) => entry?.requirementId === requirement.id)
+        ?.selections ?? [],
+    };
+  });
 }
 
 function buildCustomSkillIncreaseGroups(customSkillIncreases) {
@@ -387,7 +414,7 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
     ? await buildPlannerDedicationChoiceSetFallbacks(planner, feat, source)
     : [];
 
-  const specialChoiceSets = buildPlannerSpecialChoiceSets(feat, source);
+  const specialChoiceSets = await buildPlannerSpecialChoiceSets(planner, feat, source);
   const combined = dedupePlannerChoiceSets([...choiceSets, ...dedicationFallbackSets, ...fallbackSets, ...specialChoiceSets]);
   syncPlannerChoiceSetSkillRules(feat, [...combined, ...(feat?.grantChoiceSets ?? [])]);
   if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
@@ -412,7 +439,7 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
     .filter((entry) => entry.choiceType === 'lore' || entry.options.length > 0);
 }
 
-function buildPlannerSpecialChoiceSets(feat, source) {
+async function buildPlannerSpecialChoiceSets(planner, feat, source) {
   const slug = String(feat?.slug ?? source?.slug ?? '').toLowerCase();
   const special = [];
 
@@ -444,7 +471,56 @@ function buildPlannerSpecialChoiceSets(feat, source) {
     });
   }
 
+  const dedicationSubclassChoiceSet = await buildPlannerDedicationSubclassChoiceSet(planner, feat, source);
+  if (dedicationSubclassChoiceSet) special.push(dedicationSubclassChoiceSet);
+
   return special;
+}
+
+async function buildPlannerDedicationSubclassChoiceSet(planner, feat, source) {
+  const description = String(source?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!/\b(?:choose|select)\s+(?:a|an|one|your)?\s*(?:school|bloodline|patron|order|doctrine|mystery|instinct|style|way|innovation|methodology|edge|study|mind|eidolon|racket)\b/u.test(description)) {
+    return null;
+  }
+
+  const archetypeSlug = getPlannerDedicationArchetypeSlug(feat, source);
+  const subclassTag = SUBCLASS_TAGS[archetypeSlug] ?? archetypeSlug;
+  if (!subclassTag) return null;
+
+  const wizard = createPlannerChoiceWizard(planner);
+  const options = filterDisallowedForCurrentUser(await loadTaggedClassFeatures(wizard, subclassTag, `planner-dedication-${subclassTag}`))
+    .map((entry) => ({
+      value: entry.uuid,
+      uuid: entry.uuid,
+      label: entry.name,
+      img: entry.img ?? null,
+      type: 'feat',
+      rarity: entry.rarity ?? 'common',
+      isRecommended: entry.isRecommended,
+      isNotRecommended: entry.isNotRecommended,
+      isDisallowed: entry.isDisallowed,
+      guidanceSelectionBlocked: entry.guidanceSelectionBlocked,
+      guidanceSelectionTooltip: entry.guidanceSelectionTooltip,
+    }));
+  if (options.length === 0) return null;
+
+  return {
+    flag: `${archetypeSlug}DedicationSubclass`,
+    prompt: inferDedicationSubclassPrompt(description),
+    choiceType: 'item',
+    syntheticType: 'dedication-subclass-choice',
+    options,
+  };
+}
+
+function inferDedicationSubclassPrompt(description) {
+  const match = String(description ?? '').match(/\b(?:choose|select)\s+(?:a|an|one|your)?\s*(school|bloodline|patron|order|doctrine|mystery|instinct|style|way|innovation|methodology|edge|study|mind|eidolon|racket)\b/u);
+  const label = match?.[1] ? match[1].replace(/\b\w/gu, (char) => char.toUpperCase()) : 'Option';
+  return `Select a ${label}.`;
 }
 
 function hydratePlannerChoiceOptions(planner, entry, feat) {
@@ -522,7 +598,8 @@ async function collectGrantPreviewEntries({
   if (!item) return;
 
   if (includeChoiceSets) {
-    const parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], storedChoices, item);
+    const parsedChoiceSets = (await parseChoiceSets(wizard, item.system?.rules ?? [], storedChoices, item))
+      .filter((choiceSet) => !isPlannerManagedSyntheticGrantChoice(choiceSet));
     const fallbackChoiceSets = hasSkillFallbackText(item?.system?.description?.value ?? '')
       ? await buildPlannerGrantSkillFallbackChoiceSets(planner, item, storedChoices)
       : [];
@@ -574,6 +651,10 @@ async function collectGrantPreviewEntries({
       includeChoiceSets: true,
     });
   }
+}
+
+function isPlannerManagedSyntheticGrantChoice(choiceSet) {
+  return ['formula-choice', 'spell-choice'].includes(choiceSet?.syntheticType);
 }
 
 function createPlannerChoiceWizard(planner) {

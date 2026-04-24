@@ -156,9 +156,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredSpells.length,
       traitOptions: buildChipOptions(this._allTraitOptions, this.selectedTraits),
       selectedTraitChips: buildChipOptions(this._allTraitOptions, this.selectedTraits).filter((option) => option.selected),
-      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: this._getRarityLabels(),
-        lockedValues: this._getLockedRarities(),
+        lockedValues: this._getRarityToggleLockedValues(),
       }),
       traitLogic: this.traitLogic,
       rank: this.rank,
@@ -241,7 +241,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const toggle = e.target.closest?.('[data-action="toggleRarityChip"]');
       if (toggle) {
         const rarity = String(toggle.dataset.rarity ?? '').trim().toLowerCase();
-        const lockedRarities = this._getLockedRarities();
+        const lockedRarities = this._getRarityToggleLockedValues();
         if (!lockedRarities.includes(rarity)) {
           this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._availableRarityValues ?? RARITY_VALUES, lockedRarities);
           for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
@@ -375,7 +375,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         e.stopPropagation();
         const rarity = String(target.dataset.rarity ?? '').trim().toLowerCase();
-        const lockedRarities = this._getLockedRarities();
+        const lockedRarities = this._getRarityToggleLockedValues();
         if (!rarity || lockedRarities.includes(rarity)) return;
         this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._availableRarityValues ?? RARITY_VALUES, lockedRarities);
         for (const chip of el.querySelectorAll('[data-action="toggleRarityChip"]')) {
@@ -440,9 +440,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
       selectedTraitChips: buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected),
-      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: this._getRarityLabels(),
-        lockedValues: this._getLockedRarities(),
+        lockedValues: this._getRarityToggleLockedValues(),
       }),
       traitLogic: this.traitLogic,
       rank: this.rank,
@@ -904,12 +904,26 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     return ['common', 'uncommon', 'rare', 'unique'].filter((r) => !allowed.has(r) || this.lockedRarities.has(r));
   }
 
+  _getVisibleRarityValues() {
+    const available = this._availableRarityValues ?? RARITY_VALUES;
+    if (this.lockedRarities.size === 0) return available;
+
+    const excluded = new Set(this._getLockedRarities());
+    return available.filter((rarity) => !excluded.has(rarity));
+  }
+
+  _getRarityToggleLockedValues() {
+    return this.lockedRarities.size > 0 ? this._getVisibleRarityValues() : this._getLockedRarities();
+  }
+
   _normalizeSelectedRarities() {
     const allowedRarities = [...getAllowedRaritiesForCurrentUser()];
+    const excluded = new Set(this._getLockedRarities());
+    const defaultValues = allowedRarities.filter((rarity) => !excluded.has(rarity));
     this.selectedRarities = initializeSelectionSet(this.selectedRarities, allowedRarities, {
-      lockedValues: this._getLockedRarities(),
-      defaultValues: allowedRarities,
+      defaultValues,
     });
+    for (const rarity of excluded) this.selectedRarities.delete(rarity);
   }
 
   _allSelected(selected, available) {

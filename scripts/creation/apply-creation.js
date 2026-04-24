@@ -8,6 +8,7 @@ import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from
 import { format, localize } from '../utils/i18n.js';
 import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
 import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
+import { applyFeatGrantEntries } from '../apply/apply-feat-grants.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -57,6 +58,8 @@ export async function applyCreation(actor, data, onProgress = null) {
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
+  await applySelectedFormulas(actor, data);
+  await applyCreationFeatGrants(actor, data);
   await applyDirectFeatGrantedSpells(actor, data);
   await applySelectedSkillChoices(actor, data);
   await ensureGrantedFeatSectionsApplied(actor, data);
@@ -74,6 +77,19 @@ export async function applyCreation(actor, data, onProgress = null) {
   reportProgress(1, 'Character creation complete.');
 
   info(`Character creation complete for ${actor.name}`);
+}
+
+async function applyCreationFeatGrants(actor, data) {
+  const sourceUuids = new Set(getSelectedFeatEntries(data).map((entry) => entry.uuid));
+  if (data.subclass?.uuid) sourceUuids.add(data.subclass.uuid);
+  if (data.dualSubclass?.uuid) sourceUuids.add(data.dualSubclass.uuid);
+  for (const entry of getClassSelectionSourceEntries(data, 'class')) sourceUuids.add(entry.uuid);
+  for (const entry of getClassSelectionSourceEntries(data, 'dualClass')) sourceUuids.add(entry.uuid);
+  for (const entry of getSelectedChoiceSourceEntries(data)) sourceUuids.add(entry.uuid);
+
+  const grants = (data.featGrants ?? []).filter((grant) => sourceUuids.has(grant?.sourceFeatUuid));
+  if (grants.length === 0) return { items: [], formulas: [], spells: [] };
+  return applyFeatGrantEntries(actor, grants);
 }
 
 function projectDualClassCreationData(data) {
@@ -337,6 +353,26 @@ async function ensureGrantedFeatSectionsApplied(actor, data) {
   }
 }
 
+async function applySelectedFormulas(actor, data) {
+  const entries = getAdditionalSelectedFormulas(data);
+  if (entries.length === 0) return;
+
+  const current = foundry.utils.deepClone(actor.system?.crafting?.formulas ?? []);
+  const known = new Set(current.map((formula) => formula?.uuid).filter(Boolean));
+  let changed = false;
+
+  for (const entry of entries) {
+    if (!entry.uuid || known.has(entry.uuid)) continue;
+    current.push({ uuid: entry.uuid });
+    known.add(entry.uuid);
+    changed = true;
+  }
+
+  if (!changed) return;
+  await actor.update({ 'system.crafting.formulas': current });
+  debug(`Applied selected formulas: ${entries.map((entry) => entry.name).join(', ')}`);
+}
+
 async function applyDirectFeatGrantedSpells(actor, data) {
   const entries = await getDirectFeatGrantedSpellEntries(data);
   for (const entry of entries) {
@@ -465,6 +501,42 @@ async function getDirectFeatGrantedSpellEntries(data) {
   return entries;
 }
 
+export function getAdditionalSelectedFormulas(data) {
+  const containers = [
+    { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
+    { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
+    { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    { choiceSets: data.dualClassFeat?.choiceSets ?? [], choices: data.dualClassFeat?.choices ?? {} },
+    { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...((data.grantedFeatSections ?? []).map((section) => ({
+      choiceSets: section.choiceSets ?? [],
+      choices: getGrantedFeatChoiceValues(data, section.slot),
+    }))),
+  ];
+
+  const seen = new Set();
+  const entries = [];
+
+  for (const container of containers) {
+    for (const choiceSet of (container.choiceSets ?? [])) {
+      if (!isFormulaChoiceSet(choiceSet)) continue;
+      const selectedValue = container.choices?.[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') continue;
+      const option = findMatchingChoiceOption(choiceSet.options, selectedValue);
+      const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+      if (!uuid || seen.has(uuid)) continue;
+      seen.add(uuid);
+      entries.push({
+        uuid,
+        name: option?.label ?? choiceSet.prompt ?? 'Selected Formula',
+        _type: 'formula',
+      });
+    }
+  }
+
+  return entries;
+}
+
 function getSelectedFeatEntries(data) {
   return [
     data.ancestryFeat,
@@ -478,6 +550,50 @@ function getSelectedFeatEntries(data) {
   ].filter((entry) => !!entry?.uuid);
 }
 
+function getClassSelectionSourceEntries(data, target) {
+  const bucket = getClassSelectionData(data, target);
+  return [
+    bucket.implement,
+    bucket.innovationItem,
+    bucket.innovationModification,
+    bucket.secondElement,
+    bucket.subconsciousMind,
+    bucket.thesis,
+    bucket.deity,
+    bucket.devotionSpell,
+    ...(bucket.tactics ?? []),
+    ...(bucket.ikons ?? []),
+    ...(bucket.kineticImpulses ?? []),
+    ...(bucket.apparitions ?? []),
+  ].filter((entry) => !!entry?.uuid);
+}
+
+function getSelectedChoiceSourceEntries(data) {
+  const containers = [
+    { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
+    { choiceSets: data.dualSubclass?.choiceSets ?? [], choices: data.dualSubclass?.choices ?? {} },
+    { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
+    { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
+    { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    { choiceSets: data.dualClassFeat?.choiceSets ?? [], choices: data.dualClassFeat?.choices ?? {} },
+    { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...((data.grantedFeatSections ?? []).map((section) => ({
+      choiceSets: section.choiceSets ?? [],
+      choices: getGrantedFeatChoiceValues(data, section.slot),
+    }))),
+  ];
+
+  return containers.flatMap((container) =>
+    (container.choiceSets ?? []).map((choiceSet) => {
+      const selectedValue = container.choices?.[choiceSet.flag];
+      if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') return null;
+      const option = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
+      const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+      if (!uuid) return null;
+      return { uuid, name: option?.label ?? choiceSet.prompt ?? uuid };
+    }).filter(Boolean));
+}
+
 function extractSpellUuidsFromFeat(feat) {
   const uuids = new Set();
 
@@ -489,6 +605,7 @@ function extractSpellUuidsFromFeat(feat) {
 
   const html = String(feat?.system?.description?.value ?? '');
   if (!html) return [...uuids];
+  if (hasEmbeddedSpellChoiceDescription(html)) return [...uuids];
 
   for (const match of html.matchAll(/@UUID\[(Compendium\.pf2e\.spells-srd\.Item\.[^\]]+)\]/g)) {
     uuids.add(match[1]);
@@ -498,6 +615,17 @@ function extractSpellUuidsFromFeat(feat) {
   }
 
   return [...uuids];
+}
+
+function hasEmbeddedSpellChoiceDescription(html) {
+  const text = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  return /\b(?:choose|select|pick)\b/.test(text)
+    && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text))
+    && /Compendium\.pf2e\.spells-srd\.Item\./i.test(String(html ?? ''));
 }
 
 function isApplicableStoredChoice(itemData, flag, value) {
@@ -769,6 +897,13 @@ function isSpellChoiceOption(option, uuid) {
   if (option?.type === 'spell') return true;
   if (option?.uuid?.includes?.('Compendium.pf2e.spells-srd.Item.')) return true;
   return uuid.includes('Compendium.pf2e.spells-srd.Item.');
+}
+
+function isFormulaChoiceSet(choiceSet) {
+  if (choiceSet?.syntheticType === 'formula-choice') return true;
+  const prompt = String(choiceSet?.prompt ?? '').toLowerCase();
+  if (prompt.includes('formula')) return true;
+  return false;
 }
 
 async function applySelectedSpell(actor, entry, data) {

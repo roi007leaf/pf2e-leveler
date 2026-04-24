@@ -27,8 +27,10 @@ import {
   addLevelCustomEquipment,
   removeLevelCustomEquipment,
   removeLevelSpell,
+  upsertLevelFeatGrant,
 } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
+import { buildFeatGrantRequirements } from '../../plan/feat-grants.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -2034,6 +2036,192 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     await this._savePlanAndRender();
   }
 
+  async _openFeatGrantPicker(requirementId) {
+    const requirement = await this._getFeatGrantRequirement(requirementId);
+    if (!requirement) return;
+
+    if (requirement.confidence === 'manual-required' && !Number.isFinite(Number(requirement.count))) {
+      await this._configureManualFeatGrant(requirement);
+      return;
+    }
+
+    if (requirement.kind === 'spell') {
+      await this._openFeatGrantSpellPicker(requirement);
+    } else if (requirement.kind === 'formula' || requirement.kind === 'item') {
+      await this._openFeatGrantItemPicker(requirement);
+    }
+  }
+
+  async _getFeatGrantRequirement(requirementId) {
+    const levelData = getLevelData(this.plan, this.selectedLevel);
+    if (!levelData) return null;
+
+    const stored = (levelData.featGrants ?? []).find((entry) => entry?.requirementId === requirementId);
+    const detected = await this._findDetectedFeatGrantRequirement(levelData, requirementId);
+    if (stored?.manual) return mergeStoredManualFeatGrantRequirement(stored, detected, requirementId);
+    return detected;
+  }
+
+  async _findDetectedFeatGrantRequirement(levelData, requirementId) {
+    for (const feat of this._getLevelFeatEntries(levelData)) {
+      const requirement = (feat?.grantRequirements ?? []).find((entry) => entry?.id === requirementId);
+      if (requirement) return requirement;
+    }
+
+    const detected = await buildFeatGrantRequirements({
+      actor: this.actor,
+      plan: this.plan,
+      level: this.selectedLevel,
+      feats: this._getLevelFeatEntries(levelData),
+    });
+    const requirement = detected.find((entry) => entry?.id === requirementId);
+    if (requirement) return requirement;
+
+    return null;
+  }
+
+  _getLevelFeatEntries(levelData) {
+    return [
+      'classFeats',
+      'skillFeats',
+      'generalFeats',
+      'ancestryFeats',
+      'archetypeFeats',
+      'mythicFeats',
+      'dualClassFeats',
+      'customFeats',
+    ].flatMap((key) => levelData?.[key] ?? []);
+  }
+
+  async _configureManualFeatGrant(requirement) {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return;
+
+    const result = await dialogClass.prompt({
+      window: { title: 'Configure Grant Choice' },
+      content: `
+        <div class="form-group">
+          <label>Kind</label>
+          <select name="kind">
+            <option value="formula" ${requirement.kind === 'formula' ? 'selected' : ''}>Formula</option>
+            <option value="item" ${requirement.kind === 'item' ? 'selected' : ''}>Item</option>
+            <option value="spell" ${requirement.kind === 'spell' ? 'selected' : ''}>Spell</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Count</label>
+          <input type="number" name="count" min="1" value="1" />
+        </div>
+      `,
+      ok: {
+        label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return {
+            kind: root?.querySelector?.('select[name="kind"]')?.value ?? requirement.kind ?? 'item',
+            count: Math.max(1, Number(root?.querySelector?.('input[name="count"]')?.value ?? 1)),
+          };
+        },
+      },
+    });
+
+    if (!result?.kind || !Number.isFinite(result.count)) return;
+    upsertLevelFeatGrant(this.plan, this.selectedLevel, {
+      requirementId: requirement.id,
+      sourceFeatUuid: requirement.sourceFeatUuid,
+      sourceFeatName: requirement.sourceFeatName,
+      kind: result.kind,
+      manual: { count: result.count, filters: {} },
+      selections: [],
+    });
+    await this._savePlanAndRender();
+    await this._openFeatGrantPicker(requirement.id);
+  }
+
+  async _openFeatGrantItemPicker(requirement) {
+    const { ItemPicker, loadItems } = await import('../item-picker.js');
+    const currentSelections = this._getStoredFeatGrantSelections(requirement.id);
+    const maxSelect = getRemainingGrantSelections(requirement, currentSelections);
+    if (maxSelect <= 0) return;
+
+    const picker = new ItemPicker(
+      this.actor,
+      async (items) => {
+        this._storeFeatGrantSelections(requirement, Array.isArray(items) ? items : [items]);
+        await this._savePlanAndRender();
+      },
+      {
+        items: await loadItems(),
+        multiSelect: true,
+        maxSelect,
+        title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
+        preset: buildItemGrantPickerPreset(requirement, {
+          maxLevelCap: requirement.kind === 'formula' ? this.selectedLevel : null,
+        }),
+      },
+    );
+    picker.render(true);
+  }
+
+  async _openFeatGrantSpellPicker(requirement) {
+    const { SpellPicker } = await import('../spell-picker.js');
+    const currentSelections = this._getStoredFeatGrantSelections(requirement.id);
+    const maxSelect = getRemainingGrantSelections(requirement, currentSelections);
+    if (maxSelect <= 0) return;
+
+    const filters = requirement.filters ?? {};
+    const rank = Number.isFinite(Number(filters.rank)) ? Number(filters.rank) : -1;
+    const picker = new SpellPicker(
+      this.actor,
+      filters.tradition ?? 'any',
+      rank,
+      async (spells) => {
+        this._storeFeatGrantSelections(requirement, Array.isArray(spells) ? spells : [spells]);
+        await this._savePlanAndRender();
+      },
+      {
+        multiSelect: true,
+        maxSelect,
+        preset: {
+          ...(Number.isFinite(Number(filters.rank)) ? { selectedRanks: [Number(filters.rank)] } : {}),
+          ...(filters.tradition ? { selectedTraditions: [filters.tradition], lockedTraditions: [filters.tradition] } : {}),
+          ...(Array.isArray(filters.rarity) ? { selectedRarities: filters.rarity, lockedRarities: ['common', 'uncommon', 'rare', 'unique'].filter((rarity) => !filters.rarity.includes(rarity)) } : {}),
+        },
+      },
+    );
+    picker.render(true);
+  }
+
+  _getStoredFeatGrantSelections(requirementId) {
+    const levelData = getLevelData(this.plan, this.selectedLevel);
+    return (levelData?.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)?.selections ?? [];
+  }
+
+  _storeFeatGrantSelections(requirement, documents) {
+    const existing = this._getStoredFeatGrantSelections(requirement.id);
+    const selections = dedupeSelections([
+      ...existing,
+      ...documents.map((doc) => ({
+        uuid: doc.uuid,
+        name: doc.name,
+        img: doc.img ?? null,
+        rank: Number(doc.system?.level?.value ?? doc.rank ?? 0),
+        baseRank: Number(doc.system?.level?.value ?? doc.baseRank ?? 0),
+        itemType: doc.type ?? null,
+        traits: [...(doc.system?.traits?.value ?? []), ...(doc.system?.traits?.traditions ?? [])],
+      })),
+    ]);
+
+    upsertLevelFeatGrant(this.plan, this.selectedLevel, {
+      requirementId: requirement.id,
+      sourceFeatUuid: requirement.sourceFeatUuid,
+      sourceFeatName: requirement.sourceFeatName,
+      kind: requirement.kind,
+      manual: requirement.confidence === 'manual' ? { count: requirement.count, filters: requirement.filters ?? {} } : undefined,
+      selections,
+    });
+  }
+
   async _savePlanAndRender() {
     this._capturePlannerScroll();
     this._buildStateCache = new Map();
@@ -2056,6 +2244,61 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       content: '.planner-content',
     });
   }
+}
+
+function getRemainingGrantSelections(requirement, currentSelections) {
+  const required = Number(requirement?.count ?? requirement?.manual?.count);
+  if (!Number.isFinite(required) || required <= 0) return null;
+  return Math.max(0, required - (currentSelections?.length ?? 0));
+}
+
+function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
+  const filters = requirement?.filters ?? {};
+  const rarityValues = ['common', 'uncommon', 'rare', 'unique'];
+  const rarityFilter = normalizeRarityFilter(filters.rarity, rarityValues);
+  return {
+    ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0 ? { selectedCategories: filters.itemTypes } : {}),
+    ...(Array.isArray(filters.traits) && filters.traits.length > 0 ? { selectedTraits: filters.traits } : {}),
+    ...(rarityFilter.length > 0 ? {
+      selectedRarities: rarityFilter,
+      lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
+    } : {}),
+    ...(Number.isFinite(Number(maxLevelCap)) ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) } : (
+      Number.isFinite(Number(filters.maxLevel)) ? { maxLevel: Number(filters.maxLevel) } : {}
+    )),
+  };
+}
+
+function normalizeRarityFilter(value, allowedValues) {
+  const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
+  const allowed = new Set(allowedValues);
+  return [...new Set(values.map((entry) => String(entry).toLowerCase()).filter((entry) => allowed.has(entry)))];
+}
+
+function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) {
+  return {
+    id: requirementId,
+    sourceFeatUuid: stored.sourceFeatUuid ?? detected?.sourceFeatUuid,
+    sourceFeatName: stored.sourceFeatName ?? detected?.sourceFeatName,
+    kind: stored.kind ?? detected?.kind,
+    count: Number.isFinite(Number(stored.manual?.count)) ? Number(stored.manual.count) : detected?.count,
+    confidence: 'manual',
+    filters: {
+      ...(detected?.filters ?? {}),
+      ...(stored.manual?.filters ?? {}),
+    },
+  };
+}
+
+function dedupeSelections(selections) {
+  const seen = new Set();
+  const deduped = [];
+  for (const selection of selections ?? []) {
+    if (!selection?.uuid || seen.has(selection.uuid)) continue;
+    seen.add(selection.uuid);
+    deduped.push(selection);
+  }
+  return deduped;
 }
 
 function normalizeActorBoostEntries(value) {

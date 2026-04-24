@@ -3,6 +3,7 @@ import { applyBoosts } from './apply-boosts.js';
 import { applyLanguages } from './apply-languages.js';
 import { applySkillIncreases } from './apply-skills.js';
 import { applyFeats } from './apply-feats.js';
+import { applyFeatGrants } from './apply-feat-grants.js';
 import { applySpells } from './apply-spells.js';
 import { applyClassSpecific } from './apply-class-specific.js';
 import { info, error as logError, notify } from '../utils/logger.js';
@@ -51,11 +52,12 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const languages = await applyLanguages(actor, plan, plannedLevel);
       const skills = await applySkillIncreases(actor, plan, plannedLevel);
       const feats = await applyFeats(actor, plan, plannedLevel);
+      const featGrants = await applyFeatGrants(actor, plan, plannedLevel);
       const spells = await applySpells(actor, plan, plannedLevel);
       const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells, equipment });
+      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells, equipment, featGrants });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
@@ -104,13 +106,22 @@ async function createLevelUpMessage(actor, level, applied) {
   }
 
   const spells = applied.spells?.map((s) => `${formatChatLink(s)}${s.rank ? ` (${s.rank})` : ''}`).filter(Boolean) ?? [];
+  const featGrantSpells = applied.featGrants?.spells?.map((s) => formatChatLink(s)).filter(Boolean) ?? [];
+  spells.push(...featGrantSpells);
   if (spells.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.SPELLS_ADDED'), spells));
   }
 
   const equipment = applied.equipment?.map((e) => formatChatLink(e)).filter(Boolean) ?? [];
+  const featGrantItems = applied.featGrants?.items?.map((e) => formatChatLink(e)).filter(Boolean) ?? [];
+  equipment.push(...featGrantItems);
   if (equipment.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.SECTIONS.EQUIPMENT'), equipment));
+  }
+
+  const formulas = applied.featGrants?.formulas?.map((entry) => formatChatLink(entry)).filter(Boolean) ?? [];
+  if (formulas.length) {
+    sections.push(buildChatSection(game.i18n.localize('PF2E.Actor.Character.Crafting.FormulaKnownTitle'), formulas));
   }
 
   const content = buildChatCard({

@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.2.4
+
+### Feat Grants
+
+- **Level Planner now supports spell and item grants from feat text** - Feats that add spells to a spellbook or repertoire or grant item choices now surface `Granted choices` in the planner so those picks can be made when the feat is selected
+- **Formula grants are now supported as a new granted-choice type** - Feats and class features that grant formulas, including `Alchemical Crafting`, alchemist research fields, and similar options, now open formula selection through the Leveler item picker
+- **Formula choices now apply to Known Formulas** - Selected formula items now add their UUIDs to the actor crafting formulas instead of trying to create nonexistent formula items
+- **Feat-granted items now create owned items when applied** - Generic item grants inferred from feat text can now be selected in Leveler and created on the actor during level-up application
+- **Formula grant pickers now enforce inferred item restrictions** - Formula choices now lock rarity filters such as `common`, cap item level to the level being planned, preserve detected filters when reopening older/manual grant entries, and narrow Mutagenist-style grants to mutagens
+- **Formula grants no longer duplicate inline formula choice grids** - Formula text is now handled by the generic `Granted choices` item picker path instead of also generating repeated inline `Select a formula` choice sections
+- **Formula grant text parsing now handles labeled formula sections** - Class features such as `Mutagenist` that say `Formulas Two common 1st-level alchemical mutagens` now correctly require two formula picks instead of reading an earlier number from unrelated description text
+- **Spellcasting dedication cantrip picks now use the right spell picker constraints** - Wizard Dedication and similar cantrip grants now open a common-only, cantrip-only, tradition-locked spell picker instead of exposing higher-rank or uncommon/rare options
+- **Spellcasting dedication grants now create and target archetype spellcasting entries** - Selected dedication cantrips are placed in the matching `X Dedication Spells` entry instead of the character's main class spellcasting entry, and existing zero-slot dedication entries are updated to the correct two cantrip slots
+- **Spellcasting dedication subclass choices now surface generically** - Dedications that ask for a school, bloodline, patron, order, mystery, or similar class option now show an appropriate feat choice prompt when tagged class-feature options can be resolved
+
 ## 3.2.3
 
 ### Item Picker

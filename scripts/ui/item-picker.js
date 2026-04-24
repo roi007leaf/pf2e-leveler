@@ -52,6 +52,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.actor = actor;
     this.onSelect = onSelect;
     this.multiSelect = options.multiSelect === true;
+    this.maxSelect = Number.isFinite(Number(options.maxSelect)) ? Number(options.maxSelect) : null;
+    this.customTitle = typeof options.title === 'string' && options.title.trim().length > 0 ? options.title.trim() : null;
     this.allItems = options.items ?? [];
     this.filteredItems = [];
     this.selectedItemUuids = new Set();
@@ -60,6 +62,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedSourcePackages = new Set();
     this.selectedCategories = new Set();
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
+    this.lockedRarities = new Set();
     this.selectedTraits = new Set();
     this.selectedArmorFilters = new Set();
     this.selectedWeaponFilters = new Set();
@@ -72,6 +75,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.armorFilterLogic = 'or';
     this.weaponFilterLogic = 'or';
     this.maxLevel = '';
+    this.maxLevelCap = null;
     this._publicationTitles = [];
     this._sourcePackageValues = [];
     this._categoryValues = [];
@@ -81,6 +85,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._domListeners = null;
     this._loading = this.allItems.length === 0;
     if (!this._loading) annotateGuidance(this.allItems);
+    this._applyPreset(options.preset);
   }
 
   static DEFAULT_OPTIONS = {
@@ -133,8 +138,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       showArmorFilters,
       showWeaponFilters,
       filterSections: this._getFilterSections(),
-      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
+        lockedValues: this._getRarityToggleLockedValues(),
       }),
       traitOptions: this._getTraitOptions(),
       selectedTraitChips: this._getTraitOptions().filter((o) => o.selected),
@@ -143,6 +149,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       weaponFilterLogic: this.weaponFilterLogic,
       searchText: this.searchText,
       maxLevel: this.maxLevel,
+      maxLevelCapped: this.maxLevelCap != null,
       levelOptions: this._getLevelOptions(),
     };
   }
@@ -271,9 +278,27 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _normalizeSelectedRarities() {
+    const locked = this._getLockedRarities();
+    const allowedDefaults = RARITY_VALUES.filter((rarity) => !locked.includes(rarity));
     this.selectedRarities = initializeSelectionSet(this.selectedRarities, RARITY_VALUES, {
-      defaultValues: RARITY_VALUES,
+      defaultValues: allowedDefaults,
     });
+    for (const rarity of locked) this.selectedRarities.delete(rarity);
+  }
+
+  _getLockedRarities() {
+    return RARITY_VALUES.filter((rarity) => this.lockedRarities.has(rarity));
+  }
+
+  _getVisibleRarityValues() {
+    const available = this._availableRarityValues ?? RARITY_VALUES;
+    const locked = new Set(this._getLockedRarities());
+    if (locked.size === 0) return available;
+    return available.filter((rarity) => !locked.has(rarity));
+  }
+
+  _getRarityToggleLockedValues() {
+    return this.lockedRarities.size > 0 ? this._getVisibleRarityValues() : this._getLockedRarities();
   }
 
   _getCategoryOptions() {
@@ -305,7 +330,16 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getLevelOptions() {
-    return Array.from({ length: 25 }, (_, i) => ({ value: String(i), label: String(i) }));
+    const max = Number.isFinite(this.maxLevelCap) ? this.maxLevelCap : 24;
+    return Array.from({ length: Math.max(0, max) + 1 }, (_, i) => ({ value: String(i), label: String(i) }));
+  }
+
+  _normalizeMaxLevel(value = this.maxLevel) {
+    if (value === '' || value == null) return this.maxLevelCap == null ? '' : String(this.maxLevelCap);
+    const level = Number(value);
+    if (!Number.isFinite(level)) return this.maxLevelCap == null ? '' : String(this.maxLevelCap);
+    const capped = this.maxLevelCap == null ? level : Math.min(level, this.maxLevelCap);
+    return String(Math.max(0, capped));
   }
 
   _getTraitOptions() {
@@ -415,8 +449,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filterSections: this._getFilterSections(),
       armorFilterLogic: this.armorFilterLogic,
       weaponFilterLogic: this.weaponFilterLogic,
-      rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
+      rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
+        lockedValues: this._getRarityToggleLockedValues(),
       }),
     };
     const html = await renderHandlebarsTemplate(`modules/${MODULE_ID}/templates/item-picker.hbs`, context);
@@ -572,7 +607,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const maxLevelSelect = el.querySelector('[data-action="filterMaxLevel"]');
     if (maxLevelSelect) {
       maxLevelSelect.addEventListener('change', (e) => {
-        this.maxLevel = e.target.value;
+        this.maxLevel = this._normalizeMaxLevel(e.target.value);
+        e.target.value = this.maxLevel;
         this._updateList();
       }, { signal });
     }
@@ -624,8 +660,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       }
 
       if (action === 'toggleRarityChip') {
-        this.selectedRarities = toggleSelectableChip(this.selectedRarities, target.dataset.rarity, this._availableRarityValues ?? RARITY_VALUES);
-        target.classList.toggle('selected', this.selectedRarities.has(target.dataset.rarity));
+        const rarity = String(target.dataset.rarity ?? '').trim().toLowerCase();
+        const lockedRarities = this._getRarityToggleLockedValues();
+        if (lockedRarities.includes(rarity)) return;
+        this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._getVisibleRarityValues(), lockedRarities);
+        target.classList.toggle('selected', this.selectedRarities.has(rarity));
         this._updateList();
         return;
       }
@@ -742,6 +781,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const item = this.allItems.find((entry) => entry.uuid === uuid);
     if (item?.guidanceSelectionBlocked) return;
     if (this.selectedItemUuids.has(uuid)) this.selectedItemUuids.delete(uuid);
+    else if (this.maxSelect != null && this.selectedItemUuids.size >= this.maxSelect) return;
     else this.selectedItemUuids.add(uuid);
   }
 
@@ -752,8 +792,22 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const allVisibleSelected = visibleUuids.every((uuid) => this.selectedItemUuids.has(uuid));
     for (const uuid of visibleUuids) {
       if (allVisibleSelected) this.selectedItemUuids.delete(uuid);
+      else if (this.maxSelect != null && this.selectedItemUuids.size >= this.maxSelect) break;
       else this.selectedItemUuids.add(uuid);
     }
+  }
+
+  _applyPreset(preset) {
+    if (!preset || typeof preset !== 'object') return;
+    if (Array.isArray(preset.selectedCategories)) this.selectedCategories = new Set(preset.selectedCategories.map((value) => String(value).toLowerCase()));
+    if (Array.isArray(preset.selectedRarities)) this.selectedRarities = new Set(preset.selectedRarities.map((value) => String(value).toLowerCase()));
+    if (Array.isArray(preset.lockedRarities)) this.lockedRarities = new Set(preset.lockedRarities.map((value) => String(value).toLowerCase()));
+    if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((value) => String(value).toLowerCase()));
+    if (preset.maxLevelCap != null && Number.isFinite(Number(preset.maxLevelCap))) this.maxLevelCap = Math.max(0, Number(preset.maxLevelCap));
+    if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
+    this.maxLevel = this._normalizeMaxLevel(this.maxLevel);
+    if (Array.isArray(preset.selectedArmorFilters)) this.selectedArmorFilters = new Set(preset.selectedArmorFilters.map((value) => String(value).toLowerCase()));
+    if (Array.isArray(preset.selectedWeaponFilters)) this.selectedWeaponFilters = new Set(preset.selectedWeaponFilters.map((value) => String(value).toLowerCase()));
   }
 
   async _confirmSelection() {

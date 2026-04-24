@@ -4,6 +4,7 @@ import { getChoicesForLevel, getGradualBoostGroupLevels } from '../classes/progr
 import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { computeBuildState } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
+import { getFeatGrantCompletion } from './feat-grants.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
 import { collectArchetypeSpellcastingConfigs } from '../utils/spellcasting-support.js';
 import {
@@ -52,6 +53,12 @@ export function validateLevel(plan, classDef, level, options = {}, actor = null)
     }
   }
 
+  const grantIssues = validateFeatGrantChoices(levelData);
+  for (const issue of grantIssues) {
+    issues.push(issue);
+    if (issue.severity !== 'error') hasWarning = true;
+  }
+
   if (issues.some((i) => i.severity === 'error')) {
     return { status: PLAN_STATUS.INCOMPLETE, issues };
   }
@@ -59,6 +66,76 @@ export function validateLevel(plan, classDef, level, options = {}, actor = null)
     return { status: PLAN_STATUS.WARNING, issues };
   }
   return { status: PLAN_STATUS.COMPLETE, issues: [] };
+}
+
+function validateFeatGrantChoices(levelData) {
+  const requirements = collectLevelGrantRequirements(levelData);
+  if (requirements.length === 0) return [];
+
+  const completion = getFeatGrantCompletion(levelData, requirements);
+  const issues = [];
+
+  for (const requirement of requirements) {
+    const status = completion[requirement.id];
+    const sourceName = requirement.sourceFeatName ?? requirement.featName ?? 'Feat';
+    const kind = humanizeGrantKind(requirement.kind);
+
+    if (requirement.confidence === 'manual-required' && !getStoredGrant(levelData, requirement.id)?.manual) {
+      issues.push({
+        severity: 'warning',
+        message: `${sourceName}: configure ${kind} grant choices`,
+      });
+      continue;
+    }
+
+    if (status?.required != null && status.selected < status.required) {
+      issues.push({
+        severity: 'error',
+        message: `${sourceName}: ${status.required - status.selected} ${kind} grant choice(s) not yet selected`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+function collectLevelGrantRequirements(levelData) {
+  const requirements = [];
+  const featKeys = [
+    'classFeats',
+    'skillFeats',
+    'generalFeats',
+    'ancestryFeats',
+    'archetypeFeats',
+    'mythicFeats',
+    'dualClassFeats',
+    'customFeats',
+  ];
+
+  for (const key of featKeys) {
+    for (const feat of levelData?.[key] ?? []) {
+      for (const requirement of feat?.grantRequirements ?? []) {
+        requirements.push({
+          ...requirement,
+          sourceFeatName: requirement.sourceFeatName ?? feat.name,
+          sourceFeatUuid: requirement.sourceFeatUuid ?? feat.uuid,
+        });
+      }
+    }
+  }
+
+  return requirements;
+}
+
+function getStoredGrant(levelData, requirementId) {
+  return (levelData?.featGrants ?? []).find((entry) => entry?.requirementId === requirementId) ?? null;
+}
+
+function humanizeGrantKind(kind) {
+  if (kind === 'formula') return 'formula';
+  if (kind === 'spell') return 'spell';
+  if (kind === 'item') return 'item';
+  return 'feat';
 }
 
 function validateChoice(choice, levelData, level, plan, classDef, options, actor) {

@@ -40,9 +40,12 @@ import {
   setSkillFeat,
   setFeatChoice,
   getGrantedFeatChoiceValues,
+  upsertCreationFeatGrant,
   addEquipment,
+  removeCreationFeatGrantSelection,
   setPermanentItem,
 } from '../../creation/creation-model.js';
+import { buildFeatGrantRequirements, getFeatGrantCompletion } from '../../plan/feat-grants.js';
 import {
   getCreationData,
   saveCreationData,
@@ -76,6 +79,7 @@ import {
   parseChoiceSets,
   refreshGrantedFeatChoiceSections,
   buildMixedAncestryChoiceOptions,
+  getSelectedHandlerChoiceSourceItems,
 } from './choice-sets.js';
 import {
   buildApplyOverlayContext,
@@ -288,6 +292,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._cachedHasClassFeatAtLevel1 = null;
     this._cachedRequiredClassBoostSelections = 0;
     this._cachedBoostStepComplete = null;
+    this._cachedFeatGrantRequirements = [];
   }
 
   _sanitizeDisabledDualClassState() {
@@ -506,7 +511,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       (this.data.classFeat?.choiceSets?.length ?? 0) > 0 ||
       (this.data.dualClassFeat?.choiceSets?.length ?? 0) > 0 ||
       (this.data.skillFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.grantedFeatSections?.length ?? 0) > 0
+      (this.data.grantedFeatSections?.length ?? 0) > 0 ||
+      (this._cachedFeatGrantRequirements?.length ?? 0) > 0 ||
+      (this.data.featGrants?.length ?? 0) > 0
     );
   }
 
@@ -522,6 +529,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       : false;
     this._cachedRequiredClassBoostSelections = await this._getRequiredClassBoostSelections();
     this._cachedBoostStepComplete = await this._computeBoostStepComplete();
+    this._cachedFeatGrantRequirements = await this._buildFeatGrantRequirements();
     const extraSteps = this._getStepHandlers().flatMap((entry) => entry.steps);
     const extraLabels = {
       featChoices: localize('CREATION.FEAT_CHOICES'),
@@ -2189,6 +2197,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       case 'featChoices': {
         if (!this._hasFeatChoices()) return true;
+        const grantCompletion = getFeatGrantCompletion(
+          { featGrants: this.data.featGrants ?? [] },
+          this._cachedFeatGrantRequirements ?? [],
+        );
+        const grantsComplete = Object.values(grantCompletion).every((entry) => entry.complete);
         const sections = [
           ...[
             this.data.ancestryFeat,
@@ -2209,7 +2222,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             const val = section.choices?.[cs.flag];
             return typeof val === 'string' && val !== '[object Object]';
           }),
-        );
+        ) && grantsComplete;
       }
       case 'boosts':
         if (typeof this._cachedBoostStepComplete === 'boolean')
@@ -2956,7 +2969,245 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _buildFeatChoicesContext() {
-    return buildFeatChoicesContext(this);
+    return {
+      ...await buildFeatChoicesContext(this),
+      ...await this._buildFeatGrantChoicesContext(),
+    };
+  }
+
+  async _buildFeatGrantRequirements() {
+    return buildFeatGrantRequirements({
+      feats: this._getCreationFeatGrantSources(),
+    });
+  }
+
+  async _buildFeatGrantChoicesContext() {
+    const requirements = this._cachedFeatGrantRequirements?.length
+      ? this._cachedFeatGrantRequirements
+      : await this._buildFeatGrantRequirements();
+    const completion = getFeatGrantCompletion({ featGrants: this.data.featGrants ?? [] }, requirements);
+    const stored = new Map((this.data.featGrants ?? []).map((entry) => [entry.requirementId, entry]));
+
+    return {
+      featGrantRequirements: requirements.map((requirement) => {
+        const state = completion[requirement.id] ?? {};
+        return {
+          ...requirement,
+          selectedCount: state.selected ?? 0,
+          requiredCount: state.required,
+          missingCount: state.missing,
+          complete: state.complete === true,
+          selections: stored.get(requirement.id)?.selections ?? [],
+        };
+      }),
+    };
+  }
+
+  _getCreationFeatGrantSources() {
+    const sources = [
+      this.data.ancestryFeat,
+      this.data.ancestryParagonFeat,
+      this.data.classFeat,
+      this.data.dualClassFeat,
+      this.data.skillFeat,
+      ...(this.data.grantedFeatSections ?? []).map((section) =>
+        section?.slot ? { uuid: section.slot, name: section.featName } : null),
+      this.data.subclass,
+      this.data.dualSubclass,
+      ...this._getSelectedChoiceGrantSources(),
+      ...getSelectedHandlerChoiceSourceItems(this),
+    ];
+    const seen = new Set();
+    return sources.filter((entry) => {
+      if (!entry?.uuid || seen.has(entry.uuid)) return false;
+      seen.add(entry.uuid);
+      return true;
+    });
+  }
+
+  _getSelectedChoiceGrantSources() {
+    const containers = [
+      { choiceSets: this.data.subclass?.choiceSets ?? [], choices: this.data.subclass?.choices ?? {} },
+      { choiceSets: this.data.dualSubclass?.choiceSets ?? [], choices: this.data.dualSubclass?.choices ?? {} },
+      { choiceSets: this.data.ancestryFeat?.choiceSets ?? [], choices: this.data.ancestryFeat?.choices ?? {} },
+      { choiceSets: this.data.ancestryParagonFeat?.choiceSets ?? [], choices: this.data.ancestryParagonFeat?.choices ?? {} },
+      { choiceSets: this.data.classFeat?.choiceSets ?? [], choices: this.data.classFeat?.choices ?? {} },
+      { choiceSets: this.data.dualClassFeat?.choiceSets ?? [], choices: this.data.dualClassFeat?.choices ?? {} },
+      { choiceSets: this.data.skillFeat?.choiceSets ?? [], choices: this.data.skillFeat?.choices ?? {} },
+      ...((this.data.grantedFeatSections ?? []).map((section) => ({
+        choiceSets: section.choiceSets ?? [],
+        choices: getGrantedFeatChoiceValues(this.data, section.slot),
+      }))),
+    ];
+
+    return containers.flatMap((container) =>
+      (container.choiceSets ?? []).map((choiceSet) => {
+        const selectedValue = container.choices?.[choiceSet.flag];
+        if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') return null;
+        const option = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
+        const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+        if (!uuid) return null;
+        return { uuid, name: option?.label ?? choiceSet.prompt ?? uuid };
+      }).filter(Boolean));
+  }
+
+  async _openFeatGrantPicker(requirementId) {
+    const requirement = await this._getFeatGrantRequirement(requirementId);
+    if (!requirement) return;
+
+    if (requirement.confidence === 'manual-required' && !Number.isFinite(Number(requirement.count))) {
+      await this._configureManualFeatGrant(requirement);
+      return;
+    }
+
+    if (requirement.kind === 'spell') {
+      await this._openFeatGrantSpellPicker(requirement);
+    } else if (requirement.kind === 'formula' || requirement.kind === 'item') {
+      await this._openFeatGrantItemPicker(requirement);
+    }
+  }
+
+  async _getFeatGrantRequirement(requirementId) {
+    const stored = (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId);
+    const requirements = this._cachedFeatGrantRequirements?.length
+      ? this._cachedFeatGrantRequirements
+      : await this._buildFeatGrantRequirements();
+    const detected = requirements.find((entry) => entry?.id === requirementId) ?? null;
+    if (stored?.manual) return mergeStoredManualFeatGrantRequirement(stored, detected, requirementId);
+    return detected;
+  }
+
+  async _configureManualFeatGrant(requirement) {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return;
+
+    const result = await dialogClass.prompt({
+      window: { title: 'Configure Grant Choice' },
+      content: `
+        <div class="form-group">
+          <label>Kind</label>
+          <select name="kind">
+            <option value="formula" ${requirement.kind === 'formula' ? 'selected' : ''}>Formula</option>
+            <option value="item" ${requirement.kind === 'item' ? 'selected' : ''}>Item</option>
+            <option value="spell" ${requirement.kind === 'spell' ? 'selected' : ''}>Spell</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Count</label>
+          <input type="number" name="count" min="1" value="1" />
+        </div>
+      `,
+      ok: {
+        label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return {
+            kind: root?.querySelector?.('select[name="kind"]')?.value ?? requirement.kind ?? 'item',
+            count: Math.max(1, Number(root?.querySelector?.('input[name="count"]')?.value ?? 1)),
+          };
+        },
+      },
+    });
+
+    if (!result?.kind || !Number.isFinite(result.count)) return;
+    upsertCreationFeatGrant(this.data, {
+      requirementId: requirement.id,
+      sourceFeatUuid: requirement.sourceFeatUuid,
+      sourceFeatName: requirement.sourceFeatName,
+      kind: result.kind,
+      manual: { count: result.count, filters: {} },
+      selections: [],
+    });
+    await this._saveAndRender();
+    await this._openFeatGrantPicker(requirement.id);
+  }
+
+  async _openFeatGrantItemPicker(requirement) {
+    const { ItemPicker, loadItems } = await import('../item-picker.js');
+    const currentSelections = this._getStoredFeatGrantSelections(requirement.id);
+    const maxSelect = getRemainingGrantSelections(requirement, currentSelections);
+    if (maxSelect <= 0) return;
+
+    const picker = new ItemPicker(
+      this.actor,
+      async (items) => {
+        this._storeFeatGrantSelections(requirement, Array.isArray(items) ? items : [items]);
+        await this._saveAndRender();
+      },
+      {
+        items: await loadItems(),
+        multiSelect: true,
+        maxSelect,
+        title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
+        preset: buildItemGrantPickerPreset(requirement, {
+          maxLevelCap: requirement.kind === 'formula' ? 1 : null,
+        }),
+      },
+    );
+    picker.render(true);
+  }
+
+  async _openFeatGrantSpellPicker(requirement) {
+    const { SpellPicker } = await import('../spell-picker.js');
+    const currentSelections = this._getStoredFeatGrantSelections(requirement.id);
+    const maxSelect = getRemainingGrantSelections(requirement, currentSelections);
+    if (maxSelect <= 0) return;
+
+    const filters = requirement.filters ?? {};
+    const rank = Number.isFinite(Number(filters.rank)) ? Number(filters.rank) : -1;
+    const picker = new SpellPicker(
+      this.actor,
+      filters.tradition ?? 'any',
+      rank,
+      async (spells) => {
+        this._storeFeatGrantSelections(requirement, Array.isArray(spells) ? spells : [spells]);
+        await this._saveAndRender();
+      },
+      {
+        multiSelect: true,
+        maxSelect,
+        preset: {
+          ...(Number.isFinite(Number(filters.rank)) ? { selectedRanks: [Number(filters.rank)] } : {}),
+          ...(filters.tradition ? { selectedTraditions: [filters.tradition], lockedTraditions: [filters.tradition] } : {}),
+          ...(Array.isArray(filters.rarity) ? { selectedRarities: filters.rarity, lockedRarities: ['common', 'uncommon', 'rare', 'unique'].filter((rarity) => !filters.rarity.includes(rarity)) } : {}),
+        },
+      },
+    );
+    picker.render(true);
+  }
+
+  _getStoredFeatGrantSelections(requirementId) {
+    return (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)?.selections ?? [];
+  }
+
+  _storeFeatGrantSelections(requirement, documents) {
+    const existing = this._getStoredFeatGrantSelections(requirement.id);
+    const selections = dedupeGrantSelections([
+      ...existing,
+      ...documents.map((doc) => ({
+        uuid: doc.uuid,
+        name: doc.name,
+        img: doc.img ?? null,
+        rank: Number(doc.system?.level?.value ?? doc.rank ?? 0),
+        baseRank: Number(doc.system?.level?.value ?? doc.baseRank ?? 0),
+        itemType: doc.type ?? null,
+        traits: [...(doc.system?.traits?.value ?? []), ...(doc.system?.traits?.traditions ?? [])],
+      })),
+    ]);
+
+    upsertCreationFeatGrant(this.data, {
+      requirementId: requirement.id,
+      sourceFeatUuid: requirement.sourceFeatUuid,
+      sourceFeatName: requirement.sourceFeatName,
+      kind: requirement.kind,
+      manual: requirement.confidence === 'manual' ? { count: requirement.count, filters: requirement.filters ?? {} } : undefined,
+      selections,
+    });
+  }
+
+  async _removeFeatGrantSelection(requirementId, uuid) {
+    removeCreationFeatGrantSelection(this.data, requirementId, uuid);
+    await this._saveAndRender();
   }
 
   async _hydrateChoiceSets(choiceSets, currentChoices) {
@@ -3698,6 +3949,61 @@ function buildBrowserStepContext(stepId, data, stepContext) {
   }
 
   return context;
+}
+
+function getRemainingGrantSelections(requirement, currentSelections) {
+  const required = Number(requirement?.count ?? requirement?.manual?.count);
+  if (!Number.isFinite(required) || required <= 0) return null;
+  return Math.max(0, required - (currentSelections?.length ?? 0));
+}
+
+function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
+  const filters = requirement?.filters ?? {};
+  const rarityValues = ['common', 'uncommon', 'rare', 'unique'];
+  const rarityFilter = normalizeRarityFilter(filters.rarity, rarityValues);
+  return {
+    ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0 ? { selectedCategories: filters.itemTypes } : {}),
+    ...(Array.isArray(filters.traits) && filters.traits.length > 0 ? { selectedTraits: filters.traits } : {}),
+    ...(rarityFilter.length > 0 ? {
+      selectedRarities: rarityFilter,
+      lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
+    } : {}),
+    ...(Number.isFinite(Number(maxLevelCap)) ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) } : (
+      Number.isFinite(Number(filters.maxLevel)) ? { maxLevel: Number(filters.maxLevel) } : {}
+    )),
+  };
+}
+
+function normalizeRarityFilter(value, allowedValues) {
+  const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
+  const allowed = new Set(allowedValues);
+  return [...new Set(values.map((entry) => String(entry).toLowerCase()).filter((entry) => allowed.has(entry)))];
+}
+
+function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) {
+  return {
+    id: requirementId,
+    sourceFeatUuid: stored.sourceFeatUuid ?? detected?.sourceFeatUuid,
+    sourceFeatName: stored.sourceFeatName ?? detected?.sourceFeatName,
+    kind: stored.kind ?? detected?.kind,
+    count: Number.isFinite(Number(stored.manual?.count)) ? Number(stored.manual.count) : detected?.count,
+    confidence: 'manual',
+    filters: {
+      ...(detected?.filters ?? {}),
+      ...(stored.manual?.filters ?? {}),
+    },
+  };
+}
+
+function dedupeGrantSelections(selections) {
+  const seen = new Set();
+  const deduped = [];
+  for (const selection of selections ?? []) {
+    if (!selection?.uuid || seen.has(selection.uuid)) continue;
+    seen.add(selection.uuid);
+    deduped.push(selection);
+  }
+  return deduped;
 }
 
 const BROWSER_STEP_CONFIG = {

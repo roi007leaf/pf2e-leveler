@@ -86,6 +86,7 @@ export function normalizeCreationData(data) {
   ensureClassSelections(data);
   if (data.subclass) data.subclass.choiceCurricula ??= {};
   if (data.dualSubclass) data.dualSubclass.choiceCurricula ??= {};
+  data.featGrants = normalizeFeatGrants(data.featGrants);
   data.grantedFeatChoices = normalizeGrantedFeatChoices(
     data.grantedFeatChoices,
     data.grantedFeatSections,
@@ -100,6 +101,24 @@ export function normalizeCreationData(data) {
 
   syncPrimaryHandlerSelectionMirrors(data);
   return data;
+}
+
+function normalizeFeatGrants(grants) {
+  if (!Array.isArray(grants)) return [];
+  return grants
+    .filter((entry) => entry?.requirementId && entry?.kind)
+    .map((entry) => ({
+      requirementId: String(entry.requirementId),
+      sourceFeatUuid: entry.sourceFeatUuid ?? null,
+      sourceFeatName: entry.sourceFeatName ?? null,
+      kind: entry.kind,
+      manual: entry.manual && typeof entry.manual === 'object' ? foundry.utils.deepClone(entry.manual) : undefined,
+      selections: Array.isArray(entry.selections)
+        ? entry.selections
+          .filter((selection) => selection?.uuid)
+          .map((selection) => foundry.utils.deepClone(selection))
+        : [],
+    }));
 }
 
 function normalizeGrantedFeatChoices(choices, sections) {
@@ -197,6 +216,7 @@ export function createCreationData() {
     skillFeat: null,
     grantedFeatSections: [],
     grantedFeatChoices: {},
+    featGrants: [],
     spells: { cantrips: [], rank1: [] },
     dualSpells: { cantrips: [], rank1: [] },
     curriculumSpells: { cantrips: [], rank1: [] },
@@ -869,6 +889,36 @@ export function setFeatChoice(data, slot, flag, value, metadata = {}) {
   if (!data.grantedFeatChoices[slot]) data.grantedFeatChoices[slot] = {};
   data.grantedFeatChoices[slot][flag] = value;
   applyFeatChoiceCurriculumMetadata(data, metadata.target, flag, metadata.curriculum);
+  return data;
+}
+
+export function upsertCreationFeatGrant(data, grantEntry) {
+  if (!grantEntry?.requirementId) return data;
+  data.featGrants = normalizeFeatGrants(data.featGrants);
+  const next = {
+    requirementId: grantEntry.requirementId,
+    sourceFeatUuid: grantEntry.sourceFeatUuid ?? null,
+    sourceFeatName: grantEntry.sourceFeatName ?? null,
+    kind: grantEntry.kind,
+    manual: grantEntry.manual ? foundry.utils.deepClone(grantEntry.manual) : undefined,
+    selections: Array.isArray(grantEntry.selections) ? foundry.utils.deepClone(grantEntry.selections) : [],
+  };
+  const index = data.featGrants.findIndex((entry) => entry.requirementId === next.requirementId);
+  if (index >= 0) data.featGrants[index] = next;
+  else data.featGrants.push(next);
+  return data;
+}
+
+export function removeCreationFeatGrantSelection(data, requirementId, uuid) {
+  data.featGrants = normalizeFeatGrants(data.featGrants)
+    .map((entry) => {
+      if (entry.requirementId !== requirementId) return entry;
+      return {
+        ...entry,
+        selections: (entry.selections ?? []).filter((selection) => selection?.uuid !== uuid),
+      };
+    })
+    .filter((entry) => (entry.selections ?? []).length > 0 || entry.manual);
   return data;
 }
 

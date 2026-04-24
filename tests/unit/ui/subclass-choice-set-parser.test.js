@@ -49,6 +49,35 @@ function createDoc({
   };
 }
 
+function createPhysicalDoc({
+  uuid,
+  name,
+  type = 'consumable',
+  slug,
+  traits = [],
+  level = 1,
+  rarity = 'common',
+  category = 'other',
+}) {
+  return {
+    uuid,
+    name,
+    img: 'icons/svg/item-bag.svg',
+    type,
+    slug: slug ?? name.toLowerCase().replace(/\s+/g, '-'),
+    system: {
+      description: { value: '' },
+      traits: {
+        value: traits,
+        rarity,
+      },
+      level: { value: level },
+      category,
+      price: { per: 1 },
+    },
+  };
+}
+
 describe('CharacterWizard subclass choice-set parsing', () => {
   beforeEach(() => {
     global.game = {
@@ -100,6 +129,50 @@ describe('CharacterWizard subclass choice-set parsing', () => {
               uuid: 'Compendium.pf2e.feats-srd.Item.other-option',
               name: 'Not An Animal',
               otherTags: ['some-other-tag'],
+            }),
+          ]),
+        }],
+        ['pf2e.equipment-srd', {
+          getDocuments: jest.fn(async () => [
+            createPhysicalDoc({
+              uuid: 'Compendium.pf2e.equipment-srd.Item.alchemists-fire',
+              name: "Alchemist's Fire",
+              traits: ['alchemical', 'bomb', 'consumable', 'fire'],
+              level: 1,
+              category: 'other',
+            }),
+            createPhysicalDoc({
+              uuid: 'Compendium.pf2e.equipment-srd.Item.antidote',
+              name: 'Antidote',
+              traits: ['alchemical', 'consumable', 'elixir'],
+              level: 1,
+              category: 'other',
+            }),
+            createPhysicalDoc({
+              uuid: 'Compendium.pf2e.equipment-srd.Item.magic-wand',
+              name: 'Magic Wand',
+              type: 'equipment',
+              traits: ['magical'],
+              level: 1,
+              category: 'held',
+            }),
+          ]),
+        }],
+        ['pf2e.spells-srd', {
+          getDocuments: jest.fn(async () => [
+            createDoc({
+              uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
+              name: 'Electric Arc',
+              type: 'spell',
+              traits: ['cantrip', 'electricity'],
+              level: 0,
+            }),
+            createDoc({
+              uuid: 'Compendium.pf2e.spells-srd.Item.heal',
+              name: 'Heal',
+              type: 'spell',
+              traits: ['healing'],
+              level: 1,
             }),
           ]),
         }],
@@ -1779,6 +1852,40 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         featName: 'Dwarf',
       }),
     ]));
+  });
+
+  it('does not synthesize inline formula choices from formula feat text', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.feats-srd.Item.alchemical-crafting',
+      name: 'Alchemical Crafting',
+    });
+    feat.system.description.value = '<p>You gain the formulas for four common 1st-level alchemical items.</p>';
+
+    const sets = await wizard._parseChoiceSets([], {}, feat);
+
+    expect(sets).toEqual([]);
+  });
+
+  it('synthesizes spell choices when feat text asks for one spell from embedded spell links', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.feats-srd.Item.spell-cache',
+      name: 'Spell Cache',
+    });
+    feat.system.description.value = '<p>Choose one of the following spells to add to your spellbook: @UUID[Compendium.pf2e.spells-srd.Item.electric-arc] or @UUID[Compendium.pf2e.spells-srd.Item.heal].</p>';
+
+    const sets = await wizard._parseChoiceSets([], {}, feat);
+
+    expect(sets).toHaveLength(1);
+    expect(sets[0]).toEqual(expect.objectContaining({
+      syntheticType: 'spell-choice',
+      prompt: 'Select a spell.',
+    }));
+    expect(sets[0].options.map((option) => option.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.electric-arc',
+      'Compendium.pf2e.spells-srd.Item.heal',
+    ]);
   });
 
   it('uses Clan Pistol for Dwarf clan weapon prompts when Clan Pistol is selected', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "pf2e-leveler",
-  "version": "3.2.3",
+  "version": "3.2.4",
   "description": "Plan and auto-apply character level-ups for Pathfinder 2E",
   "main": "scripts/main.js",
   "scripts": {

@@ -1,4 +1,4 @@
-import { getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
+import { getAdditionalSelectedFormulas, getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
 import { applyCreation } from '../../../scripts/creation/apply-creation.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID } from '../../../scripts/constants.js';
 
@@ -219,6 +219,46 @@ describe('getAdditionalSelectedItems', () => {
         uuid: 'Compendium.pf2e.spells-srd.Item.electric-arc',
         name: 'Electric Arc',
         _type: 'spell',
+      },
+    ]);
+  });
+});
+
+describe('getAdditionalSelectedFormulas', () => {
+  it('returns selected synthetic formula choices', () => {
+    const formulas = getAdditionalSelectedFormulas({
+      grantedFeatSections: [
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.alchemical-crafting',
+          featName: 'Alchemical Crafting',
+          choiceSets: [
+            {
+              flag: 'levelerFormulaChoice1',
+              syntheticType: 'formula-choice',
+              options: [
+                {
+                  value: 'Compendium.pf2e.equipment-srd.Item.alchemists-fire',
+                  uuid: 'Compendium.pf2e.equipment-srd.Item.alchemists-fire',
+                  label: "Alchemist's Fire",
+                  type: 'consumable',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'Compendium.pf2e.feats-srd.Item.alchemical-crafting': {
+          levelerFormulaChoice1: 'Compendium.pf2e.equipment-srd.Item.alchemists-fire',
+        },
+      },
+    });
+
+    expect(formulas).toEqual([
+      {
+        uuid: 'Compendium.pf2e.equipment-srd.Item.alchemists-fire',
+        name: "Alchemist's Fire",
+        _type: 'formula',
       },
     ]);
   });

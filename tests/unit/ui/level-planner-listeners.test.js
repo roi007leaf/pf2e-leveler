@@ -398,6 +398,49 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('opens feat grant picker from requirement buttons', () => {
+    document.body.innerHTML = '<button type="button" data-action="openFeatGrantPicker" data-requirement-id="req-formula"></button>';
+
+    const planner = {
+      _openFeatGrantPicker: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="openFeatGrantPicker"]').click();
+
+    expect(planner._openFeatGrantPicker).toHaveBeenCalledWith('req-formula');
+  });
+
+  it('removes stored feat grant selections from the current level', () => {
+    document.body.innerHTML = '<button type="button" data-action="removeFeatGrantSelection" data-requirement-id="req-formula" data-uuid="item-a"></button>';
+
+    const planner = {
+      plan: {
+        levels: {
+          2: {
+            featGrants: [
+              {
+                requirementId: 'req-formula',
+                kind: 'formula',
+                selections: [
+                  { uuid: 'item-a', name: 'Item A' },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="removeFeatGrantSelection"]').click();
+
+    expect(planner.plan.levels[2].featGrants).toEqual([]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
   it('adds a custom skill increase using current custom-aware rank state', () => {
     document.body.innerHTML = '<button type="button" data-action="addCustomSkillIncrease" data-skill="acrobatics"></button>';
 

@@ -169,7 +169,7 @@ async function ensureSpellcastingEntries(actor, classDef) {
   return entries;
 }
 
-async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
+export async function ensureArchetypeSpellcastingEntries(actor, plan, level) {
   const configs = getArchetypeSpellcastingEntryConfigs(actor, plan, level);
   if (configs.length === 0) return {};
 

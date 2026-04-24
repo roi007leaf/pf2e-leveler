@@ -36,7 +36,9 @@
         <div class="picker__utility-row picker__utility-row--inline-label">
           <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_LEVEL"}}</div>
           <select class="picker__select picker__select--compact" data-action="filterMaxLevel">
+          {{#unless maxLevelCapped}}
           <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
+          {{/unless}}
           {{#each levelOptions}}
           <option value="{{this.value}}" {{#if (eq this.value ../maxLevel)}}selected{{/if}}>{{this.label}}</option>
           {{/each}}
