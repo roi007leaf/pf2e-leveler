@@ -2,8 +2,11 @@ import { SUBCLASS_TAGS } from '../../constants.js';
 import { getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import {
   getSelectedHandlerChoiceSourceItems,
+  buildChoiceSetRollOptions,
   extractChoiceLabel,
   findMatchingChoiceOption,
+  inferChoiceSetSelection,
+  matchesChoiceSetPredicate,
 } from './choice-sets.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -194,6 +197,7 @@ export async function getApplyPromptRows(wizard) {
     const rules = item.system?.rules ?? [];
     for (const rule of rules) {
       if (rule.key !== 'ChoiceSet') continue;
+      if (!matchesChoiceSetPredicate(rule.predicate, buildChoiceSetRollOptions(wizard, rules, getCurrentChoices(wizard, item, optionSource)))) continue;
       await addRow(sourceLabel, rule, optionSource);
 
       const selectedItem = await resolveSelectedChoiceItem(rule, optionSource);
@@ -297,6 +301,13 @@ function matchesGrantPredicate(rule, wizard) {
   if (!rule?.predicate) return true;
   const actorLevel = wizard?.actor?.system?.details?.level?.value ?? 1;
   return evaluatePredicate(rule.predicate, actorLevel);
+}
+
+function getCurrentChoices(wizard, item, optionSource = null) {
+  if (optionSource?.choices) return optionSource.choices;
+  if (optionSource?.uuid) return getGrantedFeatChoiceValues(wizard.data, optionSource.uuid);
+  if (item?.uuid) return getGrantedFeatChoiceValues(wizard.data, item.uuid);
+  return {};
 }
 
 function dedupePromptRows(rows) {
@@ -423,6 +434,12 @@ export async function resolvePromptSelectionLabel(wizard, rule, optionSource = n
       selectedValue,
     );
     return option ? (extractChoiceLabel(option) ?? selectedValue) : String(selectedValue);
+  }
+
+  const inferredValue = inferChoiceSetSelection(wizard, flag, rule?.choices);
+  if (inferredValue) {
+    const option = findMatchingChoiceOption(rule?.choices, inferredValue);
+    return option ? (extractChoiceLabel(option) ?? inferredValue) : String(inferredValue);
   }
 
   if (flag === 'implement') return wizard.data.implement?.name ?? null;

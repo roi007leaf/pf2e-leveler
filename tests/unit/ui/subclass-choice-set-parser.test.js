@@ -1781,6 +1781,104 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]));
   });
 
+  it('uses Clan Pistol for Dwarf clan weapon prompts when Clan Pistol is selected', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Compendium.pf2e.ancestries.Item.dwarf',
+      name: 'Dwarf',
+      slug: 'dwarf',
+    };
+    wizard.data.ancestryFeat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.clan-pistol',
+      name: 'Clan Pistol',
+      slug: 'clan-pistol',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.ancestries.Item.dwarf') {
+        return {
+          uuid,
+          name: 'Dwarf',
+          type: 'ancestry',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'clanWeapon',
+                prompt: 'Choose a clan weapon.',
+                choices: [
+                  { value: 'clan-dagger', label: 'Clan Dagger' },
+                  { value: 'clan-pistol', label: 'Clan Pistol' },
+                ],
+              },
+              { key: 'RollOption', option: '{item|flags.pf2e.rulesSelections.clanWeapon}', removeUponCreate: true },
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.equipment-srd.Item.clan-dagger',
+                predicate: ['clan-dagger'],
+              },
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.clan-pistol',
+                predicate: ['clan-pistol'],
+              },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.clan-pistol') {
+        return {
+          uuid,
+          name: 'Clan Pistol',
+          slug: 'clan-pistol',
+          type: 'feat',
+          system: {
+            rules: [
+              { key: 'GrantItem', uuid: 'Compendium.pf2e.equipment-srd.Item.clan-pistol' },
+            ],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.equipment-srd.Item.clan-pistol') {
+        return {
+          uuid,
+          name: 'Clan Pistol',
+          type: 'weapon',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const rows = await wizard._getApplyPromptRows();
+
+    expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slot: 'Compendium.pf2e.ancestries.Item.dwarf',
+        choiceSets: expect.arrayContaining([
+          expect.objectContaining({
+            flag: 'clanWeapon',
+          }),
+        ]),
+      }),
+    ]));
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        prompt: 'Choose a clan weapon.',
+        value: 'Clan Pistol',
+      }),
+    ]));
+    expect(rows).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        prompt: 'Choose a clan weapon.',
+        value: 'Clan Dagger',
+      }),
+    ]));
+  });
+
   it('surfaces deity-granted domain choices and resolves dynamic domain options from the selected deity', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = {

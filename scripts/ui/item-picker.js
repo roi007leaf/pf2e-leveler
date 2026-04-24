@@ -7,6 +7,8 @@ import {
   applyPublicationFilter,
   applyTraitFilter,
   buildChipOptions,
+  buildFilterSectionState,
+  buildPublicationFilterSectionState,
   getAvailableRarityValues,
   isUnrestrictedSelection,
   initializeSelectionSet,
@@ -61,6 +63,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedTraits = new Set();
     this.selectedArmorFilters = new Set();
     this.selectedWeaponFilters = new Set();
+    this.filterSections = {
+      publications: true,
+      armor: true,
+      weapon: true,
+    };
     this.traitLogic = 'or';
     this.armorFilterLogic = 'or';
     this.weaponFilterLogic = 'or';
@@ -125,6 +132,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       weaponFilterOptions,
       showArmorFilters,
       showWeaponFilters,
+      filterSections: this._getFilterSections(),
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
       }),
@@ -399,6 +407,14 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
       allVisibleSelected: this._areAllVisibleSelected(),
+      publicationOptions: this._getPublicationOptions(),
+      armorFilterOptions: this._getArmorFilterOptions(),
+      weaponFilterOptions: this._getWeaponFilterOptions(),
+      showArmorFilters: this._shouldShowEquipmentFilters('armor'),
+      showWeaponFilters: this._shouldShowEquipmentFilters('weapon'),
+      filterSections: this._getFilterSections(),
+      armorFilterLogic: this.armorFilterLogic,
+      weaponFilterLogic: this.weaponFilterLogic,
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
       }),
@@ -411,6 +427,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const rarityContainer = root?.querySelector('[data-role="rarity-chips"]');
     const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
     if (rarityContainer && newRarityContainer) rarityContainer.innerHTML = newRarityContainer.innerHTML;
+    const publicationSection = root?.querySelector('[data-section="publications"]');
+    const newPublicationSection = temp.querySelector('[data-section="publications"]');
+    if (publicationSection && newPublicationSection) publicationSection.replaceWith(newPublicationSection);
     const countEl = root?.querySelector('.picker__results-count');
     if (countEl) countEl.textContent = capped ? `${renderedItems.length}/${this.filteredItems.length}` : String(this.filteredItems.length);
 
@@ -428,6 +447,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     this._cachedVisibleTraits = this._getVisibleTraits();
+    this._updateFilterSectionControlStates(root);
     this._updateSelectionUI();
   }
 
@@ -453,6 +473,52 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _shouldApplyEquipmentFilters(kind) {
     const selected = kind === 'armor' ? this.selectedArmorFilters : this.selectedWeaponFilters;
     return this._shouldShowEquipmentFilters(kind) && selected.size > 0;
+  }
+
+  _getFilterSections() {
+    return {
+      publications: buildPublicationFilterSectionState(
+        this.selectedPublications,
+        this._publicationTitles,
+        this.filterSections?.publications,
+      ),
+      armor: this._getEquipmentFilterSectionState('armor'),
+      weapon: this._getEquipmentFilterSectionState('weapon'),
+    };
+  }
+
+  _getEquipmentFilterSectionState(kind) {
+    const selected = kind === 'armor' ? this.selectedArmorFilters : this.selectedWeaponFilters;
+    const available = kind === 'armor' ? this._armorFilterValues : this._weaponFilterValues;
+    const activeCount = selected instanceof Set && !isUnrestrictedSelection(selected, available)
+      ? selected.size
+      : 0;
+    return buildFilterSectionState(this.filterSections?.[kind], activeCount);
+  }
+
+  _toggleFilterSection(section) {
+    if (!section) return;
+    this.filterSections = {
+      ...(this.filterSections ?? {}),
+      [section]: !this.filterSections?.[section],
+    };
+    this.render(false);
+  }
+
+  _updateFilterSectionControlStates(root = this._getRootElement()) {
+    if (!root) return;
+    const states = this._getFilterSections();
+    for (const [section, state] of Object.entries(states)) {
+      const sectionEl = root.querySelector(`[data-section="${section}"]`);
+      if (!sectionEl) continue;
+      const summary = sectionEl.querySelector(`[data-section-summary="${section}"]`);
+      if (summary) summary.textContent = state.activeCount > 0 ? `(${state.summary})` : '';
+      for (const toggle of sectionEl.querySelectorAll('[data-action="toggleFilterSection"]')) {
+        toggle.setAttribute('aria-expanded', state.collapsed ? 'false' : 'true');
+      }
+      const body = sectionEl.querySelector('.picker__section-body');
+      if (body) body.hidden = state.collapsed;
+    }
   }
 
   _scheduleUpdate() {
@@ -561,6 +627,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         this.selectedRarities = toggleSelectableChip(this.selectedRarities, target.dataset.rarity, this._availableRarityValues ?? RARITY_VALUES);
         target.classList.toggle('selected', this.selectedRarities.has(target.dataset.rarity));
         this._updateList();
+        return;
+      }
+
+      if (action === 'toggleFilterSection') {
+        this._toggleFilterSection(target.dataset.section);
         return;
       }
 

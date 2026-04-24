@@ -168,12 +168,23 @@ export async function getBackgroundLores(wizard) {
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
   const source = localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background');
-  const lores = (item.system?.trainedSkills?.lore ?? []).map((name) => ({ name, source }));
   const dynamicLore = getDynamicBackgroundLorePlaceholder(wizard, item);
-  if (dynamicLore && !lores.some((entry) => entry.name === dynamicLore)) {
-    lores.push({ name: dynamicLore, source });
-  }
-  return lores;
+  const loreNames = [
+    ...(item.system?.trainedSkills?.lore ?? []),
+    ...parseSubclassLores(item.system?.rules ?? [], ''),
+    ...(dynamicLore ? [] : parseSubclassLores([], item.system?.description?.value ?? '')),
+  ];
+  if (dynamicLore) loreNames.push(dynamicLore);
+
+  const seen = new Set();
+  return loreNames
+    .filter((name) => {
+      const normalized = normalizeLoreName(name);
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .map((name) => ({ name, source }));
 }
 
 export function parseSubclassLores(rules, html) {

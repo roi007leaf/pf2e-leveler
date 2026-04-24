@@ -4,6 +4,7 @@ import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creatio
 import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
+import { slugify } from '../../utils/pf2e-api.js';
 import { buildSkillContext } from './skills-languages.js';
 import { parseCurriculum } from './loaders.js';
 
@@ -637,7 +638,7 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     const flag = getChoiceSetFlag(rule, index);
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
-    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(allRules, currentChoices))) continue;
+    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(wizard, allRules, currentChoices))) continue;
     const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
@@ -1537,22 +1538,32 @@ function areChoiceSetsSatisfied(choiceSets, currentChoices) {
   });
 }
 
-function buildChoiceSetRollOptions(rules, currentChoices) {
+export function buildChoiceSetRollOptions(wizard, rules, currentChoices) {
   const values = {};
   for (const [index, rule] of (rules ?? []).entries()) {
     if (rule?.key !== 'ChoiceSet') continue;
     const flag = getChoiceSetFlag(rule, index);
-    const selectedValue = currentChoices?.[flag];
+    const selectedValue = currentChoices?.[flag] ?? inferChoiceSetSelection(wizard, flag, rule?.choices);
     if (typeof selectedValue !== 'string' || selectedValue === '[object Object]') continue;
     values[flag] = selectedValue;
     if (typeof rule.rollOption === 'string' && rule.rollOption.length > 0) {
       values[rule.rollOption] = selectedValue;
     }
   }
+  for (const slug of getSelectedFeatRollOptionSlugs(wizard)) {
+    values[`feat:${slug}`] = true;
+  }
   return values;
 }
 
-function matchesChoiceSetPredicate(predicate, rollOptions) {
+export function inferChoiceSetSelection(wizard, flag, choices = []) {
+  if (String(flag ?? '') !== 'clanWeapon') return null;
+  if (!getSelectedFeatRollOptionSlugs(wizard).has('clan-pistol')) return null;
+  const options = Array.isArray(choices) ? choices : [];
+  return options.some((option) => String(option?.value ?? '') === 'clan-pistol') ? 'clan-pistol' : null;
+}
+
+export function matchesChoiceSetPredicate(predicate, rollOptions) {
   if (!predicate) return true;
   if (typeof predicate === 'string') return matchesChoiceSetPredicateString(predicate, rollOptions);
   if (Array.isArray(predicate)) return predicate.every((entry) => matchesChoiceSetPredicate(entry, rollOptions));
@@ -1566,6 +1577,7 @@ function matchesChoiceSetPredicate(predicate, rollOptions) {
 
 function matchesChoiceSetPredicateString(predicate, rollOptions) {
   const text = String(predicate ?? '');
+  if (rollOptions[text]) return true;
   const separator = text.indexOf(':');
   if (separator < 0) return !!rollOptions[text];
   const key = text.slice(0, separator);
@@ -1590,6 +1602,35 @@ function isAncestryChoiceSet(rule) {
 
   const filters = safeSerializeChoiceFilters(rule?.choices?.filter);
   return filters.includes('item:type:ancestry');
+}
+
+function getSelectedFeatRollOptionSlugs(wizard) {
+  const feats = [
+    wizard?.data?.ancestryFeat,
+    wizard?.data?.ancestryParagonFeat,
+    wizard?.data?.classFeat,
+    wizard?.data?.dualClassFeat,
+    wizard?.data?.skillFeat,
+    ...(wizard?.data?.grantedFeatSections ?? []).map((section) => ({
+      slug: section?.slug,
+      name: section?.featName,
+      uuid: section?.slot,
+    })),
+  ].filter(Boolean);
+
+  const slugs = new Set();
+  for (const feat of feats) {
+    const candidates = [
+      feat.slug,
+      feat.name,
+      String(feat.uuid ?? '').split('.').at(-1),
+    ];
+    for (const candidate of candidates) {
+      const slug = slugify(String(candidate ?? ''));
+      if (slug) slugs.add(slug);
+    }
+  }
+  return slugs;
 }
 
 function isSkillChoiceSet(rule) {

@@ -6,22 +6,42 @@
   {{else}}
   <div class="picker__browser">
     <aside class="picker__sidebar">
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.CREATION.SEARCH"}}</div>
+      <div class="picker__filter-group picker__filter-group--compact">
         <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.ITEM_PICKER.SEARCH'}}"
                data-action="searchItems"
                value="{{searchText}}">
       </div>
 
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_LEVEL"}}</div>
-        <select class="picker__select" data-action="filterMaxLevel">
+      <div class="picker__filter-group picker__filter-group--compact">
+        <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
+          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" autocomplete="off">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
+          <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
+        </div>
+        <div class="picker__source-list picker__source-list--compact" data-role="selected-trait-chips" {{#unless selectedTraitChips.length}}style="display:none"{{/unless}}>
+          {{#each selectedTraitChips}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleTraitChip"
+            data-trait="{{this.value}}">
+            <span>{{this.label}}</span>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="picker__filter-group picker__filter-group--utility">
+        <div class="picker__utility-row picker__utility-row--inline-label">
+          <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_LEVEL"}}</div>
+          <select class="picker__select picker__select--compact" data-action="filterMaxLevel">
           <option value="">{{localize "PF2E_LEVELER.FEAT_PICKER.ANY_LEVEL"}}</option>
           {{#each levelOptions}}
-          <option value="{{this.value}}" {{#if (eq this.value ../maxLevel)}}selected{{/if}}>{{localize "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}</option>
+          <option value="{{this.value}}" {{#if (eq this.value ../maxLevel)}}selected{{/if}}>{{this.label}}</option>
           {{/each}}
-        </select>
+          </select>
+        </div>
       </div>
 
       <div class="picker__filter-group">
@@ -39,12 +59,32 @@
       </div>
 
       {{#if showArmorFilters}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label picker__filter-label--row">
-          <span>Armor Filters</span>
-          <button type="button" class="picker__prereq-toggle" data-action="toggleArmorFilterLogic">{{#if (eq armorFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="armor">
+        <div class="picker__section-header">
+          <button type="button"
+                  class="picker__section-toggle picker__section-toggle--label"
+                  data-action="toggleFilterSection"
+                  data-section="armor"
+                  aria-expanded="{{#if filterSections.armor.collapsed}}false{{else}}true{{/if}}">
+            <span>Armor Filters</span>
+          </button>
+          <button type="button" class="picker__prereq-toggle picker__prereq-toggle--section" data-action="toggleArmorFilterLogic">{{#if (eq armorFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="armor">
+              {{#if filterSections.armor.activeCount}}({{filterSections.armor.summary}}){{/if}}
+            </span>
+          </span>
+          <button type="button"
+                  class="picker__section-toggle picker__section-toggle--chevron"
+                  data-action="toggleFilterSection"
+                  data-section="armor"
+                  aria-expanded="{{#if filterSections.armor.collapsed}}false{{else}}true{{/if}}">
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </button>
         </div>
-        <div class="picker__source-list">
+        {{#unless filterSections.armor.collapsed}}
+        <div class="picker__section-body">
+        <div class="picker__source-list picker__source-list--stacked">
           {{#each armorFilterOptions}}
           <button type="button"
             class="picker__source-chip {{#if this.selected}}selected{{/if}}"
@@ -54,16 +94,38 @@
           </button>
           {{/each}}
         </div>
+        </div>
+        {{/unless}}
       </div>
       {{/if}}
 
       {{#if showWeaponFilters}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label picker__filter-label--row">
-          <span>Weapon Filters</span>
-          <button type="button" class="picker__prereq-toggle" data-action="toggleWeaponFilterLogic">{{#if (eq weaponFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="weapon">
+        <div class="picker__section-header">
+          <button type="button"
+                  class="picker__section-toggle picker__section-toggle--label"
+                  data-action="toggleFilterSection"
+                  data-section="weapon"
+                  aria-expanded="{{#if filterSections.weapon.collapsed}}false{{else}}true{{/if}}">
+            <span>Weapon Filters</span>
+          </button>
+          <button type="button" class="picker__prereq-toggle picker__prereq-toggle--section" data-action="toggleWeaponFilterLogic">{{#if (eq weaponFilterLogic "and")}}AND{{else}}OR{{/if}}</button>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="weapon">
+              {{#if filterSections.weapon.activeCount}}({{filterSections.weapon.summary}}){{/if}}
+            </span>
+          </span>
+          <button type="button"
+                  class="picker__section-toggle picker__section-toggle--chevron"
+                  data-action="toggleFilterSection"
+                  data-section="weapon"
+                  aria-expanded="{{#if filterSections.weapon.collapsed}}false{{else}}true{{/if}}">
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </button>
         </div>
-        <div class="picker__source-list">
+        {{#unless filterSections.weapon.collapsed}}
+        <div class="picker__section-body">
+        <div class="picker__source-list picker__source-list--stacked">
           {{#each weaponFilterOptions}}
           <button type="button"
             class="picker__source-chip {{#if this.selected}}selected{{/if}}"
@@ -73,28 +135,10 @@
           </button>
           {{/each}}
         </div>
+        </div>
+        {{/unless}}
       </div>
       {{/if}}
-
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.TRAIT_FILTER"}}</div>
-        <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
-          <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" autocomplete="off">
-          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
-          <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
-        </div>
-        <div class="picker__source-list" data-role="selected-trait-chips" style="margin-top: 8px;{{#unless selectedTraitChips.length}} display: none;{{/unless}}">
-          {{#each selectedTraitChips}}
-          <button type="button"
-            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
-            data-action="toggleTraitChip"
-            data-trait="{{this.value}}">
-            <span>{{this.label}}</span>
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-          {{/each}}
-        </div>
-      </div>
 
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
@@ -111,10 +155,24 @@
       </div>
 
       {{#if publicationOptions.length}}
-      <div class="picker__filter-group">
-        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
-        <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
-        <div class="picker__source-list">
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="publications">
+        <button type="button"
+                class="picker__section-toggle"
+                data-action="toggleFilterSection"
+                data-section="publications"
+                aria-expanded="{{#if filterSections.publications.collapsed}}false{{else}}true{{/if}}">
+          <span>{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</span>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="publications">
+              {{#if filterSections.publications.activeCount}}({{filterSections.publications.summary}}){{/if}}
+            </span>
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </span>
+        </button>
+        {{#unless filterSections.publications.collapsed}}
+        <div class="picker__section-body">
+        <input type="text" class="picker__search picker__search--compact" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
+        <div class="picker__source-list picker__source-list--stacked">
           {{#each publicationOptions}}
           <button
             type="button"
@@ -127,6 +185,8 @@
           </button>
           {{/each}}
         </div>
+        </div>
+        {{/unless}}
       </div>
       {{/if}}
     </aside>

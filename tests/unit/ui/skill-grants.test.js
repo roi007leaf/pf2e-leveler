@@ -1049,6 +1049,53 @@ describe('CharacterWizard skills step grants', () => {
     ]);
   });
 
+  it('extracts background lore skills from ActiveEffectLike skill rank rules', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-noble-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              value: ['society'],
+              lore: [],
+            },
+            rules: [
+              { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.genealogy-lore.rank', value: 1 },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'background-urchin-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              value: ['thievery'],
+              lore: [],
+            },
+            rules: [
+              { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.underworld-lore.rank', value: 1 },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const nobleWizard = new CharacterWizard(createMockActor());
+    nobleWizard.data.background = { uuid: 'background-noble-uuid', name: 'Noble' };
+
+    const urchinWizard = new CharacterWizard(createMockActor());
+    urchinWizard.data.background = { uuid: 'background-urchin-uuid', name: 'Street Urchin' };
+
+    await expect(nobleWizard._getBackgroundLores()).resolves.toEqual([
+      { name: 'Genealogy Lore', source: 'Background' },
+    ]);
+    await expect(urchinWizard._getBackgroundLores()).resolves.toEqual([
+      { name: 'Underworld Lore', source: 'Background' },
+    ]);
+  });
+
   it('builds skill context safely when selected skills are not initialized yet', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data = {

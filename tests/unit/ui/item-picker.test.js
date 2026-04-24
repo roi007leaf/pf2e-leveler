@@ -125,6 +125,115 @@ describe('ItemPicker', () => {
     expect(context.rarityOptions.map((entry) => entry.value)).toEqual(['common']);
   });
 
+  test('prepares collapsible filter section metadata for publications and equipment filters', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          publicationTitle: 'Player Core',
+          system: {
+            category: { value: 'medium' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+        {
+          uuid: 'weapon-1',
+          name: 'Longsword',
+          type: 'weapon',
+          publicationTitle: 'Treasure Vault',
+          system: {
+            category: { value: 'martial' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+        {
+          uuid: 'armor-2',
+          name: 'Leather Armor',
+          type: 'armor',
+          publicationTitle: 'Treasure Vault',
+          system: {
+            category: { value: 'light' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+      ],
+    });
+    picker.selectedCategories = new Set(['armor']);
+    picker.selectedArmorFilters = new Set(['category:medium']);
+    picker.selectedPublications = new Set(['Player Core']);
+
+    const context = await picker._prepareContext();
+
+    expect(context.filterSections.publications).toEqual(expect.objectContaining({
+      collapsed: true,
+      activeCount: 1,
+      summary: '1',
+    }));
+    expect(context.filterSections.armor).toEqual(expect.objectContaining({
+      collapsed: true,
+      activeCount: 1,
+      summary: '1',
+    }));
+    expect(context.filterSections.weapon).toEqual(expect.objectContaining({
+      collapsed: true,
+      activeCount: 0,
+    }));
+  });
+
+  test('item picker template moves trait filter below search and uses collapsible section shells', () => {
+    const template = require('fs').readFileSync(require('path').resolve(__dirname, '../../../templates/item-picker.hbs'), 'utf8');
+
+    expect(template).not.toContain('{{localize "PF2E_LEVELER.CREATION.SEARCH"}}');
+    expect(template).toContain('picker__utility-row picker__utility-row--inline-label');
+    expect(template).toContain('<div class="picker__filter-label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_LEVEL"}}</div>');
+    expect(template).not.toContain('{{localize "PF2E_LEVELER.FEAT_PICKER.MAX_LEVEL" level=this.label}}');
+    expect(template.indexOf('data-action="traitInput"')).toBeGreaterThan(template.indexOf('data-action="searchItems"'));
+    expect(template.indexOf('data-action="traitInput"')).toBeLessThan(template.indexOf('data-action="filterMaxLevel"'));
+    expect(template).toContain('data-section="publications"');
+    expect(template).toContain('data-section="armor"');
+    expect(template).toContain('data-section="weapon"');
+    expect(template).toContain('picker__prereq-toggle picker__prereq-toggle--section" data-action="toggleArmorFilterLogic"');
+    expect(template).toContain('picker__prereq-toggle picker__prereq-toggle--section" data-action="toggleWeaponFilterLogic"');
+    expect(template).not.toContain('picker__filter-label picker__filter-label--row');
+    expect(template.match(/picker__section-chevron/g)).toHaveLength(3);
+    expect(template).toContain('{{#unless filterSections.publications.collapsed}}');
+    expect(template).toContain('{{#unless filterSections.armor.collapsed}}');
+    expect(template).toContain('{{#unless filterSections.weapon.collapsed}}');
+  });
+
+  test('toggling an item filter section is reflected in the next prepared context', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'armor-1',
+          name: 'Chain Mail',
+          type: 'armor',
+          system: {
+            category: { value: 'medium' },
+            traits: { rarity: 'common', value: [] },
+            level: { value: 1 },
+          },
+        },
+      ],
+    });
+    picker.selectedCategories = new Set(['armor']);
+    picker.render = jest.fn();
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = '<button type="button" data-action="toggleFilterSection" data-section="armor"></button>';
+
+    picker._onRender();
+    picker.element.querySelector('[data-action="toggleFilterSection"]').click();
+
+    expect(picker.filterSections.armor).toBe(false);
+    const context = await picker._prepareContext();
+    expect(context.filterSections.armor.collapsed).toBe(false);
+  });
+
   test('builds dedicated armor and weapon filter options from item metadata', () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       items: [

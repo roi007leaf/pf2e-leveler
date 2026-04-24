@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.2.3
+
+### Item Picker
+
+- **Item picker filters now match the compact feat and spell picker layout** - Search and trait filtering now sit together at the top, the level filter is an inline `Level` row with plain level values, and obvious standalone labels were removed from simple inputs
+- **Item picker publication, armor, and weapon filters are now collapsible** - Publication filtering now uses the same chevron collapse treatment as the feat and spell pickers, while armor and weapon filters can also collapse independently and show active counts in their headers
+- **Armor and weapon filter controls now stay inline and left-aligned** - The `AND`/`OR` logic toggle now lives beside each filter header, and stacked equipment filter chips align their dot and label from the left instead of centering text in full-width rows
+- **Item picker compact styling now applies correctly to item-specific controls** - Shared picker CSS now covers item picker utility rows, compact groups, stacked chip lists, collapsible section headers, chevrons, and compact search/select inputs so item filters no longer fall back to default button styling
+
+### Character Wizard
+
+- **Background lore training from rule elements now applies during character creation** - Backgrounds that grant lore skills through `ActiveEffectLike` rule elements, including examples like Noble and Street Urchin, now surface and apply their expected lore training instead of only backgrounds with simpler lore metadata working
+- **Clan Pistol now replaces the Dwarf clan dagger selection correctly** - Choosing the `Clan Pistol` ancestry feat now infers the Dwarf `clanWeapon` choice as Clan Pistol, so the creation wizard no longer prompts for Clan Dagger or grants Clan Dagger alongside the feat-specific replacement
+
 ## 3.2.2
 
 ### Level Planner
