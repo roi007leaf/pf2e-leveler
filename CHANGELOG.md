@@ -2,10 +2,6 @@
 
 ## 3.2.3
 
-### Level Planner
-
-- **Feats that require casting a specific cantrip or spell now recognize the requirement** - Prerequisites phrased as `you can cast the shield cantrip`, `able to cast the X cantrip`, or `you can cast the X spell` are now parsed and checked against the character's known spells, so feats like `Shield Spell Reinforcement` correctly unlock for characters who have the referenced cantrip
-
 ### Item Picker
 
 - **Item picker filters now match the compact feat and spell picker layout** - Search and trait filtering now sit together at the top, the level filter is an inline `Level` row with plain level values, and obvious standalone labels were removed from simple inputs
