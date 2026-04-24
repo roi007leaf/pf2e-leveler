@@ -176,6 +176,28 @@ describe('parsePrerequisite', () => {
     expect(result.spellSlug).toBe('animate-dead');
   });
 
+  test('parses specific-cantrip prerequisite wording variants', () => {
+    for (const text of [
+      'you can cast the shield cantrip',
+      'able to cast the shield cantrip',
+      'ability to cast the shield cantrip',
+      'you must be able to cast the shield cantrip',
+      'have the shield cantrip',
+    ]) {
+      const result = parsePrerequisite(text);
+      expect(result.type).toBe('spellcastingState');
+      expect(result.spellSlug).toBe('shield');
+      expect(result.spellSlots).toBeUndefined();
+    }
+  });
+
+  test('parses specific-spell (non-slot) prerequisite wording', () => {
+    const result = parsePrerequisite('you can cast the fireball spell');
+    expect(result.type).toBe('spellcastingState');
+    expect(result.spellSlug).toBe('fireball');
+    expect(result.spellSlots).toBeUndefined();
+  });
+
   test('parses spell-trait casting prerequisite', () => {
     const result = parsePrerequisite('able to cast at least one necromancy spell');
     expect(result.type).toBe('spellcastingState');
