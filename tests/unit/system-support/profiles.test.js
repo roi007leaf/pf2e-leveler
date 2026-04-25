@@ -7,6 +7,7 @@ import {
   getRulesetConfig,
   getSystemSetting,
   isCompendiumUuidInCategory,
+  isPackAllowedForActiveProfile,
   isAnachronismActive,
   parseCompendiumUuid,
   resolveSystemPredicate,
@@ -166,5 +167,27 @@ describe('system support profiles', () => {
       'Compendium.sf2e.spells.Item.Telekinetic Projectile',
       'Compendium.sf2e.spells.Item.hologram',
     ]);
+  });
+
+  test('allows standalone SF2e system packs only in SF2e worlds', () => {
+    const modules = moduleMap([['sf2e-anachronism', true]]);
+
+    expect(isPackAllowedForActiveProfile('sf2e.spells', { systemId: 'pf2e', modules })).toBe(false);
+    expect(isPackAllowedForActiveProfile('sf2e.spells', { systemId: 'sf2e', modules })).toBe(true);
+  });
+
+  test('allows Anachronism packs only when active in PF2e worlds', () => {
+    expect(isPackAllowedForActiveProfile('sf2e-anachronism.spells', {
+      systemId: 'pf2e',
+      modules: moduleMap([['sf2e-anachronism', true]]),
+    })).toBe(true);
+    expect(isPackAllowedForActiveProfile('sf2e-anachronism.spells', {
+      systemId: 'pf2e',
+      modules: moduleMap([['sf2e-anachronism', false]]),
+    })).toBe(false);
+    expect(isPackAllowedForActiveProfile('sf2e-anachronism.spells', {
+      systemId: 'sf2e',
+      modules: moduleMap([['sf2e-anachronism', true]]),
+    })).toBe(false);
   });
 });

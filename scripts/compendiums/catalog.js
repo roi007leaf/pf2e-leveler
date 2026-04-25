@@ -1,6 +1,9 @@
 import { MODULE_ID } from '../constants.js';
 import { getAllowedCompendiumKeysForCurrentUser } from '../access/player-content.js';
-import { getDefaultPackKeysForCategory } from '../system-support/profiles.js';
+import {
+  getDefaultPackKeysForCategory,
+  isPackAllowedForActiveProfile,
+} from '../system-support/profiles.js';
 
 export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   ancestries: {
@@ -87,7 +90,7 @@ export function getConfiguredCompendiumSelections() {
 
 export function getCompendiumKeysForCategory(category, { includeDefaults = true } = {}) {
   const configured = getConfiguredCompendiumSelections();
-  const custom = configured[category] ?? [];
+  const custom = (configured[category] ?? []).filter((key) => isPackAllowedForActiveProfile(key));
   const defaults = includeDefaults ? getDefaultCompendiumKeys(category) : [];
   return getAllowedCompendiumKeysForCurrentUser(category, defaults, custom);
 }
@@ -109,6 +112,7 @@ export async function discoverCompendiumsByCategory({ includeManualCandidates = 
 
   const allPacks = getAllPacks();
   for (const pack of allPacks) {
+    if (!isPackAllowedForActiveProfile(pack)) continue;
     const index = await getPackIndex(pack);
     for (const [category, definition] of Object.entries(COMPENDIUM_CATEGORY_DEFINITIONS)) {
       if (!definition.matches(pack, index)) continue;
@@ -130,6 +134,7 @@ export async function discoverCompendiumsByCategory({ includeManualCandidates = 
     for (const category of Object.keys(categories)) {
       const seen = new Set(categories[category].map((pack) => pack.key));
       for (const pack of allPacks) {
+        if (!isPackAllowedForActiveProfile(pack)) continue;
         if (!isItemPack(pack)) continue;
         const key = pack.collection ?? pack.metadata?.id ?? '';
         if (!key || seen.has(key)) continue;

@@ -76,6 +76,20 @@ export function getDefaultPackKeysForCategory(category, options = {}) {
   return [...(profile.defaultPacks[category] ?? [])];
 }
 
+export function isPackAllowedForActiveProfile(packOrKey, options = {}) {
+  const packKey = getPackKey(packOrKey);
+  const packageName = getPackageName(packOrKey, packKey);
+  const systemId = getActiveSystemId(options);
+
+  if (packageName === SYSTEM_IDS.PF2E) return systemId === SYSTEM_IDS.PF2E;
+  if (packageName === SYSTEM_IDS.SF2E) return systemId === SYSTEM_IDS.SF2E;
+  if (packageName === ANACHRONISM_MODULE_ID) {
+    return systemId === SYSTEM_IDS.PF2E && isAnachronismActive(options);
+  }
+
+  return true;
+}
+
 export function getCompendiumPacksForCategory(category, options = {}) {
   const root = options.root ?? globalThis;
   const packs = options.packs ?? root.game?.packs;
@@ -223,6 +237,19 @@ function getPack(packs, packKey) {
       ? packs
       : Object.values(packs);
   return values.find((entry) => entry?.collection === packKey) ?? null;
+}
+
+function getPackKey(packOrKey) {
+  if (typeof packOrKey === 'string') return packOrKey;
+  return packOrKey?.collection ?? packOrKey?.metadata?.id ?? '';
+}
+
+function getPackageName(packOrKey, packKey) {
+  if (typeof packOrKey !== 'string') {
+    const packageName = packOrKey?.metadata?.packageName ?? packOrKey?.metadata?.package;
+    if (packageName) return String(packageName);
+  }
+  return String(packKey ?? '').split('.')[0] ?? '';
 }
 
 function getPredicateForSystem(root, systemId) {

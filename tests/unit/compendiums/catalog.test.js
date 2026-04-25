@@ -37,6 +37,68 @@ describe('compendium catalog helpers', () => {
     expect(getDefaultCompendiumKeys('spells')).toEqual(['pf2e.spells-srd', 'sf2e-anachronism.spells']);
   });
 
+  test('filters standalone SF2e system packs from configured keys in PF2e Anachronism worlds', () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map([['sf2e-anachronism', { active: true }]]);
+    global._testSettings = {
+      'pf2e-leveler': {
+        customCompendiums: {
+          spells: ['sf2e.spells', 'sf2e-anachronism.spells', 'my-module.spells'],
+        },
+      },
+    };
+
+    expect(getCompendiumKeysForCategory('spells')).toEqual([
+      'pf2e.spells-srd',
+      'sf2e-anachronism.spells',
+      'my-module.spells',
+    ]);
+  });
+
+  test('does not auto-discover standalone SF2e system packs in PF2e Anachronism worlds', async () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map([['sf2e-anachronism', { active: true }]]);
+    game.packs = new Map([
+      ['sf2e.spells', {
+        collection: 'sf2e.spells',
+        metadata: { id: 'sf2e.spells', label: 'SF2e Spells', type: 'Item', packageName: 'sf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+      ['sf2e-anachronism.spells', {
+        collection: 'sf2e-anachronism.spells',
+        metadata: { id: 'sf2e-anachronism.spells', label: 'Anachronism Spells', type: 'Item', packageName: 'sf2e-anachronism' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.spells.map((pack) => pack.key)).toContain('sf2e-anachronism.spells');
+    expect(discovered.spells.map((pack) => pack.key)).not.toContain('sf2e.spells');
+  });
+
+  test('does not auto-discover PF2e system packs in standalone SF2e worlds', async () => {
+    game.system.id = 'sf2e';
+    game.modules = new Map();
+    game.packs = new Map([
+      ['pf2e.spells-srd', {
+        collection: 'pf2e.spells-srd',
+        metadata: { id: 'pf2e.spells-srd', label: 'PF2e Spells', type: 'Item', packageName: 'pf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+      ['sf2e.spells', {
+        collection: 'sf2e.spells',
+        metadata: { id: 'sf2e.spells', label: 'SF2e Spells', type: 'Item', packageName: 'sf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.spells.map((pack) => pack.key)).toContain('sf2e.spells');
+    expect(discovered.spells.map((pack) => pack.key)).not.toContain('pf2e.spells-srd');
+  });
+
   test('merges default and configured compendium keys for a category', () => {
     game.system.id = 'pf2e';
     game.modules = new Map();
