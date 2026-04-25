@@ -375,6 +375,14 @@ describe('level planner grant previews', () => {
     expect(context.classFeat.grantChoiceSets ?? []).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ syntheticType: 'formula-choice' }),
     ]));
+    expect(context.grantRequirements).toEqual([
+      expect.objectContaining({
+        id: 'class:alchemist:formula-book-level-2-formula',
+        sourceFeatName: 'Formula Book',
+        kind: 'formula',
+        count: 2,
+      }),
+    ]);
   });
 
   test('opens grant picker after resolving requirements from source feat text', async () => {
@@ -471,6 +479,34 @@ describe('level planner grant previews', () => {
         rarity: ['common'],
         traits: ['alchemical'],
       }),
+    }));
+  });
+
+  test('opens planner class formula book grant picker', async () => {
+    global.fromUuid = jest.fn(async () => null);
+    const actor = createMockActor({ items: [] });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        2: {
+          featGrants: [],
+        },
+      },
+    };
+    planner.selectedLevel = 2;
+    planner._openFeatGrantItemPicker = jest.fn(async () => {});
+
+    await planner._openFeatGrantPicker('class:alchemist:formula-book-level-2-formula');
+
+    expect(planner._openFeatGrantItemPicker).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'class:alchemist:formula-book-level-2-formula',
+      sourceFeatName: 'Formula Book',
+      kind: 'formula',
+      count: 2,
     }));
   });
 

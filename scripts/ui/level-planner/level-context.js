@@ -54,6 +54,7 @@ export async function buildLevelContext(planner, classDef, options) {
 
   return {
     classFeatures: getClassFeaturesForLevel(planner, level),
+    grantRequirements: await buildPlannerClassGrantRequirements(planner, levelData, level),
     showBoosts: choiceTypes.has('abilityBoosts'),
     boostCount: choices.find((choice) => choice.type === 'abilityBoosts')?.count ?? 4,
     selectedBoostCount: (levelData.abilityBoosts ?? []).length,
@@ -212,6 +213,52 @@ async function enrichPlannerFeat(planner, feat) {
   annotated.grantChoiceSets = preview.grantChoiceSets;
   annotated.grantRequirements = await buildPlannerFeatGrantRequirements(planner, annotated);
   return annotated;
+}
+
+async function buildPlannerClassGrantRequirements(planner, levelData, level) {
+  const requirements = await buildFeatGrantRequirements({
+    classEntries: getPlannerClassGrantEntries(planner),
+    level,
+  });
+  const completion = getFeatGrantCompletion(levelData, requirements);
+
+  return requirements.map((requirement) => {
+    const status = completion[requirement.id] ?? {};
+    return {
+      ...requirement,
+      selectedCount: status.selected ?? 0,
+      requiredCount: status.required ?? requirement.count ?? null,
+      missingCount: status.missing ?? null,
+      complete: status.complete === true,
+      selections: (levelData.featGrants ?? [])
+        .find((entry) => entry?.requirementId === requirement.id)
+        ?.selections ?? [],
+    };
+  });
+}
+
+function getPlannerClassGrantEntries(planner) {
+  const entries = [];
+  const primary = ClassRegistry.get(planner.plan?.classSlug);
+  if (primary) {
+    entries.push({
+      slug: primary.slug,
+      name: primary.nameKey ? game.i18n.localize(primary.nameKey) : primary.slug,
+      uuid: planner.actor?.class?.uuid ?? `class:${primary.slug}`,
+    });
+  }
+  const dualClassSlug = String(planner.plan?.dualClassSlug ?? '').trim().toLowerCase();
+  const dual = dualClassSlug && dualClassSlug !== primary?.slug && ClassRegistry.has(dualClassSlug)
+    ? ClassRegistry.get(dualClassSlug)
+    : null;
+  if (dual) {
+    entries.push({
+      slug: dual.slug,
+      name: dual.nameKey ? game.i18n.localize(dual.nameKey) : dual.slug,
+      uuid: `class:${dual.slug}`,
+    });
+  }
+  return entries;
 }
 
 async function buildPlannerFeatGrantRequirements(planner, feat) {

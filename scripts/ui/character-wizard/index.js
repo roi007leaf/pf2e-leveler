@@ -2978,6 +2978,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   async _buildFeatGrantRequirements() {
     return buildFeatGrantRequirements({
       feats: this._getCreationFeatGrantSources(),
+      classEntries: [this.data.class, this.data.dualClass].filter(Boolean),
+      level: 1,
     });
   }
 

@@ -10,7 +10,7 @@ const COUNT_WORDS = {
 const TRADITIONS = ['arcane', 'divine', 'occult', 'primal'];
 const PHYSICAL_ITEM_TYPES = ['weapon', 'armor', 'shield', 'consumable', 'equipment', 'ammo'];
 
-export async function buildFeatGrantRequirements({ feats = [] } = {}) {
+export async function buildFeatGrantRequirements({ feats = [], classEntries = [], level = null } = {}) {
   const requirements = [];
 
   for (const featEntry of feats ?? []) {
@@ -22,10 +22,10 @@ export async function buildFeatGrantRequirements({ feats = [] } = {}) {
       uuid: featEntry?.uuid ?? feat.uuid,
       name: featEntry?.name ?? feat.name ?? 'Feat',
     };
-    const detected = detectRequirement(text, source);
-    if (detected) requirements.push(detected);
+    requirements.push(...detectRequirements(text, source));
   }
 
+  requirements.push(...buildClassDefaultGrantRequirements(classEntries, level));
   return requirements;
 }
 
@@ -52,60 +52,45 @@ async function resolveFeat(uuid) {
   return fromUuid(uuid).catch(() => null);
 }
 
-function detectRequirement(text, source) {
-  if (!text) return null;
+function detectRequirements(text, source) {
+  if (!text) return [];
 
-  if (/\bspell(?:s|book)?\b|\brepertoire\b/.test(text)) {
-    const count = inferCount(text);
-    if (count && /\bof your choice\b|\bchoose\b|\bselect\b/.test(text)) {
-      return buildRequirement(source, 'spell', count, 'inferred', {
-        rank: inferRank(text),
-        rarity: inferRarity(text),
-        tradition: inferTradition(text),
-        spellbook: /\bspellbook\b/.test(text),
-        repertoire: /\brepertoire\b/.test(text),
-      });
-    }
-  }
+  const requirements = [];
+  const spellGrant = inferSpellGrant(text);
+  if (spellGrant) requirements.push(buildRequirement(source, 'spell', spellGrant.count, 'inferred', spellGrant.filters));
 
-  if (/\bformulas?\b/.test(text)) {
-    const count = inferFormulaCount(text) ?? inferCount(text);
-    return buildRequirement(source, 'formula', count, count ? 'inferred' : 'manual-required', {
-      maxLevel: inferMaxLevel(text),
-      rarity: inferRarity(text),
-      traits: inferTraits(text),
-    });
-  }
+  requirements.push(...inferFormulaRequirements(text, source));
 
   if (/\balchemical crafting\b/.test(text) && /\bitems?\s+you\s+choose\b/.test(text)) {
-    return buildRequirement(source, 'formula', 4, 'inferred', {
+    requirements.push(buildRequirement(source, 'formula', 4, 'inferred', {
       maxLevel: inferMaxLevel(text) ?? 1,
       rarity: inferRarity(text),
       traits: inferTraits(text),
-    });
+    }));
   }
 
   const itemGrant = inferItemGrant(text);
   if (itemGrant) {
     const { itemType, count } = itemGrant;
     if (itemType && count) {
-      return buildRequirement(source, 'item', count, 'inferred', {
+      requirements.push(buildRequirement(source, 'item', count, 'inferred', {
         maxLevel: inferLevel(text),
         rarity: inferRarity(text),
         itemTypes: [itemType],
-      });
+      }));
     }
   }
 
-  return null;
+  return requirements;
 }
 
-function buildRequirement(source, kind, count, confidence, filters) {
-  const id = `${source.uuid}:${kind}`;
+function buildRequirement(source, kind, count, confidence, filters, options = {}) {
+  const idKind = options.idKind ?? kind;
+  const id = `${source.uuid}:${idKind}`;
   return {
     id,
     sourceFeatUuid: source.uuid,
-    sourceFeatName: source.name,
+    sourceFeatName: options.sourceName ?? source.name,
     kind,
     count,
     confidence,
@@ -134,6 +119,56 @@ function inferCount(text) {
   const match = String(text ?? '').match(/\b(one|two|three|four|five|six|[1-6])\b/);
   if (!match) return null;
   return COUNT_WORDS[match[1]] ?? Number(match[1]);
+}
+
+function inferSpellGrant(text) {
+  const sentences = splitSentences(text).filter((sentence) => /\b(?:spell|spells|cantrip|cantrips)\b/.test(sentence));
+  for (const sentence of sentences) {
+    const count = inferCount(sentence);
+    if (!count) continue;
+    const grantsSpellChoice = /\b(?:add|adds|gain|gains|learn|learns|choose|select)\b/.test(sentence);
+    const targetSpellList = /\b(?:spellbook|repertoire)\b|\bof your choice\b/.test(sentence);
+    if (!grantsSpellChoice || !targetSpellList) continue;
+    return {
+      count,
+      filters: {
+        rank: inferRank(sentence),
+        rarity: inferRarity(sentence),
+        tradition: inferTradition(sentence),
+        spellbook: /\bspellbook\b/.test(sentence),
+        repertoire: /\brepertoire\b/.test(sentence),
+      },
+    };
+  }
+  return null;
+}
+
+function inferFormulaRequirements(text, source) {
+  if (!/\bformulas?\b/.test(text)) return [];
+  if (/\balchemical crafting\b/.test(text) && /\bformula book\b/.test(text)) {
+    return [
+      buildFormulaRequirement(source, 4, text, { idKind: 'alchemical-crafting-formula', sourceName: 'Alchemical Crafting' }),
+      buildFormulaRequirement(source, 4, text, { idKind: 'formula-book-formula', sourceName: 'Formula Book' }),
+    ];
+  }
+
+  const count = inferFormulaCount(text) ?? inferCount(text);
+  return [buildFormulaRequirement(source, count, text)];
+}
+
+function buildFormulaRequirement(source, count, text, options = {}) {
+  return buildRequirement(source, 'formula', count, count ? 'inferred' : 'manual-required', {
+    maxLevel: inferMaxLevel(text),
+    rarity: inferRarity(text),
+    traits: inferTraits(text),
+  }, options);
+}
+
+function splitSentences(text) {
+  return String(text ?? '')
+    .split(/(?<=[.!?])\s+|;\s+/u)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
 }
 
 function inferFormulaCount(text) {
@@ -186,9 +221,41 @@ function inferTraits(text) {
   const traits = [];
   if (/\balchemical\b/.test(text)) traits.push('alchemical');
   if (/\bfood\b/.test(text)) traits.push('food');
-  if (/\bmagical\b/.test(text)) traits.push('magical');
   if (/\bmutagens?\b/.test(text)) traits.push('mutagen');
+  if (/\bbombs?\b/.test(text)) traits.push('bomb');
   return traits;
+}
+
+export function buildClassDefaultGrantRequirements(classEntries, level) {
+  const requirements = [];
+  const normalizedLevel = Number(level);
+  for (const classEntry of classEntries ?? []) {
+    const slug = String(classEntry?.slug ?? '').toLowerCase();
+    if (slug !== 'alchemist') continue;
+    const source = {
+      uuid: classEntry?.uuid ?? `class:${slug}`,
+      name: classEntry?.name ?? 'Alchemist',
+    };
+    if (normalizedLevel === 1) {
+      requirements.push(buildRequirement(source, 'formula', 4, 'inferred', {
+        maxLevel: 1,
+        rarity: ['common'],
+        traits: ['alchemical'],
+      }, { idKind: 'alchemical-crafting-formula', sourceName: 'Alchemical Crafting' }));
+      requirements.push(buildRequirement(source, 'formula', 4, 'inferred', {
+        maxLevel: 1,
+        rarity: ['common'],
+        traits: ['alchemical'],
+      }, { idKind: 'formula-book-formula', sourceName: 'Formula Book' }));
+    } else if (normalizedLevel > 1) {
+      requirements.push(buildRequirement(source, 'formula', 2, 'inferred', {
+        maxLevel: normalizedLevel,
+        rarity: ['common'],
+        traits: ['alchemical'],
+      }, { idKind: `formula-book-level-${normalizedLevel}-formula`, sourceName: 'Formula Book' }));
+    }
+  }
+  return requirements;
 }
 
 function inferItemGrant(text) {

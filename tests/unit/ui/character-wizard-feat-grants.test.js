@@ -93,6 +93,26 @@ describe('CharacterWizard feat grant choices', () => {
     ]);
   });
 
+  it('adds alchemist class and research field formula grants during creation', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-alchemist', slug: 'alchemist', name: 'Alchemist' };
+    wizard.data.subclass = {
+      uuid: 'option-formulas',
+      name: 'Bomber Field',
+      choiceSets: [],
+      choices: {},
+    };
+
+    const requirements = await wizard._buildFeatGrantRequirements();
+
+    expect(requirements).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'class-alchemist:alchemical-crafting-formula', sourceFeatName: 'Alchemical Crafting', count: 4 }),
+      expect.objectContaining({ id: 'class-alchemist:formula-book-formula', sourceFeatName: 'Formula Book', count: 4 }),
+      expect.objectContaining({ id: 'option-formulas:formula', sourceFeatName: 'Bomber Field', count: 2 }),
+    ]));
+    expect(requirements).toHaveLength(3);
+  });
+
   it('keeps detected formula filters when stored grant was manually configured', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.classFeat = {

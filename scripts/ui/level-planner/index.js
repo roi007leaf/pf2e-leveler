@@ -2073,6 +2073,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       plan: this.plan,
       level: this.selectedLevel,
       feats: this._getLevelFeatEntries(levelData),
+      classEntries: this._getClassGrantEntries(),
     });
     const requirement = detected.find((entry) => entry?.id === requirementId);
     if (requirement) return requirement;
@@ -2091,6 +2092,30 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       'dualClassFeats',
       'customFeats',
     ].flatMap((key) => levelData?.[key] ?? []);
+  }
+
+  _getClassGrantEntries() {
+    const entries = [];
+    const primary = ClassRegistry.get(this.plan?.classSlug);
+    if (primary) {
+      entries.push({
+        slug: primary.slug,
+        name: primary.nameKey ? game.i18n.localize(primary.nameKey) : primary.slug,
+        uuid: this.actor?.class?.uuid ?? `class:${primary.slug}`,
+      });
+    }
+    const dualClassSlug = String(this.plan?.dualClassSlug ?? '').trim().toLowerCase();
+    const dual = dualClassSlug && dualClassSlug !== primary?.slug && ClassRegistry.has(dualClassSlug)
+      ? ClassRegistry.get(dualClassSlug)
+      : null;
+    if (dual) {
+      entries.push({
+        slug: dual.slug,
+        name: dual.nameKey ? game.i18n.localize(dual.nameKey) : dual.slug,
+        uuid: `class:${dual.slug}`,
+      });
+    }
+    return entries;
   }
 
   async _configureManualFeatGrant(requirement) {

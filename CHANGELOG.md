@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.5
+
+### Feat Grants
+
+- **Alchemist formula progression now surfaces correctly** - Character creation now offers 4 formulas from `Alchemical Crafting`, 4 from `Formula Book`, and 2 more from the selected research field, while later alchemist level-ups surface the 2 new Formula Book picks for that level
+- **Bomber and research-field formula filters are tighter** - Bomber formulas no longer pick up a broad `magical` trait filter from unrelated description text, and formula grants can infer focused traits such as `bomb` or `mutagen`
+- **Spell grant detection no longer triggers on unrelated spell mentions** - Options such as `Firework Technician Dedication` and `Protective Screen` no longer ask for spell choices when their text mentions spells without granting one
+
 ## 3.2.4
 
 ### Feat Grants

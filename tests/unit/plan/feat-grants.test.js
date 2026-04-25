@@ -109,6 +109,39 @@ describe('feat grant requirements', () => {
             traits: { value: [] },
           },
         }),
+        'feature-bomber': createFeat({
+          uuid: 'feature-bomber',
+          name: 'Bomber',
+          system: {
+            description: {
+              value: '<p>You specialize in explosions and other violent alchemical reactions. <strong>Formulas</strong> Two common 1st-level alchemical bombs.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        }),
+        'feat-firework-technician': createFeat({
+          uuid: 'feat-firework-technician',
+          name: 'Firework Technician Dedication',
+          system: {
+            description: {
+              value: '<p>You gain the Alchemical Crafting skill feat. You can create magical or alchemical fireworks and choose their colors.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        }),
+        'feat-protective-screen': createFeat({
+          uuid: 'feat-protective-screen',
+          name: 'Protective Screen',
+          system: {
+            description: {
+              value: '<p>Choose one ally. Until your next turn, that ally gains a bonus against spells and other effects.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        }),
       };
       return docs[uuid] ?? null;
     });
@@ -202,6 +235,45 @@ describe('feat grant requirements', () => {
     ]);
   });
 
+  test('detects bomber formulas without adding magical trait', async () => {
+    const requirements = await buildFeatGrantRequirements({
+      plan: {},
+      level: 1,
+      feats: [{ uuid: 'feature-bomber', name: 'Bomber' }],
+    });
+
+    expect(requirements).toEqual([
+      expect.objectContaining({
+        kind: 'formula',
+        count: 2,
+        filters: expect.objectContaining({
+          maxLevel: 1,
+          rarity: ['common'],
+          traits: ['alchemical', 'bomb'],
+        }),
+      }),
+    ]);
+  });
+
+  test('adds alchemist starting and level-up formula grants', async () => {
+    const starting = await buildFeatGrantRequirements({
+      classEntries: [{ uuid: 'class-alchemist', slug: 'alchemist', name: 'Alchemist' }],
+      level: 1,
+    });
+    const levelUp = await buildFeatGrantRequirements({
+      classEntries: [{ uuid: 'class-alchemist', slug: 'alchemist', name: 'Alchemist' }],
+      level: 2,
+    });
+
+    expect(starting).toEqual([
+      expect.objectContaining({ id: 'class-alchemist:alchemical-crafting-formula', sourceFeatName: 'Alchemical Crafting', count: 4 }),
+      expect.objectContaining({ id: 'class-alchemist:formula-book-formula', sourceFeatName: 'Formula Book', count: 4 }),
+    ]);
+    expect(levelUp).toEqual([
+      expect.objectContaining({ id: 'class-alchemist:formula-book-level-2-formula', sourceFeatName: 'Formula Book', count: 2 }),
+    ]);
+  });
+
   test('detects generic item choices with count, level, rarity, and item type', async () => {
     const requirements = await buildFeatGrantRequirements({
       plan: {},
@@ -231,6 +303,22 @@ describe('feat grant requirements', () => {
     });
 
     expect(requirements).toEqual([]);
+  });
+
+  test('does not infer spell grants from non-spell choice text', async () => {
+    const firework = await buildFeatGrantRequirements({
+      plan: {},
+      level: 2,
+      feats: [{ uuid: 'feat-firework-technician', name: 'Firework Technician Dedication' }],
+    });
+    const protective = await buildFeatGrantRequirements({
+      plan: {},
+      level: 2,
+      feats: [{ uuid: 'feat-protective-screen', name: 'Protective Screen' }],
+    });
+
+    expect(firework).toEqual([]);
+    expect(protective).toEqual([]);
   });
 
   test('treats alchemical crafting item choices as formula choices', async () => {
