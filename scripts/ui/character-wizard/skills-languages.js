@@ -1,6 +1,13 @@
 import { SKILLS } from '../../constants.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
-import { getActiveSystemId, getCampaignLanguages, getRulesetConfig, SYSTEM_IDS } from '../../system-support/profiles.js';
+import {
+  ANACHRONISM_MODULE_ID,
+  getActiveSystemId,
+  getActiveSystemProfile,
+  getCampaignLanguages,
+  getRulesetConfig,
+  SYSTEM_IDS,
+} from '../../system-support/profiles.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -333,9 +340,12 @@ function localizeSkillSlug(slug) {
 }
 
 export function getActiveSkillSlugs() {
-  if (getActiveSystemId() === SYSTEM_IDS.PF2E) return [...SKILLS];
+  if (usesAnachronismSkillList()) {
+    return [...new Set([...SKILLS, ...Object.keys(getAnachronismAdditionalSkills())])];
+  }
+  if (!usesStarfinderSkillList()) return [...SKILLS];
 
-  const skills = getRulesetConfig().skills;
+  const skills = getActiveSkillConfig();
   if (!skills || typeof skills !== 'object') return [...SKILLS];
 
   const slugs = Object.keys(skills)
@@ -345,7 +355,12 @@ export function getActiveSkillSlugs() {
 }
 
 export function getActiveSkillConfigEntry(slug) {
-  const skills = getRulesetConfig().skills;
+  if (usesAnachronismSkillList()) {
+    const additional = getAnachronismAdditionalSkills()[slug];
+    if (additional) return additional;
+  }
+
+  const skills = getActiveSkillConfig();
   if (!skills || typeof skills !== 'object') return globalThis.CONFIG?.PF2E?.skills?.[slug];
 
   const direct = skills[slug];
@@ -353,6 +368,27 @@ export function getActiveSkillConfigEntry(slug) {
 
   const alias = Object.entries(SKILL_ID_ALIASES).find(([, canonical]) => canonical === slug)?.[0];
   return alias ? skills[alias] : undefined;
+}
+
+function usesStarfinderSkillList() {
+  return getActiveSystemId() === SYSTEM_IDS.SF2E;
+}
+
+function usesAnachronismSkillList() {
+  return getActiveSystemProfile().contentProfile === 'pf2e+sf2e-anachronism';
+}
+
+function getActiveSkillConfig() {
+  if (usesStarfinderSkillList()) return getRulesetConfig({ systemId: SYSTEM_IDS.SF2E }).skills;
+  return getRulesetConfig().skills;
+}
+
+function getAnachronismAdditionalSkills() {
+  const module = globalThis.game?.modules?.get?.(ANACHRONISM_MODULE_ID)
+    ?? globalThis.game?.modules?.contents?.find?.((entry) => entry?.id === ANACHRONISM_MODULE_ID)
+    ?? globalThis.game?.modules?.[ANACHRONISM_MODULE_ID];
+  const additional = module?.flags?.[ANACHRONISM_MODULE_ID]?.['pf2e-homebrew']?.skills?.additional;
+  return additional && typeof additional === 'object' ? additional : {};
 }
 
 function extractLoreLabels(html) {

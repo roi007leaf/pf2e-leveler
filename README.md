@@ -28,7 +28,7 @@ A full step-by-step character creation flow that builds and applies a complete l
 - **Subclass** — full selection of subclasses (Bloodlines, Orders, Schools, Mysteries, Patrons, Doctrines, etc.) with automatic tradition resolution and granted skill/lore detection
 - **Subclass choices** — inline ChoiceSet prompts for subclass-specific options (e.g. element for Kineticist, conscious mind for Psychic)
 - **Ability Boosts** — per-source rows (ancestry, background, class, free) matching PF2e's layout; alternate ancestry boost mode supported
-- **Skills** — class, background, subclass, and deity skill grants shown as auto-trained; remaining free picks selectable; lore selection for background and subclass lores; SF2e worlds use the SF2e skill list, including Computers and Piloting
+- **Skills** — class, background, subclass, and deity skill grants shown as auto-trained; remaining free picks selectable; lore selection for background and subclass lores; SF2e worlds use the SF2e skill list, and PF2e worlds with Anachronism add Starfinder skills such as Computers and Piloting
 - **Feats** — ancestry feat, class feat, skill feat, and class-specific slots (tactics, ikons, kinetic impulses, implements, etc.) with inline ChoiceSet resolution; feat cards show items granted by selected feats
 - **Languages** — ancestry-granted languages shown as non-removable; feat-granted languages (e.g. Angelkin granting Empyrean) auto-detected and marked as granted with source label; choosable languages sorted with ancestry suggestions first; slot count respects INT modifier and feat bonuses (e.g. Multilingual)
 - **Spells** — cantrips and rank-1 spells via popup spell picker; curriculum spells for Magus/Witch; focus spell selection where applicable

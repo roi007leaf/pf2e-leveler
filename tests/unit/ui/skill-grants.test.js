@@ -176,6 +176,85 @@ describe('CharacterWizard skills step grants', () => {
     }
   });
 
+  it('uses SF2e skill configuration in PF2e worlds with Anachronism active', async () => {
+    const originalConfig = global.CONFIG;
+    global.game = {
+      ...(global.game ?? {}),
+      system: { id: 'pf2e' },
+      modules: new Map([['sf2e-anachronism', {
+        active: true,
+        flags: {
+          'sf2e-anachronism': {
+            'pf2e-homebrew': {
+              skills: {
+                additional: {
+                  computers: { label: 'SF2E.Skill.Computers' },
+                  piloting: { label: 'SF2E.Skill.Piloting' },
+                },
+              },
+            },
+          },
+        },
+      }]]),
+      i18n: {
+        has: jest.fn(() => false),
+        localize: jest.fn((key) => key),
+      },
+    };
+    global.CONFIG = {
+      SF2E: {
+        skills: {
+          acrobatics: { label: 'Acrobatics' },
+          computers: { label: 'Computers' },
+          piloting: { label: 'Piloting' },
+        },
+      },
+      PF2E: {
+        skills: {
+          acrobatics: { label: 'Acrobatics' },
+          arcana: { label: 'Arcana' },
+        },
+      },
+    };
+
+    try {
+      const wizard = new CharacterWizard(createMockActor());
+      wizard.data.class = { slug: 'envoy', uuid: 'class-uuid', name: 'Envoy' };
+      wizard._getClassTrainedSkills = jest.fn(async () => []);
+      wizard._getCachedDocument = jest.fn(async () => null);
+
+      const context = await wizard._buildSkillContext();
+
+      expect(context.map((entry) => entry.slug)).toEqual([
+        'acrobatics',
+        'arcana',
+        'athletics',
+        'crafting',
+        'deception',
+        'diplomacy',
+        'intimidation',
+        'medicine',
+        'nature',
+        'occultism',
+        'performance',
+        'religion',
+        'society',
+        'stealth',
+        'survival',
+        'thievery',
+        'computers',
+        'piloting',
+      ]);
+      expect(context.find((entry) => entry.slug === 'computers')).toEqual(expect.objectContaining({
+        label: 'Computers',
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.game.system.id = 'pf2e';
+      global.game.modules = new Map();
+    }
+  });
+
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.currentStep = 19;

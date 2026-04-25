@@ -7,6 +7,7 @@
 - **Standalone Starfinder 2e worlds are now supported** - PF2e Leveler now detects the active Foundry system profile and uses SF2e compendiums, skills, ruleset config, predicates, spell grants, class features, equipment, actions, and deities in `sf2e` worlds while keeping the module name unchanged
 - **PF2e worlds with Starfinder 2e Anachronism now use Anachronism content only** - Mixed PF2e campaigns now add `sf2e-anachronism` packs alongside PF2e packs when the module is active, without pulling standalone SF2e system packs into PF2e worlds
 - **SF2e character creation uses the correct skill and subclass data** - Standalone SF2e creation now shows SF2e skills such as Computers and Piloting, and Starfinder subclass prompts such as envoy leadership styles appear in the apply prompt summary
+- **PF2e worlds with Starfinder 2e Anachronism now show Anachronism skills** - Character creation adds Anachronism's extra skills, such as Computers and Piloting, to the PF2e skill list when the module is active
 - **Compendium discovery now filters by active system** - The Compendium Manager and player content access controls now expose PF2e packs in PF2e worlds, SF2e packs in SF2e worlds, and Anachronism packs only when active in a PF2e world
 - **README now documents Starfinder support** - Requirements and feature notes now cover standalone SF2e worlds and PF2e plus Anachronism campaigns
 
