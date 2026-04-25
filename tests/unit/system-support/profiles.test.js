@@ -1,10 +1,14 @@
 import {
+  buildCompendiumUuid,
+  extractCompendiumUuidsByCategory,
   getActiveSystemProfile,
   getCampaignLanguages,
   getDefaultPackKeysForCategory,
   getRulesetConfig,
   getSystemSetting,
+  isCompendiumUuidInCategory,
   isAnachronismActive,
+  parseCompendiumUuid,
   resolveSystemPredicate,
 } from '../../../scripts/system-support/profiles.js';
 
@@ -121,5 +125,44 @@ describe('system support profiles', () => {
 
     expect(getRulesetConfig({ systemId: 'sf2e', root }).languages).toBe(sf2eLanguages);
     expect(getCampaignLanguages({ systemId: 'sf2e', root })).toBe(campaignLanguages);
+  });
+
+  test('builds compendium UUIDs from the active system pack defaults', () => {
+    expect(buildCompendiumUuid('spells', 'dragon-breath', { systemId: 'sf2e' }))
+      .toBe('Compendium.sf2e.spells.Item.dragon-breath');
+    expect(buildCompendiumUuid('equipment', 'spellbook', { systemId: 'pf2e' }))
+      .toBe('Compendium.pf2e.equipment-srd.Item.spellbook');
+  });
+
+  test('parses and filters compendium UUIDs by active category packs', () => {
+    const modules = moduleMap([['sf2e-anachronism', true]]);
+    const sf2eSpell = 'Compendium.sf2e-anachronism.spells.Item.quantum-pulse';
+    const pf2eSpell = 'Compendium.pf2e.spells-srd.Item.force-barrage';
+    const pf2eFeat = 'Compendium.pf2e.feats-srd.Item.reach-spell';
+
+    expect(parseCompendiumUuid(sf2eSpell)).toEqual({
+      packageName: 'sf2e-anachronism',
+      packName: 'spells',
+      packKey: 'sf2e-anachronism.spells',
+      documentName: 'Item',
+      documentId: 'quantum-pulse',
+    });
+    expect(isCompendiumUuidInCategory(sf2eSpell, 'spells', { systemId: 'pf2e', modules })).toBe(true);
+    expect(isCompendiumUuidInCategory(pf2eSpell, 'spells', { systemId: 'pf2e', modules })).toBe(true);
+    expect(isCompendiumUuidInCategory(pf2eFeat, 'spells', { systemId: 'pf2e', modules })).toBe(false);
+  });
+
+  test('extracts UUID links from text for active category packs only', () => {
+    const html = [
+      '@UUID[Compendium.sf2e.spells.Item.gravity-well]{Gravity Well}',
+      '<a data-uuid="Compendium.sf2e.spells.Item.hologram">Hologram</a>',
+      '@UUID[Compendium.sf2e.equipment.Item.spellbook]{Spellbook}',
+      '@UUID[Compendium.pf2e.spells-srd.Item.force-barrage]{Force Barrage}',
+    ].join(' ');
+
+    expect(extractCompendiumUuidsByCategory(html, 'spells', { systemId: 'sf2e' })).toEqual([
+      'Compendium.sf2e.spells.Item.gravity-well',
+      'Compendium.sf2e.spells.Item.hologram',
+    ]);
   });
 });

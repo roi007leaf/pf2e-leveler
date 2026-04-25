@@ -2,6 +2,10 @@ import { ANCESTRAL_PARAGON_FEAT_LEVELS } from '../classes/progression.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { warn } from '../utils/logger.js';
+import {
+  extractCompendiumUuidsByCategory,
+  isCompendiumUuidInCategory,
+} from '../system-support/profiles.js';
 
 const CATEGORY_TO_GROUP = {
   classFeats: 'class',
@@ -103,7 +107,7 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
     const rules = featData.system?.rules ?? [];
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || typeof rule.uuid !== 'string') continue;
-      if (!rule.uuid.includes('spells-srd')) continue;
+      if (!isCompendiumUuidInCategory(rule.uuid, 'spells')) continue;
       const spell = await fromUuid(rule.uuid).catch(() => null);
       if (!spell) continue;
       if (!isFocusLikeSpell(spell)) continue;
@@ -115,12 +119,7 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
     // Also scan description for spell UUID references
     const html = featData.system?.description?.value ?? '';
     if (html) {
-      const re1 = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]/g;
-      const re2 = /data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/g;
-      const descUuids = new Set();
-      let m;
-      while ((m = re1.exec(html)) !== null) descUuids.add(`Compendium.pf2e.spells-srd.Item.${m[1]}`);
-      while ((m = re2.exec(html)) !== null) descUuids.add(m[1]);
+      const descUuids = extractCompendiumUuidsByCategory(html, 'spells');
       for (const uuid of descUuids) {
         if (focusSpells.some((s) => s.uuid === uuid)) continue;
         const spell = await fromUuid(uuid).catch(() => null);

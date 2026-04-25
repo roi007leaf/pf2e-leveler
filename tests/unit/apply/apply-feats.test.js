@@ -234,6 +234,168 @@ describe('applyFeats', () => {
     });
   });
 
+  test('fills the focus pool from SF2e GrantItem focus spells', async () => {
+    const originalGame = global.game;
+    global.game = {
+      ...(originalGame ?? {}),
+      system: { id: 'sf2e' },
+    };
+    mockActor.system.resources.focus = { max: 1, value: 0 };
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{
+        name: 'Operative Focus',
+        system: {
+          rules: [{ key: 'GrantItem', uuid: 'Compendium.sf2e.spells.Item.focus-spell' }],
+          description: { value: '' },
+        },
+      }])
+      .mockResolvedValueOnce([{
+        id: 'focus-entry-id',
+        type: 'spellcastingEntry',
+        system: { prepared: { value: 'focus' } },
+      }])
+      .mockResolvedValueOnce([{ name: 'SF2e Focus Spell' }]);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-focus') {
+        return {
+          uuid,
+          name: 'Operative Focus',
+          system: {
+            level: { value: 1 },
+            location: null,
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.sf2e.spells.Item.focus-spell' }],
+            description: { value: '' },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Operative Focus',
+            system: {
+              level: { value: 1 },
+              location: null,
+              rules: [{ key: 'GrantItem', uuid: 'Compendium.sf2e.spells.Item.focus-spell' }],
+              description: { value: '' },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.sf2e.spells.Item.focus-spell') {
+        return {
+          uuid,
+          name: 'SF2e Focus Spell',
+          system: { traits: { value: ['focus'], traditions: [] } },
+          toObject: jest.fn(() => ({
+            name: 'SF2e Focus Spell',
+            system: { traits: { value: ['focus'], traditions: [] } },
+          })),
+        };
+      }
+      return null;
+    });
+
+    try {
+      await applyFeats(mockActor, {
+        classSlug: 'sorcerer',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-focus', name: 'Operative Focus', slug: 'operative-focus' }],
+          },
+        },
+      }, 2);
+
+      expect(mockActor.update).toHaveBeenCalledWith({
+        'system.resources.focus.max': 2,
+        'system.resources.focus.value': 2,
+      });
+    } finally {
+      global.game = originalGame;
+    }
+  });
+
+  test('fills the focus pool from SF2e description focus spell links', async () => {
+    const originalGame = global.game;
+    global.game = {
+      ...(originalGame ?? {}),
+      system: { id: 'sf2e' },
+    };
+    mockActor.system.resources.focus = { max: 1, value: 0 };
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{
+        name: 'Mystic Focus',
+        system: {
+          rules: [],
+          description: {
+            value: '@UUID[Compendium.sf2e.spells.Item.mystic-focus]{Mystic Focus}',
+          },
+        },
+      }])
+      .mockResolvedValueOnce([{
+        id: 'focus-entry-id',
+        type: 'spellcastingEntry',
+        system: { prepared: { value: 'focus' } },
+      }])
+      .mockResolvedValueOnce([{ name: 'Mystic Focus Spell' }]);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-focus') {
+        return {
+          uuid,
+          name: 'Mystic Focus',
+          system: {
+            level: { value: 1 },
+            location: null,
+            rules: [],
+            description: {
+              value: '@UUID[Compendium.sf2e.spells.Item.mystic-focus]{Mystic Focus}',
+            },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Mystic Focus',
+            system: {
+              level: { value: 1 },
+              location: null,
+              rules: [],
+              description: {
+                value: '@UUID[Compendium.sf2e.spells.Item.mystic-focus]{Mystic Focus}',
+              },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.sf2e.spells.Item.mystic-focus') {
+        return {
+          uuid,
+          name: 'Mystic Focus Spell',
+          system: { traits: { value: ['focus'], traditions: [] } },
+          toObject: jest.fn(() => ({
+            name: 'Mystic Focus Spell',
+            system: { traits: { value: ['focus'], traditions: [] } },
+          })),
+        };
+      }
+      return null;
+    });
+
+    try {
+      await applyFeats(mockActor, {
+        classSlug: 'sorcerer',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-focus', name: 'Mystic Focus', slug: 'mystic-focus' }],
+          },
+        },
+      }, 2);
+
+      expect(mockActor.update).toHaveBeenCalledWith({
+        'system.resources.focus.max': 2,
+        'system.resources.focus.value': 2,
+      });
+    } finally {
+      global.game = originalGame;
+    }
+  });
+
   test('skips creating feats already present on the actor by source id', async () => {
     mockActor.items = [{
       type: 'feat',

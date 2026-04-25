@@ -76,6 +76,59 @@ export function getDefaultPackKeysForCategory(category, options = {}) {
   return [...(profile.defaultPacks[category] ?? [])];
 }
 
+export function getCompendiumPacksForCategory(category, options = {}) {
+  const root = options.root ?? globalThis;
+  const packs = options.packs ?? root.game?.packs;
+  return getDefaultPackKeysForCategory(category, options)
+    .map((packKey) => getPack(packs, packKey))
+    .filter(Boolean);
+}
+
+export function buildCompendiumUuid(category, documentId, options = {}) {
+  const documentName = options.documentName ?? 'Item';
+  const packKey = options.packKey ?? getDefaultPackKeysForCategory(category, options)[0];
+  const id = String(documentId ?? '').trim();
+  if (!packKey || !id) return null;
+  return `Compendium.${packKey}.${documentName}.${id}`;
+}
+
+export function parseCompendiumUuid(uuid) {
+  const match = /^Compendium\.([^.]+)\.([^.]+)\.([^.]+)\.(.+)$/.exec(String(uuid ?? '').trim());
+  if (!match) return null;
+  const [, packageName, packName, documentName, documentId] = match;
+  return {
+    packageName,
+    packName,
+    packKey: `${packageName}.${packName}`,
+    documentName,
+    documentId,
+  };
+}
+
+export function isCompendiumUuidInCategory(uuid, category, options = {}) {
+  const parsed = parseCompendiumUuid(uuid);
+  if (!parsed) return false;
+  return getDefaultPackKeysForCategory(category, options).includes(parsed.packKey);
+}
+
+export function extractCompendiumUuidsByCategory(text, category, options = {}) {
+  const value = String(text ?? '');
+  if (!value) return [];
+
+  const uuids = new Set();
+  const linkPattern = /@UUID\[(Compendium\.[^\]\s]+)\]/g;
+  const dataPattern = /data-uuid=["'](Compendium\.[^"']+)["']/g;
+
+  for (const match of value.matchAll(linkPattern)) {
+    if (isCompendiumUuidInCategory(match[1], category, options)) uuids.add(match[1]);
+  }
+  for (const match of value.matchAll(dataPattern)) {
+    if (isCompendiumUuidInCategory(match[1], category, options)) uuids.add(match[1]);
+  }
+
+  return [...uuids];
+}
+
 export function isAnachronismActive(options = {}) {
   const modules = options.modules ?? globalThis.game?.modules;
   const module = getModule(modules, ANACHRONISM_MODULE_ID);
@@ -158,6 +211,18 @@ function getModule(modules, id) {
   if (Array.isArray(modules)) return modules.find((entry) => entry?.id === id) ?? null;
   if (Array.isArray(modules.contents)) return modules.contents.find((entry) => entry?.id === id) ?? null;
   return modules[id] ?? null;
+}
+
+function getPack(packs, packKey) {
+  if (!packs) return null;
+  if (typeof packs.get === 'function') return packs.get(packKey) ?? null;
+
+  const values = Array.isArray(packs.contents)
+    ? packs.contents
+    : Array.isArray(packs)
+      ? packs
+      : Object.values(packs);
+  return values.find((entry) => entry?.collection === packKey) ?? null;
 }
 
 function getPredicateForSystem(root, systemId) {

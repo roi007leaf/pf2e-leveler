@@ -1,5 +1,6 @@
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize } from './pf2e-api.js';
+import { getCompendiumPacksForCategory } from '../system-support/profiles.js';
 
 const NUMBER_WORDS = new Map([
   ['one', 1],
@@ -361,29 +362,33 @@ export async function ensureActorHasSpellbook(actor) {
   }) ?? null;
   if (existing) return existing;
 
-  const pack = game.packs?.get?.('pf2e.equipment-srd');
-  if (!pack) return null;
+  const packs = getCompendiumPacksForCategory('equipment');
+  if (packs.length === 0) return null;
 
-  let index = [];
-  try {
-    index = typeof pack.getIndex === 'function'
-      ? Array.from(await pack.getIndex({ fields: ['system.slug', 'type', 'name'] }))
-      : Array.from(pack.index ?? []);
-  } catch {
-    index = Array.from(pack.index ?? []);
+  for (const pack of packs) {
+    let index = [];
+    try {
+      index = typeof pack.getIndex === 'function'
+        ? Array.from(await pack.getIndex({ fields: ['system.slug', 'type', 'name'] }))
+        : Array.from(pack.index ?? []);
+    } catch {
+      index = Array.from(pack.index ?? []);
+    }
+
+    const entry = index.find((item) => {
+      const slug = String(item?.system?.slug ?? item?.slug ?? '').trim().toLowerCase();
+      const name = String(item?.name ?? '').trim().toLowerCase();
+      return (item?.type === 'book' || item?.type === 'equipment' || item?.type === 'backpack' || item?.type === 'treasure')
+        && (slug === 'spellbook' || name === 'spellbook');
+    }) ?? null;
+    if (!entry?._id) continue;
+
+    const document = await pack.getDocument(entry._id).catch(() => null);
+    if (!document) continue;
+
+    const created = await actor.createEmbeddedDocuments('Item', [foundry.utils.deepClone(document.toObject())]);
+    return created[0] ?? null;
   }
 
-  const entry = index.find((item) => {
-    const slug = String(item?.system?.slug ?? item?.slug ?? '').trim().toLowerCase();
-    const name = String(item?.name ?? '').trim().toLowerCase();
-    return (item?.type === 'book' || item?.type === 'equipment' || item?.type === 'backpack' || item?.type === 'treasure')
-      && (slug === 'spellbook' || name === 'spellbook');
-  }) ?? null;
-  if (!entry?._id) return null;
-
-  const document = await pack.getDocument(entry._id).catch(() => null);
-  if (!document) return null;
-
-  const created = await actor.createEmbeddedDocuments('Item', [foundry.utils.deepClone(document.toObject())]);
-  return created[0] ?? null;
+  return null;
 }

@@ -184,6 +184,84 @@ describe('applySpells', () => {
     }
   });
 
+  test('resolves subclass focus spell name overrides from SF2e spell packs', async () => {
+    const originalGame = global.game;
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        8: {
+          classFeats: [
+            { uuid: 'feat-advanced-bloodline', name: 'Advanced Bloodline', slug: 'advanced-bloodline' },
+          ],
+        },
+      },
+    };
+
+    actor.items = [
+      actor.items[0],
+      {
+        type: 'feat',
+        slug: 'bloodline-draconic',
+        system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+        flags: { pf2e: { rulesSelections: { dragonBloodline: 'red' } } },
+      },
+    ];
+
+    global.game = {
+      ...(originalGame ?? {}),
+      system: { id: 'sf2e' },
+      packs: new Map([
+        ['sf2e.spells', {
+          getIndex: jest.fn(async () => [{
+            _id: 'dragon-breath',
+            name: 'Dragon Breath',
+          }]),
+        }],
+      ]),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.HWJODX2zPg5cg34F') {
+        return {
+          uuid,
+          name: 'Wrong Focus Spell',
+          system: { traits: { value: ['focus'], traditions: [] } },
+          toObject: () => ({
+            name: 'Wrong Focus Spell',
+            system: { traits: { value: ['focus'], traditions: [] } },
+          }),
+        };
+      }
+      if (uuid === 'Compendium.sf2e.spells.Item.dragon-breath') {
+        return {
+          uuid,
+          name: 'Dragon Breath',
+          system: { traits: { value: ['focus'], traditions: [] } },
+          toObject: () => ({
+            name: 'Dragon Breath',
+            system: { traits: { value: ['focus'], traditions: [] } },
+          }),
+        };
+      }
+      return null;
+    });
+
+    try {
+      await applySpells(actor, plan, 8);
+
+      expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+        expect.objectContaining({
+          name: 'Dragon Breath',
+          system: expect.objectContaining({
+            location: { value: 'created-entry-0' },
+          }),
+        }),
+      ]);
+    } finally {
+      global.game = originalGame;
+    }
+  });
+
   test('creates and updates separate secondary dual-class spellcasting entries', async () => {
     global._testSettings = {
       pf2e: { dualClassVariant: true },

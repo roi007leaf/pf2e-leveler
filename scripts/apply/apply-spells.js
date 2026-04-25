@@ -9,6 +9,10 @@ import {
   ensureActorHasSpellbook,
   normalizeSpellcastingFeatRecord,
 } from '../utils/spellcasting-support.js';
+import {
+  buildCompendiumUuid,
+  getCompendiumPacksForCategory,
+} from '../system-support/profiles.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
@@ -648,18 +652,24 @@ async function resolveSpell(uuid) {
 }
 
 async function resolveSpellByName(name) {
-  const pack = game?.packs?.get?.('pf2e.spells-srd')
-    ?? [...(game?.packs ?? [])].find((entry) => entry?.collection === 'pf2e.spells-srd');
-  if (!pack) return null;
+  const normalizedName = String(name ?? '').trim().toLowerCase();
+  if (!normalizedName) return null;
 
-  const index = typeof pack.getIndex === 'function'
-    ? await pack.getIndex({ fields: ['name'] })
-    : (pack.index ?? []);
-  const match = [...index].find((entry) => String(entry?.name ?? '').trim().toLowerCase() === String(name).trim().toLowerCase());
-  if (!match) return null;
+  for (const pack of getCompendiumPacksForCategory('spells')) {
+    const index = typeof pack.getIndex === 'function'
+      ? await pack.getIndex({ fields: ['name'] })
+      : (pack.index ?? []);
+    const match = [...index].find((entry) => String(entry?.name ?? '').trim().toLowerCase() === normalizedName);
+    if (!match) continue;
 
-  const uuid = typeof match.uuid === 'string' && match.uuid.length > 0
-    ? match.uuid
-    : (typeof match._id === 'string' && match._id.length > 0 ? `Compendium.pf2e.spells-srd.Item.${match._id}` : null);
-  return uuid ? resolveSpell(uuid) : null;
+    const uuid = typeof match.uuid === 'string' && match.uuid.length > 0
+      ? match.uuid
+      : buildCompendiumUuid('spells', match._id, { packKey: pack.collection });
+    if (!uuid) continue;
+
+    const spell = await resolveSpell(uuid);
+    if (spell) return spell;
+  }
+
+  return null;
 }
