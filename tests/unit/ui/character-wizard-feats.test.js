@@ -1,6 +1,7 @@
 import {
   CharacterWizard,
   buildPublicationOptions,
+  buildPublicationFilterState,
   buildCompendiumSourceOptions,
   filterStepContextByPublication,
   filterStepContextByCompendiumSource,
@@ -1115,6 +1116,32 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
 
     expect(wizard._publicationFilters.ancestry).toEqual([]);
+    expect(wizard.render).toHaveBeenCalledWith(true);
+  });
+
+  it('starts wizard publication filters collapsed with active selection summary', () => {
+    const state = buildPublicationFilterState([
+      { key: 'Pathfinder Player Core', label: 'Pathfinder Player Core', selected: true },
+      { key: 'Pathfinder Book of the Dead', label: 'Pathfinder Book of the Dead', selected: false },
+    ], true);
+
+    expect(state).toEqual(expect.objectContaining({
+      collapsed: true,
+      activeCount: 1,
+      summary: '1',
+    }));
+  });
+
+  it('toggles wizard publication filter collapse without changing selected publications', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.render = jest.fn();
+    wizard.currentStep = 0;
+    wizard._publicationFilters.ancestry = ['Pathfinder Player Core'];
+
+    wizard._togglePublicationFilterSection();
+
+    expect(wizard._publicationFilterCollapsed).toBe(false);
+    expect(wizard._publicationFilters.ancestry).toEqual(['Pathfinder Player Core']);
     expect(wizard.render).toHaveBeenCalledWith(true);
   });
 

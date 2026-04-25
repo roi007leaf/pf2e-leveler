@@ -172,8 +172,22 @@
         {{/if}}
 
         {{#if hasPublicationFilter}}
-        <div class="wizard-browser-filter wizard-browser-filter--publications">
-          <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
+        <div class="wizard-browser-filter wizard-browser-filter--publications wizard-publication-filter">
+          <button
+            type="button"
+            class="picker__section-toggle wizard-publication-filter__toggle"
+            data-action="togglePublicationFilterSection"
+            aria-expanded="{{#if publicationFilter.collapsed}}false{{else}}true{{/if}}">
+            <span class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</span>
+            <span class="picker__section-meta">
+              <span class="picker__section-summary">
+                {{#if publicationFilter.activeCount}}({{publicationFilter.summary}}){{/if}}
+              </span>
+              <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+            </span>
+          </button>
+          {{#unless publicationFilter.collapsed}}
+          <div class="picker__section-body wizard-publication-filter__body">
           <input
             type="text"
             class="picker__search wizard-source-filters__search"
@@ -193,6 +207,8 @@
               {{/each}}
             </div>
           </div>
+          </div>
+          {{/unless}}
         </div>
         {{/if}}
       </aside>
@@ -305,8 +321,22 @@
     {{#unless (eq stepId "feats")}}
     {{#unless (eq stepId "spells")}}
     {{#if showGlobalPublicationFilter}}
-    <div class="wizard-source-filters">
-      <div class="wizard-source-filters__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</div>
+    <div class="wizard-source-filters wizard-publication-filter">
+      <button
+        type="button"
+        class="picker__section-toggle wizard-publication-filter__toggle"
+        data-action="togglePublicationFilterSection"
+        aria-expanded="{{#if publicationFilter.collapsed}}false{{else}}true{{/if}}">
+        <span class="wizard-source-filters__label">{{localize "PF2E_LEVELER.UI.PUBLICATIONS"}}</span>
+        <span class="picker__section-meta">
+          <span class="picker__section-summary">
+            {{#if publicationFilter.activeCount}}({{publicationFilter.summary}}){{/if}}
+          </span>
+          <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+        </span>
+      </button>
+      {{#unless publicationFilter.collapsed}}
+      <div class="picker__section-body wizard-publication-filter__body">
       <input
         type="text"
         class="picker__search wizard-source-filters__search"
@@ -324,6 +354,8 @@
         </button>
         {{/each}}
       </div>
+      </div>
+      {{/unless}}
     </div>
     {{/if}}
     {{/unless}}

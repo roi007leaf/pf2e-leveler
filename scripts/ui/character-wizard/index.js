@@ -287,6 +287,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (sanitizedDisabledDualClassState) this._featChoiceDataDirty = true;
     this._applyPromptRowsCache = null;
     this._publicationFilters = {};
+    this._publicationFilterCollapsed = true;
     this._spellLayoutObserver = null;
     this._isBooting = true;
     this._bootstrapPromise = null;
@@ -581,6 +582,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       rawStepContext,
       this._publicationFilters[this.stepId] ?? [],
     );
+    const publicationFilter = buildPublicationFilterState(
+      publicationOptions,
+      this._publicationFilterCollapsed,
+    );
     const stepContext = filterStepContextByPublication(
       rawStepContext,
       publicationOptions,
@@ -618,6 +623,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       canApplyCreation,
       browserStep,
       publicationOptions,
+      publicationFilter,
       hasPublicationFilter: publicationOptions.length > 0,
       showGlobalPublicationFilter: publicationOptions.length > 0 && !browserStep,
       ...applyOverlay,
@@ -1956,6 +1962,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     this._publicationFilters[this.stepId] = [...current];
+    this.render(true);
+  }
+
+  _togglePublicationFilterSection() {
+    this._publicationFilterCollapsed = !this._publicationFilterCollapsed;
     this.render(true);
   }
 
@@ -3709,6 +3720,15 @@ export function buildPublicationOptions(stepContext, storedSelection = []) {
     ...publication,
     selected: selectedKeys.has(publication.key),
   }));
+}
+
+export function buildPublicationFilterState(publicationOptions = [], collapsed = true) {
+  const selected = (publicationOptions ?? []).filter((option) => option.selected);
+  return {
+    collapsed: collapsed !== false,
+    activeCount: selected.length,
+    summary: selected.length > 0 ? String(selected.length) : '',
+  };
 }
 
 export function filterStepContextByPublication(stepContext, publicationOptions = []) {

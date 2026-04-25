@@ -645,6 +645,14 @@
   color: var(--leveler-accent-light);
 }
 
+.pf2e-leveler .wizard-publication-filter__toggle :is(.wizard-source-filters__label, .wizard-browser-filter__label) {
+  margin-bottom: 0;
+}
+
+.pf2e-leveler .wizard-publication-filter__body {
+  gap: 0;
+}
+
 .pf2e-leveler .wizard-source-filters__chips {
   display: flex;
   flex-wrap: wrap;
