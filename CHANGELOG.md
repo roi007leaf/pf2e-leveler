@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.3.1
+
+### Anachronism Compatibility
+
+- **SF2e worlds with Pathfinder Anachronism now use Pathfinder Anachronism content only** - Mixed SF2e campaigns now add `pf2e-anachronism` packs alongside SF2e packs when the module is active, without pulling standalone PF2e system packs into SF2e worlds
+- **Anachronism pack filtering now works in both directions** - Compendium discovery and player content access now expose Starfinder Anachronism packs only in PF2e worlds where `sf2e-anachronism` is active, and Pathfinder Anachronism packs only in SF2e worlds where `pf2e-anachronism` is active
+- **Existing Starfinder Anachronism support remains backward compatible** - Existing imports and PF2e plus `sf2e-anachronism` routing continue to use the original module id and behavior
+
 ## 3.3.0
 
 ### Starfinder 2e Support

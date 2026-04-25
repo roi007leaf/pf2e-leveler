@@ -44,6 +44,19 @@ describe('system support profiles', () => {
     expect(profile.defaultPacks.equipment).toEqual(['sf2e.equipment']);
   });
 
+  test('combines SF2e and Pathfinder Anachronism packs when Pathfinder Anachronism is active in SF2e', () => {
+    const modules = moduleMap([['pf2e-anachronism', true]]);
+    const profile = getActiveSystemProfile({ systemId: 'sf2e', modules });
+
+    expect(profile.contentProfile).toBe('sf2e+pf2e-anachronism');
+    expect(profile.defaultPacks.feats).toEqual(['sf2e.feats', 'pf2e-anachronism.feats']);
+    expect(profile.defaultPacks.classFeatures).toEqual([
+      'sf2e.class-features',
+      'pf2e-anachronism.class-features',
+    ]);
+    expect(profile.defaultPacks.spells).toEqual(['sf2e.spells', 'pf2e-anachronism.spells']);
+  });
+
   test('combines PF2e and Anachronism packs when Anachronism is active in PF2e', () => {
     const modules = moduleMap([['sf2e-anachronism', true]]);
     const profile = getActiveSystemProfile({ systemId: 'pf2e', modules });
@@ -188,6 +201,21 @@ describe('system support profiles', () => {
     expect(isPackAllowedForActiveProfile('sf2e-anachronism.spells', {
       systemId: 'sf2e',
       modules: moduleMap([['sf2e-anachronism', true]]),
+    })).toBe(false);
+  });
+
+  test('allows Pathfinder Anachronism packs only when active in SF2e worlds', () => {
+    expect(isPackAllowedForActiveProfile('pf2e-anachronism.spells', {
+      systemId: 'sf2e',
+      modules: moduleMap([['pf2e-anachronism', true]]),
+    })).toBe(true);
+    expect(isPackAllowedForActiveProfile('pf2e-anachronism.spells', {
+      systemId: 'sf2e',
+      modules: moduleMap([['pf2e-anachronism', false]]),
+    })).toBe(false);
+    expect(isPackAllowedForActiveProfile('pf2e-anachronism.spells', {
+      systemId: 'pf2e',
+      modules: moduleMap([['pf2e-anachronism', true]]),
     })).toBe(false);
   });
 });

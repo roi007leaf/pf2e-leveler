@@ -3,7 +3,9 @@ export const SYSTEM_IDS = {
   SF2E: 'sf2e',
 };
 
-export const ANACHRONISM_MODULE_ID = 'sf2e-anachronism';
+export const SF2E_ANACHRONISM_MODULE_ID = 'sf2e-anachronism';
+export const PF2E_ANACHRONISM_MODULE_ID = 'pf2e-anachronism';
+export const ANACHRONISM_MODULE_ID = SF2E_ANACHRONISM_MODULE_ID;
 
 const PF2E_DEFAULT_PACKS = {
   ancestries: ['pf2e.ancestries'],
@@ -31,7 +33,7 @@ const SF2E_DEFAULT_PACKS = {
   deities: ['sf2e.deities'],
 };
 
-const ANACHRONISM_DEFAULT_PACKS = {
+const SF2E_ANACHRONISM_DEFAULT_PACKS = {
   ancestries: ['sf2e-anachronism.ancestries'],
   heritages: ['sf2e-anachronism.heritages'],
   backgrounds: ['sf2e-anachronism.backgrounds'],
@@ -44,11 +46,33 @@ const ANACHRONISM_DEFAULT_PACKS = {
   deities: ['sf2e-anachronism.deities'],
 };
 
+const PF2E_ANACHRONISM_DEFAULT_PACKS = {
+  ancestries: ['pf2e-anachronism.ancestries'],
+  heritages: ['pf2e-anachronism.heritages', 'pf2e-anachronism.ancestry-features'],
+  backgrounds: ['pf2e-anachronism.backgrounds'],
+  classes: ['pf2e-anachronism.classes'],
+  feats: ['pf2e-anachronism.feats'],
+  classFeatures: ['pf2e-anachronism.class-features'],
+  spells: ['pf2e-anachronism.spells'],
+  equipment: ['pf2e-anachronism.equipment'],
+  actions: ['pf2e-anachronism.actions'],
+  deities: ['pf2e-anachronism.deities'],
+};
+
 export function getActiveSystemProfile(options = {}) {
   const systemId = getActiveSystemId(options);
-  const anachronismActive = systemId === SYSTEM_IDS.PF2E && isAnachronismActive(options);
+  const sf2eAnachronismActive = systemId === SYSTEM_IDS.PF2E && isSf2eAnachronismActive(options);
+  const pf2eAnachronismActive = systemId === SYSTEM_IDS.SF2E && isPf2eAnachronismActive(options);
 
   if (systemId === SYSTEM_IDS.SF2E) {
+    if (pf2eAnachronismActive) {
+      return buildProfile({
+        id: SYSTEM_IDS.SF2E,
+        contentProfile: 'sf2e+pf2e-anachronism',
+        defaultPacks: mergePackDefaults(SF2E_DEFAULT_PACKS, PF2E_ANACHRONISM_DEFAULT_PACKS),
+      });
+    }
+
     return buildProfile({
       id: SYSTEM_IDS.SF2E,
       contentProfile: SYSTEM_IDS.SF2E,
@@ -56,11 +80,11 @@ export function getActiveSystemProfile(options = {}) {
     });
   }
 
-  if (anachronismActive) {
+  if (sf2eAnachronismActive) {
     return buildProfile({
       id: SYSTEM_IDS.PF2E,
       contentProfile: 'pf2e+sf2e-anachronism',
-      defaultPacks: mergePackDefaults(PF2E_DEFAULT_PACKS, ANACHRONISM_DEFAULT_PACKS),
+      defaultPacks: mergePackDefaults(PF2E_DEFAULT_PACKS, SF2E_ANACHRONISM_DEFAULT_PACKS),
     });
   }
 
@@ -83,8 +107,11 @@ export function isPackAllowedForActiveProfile(packOrKey, options = {}) {
 
   if (packageName === SYSTEM_IDS.PF2E) return systemId === SYSTEM_IDS.PF2E;
   if (packageName === SYSTEM_IDS.SF2E) return systemId === SYSTEM_IDS.SF2E;
-  if (packageName === ANACHRONISM_MODULE_ID) {
-    return systemId === SYSTEM_IDS.PF2E && isAnachronismActive(options);
+  if (packageName === SF2E_ANACHRONISM_MODULE_ID) {
+    return systemId === SYSTEM_IDS.PF2E && isSf2eAnachronismActive(options);
+  }
+  if (packageName === PF2E_ANACHRONISM_MODULE_ID) {
+    return systemId === SYSTEM_IDS.SF2E && isPf2eAnachronismActive(options);
   }
 
   return true;
@@ -144,8 +171,18 @@ export function extractCompendiumUuidsByCategory(text, category, options = {}) {
 }
 
 export function isAnachronismActive(options = {}) {
+  return isSf2eAnachronismActive(options);
+}
+
+export function isSf2eAnachronismActive(options = {}) {
   const modules = options.modules ?? globalThis.game?.modules;
-  const module = getModule(modules, ANACHRONISM_MODULE_ID);
+  const module = getModule(modules, SF2E_ANACHRONISM_MODULE_ID);
+  return module?.active === true;
+}
+
+export function isPf2eAnachronismActive(options = {}) {
+  const modules = options.modules ?? globalThis.game?.modules;
+  const module = getModule(modules, PF2E_ANACHRONISM_MODULE_ID);
   return module?.active === true;
 }
 

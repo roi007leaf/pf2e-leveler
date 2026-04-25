@@ -9,7 +9,7 @@
 
 A Foundry VTT module for Pathfinder 2nd Edition and Starfinder Second Edition that provides a **Character Creation Wizard**, a **Level-Up Planner** with automatic application on level change, and a **GM Content Guidance** system for controlling what options players see.
 
-The module name remains **PF2e Leveler**. In standalone Starfinder Second Edition worlds, it uses SF2e system compendiums. In PF2e worlds with the **Starfinder 2e Anachronism** module active, it adds only the Anachronism Starfinder content alongside PF2e content; it does not pull standalone SF2e system packs into PF2e worlds.
+The module name remains **PF2e Leveler**. In standalone Starfinder Second Edition worlds, it uses SF2e system compendiums. In PF2e worlds with the **Starfinder 2e Anachronism** module active, it adds only the Anachronism Starfinder content alongside PF2e content; it does not pull standalone SF2e system packs into PF2e worlds. In SF2e worlds with the **Pathfinder Anachronism** module active, it adds Pathfinder Anachronism packs alongside SF2e content without pulling standalone PF2e system packs into SF2e worlds.
 
 ## Features
 
@@ -59,7 +59,7 @@ A full step-by-step character creation flow that builds and applies a complete l
 Plan all level-up choices from level 2 to 20, then auto-apply when the character levels up.
 
 - Class feat, skill feat, general feat, and ancestry feat selection per level with prerequisite checking
-- Active-system compendium routing for PF2e, standalone SF2e, and PF2e plus Anachronism content
+- Active-system compendium routing for PF2e, standalone SF2e, and optional Anachronism content in either direction
 - Archetype feat support including Free Archetype variant; dedication filter only active until a dedication has been chosen
 - Skill increase picker with rank-colored buttons and proficiency cap enforcement
 - Ability boost selector with partial boost (18+) support and score progression display across the full build
@@ -91,13 +91,13 @@ GMs can mark any ancestry, heritage, background, class, skill, or language as **
 - Disallowed items are dimmed with a red "Disallowed" badge and their Select button is disabled
 - Marks are stored as a world-scoped setting; changing marks automatically invalidates the cache
 - Disallowed options remain visible so players know they exist
-- Available compendium choices follow the active system profile: PF2e packs in PF2e worlds, SF2e packs in SF2e worlds, and Anachronism packs only when that module is active in a PF2e world
+- Available compendium choices follow the active system profile: PF2e packs in PF2e worlds, SF2e packs in SF2e worlds, Starfinder Anachronism packs only when active in PF2e worlds, and Pathfinder Anachronism packs only when active in SF2e worlds
 
 ### Supported Classes
 
 PF2e: Alchemist, Animist, Barbarian, Bard, Champion, Cleric, Commander, Daredevil, Druid, Exemplar, Fighter, Guardian, Gunslinger, Inventor, Investigator, Kineticist, Magus, Monk, Oracle, Psychic, Ranger, Rogue, Slayer, Sorcerer, Summoner, Swashbuckler, Thaumaturge, Witch, Wizard
 
-SF2e: classes are loaded from the active SF2e system compendiums, or from Starfinder 2e Anachronism compendiums when that module is active in a PF2e world.
+SF2e: classes are loaded from the active SF2e system compendiums, from Starfinder 2e Anachronism compendiums when that module is active in a PF2e world, or from Pathfinder Anachronism compendiums when that module is active in an SF2e world.
 
 ### Variant Rules
 
@@ -179,6 +179,7 @@ SF2e: classes are loaded from the active SF2e system compendiums, or from Starfi
 - Foundry VTT v13+
 - PF2e System v7.0.0+ or SF2e System v0.0.10+
 - Optional for mixed Pathfinder/Starfinder PF2e campaigns: Starfinder 2e Anachronism module
+- Optional for mixed Pathfinder/Starfinder SF2e campaigns: Pathfinder Anachronism module
 
 ## License
 

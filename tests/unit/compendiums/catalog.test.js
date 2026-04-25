@@ -25,6 +25,18 @@ describe('compendium catalog helpers', () => {
     expect(getDefaultCompendiumKeys('spells')).toEqual(['sf2e.spells']);
   });
 
+  test('adds Pathfinder Anachronism default compendium keys when active in SF2e worlds', () => {
+    game.system.id = 'sf2e';
+    game.modules = new Map([['pf2e-anachronism', { active: true }]]);
+
+    expect(getDefaultCompendiumKeys('feats')).toEqual(['sf2e.feats', 'pf2e-anachronism.feats']);
+    expect(getDefaultCompendiumKeys('classFeatures')).toEqual([
+      'sf2e.class-features',
+      'pf2e-anachronism.class-features',
+    ]);
+    expect(getDefaultCompendiumKeys('spells')).toEqual(['sf2e.spells', 'pf2e-anachronism.spells']);
+  });
+
   test('adds Anachronism default compendium keys when active in PF2e worlds', () => {
     game.system.id = 'pf2e';
     game.modules = new Map([['sf2e-anachronism', { active: true }]]);
@@ -97,6 +109,72 @@ describe('compendium catalog helpers', () => {
 
     expect(discovered.spells.map((pack) => pack.key)).toContain('sf2e.spells');
     expect(discovered.spells.map((pack) => pack.key)).not.toContain('pf2e.spells-srd');
+  });
+
+  test('does not auto-discover Pathfinder Anachronism packs in PF2e worlds', async () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map([['pf2e-anachronism', { active: true }]]);
+    game.packs = new Map([
+      ['pf2e-anachronism.spells', {
+        collection: 'pf2e-anachronism.spells',
+        metadata: { id: 'pf2e-anachronism.spells', label: 'Pathfinder Anachronism Spells', type: 'Item', packageName: 'pf2e-anachronism' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+      ['pf2e.spells-srd', {
+        collection: 'pf2e.spells-srd',
+        metadata: { id: 'pf2e.spells-srd', label: 'PF2e Spells', type: 'Item', packageName: 'pf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.spells.map((pack) => pack.key)).toContain('pf2e.spells-srd');
+    expect(discovered.spells.map((pack) => pack.key)).not.toContain('pf2e-anachronism.spells');
+  });
+
+  test('does not auto-discover Pathfinder Anachronism packs in SF2e worlds when inactive', async () => {
+    game.system.id = 'sf2e';
+    game.modules = new Map([['pf2e-anachronism', { active: false }]]);
+    game.packs = new Map([
+      ['pf2e-anachronism.spells', {
+        collection: 'pf2e-anachronism.spells',
+        metadata: { id: 'pf2e-anachronism.spells', label: 'Pathfinder Anachronism Spells', type: 'Item', packageName: 'pf2e-anachronism' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+      ['sf2e.spells', {
+        collection: 'sf2e.spells',
+        metadata: { id: 'sf2e.spells', label: 'SF2e Spells', type: 'Item', packageName: 'sf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.spells.map((pack) => pack.key)).toContain('sf2e.spells');
+    expect(discovered.spells.map((pack) => pack.key)).not.toContain('pf2e-anachronism.spells');
+  });
+
+  test('auto-discovers Pathfinder Anachronism packs in SF2e worlds when active', async () => {
+    game.system.id = 'sf2e';
+    game.modules = new Map([['pf2e-anachronism', { active: true }]]);
+    game.packs = new Map([
+      ['pf2e-anachronism.spells', {
+        collection: 'pf2e-anachronism.spells',
+        metadata: { id: 'pf2e-anachronism.spells', label: 'Pathfinder Anachronism Spells', type: 'Item', packageName: 'pf2e-anachronism' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+      ['sf2e.spells', {
+        collection: 'sf2e.spells',
+        metadata: { id: 'sf2e.spells', label: 'SF2e Spells', type: 'Item', packageName: 'sf2e' },
+        getIndex: jest.fn(async () => [{ type: 'spell' }]),
+      }],
+    ]);
+
+    const discovered = await discoverCompendiumsByCategory({ includeManualCandidates: true });
+
+    expect(discovered.spells.map((pack) => pack.key)).toContain('sf2e.spells');
+    expect(discovered.spells.map((pack) => pack.key)).toContain('pf2e-anachronism.spells');
   });
 
   test('merges default and configured compendium keys for a category', () => {
