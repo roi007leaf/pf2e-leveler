@@ -1888,6 +1888,28 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('synthesizes spell choices from SF2e embedded spell links', async () => {
+    global.game.system.id = 'sf2e';
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.sf2e.feats.Item.spell-cache',
+      name: 'Spell Cache',
+    });
+    feat.system.description.value = '<p>Choose one of the following spells to add to your spellbook: @UUID[Compendium.sf2e.spells.Item.gravity-well] or @UUID[Compendium.sf2e.spells.Item.hologram].</p>';
+
+    try {
+      const sets = await wizard._parseChoiceSets([], {}, feat);
+
+      expect(sets).toHaveLength(1);
+      expect(sets[0].options.map((option) => option.uuid)).toEqual([
+        'Compendium.sf2e.spells.Item.gravity-well',
+        'Compendium.sf2e.spells.Item.hologram',
+      ]);
+    } finally {
+      global.game.system.id = 'pf2e';
+    }
+  });
+
   it('uses Clan Pistol for Dwarf clan weapon prompts when Clan Pistol is selected', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = {

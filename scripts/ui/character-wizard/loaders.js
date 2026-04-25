@@ -3,6 +3,10 @@ import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
 import { createMixedAncestryHeritage } from '../../heritages/mixed-ancestry.js';
 import { slugify } from '../../utils/pf2e-api.js';
+import {
+  extractCompendiumUuidsByCategory,
+  isCompendiumUuidInCategory,
+} from '../../system-support/profiles.js';
 
 let compendiumCacheVersion = 0;
 
@@ -634,26 +638,16 @@ export async function loadRawHeritages(wizard) {
 export function parseSpellUuidsFromDescription(rules, html) {
   const uuids = new Set();
   for (const rule of rules) {
-    if (rule.key === 'GrantItem' && typeof rule.uuid === 'string' && rule.uuid.includes('spells-srd')) {
+    if (rule.key === 'GrantItem' && typeof rule.uuid === 'string' && isCompendiumUuidInCategory(rule.uuid, 'spells')) {
       uuids.add(rule.uuid);
     }
   }
-  if (html) {
-    const re1 = /data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/g;
-    const re2 = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]/g;
-    let match;
-    while ((match = re1.exec(html)) !== null) uuids.add(match[1]);
-    while ((match = re2.exec(html)) !== null) uuids.add(`Compendium.pf2e.spells-srd.Item.${match[1]}`);
-  }
+  for (const uuid of extractCompendiumUuidsByCategory(html, 'spells')) uuids.add(uuid);
   return [...uuids];
 }
 
 function* extractSpellUuids(text) {
-  const uuidPattern = /@UUID\[Compendium\.pf2e\.spells-srd\.Item\.([^\]]+)\]|data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/gi;
-  let match;
-  while ((match = uuidPattern.exec(text)) !== null) {
-    yield match[2] ?? `Compendium.pf2e.spells-srd.Item.${match[1]}`;
-  }
+  yield* extractCompendiumUuidsByCategory(text, 'spells');
 }
 
 function normalizeSpellSectionText(html) {

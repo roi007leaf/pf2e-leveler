@@ -155,6 +155,7 @@ describe('system support profiles', () => {
   test('extracts UUID links from text for active category packs only', () => {
     const html = [
       '@UUID[Compendium.sf2e.spells.Item.gravity-well]{Gravity Well}',
+      '@UUID[Compendium.sf2e.spells.Item.Telekinetic Projectile]',
       '<a data-uuid="Compendium.sf2e.spells.Item.hologram">Hologram</a>',
       '@UUID[Compendium.sf2e.equipment.Item.spellbook]{Spellbook}',
       '@UUID[Compendium.pf2e.spells-srd.Item.force-barrage]{Force Barrage}',
@@ -162,6 +163,7 @@ describe('system support profiles', () => {
 
     expect(extractCompendiumUuidsByCategory(html, 'spells', { systemId: 'sf2e' })).toEqual([
       'Compendium.sf2e.spells.Item.gravity-well',
+      'Compendium.sf2e.spells.Item.Telekinetic Projectile',
       'Compendium.sf2e.spells.Item.hologram',
     ]);
   });

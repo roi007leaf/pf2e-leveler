@@ -5,6 +5,7 @@ import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 import { slugify } from '../../utils/pf2e-api.js';
+import { extractCompendiumUuidsByCategory } from '../../system-support/profiles.js';
 import { buildSkillContext } from './skills-languages.js';
 import { parseCurriculum } from './loaders.js';
 
@@ -725,7 +726,7 @@ function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
   if (!/\b(?:choose|select|pick)\b/.test(text)) return [];
   if (!/\bspell(?:book|s)?\b|\brepertoire\b/.test(text)) return [];
 
-  const spellUuids = extractUniqueUuidLinks(sourceItem?.system?.description?.value ?? '', 'spells-srd');
+  const spellUuids = extractCompendiumUuidsByCategory(sourceItem?.system?.description?.value ?? '', 'spells');
   if (spellUuids.length < 2) return [];
 
   const count = inferChoiceCount(text, { defaultCount: /\bone of (?:the )?following\b/.test(text) ? 1 : null });
@@ -758,17 +759,6 @@ function normalizeDescriptionText(html) {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
-}
-
-function extractUniqueUuidLinks(html, packSlug) {
-  const escapedPack = packSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const uuids = new Set();
-  const uuidPattern = new RegExp(`@UUID\\[(Compendium\\.pf2e\\.${escapedPack}\\.Item\\.[^\\]]+)\\]|data-uuid="(Compendium\\.pf2e\\.${escapedPack}\\.Item\\.[^"]+)"`, 'gi');
-  let match;
-  while ((match = uuidPattern.exec(String(html ?? ''))) !== null) {
-    uuids.add(match[1] ?? match[2]);
-  }
-  return [...uuids];
 }
 
 function inferChoiceCount(text, { defaultCount = null } = {}) {

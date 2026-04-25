@@ -116,7 +116,7 @@ export function extractCompendiumUuidsByCategory(text, category, options = {}) {
   if (!value) return [];
 
   const uuids = new Set();
-  const linkPattern = /@UUID\[(Compendium\.[^\]\s]+)\]/g;
+  const linkPattern = /@UUID\[(Compendium\.[^\]]+)\]/g;
   const dataPattern = /data-uuid=["'](Compendium\.[^"']+)["']/g;
 
   for (const match of value.matchAll(linkPattern)) {

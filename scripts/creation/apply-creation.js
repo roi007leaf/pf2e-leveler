@@ -9,6 +9,10 @@ import { format, localize } from '../utils/i18n.js';
 import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
 import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
 import { applyFeatGrantEntries } from '../apply/apply-feat-grants.js';
+import {
+  extractCompendiumUuidsByCategory,
+  isCompendiumUuidInCategory,
+} from '../system-support/profiles.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -598,7 +602,7 @@ function extractSpellUuidsFromFeat(feat) {
   const uuids = new Set();
 
   for (const rule of feat?.system?.rules ?? []) {
-    if (rule?.key === 'GrantItem' && typeof rule?.uuid === 'string' && rule.uuid.includes('spells-srd')) {
+    if (rule?.key === 'GrantItem' && typeof rule?.uuid === 'string' && isCompendiumUuidInCategory(rule.uuid, 'spells')) {
       uuids.add(rule.uuid);
     }
   }
@@ -607,12 +611,7 @@ function extractSpellUuidsFromFeat(feat) {
   if (!html) return [...uuids];
   if (hasEmbeddedSpellChoiceDescription(html)) return [...uuids];
 
-  for (const match of html.matchAll(/@UUID\[(Compendium\.pf2e\.spells-srd\.Item\.[^\]]+)\]/g)) {
-    uuids.add(match[1]);
-  }
-  for (const match of html.matchAll(/data-uuid="(Compendium\.pf2e\.spells-srd\.Item\.[^"]+)"/g)) {
-    uuids.add(match[1]);
-  }
+  for (const uuid of extractCompendiumUuidsByCategory(html, 'spells')) uuids.add(uuid);
 
   return [...uuids];
 }
@@ -625,7 +624,7 @@ function hasEmbeddedSpellChoiceDescription(html) {
     .toLowerCase();
   return /\b(?:choose|select|pick)\b/.test(text)
     && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text))
-    && /Compendium\.pf2e\.spells-srd\.Item\./i.test(String(html ?? ''));
+    && extractCompendiumUuidsByCategory(html, 'spells').length > 0;
 }
 
 function isApplicableStoredChoice(itemData, flag, value) {
@@ -895,8 +894,8 @@ function isStoredSkillChoiceSet(choiceSet) {
 
 function isSpellChoiceOption(option, uuid) {
   if (option?.type === 'spell') return true;
-  if (option?.uuid?.includes?.('Compendium.pf2e.spells-srd.Item.')) return true;
-  return uuid.includes('Compendium.pf2e.spells-srd.Item.');
+  if (isCompendiumUuidInCategory(option?.uuid, 'spells')) return true;
+  return isCompendiumUuidInCategory(uuid, 'spells');
 }
 
 function isFormulaChoiceSet(choiceSet) {

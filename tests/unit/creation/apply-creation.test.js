@@ -222,6 +222,43 @@ describe('getAdditionalSelectedItems', () => {
       },
     ]);
   });
+
+  it('manually adds selected SF2e spell choice results from active spell packs', () => {
+    global.game.system.id = 'sf2e';
+
+    try {
+      const items = getAdditionalSelectedItems({
+        ancestryFeat: {
+          name: 'Star Magic',
+          choiceSets: [
+            {
+              flag: 'starMagic',
+              options: [
+                {
+                  value: 'gravity-well',
+                  label: 'Gravity Well',
+                  uuid: 'Compendium.sf2e.spells.Item.gravity-well',
+                },
+              ],
+            },
+          ],
+          choices: {
+            starMagic: 'Compendium.sf2e.spells.Item.gravity-well',
+          },
+        },
+      });
+
+      expect(items).toEqual([
+        {
+          uuid: 'Compendium.sf2e.spells.Item.gravity-well',
+          name: 'Gravity Well',
+          _type: 'spell',
+        },
+      ]);
+    } finally {
+      global.game.system.id = 'pf2e';
+    }
+  });
 });
 
 describe('getAdditionalSelectedFormulas', () => {
