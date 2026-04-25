@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getAllowedCompendiumKeysForCurrentUser } from '../access/player-content.js';
+import { getDefaultPackKeysForCategory } from '../system-support/profiles.js';
 
 export const COMPENDIUM_CATEGORY_DEFINITIONS = {
   ancestries: {
@@ -77,7 +78,7 @@ export function getVisibleCompendiumCategoryKeys() {
 }
 
 export function getDefaultCompendiumKeys(category) {
-  return [...(COMPENDIUM_CATEGORY_DEFINITIONS[category]?.defaultKeys ?? [])];
+  return getDefaultPackKeysForCategory(category);
 }
 
 export function getConfiguredCompendiumSelections() {
@@ -112,13 +113,14 @@ export async function discoverCompendiumsByCategory({ includeManualCandidates = 
     for (const [category, definition] of Object.entries(COMPENDIUM_CATEGORY_DEFINITIONS)) {
       if (!definition.matches(pack, index)) continue;
       const packageName = pack.metadata?.packageName ?? pack.metadata?.package ?? '';
+      const defaultKeys = getDefaultCompendiumKeys(category);
       categories[category].push({
         key: pack.collection ?? pack.metadata?.id ?? '',
         label: pack.metadata?.label ?? pack.title ?? pack.collection ?? '',
         packageName,
         packageLabel: resolvePackageLabel(packageName),
         packageAuthors: resolvePackageAuthors(packageName),
-        locked: definition.defaultKeys.includes(pack.collection ?? pack.metadata?.id ?? ''),
+        locked: defaultKeys.includes(pack.collection ?? pack.metadata?.id ?? ''),
       });
     }
   }

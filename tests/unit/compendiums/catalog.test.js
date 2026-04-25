@@ -1,12 +1,45 @@
 import {
   discoverCompendiumsByCategory,
   getCompendiumKeysForCategory,
+  getDefaultCompendiumKeys,
   migrateLegacyFeatCompendiumsSetting,
   normalizeCompendiumSelections,
 } from '../../../scripts/compendiums/catalog.js';
 
 describe('compendium catalog helpers', () => {
+  test('uses PF2e default compendium keys in PF2e worlds', () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map();
+
+    expect(getDefaultCompendiumKeys('feats')).toEqual(['pf2e.feats-srd']);
+    expect(getDefaultCompendiumKeys('classFeatures')).toEqual(['pf2e.classfeatures']);
+    expect(getDefaultCompendiumKeys('spells')).toEqual(['pf2e.spells-srd']);
+  });
+
+  test('uses SF2e default compendium keys in standalone SF2e worlds', () => {
+    game.system.id = 'sf2e';
+    game.modules = new Map();
+
+    expect(getDefaultCompendiumKeys('feats')).toEqual(['sf2e.feats']);
+    expect(getDefaultCompendiumKeys('classFeatures')).toEqual(['sf2e.class-features']);
+    expect(getDefaultCompendiumKeys('spells')).toEqual(['sf2e.spells']);
+  });
+
+  test('adds Anachronism default compendium keys when active in PF2e worlds', () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map([['sf2e-anachronism', { active: true }]]);
+
+    expect(getDefaultCompendiumKeys('feats')).toEqual(['pf2e.feats-srd', 'sf2e-anachronism.feats']);
+    expect(getDefaultCompendiumKeys('classFeatures')).toEqual([
+      'pf2e.classfeatures',
+      'sf2e-anachronism.class-features',
+    ]);
+    expect(getDefaultCompendiumKeys('spells')).toEqual(['pf2e.spells-srd', 'sf2e-anachronism.spells']);
+  });
+
   test('merges default and configured compendium keys for a category', () => {
+    game.system.id = 'pf2e';
+    game.modules = new Map();
     global._testSettings = {
       'pf2e-leveler': {
         customCompendiums: {
