@@ -7,7 +7,9 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/roileaf)
 # PF2e Leveler
 
-A Foundry VTT module for Pathfinder 2nd Edition that provides a **Character Creation Wizard**, a **Level-Up Planner** with automatic application on level change, and a **GM Content Guidance** system for controlling what options players see.
+A Foundry VTT module for Pathfinder 2nd Edition and Starfinder Second Edition that provides a **Character Creation Wizard**, a **Level-Up Planner** with automatic application on level change, and a **GM Content Guidance** system for controlling what options players see.
+
+The module name remains **PF2e Leveler**. In standalone Starfinder Second Edition worlds, it uses SF2e system compendiums. In PF2e worlds with the **Starfinder 2e Anachronism** module active, it adds only the Anachronism Starfinder content alongside PF2e content; it does not pull standalone SF2e system packs into PF2e worlds.
 
 ## Features
 
@@ -20,12 +22,13 @@ A full step-by-step character creation flow that builds and applies a complete l
 - **Ancestry** — browse and select ancestry with image preview
 - **Heritage** — grouped display separating ancestry heritages from versatile heritages; ChoiceSets like Elf Atavism correctly resolve to heritage options
 - **Background** — auto-detects trained skills and lores from background data
-- **Class** — all 29 supported classes; creates and applies the class item
+- **Class** — all supported PF2e and SF2e classes from the active system profile; creates and applies the class item
+- **SF2e subclass prompts** — Starfinder class paths, such as envoy leadership styles, are detected from SF2e system data or Anachronism data and shown in the prompt summary
 - **Deity** — for divine classes; auto-sets divine font and sanctification when only one option is valid
 - **Subclass** — full selection of subclasses (Bloodlines, Orders, Schools, Mysteries, Patrons, Doctrines, etc.) with automatic tradition resolution and granted skill/lore detection
 - **Subclass choices** — inline ChoiceSet prompts for subclass-specific options (e.g. element for Kineticist, conscious mind for Psychic)
 - **Ability Boosts** — per-source rows (ancestry, background, class, free) matching PF2e's layout; alternate ancestry boost mode supported
-- **Skills** — class, background, subclass, and deity skill grants shown as auto-trained; remaining free picks selectable; lore selection for background and subclass lores
+- **Skills** — class, background, subclass, and deity skill grants shown as auto-trained; remaining free picks selectable; lore selection for background and subclass lores; SF2e worlds use the SF2e skill list, including Computers and Piloting
 - **Feats** — ancestry feat, class feat, skill feat, and class-specific slots (tactics, ikons, kinetic impulses, implements, etc.) with inline ChoiceSet resolution; feat cards show items granted by selected feats
 - **Languages** — ancestry-granted languages shown as non-removable; feat-granted languages (e.g. Angelkin granting Empyrean) auto-detected and marked as granted with source label; choosable languages sorted with ancestry suggestions first; slot count respects INT modifier and feat bonuses (e.g. Multilingual)
 - **Spells** — cantrips and rank-1 spells via popup spell picker; curriculum spells for Magus/Witch; focus spell selection where applicable
@@ -56,6 +59,7 @@ A full step-by-step character creation flow that builds and applies a complete l
 Plan all level-up choices from level 2 to 20, then auto-apply when the character levels up.
 
 - Class feat, skill feat, general feat, and ancestry feat selection per level with prerequisite checking
+- Active-system compendium routing for PF2e, standalone SF2e, and PF2e plus Anachronism content
 - Archetype feat support including Free Archetype variant; dedication filter only active until a dedication has been chosen
 - Skill increase picker with rank-colored buttons and proficiency cap enforcement
 - Ability boost selector with partial boost (18+) support and score progression display across the full build
@@ -87,10 +91,13 @@ GMs can mark any ancestry, heritage, background, class, skill, or language as **
 - Disallowed items are dimmed with a red "Disallowed" badge and their Select button is disabled
 - Marks are stored as a world-scoped setting; changing marks automatically invalidates the cache
 - Disallowed options remain visible so players know they exist
+- Available compendium choices follow the active system profile: PF2e packs in PF2e worlds, SF2e packs in SF2e worlds, and Anachronism packs only when that module is active in a PF2e world
 
-### Supported Classes (29)
+### Supported Classes
 
-Alchemist, Animist, Barbarian, Bard, Champion, Cleric, Commander, Daredevil, Druid, Exemplar, Fighter, Guardian, Gunslinger, Inventor, Investigator, Kineticist, Magus, Monk, Oracle, Psychic, Ranger, Rogue, Slayer, Sorcerer, Summoner, Swashbuckler, Thaumaturge, Witch, Wizard
+PF2e: Alchemist, Animist, Barbarian, Bard, Champion, Cleric, Commander, Daredevil, Druid, Exemplar, Fighter, Guardian, Gunslinger, Inventor, Investigator, Kineticist, Magus, Monk, Oracle, Psychic, Ranger, Rogue, Slayer, Sorcerer, Summoner, Swashbuckler, Thaumaturge, Witch, Wizard
+
+SF2e: classes are loaded from the active SF2e system compendiums, or from Starfinder 2e Anachronism compendiums when that module is active in a PF2e world.
 
 ### Variant Rules
 
@@ -133,7 +140,7 @@ Alchemist, Animist, Barbarian, Bard, Champion, Cleric, Commander, Daredevil, Dru
 
 - English and French module locales included
 - Core wizard and planner flows work with localized PF2e data including French translations
-- Post-apply ChoiceSet prompts are handled by the PF2e system and follow its own localization
+- Post-apply ChoiceSet prompts are handled by the active PF2e/SF2e system and follow its own localization
 
 ## Installation
 
@@ -170,7 +177,8 @@ Alchemist, Animist, Barbarian, Bard, Champion, Cleric, Commander, Daredevil, Dru
 ## Requirements
 
 - Foundry VTT v13+
-- PF2e System v7.0.0+
+- PF2e System v7.0.0+ or SF2e System v0.0.10+
+- Optional for mixed Pathfinder/Starfinder PF2e campaigns: Starfinder 2e Anachronism module
 
 ## License
 
