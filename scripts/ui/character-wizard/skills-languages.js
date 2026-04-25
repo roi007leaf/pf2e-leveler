@@ -1,5 +1,6 @@
 import { SKILLS } from '../../constants.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
+import { getCampaignLanguages, getRulesetConfig } from '../../system-support/profiles.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -115,7 +116,7 @@ function parseLanguageBonusValue(value) {
 }
 
 export function getLanguageMap() {
-  const configLangs = globalThis.CONFIG?.PF2E?.languages;
+  const configLangs = getRulesetConfig().languages;
   if (configLangs && typeof configLangs === 'object') {
     const map = {};
     for (const [key, value] of Object.entries(configLangs)) {
@@ -129,7 +130,7 @@ export function getLanguageMap() {
 
 export function getLanguageRarityMap() {
   const map = {};
-  const languageSettings = globalThis.game?.pf2e?.settings?.campaign?.languages ?? null;
+  const languageSettings = getCampaignLanguages();
   if (languageSettings) {
     const common = languageSettings.common instanceof Set
       ? languageSettings.common
@@ -154,7 +155,7 @@ export function getLanguageRarityMap() {
     }
   }
 
-  const configLangs = globalThis.CONFIG?.PF2E?.languages;
+  const configLangs = getRulesetConfig().languages;
   if (!configLangs || typeof configLangs !== 'object') return map;
 
   for (const [key, value] of Object.entries(configLangs)) {

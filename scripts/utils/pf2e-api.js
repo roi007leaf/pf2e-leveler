@@ -1,27 +1,28 @@
 import { MODULE_ID } from '../constants.js';
+import { getSystemSetting } from '../system-support/profiles.js';
 
 export function isFreeArchetypeEnabled() {
-  return game.settings.get('pf2e', 'freeArchetypeVariant');
+  return getSystemSetting('freeArchetypeVariant', { fallback: false });
 }
 
 export function isGradualBoostsEnabled() {
-  return game.settings.get('pf2e', 'gradualBoostsVariant');
+  return getSystemSetting('gradualBoostsVariant', { fallback: false });
 }
 
 export function isABPEnabled() {
-  return game.settings.get('pf2e', 'automaticBonusVariant') !== 'noABP';
+  return getSystemSetting('automaticBonusVariant', { fallback: 'noABP' }) !== 'noABP';
 }
 
 export function isMythicEnabled() {
-  return game.settings.get('pf2e', 'mythic') === 'enabled';
+  return getSystemSetting('mythic', { fallback: 'disabled' }) === 'enabled';
 }
 
 export function isProficiencyWithoutLevelEnabled() {
-  try { return game.settings.get('pf2e', 'proficiencyVariant') === 'ProficiencyWithoutLevel'; } catch { return false; }
+  return getSystemSetting('proficiencyVariant', { fallback: null }) === 'ProficiencyWithoutLevel';
 }
 
 export function isStaminaEnabled() {
-  try { return game.settings.get('pf2e', 'staminaVariant') > 0; } catch { return false; }
+  return getSystemSetting('staminaVariant', { fallback: 0 }) > 0;
 }
 
 export function isDualClassEnabled() {
@@ -37,14 +38,10 @@ export function isAncestralParagonEnabled() {
 }
 
 export function getCampaignFeatSectionIds() {
-  try {
-    const sections = game.settings.get('pf2e', 'campaignFeatSections');
-    return Array.isArray(sections)
-      ? sections.map((section) => section?.id).filter((id) => typeof id === 'string' && id.length > 0)
-      : [];
-  } catch {
-    return [];
-  }
+  const sections = getSystemSetting('campaignFeatSections', { fallback: [] });
+  return Array.isArray(sections)
+    ? sections.map((section) => section?.id).filter((id) => typeof id === 'string' && id.length > 0)
+    : [];
 }
 
 export function getMaxSkillRank(level) {

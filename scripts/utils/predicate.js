@@ -1,7 +1,9 @@
+import { resolveSystemPredicate } from '../system-support/profiles.js';
+
 export function evaluatePredicate(predicate, atLevel, rollOptions = null) {
-  const pf2ePredicate = resolvePf2ePredicate();
-  if (pf2ePredicate) {
-    const result = evaluateWithPf2ePredicate(pf2ePredicate, predicate, atLevel, rollOptions);
+  const systemPredicate = resolveSystemPredicate();
+  if (systemPredicate) {
+    const result = evaluateWithSystemPredicate(systemPredicate, predicate, atLevel, rollOptions);
     if (typeof result === 'boolean') return result;
   }
   return evaluatePredicateFallback(predicate, atLevel);
@@ -23,14 +25,7 @@ function evaluatePredicateFallback(predicate, atLevel) {
   return true;
 }
 
-function resolvePf2ePredicate() {
-  return globalThis?.game?.pf2e?.Predicate
-    ?? globalThis?.PF2E?.Predicate
-    ?? globalThis?.pf2e?.Predicate
-    ?? null;
-}
-
-function evaluateWithPf2ePredicate(PredicateClass, predicate, atLevel, rollOptions) {
+function evaluateWithSystemPredicate(PredicateClass, predicate, atLevel, rollOptions) {
   try {
     const options = normalizeRollOptions(rollOptions, atLevel);
     if (typeof PredicateClass.test === 'function') {

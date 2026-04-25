@@ -83,9 +83,49 @@ export function isAnachronismActive(options = {}) {
 }
 
 export function getActiveSystemId(options = {}) {
-  const rawSystemId = options.systemId ?? globalThis.game?.system?.id ?? SYSTEM_IDS.PF2E;
+  const root = options.root ?? globalThis;
+  const rawSystemId = options.systemId ?? root.game?.system?.id ?? SYSTEM_IDS.PF2E;
   const systemId = String(rawSystemId).trim().toLowerCase();
   return systemId === SYSTEM_IDS.SF2E ? SYSTEM_IDS.SF2E : SYSTEM_IDS.PF2E;
+}
+
+export function getSystemSetting(settingId, options = {}) {
+  const root = options.root ?? globalThis;
+  const settings = options.settings ?? root.game?.settings;
+  if (!settings || typeof settings.get !== 'function') return options.fallback;
+
+  try {
+    const value = settings.get(getActiveSystemId(options), settingId);
+    return value === undefined ? options.fallback : value;
+  } catch {
+    return options.fallback;
+  }
+}
+
+export function resolveSystemPredicate(options = {}) {
+  const root = options.root ?? globalThis;
+  const systemId = getActiveSystemId(options);
+  const primary = getPredicateForSystem(root, systemId);
+  if (primary) return primary;
+  return getPredicateForSystem(root, SYSTEM_IDS.PF2E)
+    ?? getPredicateForSystem(root, SYSTEM_IDS.SF2E)
+    ?? null;
+}
+
+export function getRulesetConfig(options = {}) {
+  const root = options.root ?? globalThis;
+  const systemId = getActiveSystemId(options);
+  return getConfigForSystem(root, systemId)
+    ?? getConfigForSystem(root, SYSTEM_IDS.PF2E)
+    ?? {};
+}
+
+export function getCampaignLanguages(options = {}) {
+  const root = options.root ?? globalThis;
+  const systemId = getActiveSystemId(options);
+  return getSystemGameNamespace(root, systemId)?.settings?.campaign?.languages
+    ?? getSystemGameNamespace(root, SYSTEM_IDS.PF2E)?.settings?.campaign?.languages
+    ?? null;
 }
 
 function buildProfile({ id, contentProfile, defaultPacks }) {
@@ -118,4 +158,22 @@ function getModule(modules, id) {
   if (Array.isArray(modules)) return modules.find((entry) => entry?.id === id) ?? null;
   if (Array.isArray(modules.contents)) return modules.contents.find((entry) => entry?.id === id) ?? null;
   return modules[id] ?? null;
+}
+
+function getPredicateForSystem(root, systemId) {
+  const namespace = getSystemGameNamespace(root, systemId);
+  if (namespace?.Predicate) return namespace.Predicate;
+
+  const globalUpperKey = systemId.toUpperCase();
+  return root[globalUpperKey]?.Predicate
+    ?? root[systemId]?.Predicate
+    ?? null;
+}
+
+function getConfigForSystem(root, systemId) {
+  return root.CONFIG?.[systemId.toUpperCase()] ?? null;
+}
+
+function getSystemGameNamespace(root, systemId) {
+  return root.game?.[systemId] ?? null;
 }

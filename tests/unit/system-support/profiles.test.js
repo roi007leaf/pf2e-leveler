@@ -1,7 +1,11 @@
 import {
   getActiveSystemProfile,
+  getCampaignLanguages,
   getDefaultPackKeysForCategory,
+  getRulesetConfig,
+  getSystemSetting,
   isAnachronismActive,
+  resolveSystemPredicate,
 } from '../../../scripts/system-support/profiles.js';
 
 function moduleMap(entries = []) {
@@ -51,5 +55,71 @@ describe('system support profiles', () => {
     expect(isAnachronismActive({ modules })).toBe(false);
     expect(getDefaultPackKeysForCategory('feats', { systemId: 'pf2e', modules }))
       .toEqual(['pf2e.feats-srd']);
+  });
+
+  test('reads settings from the active system namespace', () => {
+    const settings = {
+      get: jest.fn((namespace, key) => `${namespace}:${key}`),
+    };
+
+    expect(getSystemSetting('freeArchetypeVariant', { systemId: 'sf2e', settings }))
+      .toBe('sf2e:freeArchetypeVariant');
+    expect(settings.get).toHaveBeenCalledWith('sf2e', 'freeArchetypeVariant');
+  });
+
+  test('returns fallback when active system setting is missing', () => {
+    const settings = {
+      get: jest.fn(() => {
+        throw new Error('missing setting');
+      }),
+    };
+
+    expect(getSystemSetting('mythic', { systemId: 'sf2e', settings, fallback: 'disabled' }))
+      .toBe('disabled');
+  });
+
+  test('returns fallback when active system setting is undefined', () => {
+    const settings = {
+      get: jest.fn(() => undefined),
+    };
+
+    expect(getSystemSetting('automaticBonusVariant', { systemId: 'sf2e', settings, fallback: 'noABP' }))
+      .toBe('noABP');
+  });
+
+  test('resolves Predicate from the active SF2e namespace before PF2e fallback', () => {
+    const sf2ePredicate = class Sf2ePredicate {};
+    const pf2ePredicate = class Pf2ePredicate {};
+    const root = {
+      game: {
+        sf2e: { Predicate: sf2ePredicate },
+        pf2e: { Predicate: pf2ePredicate },
+      },
+    };
+
+    expect(resolveSystemPredicate({ systemId: 'sf2e', root })).toBe(sf2ePredicate);
+  });
+
+  test('reads active ruleset config and campaign languages', () => {
+    const sf2eLanguages = { common: { label: 'Common' } };
+    const campaignLanguages = { commonLanguage: 'common' };
+    const root = {
+      CONFIG: {
+        SF2E: { languages: sf2eLanguages },
+        PF2E: { languages: { taldane: { label: 'Taldane' } } },
+      },
+      game: {
+        sf2e: {
+          settings: {
+            campaign: {
+              languages: campaignLanguages,
+            },
+          },
+        },
+      },
+    };
+
+    expect(getRulesetConfig({ systemId: 'sf2e', root }).languages).toBe(sf2eLanguages);
+    expect(getCampaignLanguages({ systemId: 'sf2e', root })).toBe(campaignLanguages);
   });
 });

@@ -64,6 +64,9 @@ describe('CharacterWizard skills step grants', () => {
       settings: {
         get: jest.fn(() => ({})),
       },
+      system: {
+        id: 'pf2e',
+      },
       pf2e: {
         ...(global.game?.pf2e ?? {}),
         settings: {
@@ -81,6 +84,52 @@ describe('CharacterWizard skills step grants', () => {
         },
       },
     };
+  });
+
+  it('uses SF2e language configuration in SF2e worlds', async () => {
+    game.system = { id: 'sf2e' };
+    global.CONFIG = {
+      SF2E: {
+        languages: {
+          common: { label: 'Common' },
+          shobhad: { label: 'Shobhad', rarity: 'uncommon' },
+        },
+      },
+      PF2E: {
+        languages: {
+          taldane: { label: 'Taldane' },
+        },
+      },
+    };
+    global.game = {
+      ...(global.game ?? {}),
+      system: { id: 'sf2e' },
+      i18n: {
+        has: jest.fn(() => false),
+        localize: jest.fn((key) => key),
+      },
+      sf2e: {
+        settings: {
+          campaign: {
+            languages: {
+              commonLanguage: 'common',
+              common: new Set(['common']),
+              uncommon: new Set(['shobhad']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+    };
+
+    const { getLanguageMap, getLanguageRarityMap } = await import('../../../scripts/ui/character-wizard/skills-languages.js');
+
+    expect(getLanguageMap()).toEqual({ common: 'Common', shobhad: 'Shobhad' });
+    expect(getLanguageRarityMap()).toEqual(expect.objectContaining({
+      common: 'common',
+      shobhad: 'uncommon',
+    }));
   });
 
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
