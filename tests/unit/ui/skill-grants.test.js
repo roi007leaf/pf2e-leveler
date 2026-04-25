@@ -132,6 +132,50 @@ describe('CharacterWizard skills step grants', () => {
     }));
   });
 
+  it('uses SF2e skill configuration in SF2e worlds', async () => {
+    const originalConfig = global.CONFIG;
+    global.game = {
+      ...(global.game ?? {}),
+      system: { id: 'sf2e' },
+      i18n: {
+        has: jest.fn(() => false),
+        localize: jest.fn((key) => key),
+      },
+    };
+    global.CONFIG = {
+      SF2E: {
+        skills: {
+          acrobatics: { label: 'Acrobatics' },
+          computers: { label: 'Computers' },
+          piloting: { label: 'Piloting' },
+        },
+      },
+      PF2E: {
+        skills: {
+          acrobatics: { label: 'Acrobatics' },
+          arcana: { label: 'Arcana' },
+        },
+      },
+    };
+
+    try {
+      const wizard = new CharacterWizard(createMockActor());
+      wizard.data.class = { slug: 'envoy', uuid: 'class-uuid', name: 'Envoy' };
+      wizard._getClassTrainedSkills = jest.fn(async () => []);
+      wizard._getCachedDocument = jest.fn(async () => null);
+
+      const context = await wizard._buildSkillContext();
+
+      expect(context.map((entry) => entry.slug)).toEqual(['acrobatics', 'computers', 'piloting']);
+      expect(context.find((entry) => entry.slug === 'computers')).toEqual(expect.objectContaining({
+        label: 'Computers',
+      }));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.game.system.id = 'pf2e';
+    }
+  });
+
   it('locks subclass-granted skills and includes background, subclass, and apparition lores', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.currentStep = 19;

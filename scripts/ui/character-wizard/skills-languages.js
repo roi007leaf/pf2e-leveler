@@ -1,6 +1,6 @@
 import { SKILLS } from '../../constants.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
-import { getCampaignLanguages, getRulesetConfig } from '../../system-support/profiles.js';
+import { getActiveSystemId, getCampaignLanguages, getRulesetConfig, SYSTEM_IDS } from '../../system-support/profiles.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 
@@ -238,7 +238,7 @@ export async function buildSkillContext(wizard) {
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
   const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
-  return SKILLS.map((slug) => {
+  return getActiveSkillSlugs().map((slug) => {
     const fromClass = classSkills.includes(slug);
     const fromBg = bgSkills.includes(slug);
     const fromSubclass = subclassSkills.includes(slug);
@@ -301,6 +301,7 @@ const SKILL_ID_ALIASES = {
   acr: 'acrobatics',
   arc: 'arcana',
   ath: 'athletics',
+  com: 'computers',
   cra: 'crafting',
   dec: 'deception',
   dip: 'diplomacy',
@@ -308,6 +309,7 @@ const SKILL_ID_ALIASES = {
   med: 'medicine',
   nat: 'nature',
   occ: 'occultism',
+  pil: 'piloting',
   prf: 'performance',
   rel: 'religion',
   soc: 'society',
@@ -324,10 +326,33 @@ export async function getBackgroundTrainedSkills(wizard) {
 }
 
 function localizeSkillSlug(slug) {
-  const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+  const raw = getActiveSkillConfigEntry(slug);
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   if (game.i18n?.has?.(label)) return game.i18n.localize(label);
   return humanizeSkillLikeLabel(slug);
+}
+
+export function getActiveSkillSlugs() {
+  if (getActiveSystemId() === SYSTEM_IDS.PF2E) return [...SKILLS];
+
+  const skills = getRulesetConfig().skills;
+  if (!skills || typeof skills !== 'object') return [...SKILLS];
+
+  const slugs = Object.keys(skills)
+    .map((slug) => SKILL_ID_ALIASES[slug] ?? slug)
+    .filter((slug) => typeof slug === 'string' && slug.length > 0);
+  return slugs.length > 0 ? [...new Set(slugs)] : [...SKILLS];
+}
+
+export function getActiveSkillConfigEntry(slug) {
+  const skills = getRulesetConfig().skills;
+  if (!skills || typeof skills !== 'object') return globalThis.CONFIG?.PF2E?.skills?.[slug];
+
+  const direct = skills[slug];
+  if (direct) return direct;
+
+  const alias = Object.entries(SKILL_ID_ALIASES).find(([, canonical]) => canonical === slug)?.[0];
+  return alias ? skills[alias] : undefined;
 }
 
 function extractLoreLabels(html) {
@@ -448,8 +473,9 @@ function buildFutureSkillChoiceMap(wizard) {
 
 function isUnrestrictedSkillChoiceSet(skillSlugs) {
   const set = new Set(skillSlugs);
-  if (set.size < SKILLS.length) return false;
-  return SKILLS.every((slug) => set.has(slug));
+  const activeSkills = getActiveSkillSlugs();
+  if (set.size < activeSkills.length) return false;
+  return activeSkills.every((slug) => set.has(slug));
 }
 
 function buildResolvedSkillChoiceSet(wizard) {
@@ -538,7 +564,7 @@ function resolveSkillSlug(option) {
 }
 
 function getSkillLookup() {
-  const skills = globalThis.CONFIG?.PF2E?.skills ?? {};
+  const skills = getRulesetConfig().skills ?? {};
   const lookup = new Map();
 
   for (const [alias, full] of Object.entries(SKILL_ID_ALIASES)) {

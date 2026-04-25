@@ -97,7 +97,9 @@ import {
   getBackgroundLores,
   getBackgroundTrainedSkills,
   getLanguageMap,
+  getActiveSkillSlugs,
   getSelectedSubclassChoiceSkillMap,
+  getActiveSkillConfigEntry,
   parseSubclassLores,
 } from './skills-languages.js';
 import { activateCharacterWizardListeners } from './listeners.js';
@@ -2700,7 +2702,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const match = rule.path?.match(/^system\.skills\.(\w+)\.rank$/);
       if (!match || Number(rule.value) < 1) continue;
       const normalizedSkill = SKILL_SLUG_ALIASES[match[1]] ?? match[1];
-      if (SKILLS.includes(normalizedSkill)) skills.push(normalizedSkill);
+      if (getActiveSkillSlugs().includes(normalizedSkill)) skills.push(normalizedSkill);
     }
     if (skills.length === 0 && html) {
       const rawText = String(html)
@@ -2710,7 +2712,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const text = rawText.toLowerCase();
       const clauses = text.match(/\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+([^.!?]+)/gu) ?? [];
       for (const clause of clauses) {
-        for (const skill of SKILLS) {
+        for (const skill of getActiveSkillSlugs()) {
           const localized = this._localizeSkillSlug(skill).toLowerCase();
           if (clause.includes(localized) || clause.includes(skill.toLowerCase())) {
             skills.push(skill);
@@ -2721,7 +2723,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const patronSkillMatch = rawText.match(/patron\s+skill\s*[:-]?\s*([A-Za-z]+)/i);
       if (patronSkillMatch) {
         const normalized = patronSkillMatch[1].trim().toLowerCase();
-        for (const skill of SKILLS) {
+        for (const skill of getActiveSkillSlugs()) {
           const localized = this._localizeSkillSlug(skill).toLowerCase();
           if (normalized === localized || normalized === skill.toLowerCase()) {
             skills.push(skill);
@@ -2768,7 +2770,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _localizeSkillSlug(slug) {
-    const raw = globalThis.CONFIG?.PF2E?.skills?.[slug];
+    const raw = getActiveSkillConfigEntry(slug);
     const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
     return game.i18n?.has?.(label) ? game.i18n.localize(label) : slug;
   }
