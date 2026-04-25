@@ -141,4 +141,30 @@ describe('CharacterWizard feat grant choices', () => {
       }),
     }));
   });
+
+  it('collects already taken formula grant selections during creation', () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.featGrants = [
+      {
+        requirementId: 'formula-a',
+        kind: 'formula',
+        selections: [{ uuid: 'item-a', name: 'Acid Flask' }],
+      },
+      {
+        requirementId: 'item-a',
+        kind: 'item',
+        selections: [{ uuid: 'item-b', name: 'Backpack' }],
+      },
+      {
+        requirementId: 'formula-b',
+        kind: 'formula',
+        selections: [{ uuid: 'item-c', name: 'Alchemist Fire' }],
+      },
+    ];
+
+    expect(wizard._getTakenFormulaGrantSelections()).toEqual([
+      { uuid: 'item-a', name: 'Acid Flask' },
+      { uuid: 'item-c', name: 'Alchemist Fire' },
+    ]);
+  });
 });

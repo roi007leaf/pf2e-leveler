@@ -94,6 +94,8 @@
       "SEARCH": "搜索装备…",
       "TOTAL": "总计",
       "REMAINING": "剩余",
+      "TAKEN": "已选取",
+      "ALREADY_TAKEN": "此公式已被选取",
       "SHOWING_PARTIAL": "显示 200 个，共"
     },
     "STARTING_WEALTH": {

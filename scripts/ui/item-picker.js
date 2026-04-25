@@ -55,6 +55,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.maxSelect = Number.isFinite(Number(options.maxSelect)) ? Number(options.maxSelect) : null;
     this.customTitle = typeof options.title === 'string' && options.title.trim().length > 0 ? options.title.trim() : null;
     this.allItems = options.items ?? [];
+    this.takenItems = Array.isArray(options.takenItems) ? options.takenItems : [];
+    this._takenItemIdentityKeys = new Set(this.takenItems.flatMap((item) => getItemMatchKeys(item)));
     this.filteredItems = [];
     this.selectedItemUuids = new Set();
     this.searchText = '';
@@ -159,6 +161,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const price = item.system?.price?.value;
     const pricePer = Number(item.system?.price?.per ?? 1);
     const priceLabel = price ? formatPrice(price) + (pricePer > 1 ? ` / ${pricePer}` : '') : '';
+    const alreadyTaken = this._isItemTaken(item);
+    const selectionBlocked = alreadyTaken || item.guidanceSelectionBlocked === true;
     return {
       uuid: item.uuid,
       name: item.name,
@@ -173,6 +177,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       isDisallowed: item.isDisallowed ?? false,
       guidanceSelectionBlocked: item.guidanceSelectionBlocked === true,
       guidanceSelectionTooltip: item.guidanceSelectionTooltip ?? '',
+      selectionBlocked,
+      alreadyTaken,
       _levelerSelected: this.selectedItemUuids.has(item.uuid),
     };
   }
@@ -729,7 +735,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.stopPropagation();
         const uuid = target.closest('[data-uuid]')?.dataset.uuid ?? target.dataset.uuid;
         const item = this.allItems.find((entry) => entry.uuid === uuid) ?? await fromUuid(uuid).catch(() => null);
-        if (item?.guidanceSelectionBlocked) return;
+        if (this._isItemSelectionBlocked(item)) return;
         if (item && this.onSelect) {
           if (this.multiSelect) {
             this._toggleSelectedItem(item.uuid);
@@ -779,7 +785,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _toggleSelectedItem(uuid) {
     if (!uuid) return;
     const item = this.allItems.find((entry) => entry.uuid === uuid);
-    if (item?.guidanceSelectionBlocked) return;
+    if (this._isItemSelectionBlocked(item)) return;
     if (this.selectedItemUuids.has(uuid)) this.selectedItemUuids.delete(uuid);
     else if (this.maxSelect != null && this.selectedItemUuids.size >= this.maxSelect) return;
     else this.selectedItemUuids.add(uuid);
@@ -813,7 +819,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   async _confirmSelection() {
     if (!this.multiSelect || this.selectedItemUuids.size === 0 || !this.onSelect) return;
     const selectedItems = this.allItems
-      .filter((item) => this.selectedItemUuids.has(item.uuid) && item.guidanceSelectionBlocked !== true)
+      .filter((item) => this.selectedItemUuids.has(item.uuid) && !this._isItemSelectionBlocked(item))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (selectedItems.length === 0) return;
     await this.onSelect(selectedItems);
@@ -832,9 +838,12 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (button) {
         button.classList.toggle('active', selected);
         const selectable = option.dataset.selectable !== 'false';
+        const alreadyTaken = option.dataset.alreadyTaken === 'true';
         button.disabled = !selectable;
         button.textContent = !selectable
-          ? game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED')
+          ? game.i18n.localize(alreadyTaken
+            ? 'PF2E_LEVELER.ITEM_PICKER.TAKEN'
+            : 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED')
           : selected
             ? game.i18n.localize('PF2E_LEVELER.UI.SELECTED')
             : game.i18n.localize('PF2E_LEVELER.FEAT_PICKER.SELECT');
@@ -863,6 +872,16 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       confirmButton.disabled = this.selectedItemUuids.size === 0;
     }
   }
+
+  _isItemSelectionBlocked(item) {
+    return item?.guidanceSelectionBlocked === true || this._isItemTaken(item);
+  }
+
+  _isItemTaken(item) {
+    if (item?.alreadyTaken === true) return true;
+    if (!item || this._takenItemIdentityKeys.size === 0) return false;
+    return getItemMatchKeys(item).some((key) => this._takenItemIdentityKeys.has(key));
+  }
 }
 
 function formatPrice(price) {
@@ -872,6 +891,19 @@ function formatPrice(price) {
   if (price.sp) parts.push(`${price.sp} sp`);
   if (price.cp) parts.push(`${price.cp} cp`);
   return parts.join(', ');
+}
+
+function getItemMatchKeys(item) {
+  const keys = new Set();
+  const sourceId = item?.sourceId ?? item?.flags?.core?.sourceId ?? item?.uuid ?? null;
+  const slug = item?.slug ?? item?.system?.slug ?? null;
+  const name = typeof item?.name === 'string' ? item.name.trim().toLowerCase() : null;
+
+  if (sourceId) keys.add(`uuid:${sourceId}`);
+  if (slug) keys.add(`slug:${slug}`);
+  if (name) keys.add(`name:${name}`);
+
+  return [...keys];
 }
 
 let _itemCache = null;

@@ -3140,6 +3140,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         items: await loadItems(),
         multiSelect: true,
         maxSelect,
+        takenItems: requirement.kind === 'formula' ? this._getTakenFormulaGrantSelections() : [],
         title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
         preset: buildItemGrantPickerPreset(requirement, {
           maxLevelCap: requirement.kind === 'formula' ? 1 : null,
@@ -3180,6 +3181,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getStoredFeatGrantSelections(requirementId) {
     return (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)?.selections ?? [];
+  }
+
+  _getTakenFormulaGrantSelections() {
+    const selections = [];
+    for (const grant of this.data.featGrants ?? []) {
+      if (grant?.kind !== 'formula') continue;
+      selections.push(...(grant.selections ?? []));
+    }
+    return dedupeGrantSelections(selections);
   }
 
   _storeFeatGrantSelections(requirement, documents) {

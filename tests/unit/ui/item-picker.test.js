@@ -101,6 +101,73 @@ describe('ItemPicker', () => {
     expect(picker.close).toHaveBeenCalled();
   });
 
+  test('marks taken formula items and blocks selecting them again', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      takenItems: [
+        { uuid: 'item-a', name: 'Acid Flask' },
+      ],
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Acid Flask',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-b',
+          name: 'Alchemist Fire',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ uuid: 'item-a', alreadyTaken: true, selectionBlocked: true }),
+      expect.objectContaining({ uuid: 'item-b', alreadyTaken: false, selectionBlocked: false }),
+    ]));
+
+    picker._toggleSelectedItem('item-a');
+    picker._toggleSelectedItem('item-b');
+
+    expect([...picker.selectedItemUuids]).toEqual(['item-b']);
+  });
+
+  test('toggle select all skips visible taken formulas', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      takenItems: [
+        { uuid: 'item-a', name: 'Acid Flask' },
+      ],
+      items: [],
+    });
+
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="spell-picker__selected-count"></div>
+      <button data-action="toggleSelectAll"></button>
+      <button data-action="confirmSelection"></button>
+      <div class="item-option" data-uuid="item-a" data-already-taken="true" data-selectable="false">
+        <button data-action="selectItem"></button>
+      </div>
+      <div class="item-option" data-uuid="item-b" data-already-taken="false" data-selectable="true">
+        <button data-action="selectItem"></button>
+      </div>
+    `;
+
+    picker._toggleSelectAllVisible();
+    picker._updateSelectionUI();
+
+    expect(picker.selectedItemUuids.has('item-a')).toBe(false);
+    expect(picker.selectedItemUuids.has('item-b')).toBe(true);
+    expect(picker.element.querySelector('[data-uuid="item-a"] [data-action="selectItem"]').disabled).toBe(true);
+    expect(picker.element.querySelector('[data-uuid="item-a"] [data-action="selectItem"]').textContent)
+      .toBe('PF2E_LEVELER.ITEM_PICKER.TAKEN');
+  });
+
   test('supports preset filters and max multi-select count for grant picking', async () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       multiSelect: true,

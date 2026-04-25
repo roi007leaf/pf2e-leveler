@@ -104,6 +104,8 @@
       "SEARCH": "Search equipment...",
       "TOTAL": "Total",
       "REMAINING": "remaining",
+      "TAKEN": "Taken",
+      "ALREADY_TAKEN": "This formula has already been selected",
       "SHOWING_PARTIAL": "Showing 200 of"
     },
     "STARTING_WEALTH": {

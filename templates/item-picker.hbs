@@ -216,11 +216,12 @@
 
       <div class="item-list">
         {{#each items}}
-        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-selectable="{{#if this.guidanceSelectionBlocked}}false{{else}}true{{/if}}">
+        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}item-option--taken{{/if}} {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.selectionBlocked}}false{{else}}true{{/if}}">
           <img class="item-option__img" src="{{this.img}}" alt="">
           <div class="item-option__info">
             <div class="item-option__header">
               <span class="item-option__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
+              {{#if this.alreadyTaken}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.ITEM_PICKER.TAKEN"}}</span>{{/if}}
               <span class="item-option__level">Lv {{this.itemLevel}}</span>
               {{#if this.priceLabel}}<span class="item-option__level">{{this.priceLabel}}</span>{{/if}}
             </div>
@@ -241,9 +242,11 @@
             </div>
           </div>
           <div class="item-option__actions">
-            <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
+            <button type="button" class="item-option__select-btn" data-action="selectItem" data-uuid="{{this.uuid}}" {{#if this.selectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.alreadyTaken}}{{localize 'PF2E_LEVELER.ITEM_PICKER.ALREADY_TAKEN'}}{{else if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
               {{#if ../multiSelect}}
-                {{#if this.guidanceSelectionBlocked}}
+                {{#if this.alreadyTaken}}
+                  {{localize "PF2E_LEVELER.ITEM_PICKER.TAKEN"}}
+                {{else if this.guidanceSelectionBlocked}}
                   {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
                 {{else if this._levelerSelected}}
                   {{localize "PF2E_LEVELER.UI.SELECTED"}}
@@ -251,7 +254,9 @@
                   {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
                 {{/if}}
               {{else}}
-                {{#if this.guidanceSelectionBlocked}}
+                {{#if this.alreadyTaken}}
+                  {{localize "PF2E_LEVELER.ITEM_PICKER.TAKEN"}}
+                {{else if this.guidanceSelectionBlocked}}
                   {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
                 {{else}}
                   {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}

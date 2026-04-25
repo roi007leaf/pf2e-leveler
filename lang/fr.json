@@ -91,6 +91,8 @@
       "SEARCH": "Rechercher un equipement...",
       "TOTAL": "Total",
       "REMAINING": "restant",
+      "TAKEN": "Pris",
+      "ALREADY_TAKEN": "Cette formule a deja ete selectionnee",
       "SHOWING_PARTIAL": "Affichage de 200 sur"
     },
     "STARTING_WEALTH": {

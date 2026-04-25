@@ -2179,6 +2179,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         items: await loadItems(),
         multiSelect: true,
         maxSelect,
+        takenItems: requirement.kind === 'formula' ? this._getTakenFormulaGrantSelections() : [],
         title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
         preset: buildItemGrantPickerPreset(requirement, {
           maxLevelCap: requirement.kind === 'formula' ? this.selectedLevel : null,
@@ -2220,6 +2221,22 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _getStoredFeatGrantSelections(requirementId) {
     const levelData = getLevelData(this.plan, this.selectedLevel);
     return (levelData?.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)?.selections ?? [];
+  }
+
+  _getTakenFormulaGrantSelections() {
+    const selectedLevel = Number(this.selectedLevel);
+    const maxLevel = Number.isFinite(selectedLevel) ? selectedLevel : MAX_LEVEL;
+    const selections = [];
+
+    for (let level = 1; level <= maxLevel; level++) {
+      const levelData = this.plan?.levels?.[level];
+      for (const grant of levelData?.featGrants ?? []) {
+        if (grant?.kind !== 'formula') continue;
+        selections.push(...(grant.selections ?? []));
+      }
+    }
+
+    return dedupeSelections(selections);
   }
 
   _storeFeatGrantSelections(requirement, documents) {

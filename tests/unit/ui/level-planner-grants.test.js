@@ -510,6 +510,53 @@ describe('level planner grant previews', () => {
     }));
   });
 
+  test('collects already taken formula grant selections through selected planner level', () => {
+    const actor = createMockActor({ items: [] });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.selectedLevel = 2;
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        1: {
+          featGrants: [{
+            requirementId: 'level-1-formulas',
+            kind: 'formula',
+            selections: [{ uuid: 'item-a', name: 'Acid Flask' }],
+          }],
+        },
+        2: {
+          featGrants: [
+            {
+              requirementId: 'level-2-formulas',
+              kind: 'formula',
+              selections: [{ uuid: 'item-b', name: 'Alchemist Fire' }],
+            },
+            {
+              requirementId: 'level-2-items',
+              kind: 'item',
+              selections: [{ uuid: 'item-c', name: 'Backpack' }],
+            },
+          ],
+        },
+        3: {
+          featGrants: [{
+            requirementId: 'future-formulas',
+            kind: 'formula',
+            selections: [{ uuid: 'item-d', name: 'Bottled Lightning' }],
+          }],
+        },
+      },
+    };
+
+    expect(planner._getTakenFormulaGrantSelections()).toEqual([
+      { uuid: 'item-a', name: 'Acid Flask' },
+      { uuid: 'item-b', name: 'Alchemist Fire' },
+    ]);
+  });
+
   test('wizard dedication exposes school choice and cantrip spell grant filters', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'feat-wizard-dedication') {
