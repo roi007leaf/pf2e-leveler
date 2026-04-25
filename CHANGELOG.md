@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.3.2
+
+### Character Creation
+
+- **Specialty Crafting Alchemy choices now apply with the correct PF2e value** - Enriched item-card choices still show the Alchemy feature details, but creation apply now passes the `alchemy` roll option expected by the PF2e system, including for older exported creation plans that stored the enriched UUID
+- **Item-choice Select buttons no longer stretch across no-image rows** - Wizard choice cards without icons now use a two-column layout so the option label keeps the content column and the Select button stays compact
+
 ## 3.3.1
 
 ### Anachronism Compatibility

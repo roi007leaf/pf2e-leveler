@@ -137,7 +137,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
           || !opt?.img
           || !opt?.description);
       if (!needsHydration) return opt;
-      return enrichChoiceOption(wizard, opt);
+      return enrichChoiceOption(wizard, opt, { preserveRawValue: shouldPreserveRawChoiceValue(cs) });
     }));
     return { ...cs, options };
   }));
@@ -981,7 +981,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
   if (Array.isArray(rule.choices)) {
     return Promise.all(rule.choices
       .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
-      .map((c) => enrichChoiceOption(wizard, c)));
+      .map((c) => enrichChoiceOption(wizard, c, { preserveRawValue: shouldPreserveRawChoiceValue(rule) })));
   }
 
   if (isSkillChoiceSet(rule)) {
@@ -1716,7 +1716,11 @@ function isSkillChoiceSet(rule) {
   return filters.includes('item:type:skill');
 }
 
-async function enrichChoiceOption(wizard, choice) {
+function shouldPreserveRawChoiceValue(choiceSet) {
+  return String(choiceSet?.flag ?? '').trim() === 'specialtyCrafting';
+}
+
+async function enrichChoiceOption(wizard, choice, { preserveRawValue = false } = {}) {
   const value = extractChoiceValue(choice);
   const rawLabel = extractChoiceLabel(choice) || value;
   const label = rawLabel && game.i18n.has(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
@@ -1753,7 +1757,7 @@ async function enrichChoiceOption(wizard, choice) {
 
   return {
     ...choice,
-    value: item.uuid ?? item.slug ?? value,
+    value: preserveRawValue && !value.startsWith('Compendium.') ? value : (item.uuid ?? item.slug ?? value),
     label: resolveChoiceOptionLabel(label, item, value, choiceUuid),
     uuid: item.uuid,
     slug: item.slug ?? choice?.slug ?? choiceValue?.slug ?? null,

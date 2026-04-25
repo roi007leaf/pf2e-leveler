@@ -398,6 +398,135 @@ describe('applyCreation formula grants', () => {
   });
 });
 
+describe('applyCreation granted item choices', () => {
+  it('maps legacy UUID-backed Specialty Crafting choices back to the PF2e roll option value', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const createdDocs = [];
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {},
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-tinker') {
+        return {
+          uuid,
+          name: 'Tinker',
+          toObject: () => ({
+            name: 'Tinker',
+            type: 'background',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [], description: { value: '' } },
+          }),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.QLeMH5mQgh28sa5o') {
+        return {
+          uuid,
+          name: 'Specialty Crafting',
+          toObject: () => ({
+            name: 'Specialty Crafting',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              description: { value: '' },
+              rules: [
+                {
+                  key: 'ChoiceSet',
+                  flag: 'specialtyCrafting',
+                  choices: [
+                    { value: 'alchemy', label: 'Alchemy' },
+                    { value: 'blacksmithing', label: 'Blacksmithing' },
+                  ],
+                },
+              ],
+            },
+          }),
+        };
+      }
+
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: { uuid: 'background-tinker', name: 'Tinker', choices: {} },
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [
+        {
+          slot: 'Compendium.pf2e.feats-srd.Item.QLeMH5mQgh28sa5o',
+          featName: 'Specialty Crafting',
+          sourceName: 'Tinker -> Specialty Crafting',
+          choiceSets: [
+            {
+              flag: 'specialtyCrafting',
+              options: [
+                {
+                  value: 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn',
+                  uuid: 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn',
+                  slug: 'alchemy',
+                  label: 'Alchemy',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'Compendium.pf2e.feats-srd.Item.QLeMH5mQgh28sa5o': {
+          specialtyCrafting: 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn',
+        },
+      },
+      featGrants: [],
+      spells: { cantrips: [], rank1: [] },
+      dualSpells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [], rank1: [] },
+      equipment: [],
+    });
+
+    expect(createdDocs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'Specialty Crafting (Background: Tinker)',
+        flags: expect.objectContaining({
+          pf2e: expect.objectContaining({
+            rulesSelections: {
+              specialtyCrafting: 'alchemy',
+            },
+          }),
+        }),
+      }),
+    ]));
+  });
+});
+
 describe('getAdditionalSelectedSkills', () => {
   it('collects selected synthetic feat skill-training choices', () => {
     const skills = getAdditionalSelectedSkills({

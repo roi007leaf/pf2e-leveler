@@ -1497,6 +1497,10 @@
   transition: all 0.15s ease;
 }
 
+.pf2e-leveler .wizard-item:not(:has(.wizard-item__img)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .pf2e-leveler .wizard-item--taken {
   opacity: 0.5;
   border-color: var(--leveler-success);
@@ -1563,7 +1567,9 @@
   cursor: pointer;
   font-size: 0.7rem;
   font-weight: 600;
+  width: auto;
   flex-shrink: 0;
+  justify-self: end;
   align-self: center;
   transition: background 0.15s ease;
 }

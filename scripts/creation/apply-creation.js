@@ -394,7 +394,7 @@ async function applyMissingGrantedFeatSection(actor, data, section) {
   if (!item) return;
 
   const itemData = foundry.utils.deepClone(item.toObject());
-  applyStoredChoices(itemData, getStoredChoiceSelections(data, uuid));
+  applyStoredChoices(itemData, getStoredChoiceSelections(data, uuid), section.choiceSets ?? []);
 
   const sourceSuffix = formatManualGrantedSourceSuffix(data, section?.sourceName);
   if (sourceSuffix) {
@@ -472,15 +472,49 @@ export function getAdditionalSelectedSkills(data) {
   return [...skills];
 }
 
-function applyStoredChoices(itemData, choices = {}) {
+function applyStoredChoices(itemData, choices = {}, choiceSets = []) {
   const entries = Object.entries(choices)
     .filter(([, value]) => typeof value === 'string' && value !== '[object Object]')
+    .map(([flag, value]) => [flag, normalizeStoredChoiceValue(itemData, flag, value, choiceSets)])
     .filter(([flag, value]) => isApplicableStoredChoice(itemData, flag, value));
   if (entries.length === 0) return;
 
   itemData.flags ??= {};
   itemData.flags.pf2e ??= {};
   itemData.flags.pf2e.rulesSelections = Object.fromEntries(entries);
+}
+
+function normalizeStoredChoiceValue(itemData, flag, value, choiceSets = []) {
+  const choiceRule = findChoiceRuleByFlag(itemData, flag);
+  if (!choiceRule) return value;
+
+  const matchingChoiceSet = (choiceSets ?? []).find((choiceSet) => choiceSet?.flag === flag);
+  const matchingOption = findMatchingChoiceOption(matchingChoiceSet?.options ?? [], value);
+  if (!matchingOption) return value;
+
+  const ruleValues = getRuleChoiceOptions(choiceRule)
+    .map((option) => option?.value ?? option?.label)
+    .filter((candidate) => typeof candidate === 'string' && candidate.length > 0);
+
+  for (const candidate of [
+    matchingOption.value,
+    matchingOption.slug,
+    matchingOption.label,
+    matchingOption.name,
+  ]) {
+    if (typeof candidate !== 'string' || candidate.length === 0 || candidate.startsWith('Compendium.')) continue;
+    if (ruleValues.some((ruleValue) => normalizeChoiceValue(ruleValue) === normalizeChoiceValue(candidate))) {
+      return candidate;
+    }
+  }
+
+  return value;
+}
+
+function normalizeChoiceValue(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
 }
 
 async function getDirectFeatGrantedSpellEntries(data) {
