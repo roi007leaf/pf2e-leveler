@@ -281,10 +281,9 @@ export async function getApplyPromptRows(wizard) {
 }
 
 function addFallbackSubclassSelectionRow(classEntry, subclassEntry, promptRows, addStaticRow) {
-  const classSlug = String(classEntry?.slug ?? '').trim().toLowerCase();
   const className = String(classEntry?.name ?? '').trim();
   const subclassName = String(subclassEntry?.name ?? '').trim();
-  const subclassLabel = CLASS_SUBCLASS_TYPES[classSlug];
+  const subclassLabel = getSubclassSelectionLabel(classEntry);
   if (!className || !subclassName || !subclassLabel) return;
   if ((subclassEntry?.choiceSets?.length ?? 0) > 0) return;
 
@@ -295,6 +294,25 @@ function addFallbackSubclassSelectionRow(classEntry, subclassEntry, promptRows, 
   if (hasEquivalentRow) return;
 
   addStaticRow(className, prompt, subclassName, 'subclassSelection');
+}
+
+function getSubclassSelectionLabel(classEntry) {
+  const explicit = String(classEntry?.subclassType ?? '').trim().toLowerCase();
+  if (explicit) return explicit;
+
+  const classSlug = String(classEntry?.slug ?? '').trim().toLowerCase();
+  const mapped = CLASS_SUBCLASS_TYPES[classSlug];
+  if (mapped) return mapped;
+
+  const subclassTag = String(classEntry?.subclassTag ?? '').trim().toLowerCase();
+  if (!subclassTag) return null;
+
+  const classPrefix = classSlug ? `${classSlug}-` : '';
+  const labelSource = classPrefix && subclassTag.startsWith(classPrefix)
+    ? subclassTag.slice(classPrefix.length)
+    : subclassTag;
+  const label = labelSource.replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+  return label || null;
 }
 
 function matchesGrantPredicate(rule, wizard) {
@@ -494,10 +512,17 @@ function getPromptSelectedSubclass(wizard, rule, optionSource = null) {
     if (!entry.subclassEntry || typeof entry.subclassTag !== 'string' || entry.subclassTag.length === 0) continue;
     if (filterStrings.some((value) => value.includes(entry.subclassTag))) return entry.subclassEntry;
     if (filterText.includes(entry.subclassTag.toLowerCase())) return entry.subclassEntry;
-    if (flag && entry.subclassTag.includes(flag)) return entry.subclassEntry;
+    if (flag && normalizeIdentifier(entry.subclassTag).includes(normalizeIdentifier(flag))) return entry.subclassEntry;
   }
 
   return null;
+}
+
+function normalizeIdentifier(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
 
 function getRuleSelectionFlag(rule) {

@@ -5297,6 +5297,88 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('includes SF2e subclass-selection prompts from class choice rules', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.sf2e.classes.Item.envoy',
+      name: 'Envoy',
+      slug: 'envoy',
+      subclassTag: 'envoy-leadership-style',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.sf2e.class-features.Item.from-the-front',
+      name: 'From the Front',
+      slug: 'from-the-front',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.sf2e.classes.Item.envoy') {
+        return {
+          uuid,
+          name: 'Envoy',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'leadershipStyle',
+                prompt: 'Select a leadership style.',
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Envoy',
+        prompt: 'Select a leadership style.',
+        value: 'From the Front',
+      }),
+    ]);
+  });
+
+  it('falls back to an SF2e subclass tag label when no class choice rule is available', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      uuid: 'Compendium.sf2e.classes.Item.envoy',
+      name: 'Envoy',
+      slug: 'envoy',
+      subclassTag: 'envoy-leadership-style',
+    };
+    wizard.data.subclass = {
+      uuid: 'Compendium.sf2e.class-features.Item.from-the-front',
+      name: 'From the Front',
+      slug: 'from-the-front',
+      choiceSets: [],
+      choices: {},
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.sf2e.classes.Item.envoy') {
+        return {
+          uuid,
+          name: 'Envoy',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    const rows = await wizard._getApplyPromptRows();
+    expect(rows).toEqual([
+      expect.objectContaining({
+        label: 'Envoy',
+        prompt: 'Select a leadership style.',
+        value: 'From the Front',
+      }),
+    ]);
+  });
+
   it('maps subclass-tag filtered system prompts to the chosen subclass', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { slug: 'barbarian', name: 'Barbarian' };
