@@ -301,6 +301,103 @@ describe('getAdditionalSelectedFormulas', () => {
   });
 });
 
+describe('applyCreation formula grants', () => {
+  it('applies all selected alchemist class and field formula grants during creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        crafting: { formulas: [] },
+        skills: {},
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async (updates) => {
+      if (Object.prototype.hasOwnProperty.call(updates, 'system.crafting.formulas')) {
+        actor.system.crafting.formulas = updates['system.crafting.formulas'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid,
+      toObject: () => ({
+        name: uuid,
+        type: uuid === 'class-alchemist' ? 'class' : 'feat',
+        flags: { core: { sourceId: uuid } },
+        system: { rules: [], description: { value: '' } },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-alchemist', name: 'Alchemist', slug: 'alchemist' },
+      subclass: { uuid: 'field-bomber', name: 'Bomber', choiceSets: [], choices: {} },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [
+        {
+          requirementId: 'class-alchemist:alchemical-crafting-formula',
+          sourceFeatUuid: 'class-alchemist',
+          sourceFeatName: 'Alchemical Crafting',
+          kind: 'formula',
+          selections: [
+            { uuid: 'formula-1', name: 'Formula 1' },
+            { uuid: 'formula-2', name: 'Formula 2' },
+          ],
+        },
+        {
+          requirementId: 'class-alchemist:formula-book-formula',
+          sourceFeatUuid: 'class-alchemist',
+          sourceFeatName: 'Formula Book',
+          kind: 'formula',
+          selections: [
+            { uuid: 'formula-3', name: 'Formula 3' },
+            { uuid: 'formula-4', name: 'Formula 4' },
+          ],
+        },
+        {
+          requirementId: 'field-bomber:formula',
+          sourceFeatUuid: 'field-bomber',
+          sourceFeatName: 'Bomber',
+          kind: 'formula',
+          selections: [
+            { uuid: 'formula-5', name: 'Formula 5' },
+            { uuid: 'formula-6', name: 'Formula 6' },
+          ],
+        },
+      ],
+    });
+
+    expect(actor.system.crafting.formulas.map((formula) => formula.uuid)).toEqual([
+      'formula-1',
+      'formula-2',
+      'formula-3',
+      'formula-4',
+      'formula-5',
+      'formula-6',
+    ]);
+  });
+});
+
 describe('getAdditionalSelectedSkills', () => {
   it('collects selected synthetic feat skill-training choices', () => {
     const skills = getAdditionalSelectedSkills({

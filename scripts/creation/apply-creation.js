@@ -85,6 +85,8 @@ export async function applyCreation(actor, data, onProgress = null) {
 
 async function applyCreationFeatGrants(actor, data) {
   const sourceUuids = new Set(getSelectedFeatEntries(data).map((entry) => entry.uuid));
+  if (data.class?.uuid) sourceUuids.add(data.class.uuid);
+  if (data.dualClass?.uuid) sourceUuids.add(data.dualClass.uuid);
   if (data.subclass?.uuid) sourceUuids.add(data.subclass.uuid);
   if (data.dualSubclass?.uuid) sourceUuids.add(data.dualSubclass.uuid);
   for (const entry of getClassSelectionSourceEntries(data, 'class')) sourceUuids.add(entry.uuid);
