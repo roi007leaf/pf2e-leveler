@@ -1578,6 +1578,18 @@
   background: var(--leveler-accent-light);
 }
 
+.pf2e-leveler .wizard-grant-choice__actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: var(--leveler-spacing-xs);
+}
+
+.pf2e-leveler .wizard-grant-choice__button {
+  justify-self: start;
+  align-self: center;
+}
+
 .pf2e-leveler .wizard-item__select--selected {
   display: inline-flex;
   align-items: center;

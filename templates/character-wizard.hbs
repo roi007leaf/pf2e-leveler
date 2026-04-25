@@ -542,12 +542,14 @@
         </div>
         {{/if}}
         {{#unless this.complete}}
-        <button type="button"
-          class="wizard-item__select"
-          data-action="openFeatGrantPicker"
-          data-requirement-id="{{this.id}}">
-          {{#if (eq this.confidence "manual-required")}}Configure{{else}}Choose{{/if}}
-        </button>
+        <div class="wizard-grant-choice__actions">
+          <button type="button"
+            class="wizard-item__select wizard-grant-choice__button"
+            data-action="openFeatGrantPicker"
+            data-requirement-id="{{this.id}}">
+            {{#if (eq this.confidence "manual-required")}}Configure{{else}}Choose{{/if}}
+          </button>
+        </div>
         {{/unless}}
         {{#if this.missingCount}}
         <p class="wizard-hint">{{this.missingCount}} remaining.</p>

@@ -107,7 +107,7 @@ describe('CharacterWizard feat grant choices', () => {
 
     expect(requirements).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'class-alchemist:alchemical-crafting-formula', sourceFeatName: 'Alchemical Crafting', count: 4 }),
-      expect.objectContaining({ id: 'class-alchemist:formula-book-formula', sourceFeatName: 'Formula Book', count: 4 }),
+      expect.objectContaining({ id: 'class-alchemist:formula-book-formula', sourceFeatName: 'Formula Book', count: 2 }),
       expect.objectContaining({ id: 'option-formulas:formula', sourceFeatName: 'Bomber Field', count: 2 }),
     ]));
     expect(requirements).toHaveLength(3);
@@ -166,5 +166,17 @@ describe('CharacterWizard feat grant choices', () => {
       { uuid: 'item-a', name: 'Acid Flask' },
       { uuid: 'item-c', name: 'Alchemist Fire' },
     ]);
+  });
+
+  it('renders feat grant picker buttons with grant-specific alignment', () => {
+    const template = require('fs').readFileSync(require('path').resolve(__dirname, '../../../templates/character-wizard.hbs'), 'utf8');
+    const featGrantSection = template.slice(
+      template.indexOf('{{#if featGrantRequirements.length}}'),
+      template.indexOf('{{#each featChoiceSections}}'),
+    );
+
+    expect(featGrantSection).toContain('wizard-grant-choice__actions');
+    expect(featGrantSection).toContain('wizard-grant-choice__button');
+    expect(featGrantSection).not.toContain('class="wizard-item__select"');
   });
 });

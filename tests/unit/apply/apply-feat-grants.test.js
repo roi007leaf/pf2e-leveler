@@ -79,6 +79,104 @@ describe('applyFeatGrants', () => {
     expect(applied.formulas).toEqual([{ uuid: 'item-new', name: 'New Formula' }]);
   });
 
+  test('resolves fixed formula selections by slug before adding formulas', async () => {
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.equipment-srd') return null;
+      return {
+        metadata: { packageName: 'pf2e', package: 'pf2e' },
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder',
+            name: 'Black Powder',
+            slug: 'black-powder',
+            type: 'consumable',
+            system: { slug: 'black-powder', traits: { value: ['alchemical'] } },
+          },
+        ]),
+      };
+    });
+    const actor = {
+      system: { crafting: { formulas: [] } },
+      items: [],
+      update: jest.fn(async (updates) => {
+        actor.system.crafting.formulas = updates['system.crafting.formulas'];
+      }),
+      createEmbeddedDocuments: jest.fn(),
+    };
+
+    const applied = await applyFeatGrantEntries(actor, [{
+      requirementId: 'feat-munitions-crafter:fixed-formula',
+      kind: 'formula',
+      selections: [{ slug: 'black-powder', name: 'Black Powder' }],
+    }]);
+
+    expect(actor.system.crafting.formulas).toEqual([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder' },
+    ]);
+    expect(applied.formulas).toEqual([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder', name: 'Black Powder' },
+    ]);
+  });
+
+  test('applies fixed formula requirements from planned feats without stored grant selections', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-munitions-crafter') {
+        return {
+          uuid,
+          name: 'Munitions Crafter',
+          system: {
+            description: {
+              value: '<p>You gain a formula book that includes the formula for black powder and four 1st-level types of common or uncommon alchemical ammunition or bombs of your choice.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return createSourceItem(uuid);
+    });
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.equipment-srd') return null;
+      return {
+        metadata: { packageName: 'pf2e', package: 'pf2e' },
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder',
+            name: 'Black Powder',
+            slug: 'black-powder',
+            type: 'consumable',
+            system: { slug: 'black-powder', traits: { value: ['alchemical'] } },
+          },
+        ]),
+      };
+    });
+    const actor = {
+      system: { crafting: { formulas: [] }, skills: { crafting: { rank: 1 } } },
+      items: [],
+      update: jest.fn(async (updates) => {
+        actor.system.crafting.formulas = updates['system.crafting.formulas'];
+      }),
+      createEmbeddedDocuments: jest.fn(),
+    };
+    const plan = {
+      levels: {
+        2: {
+          classFeats: [{ uuid: 'feat-munitions-crafter', name: 'Munitions Crafter' }],
+          featGrants: [],
+        },
+      },
+    };
+
+    const applied = await applyFeatGrants(actor, plan, 2);
+
+    expect(actor.system.crafting.formulas).toEqual([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder' },
+    ]);
+    expect(applied.formulas).toEqual([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder', name: 'Black Powder' },
+    ]);
+  });
+
   test('creates selected item grants unless actor already owns source item', async () => {
     const actor = {
       system: { crafting: { formulas: [] } },

@@ -130,6 +130,7 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
   const skillState = createSkillStateMap(skillContext);
   const hydratedChoiceSets = await Promise.all((choiceSets ?? []).map(async (cs) => {
     const options = await Promise.all((cs.options ?? []).map(async (opt) => {
+      if (isRawValueChoiceSet(cs)) return normalizeRawChoiceOption(opt);
       const value = extractChoiceValue(opt);
       const needsHydration = !opt?.uuid
         && (typeof value === 'string' && value.startsWith('Compendium.')
@@ -979,6 +980,12 @@ function isDeityChoiceRule(rule) {
 
 async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, sourceItem = null) {
   if (Array.isArray(rule.choices)) {
+    if (isRawValueChoiceSet(rule)) {
+      return rule.choices
+        .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
+        .map((c) => normalizeRawChoiceOption(c));
+    }
+
     return Promise.all(rule.choices
       .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
       .map((c) => enrichChoiceOption(wizard, c, { preserveRawValue: shouldPreserveRawChoiceValue(rule) })));
@@ -1063,6 +1070,7 @@ function hydrateChoiceSetOptions(wizard, choiceSet, skillState, currentChoices) 
       value,
       label,
       uuid: extractChoiceUuid(opt),
+      img: opt?.img ?? null,
       category: opt?.category ?? null,
       range: opt?.range ?? null,
       isRanged: !!opt?.isRanged,
@@ -1717,7 +1725,33 @@ function isSkillChoiceSet(rule) {
 }
 
 function shouldPreserveRawChoiceValue(choiceSet) {
+  return isRawValueChoiceSet(choiceSet);
+}
+
+export function isRawValueChoiceSet(choiceSet) {
   return String(choiceSet?.flag ?? '').trim() === 'specialtyCrafting';
+}
+
+function normalizeRawChoiceOption(choice) {
+  const value = extractChoiceValue(choice);
+  const rawLabel = extractChoiceLabel(choice) || value;
+  const label = rawLabel && game.i18n.has(rawLabel) ? game.i18n.localize(rawLabel) : rawLabel;
+
+  return {
+    ...choice,
+    value,
+    label: label ?? value,
+    uuid: null,
+    slug: choice?.slug ?? null,
+    img: null,
+    traits: choice?.traits ?? [],
+    rarity: choice?.rarity ?? 'common',
+    type: choice?.type ?? null,
+    predicate: choice?.predicate ?? null,
+    rank: choice?.rank ?? null,
+    description: '',
+    summary: '',
+  };
 }
 
 async function enrichChoiceOption(wizard, choice, { preserveRawValue = false } = {}) {

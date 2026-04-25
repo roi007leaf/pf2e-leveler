@@ -2,8 +2,14 @@ import { PROFICIENCY_RANK_NAMES, SKILLS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getLevelData } from '../../plan/plan-model.js';
-import { buildFeatGrantRequirements, getFeatGrantCompletion } from '../../plan/feat-grants.js';
+import {
+  buildFeatGrantRequirements,
+  buildPlanFormulaProgressionRequirements,
+  getFeatGrantCompletion,
+  getFeatGrantSelections,
+} from '../../plan/feat-grants.js';
 import { computeBuildState } from '../../plan/build-state.js';
+import { isCantripExpansionFeat } from '../../plan/spellbook-feats.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities, loadTaggedClassFeatures } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
@@ -216,10 +222,17 @@ async function enrichPlannerFeat(planner, feat) {
 }
 
 async function buildPlannerClassGrantRequirements(planner, levelData, level) {
-  const requirements = await buildFeatGrantRequirements({
-    classEntries: getPlannerClassGrantEntries(planner),
-    level,
-  });
+  const requirements = [
+    ...await buildFeatGrantRequirements({
+      classEntries: getPlannerClassGrantEntries(planner),
+      level,
+    }),
+    ...await buildPlanFormulaProgressionRequirements({
+      actor: planner.actor,
+      plan: planner.plan,
+      level,
+    }),
+  ];
   const completion = getFeatGrantCompletion(levelData, requirements);
 
   return requirements.map((requirement) => {
@@ -230,9 +243,7 @@ async function buildPlannerClassGrantRequirements(planner, levelData, level) {
       requiredCount: status.required ?? requirement.count ?? null,
       missingCount: status.missing ?? null,
       complete: status.complete === true,
-      selections: (levelData.featGrants ?? [])
-        .find((entry) => entry?.requirementId === requirement.id)
-        ?.selections ?? [],
+      selections: getFeatGrantSelections(levelData, requirement),
     };
   });
 }
@@ -262,12 +273,14 @@ function getPlannerClassGrantEntries(planner) {
 }
 
 async function buildPlannerFeatGrantRequirements(planner, feat) {
-  const requirements = await buildFeatGrantRequirements({
+  const detectedRequirements = await buildFeatGrantRequirements({
     actor: planner.actor,
     plan: planner.plan,
     level: planner.selectedLevel,
     feats: [feat],
   });
+  const requirements = detectedRequirements.filter((requirement) =>
+    !isSpellbookBonusCantripRequirement(feat, requirement));
   const levelData = getLevelData(planner.plan, planner.selectedLevel) ?? {};
   const completion = getFeatGrantCompletion(levelData, requirements);
 
@@ -279,11 +292,16 @@ async function buildPlannerFeatGrantRequirements(planner, feat) {
       requiredCount: status.required ?? requirement.count ?? null,
       missingCount: status.missing ?? null,
       complete: status.complete === true,
-      selections: (levelData.featGrants ?? [])
-        .find((entry) => entry?.requirementId === requirement.id)
-        ?.selections ?? [],
+      selections: getFeatGrantSelections(levelData, requirement),
     };
   });
+}
+
+function isSpellbookBonusCantripRequirement(feat, requirement) {
+  return isCantripExpansionFeat(feat)
+    && requirement?.kind === 'spell'
+    && Number(requirement?.filters?.rank) === 0
+    && requirement?.filters?.spellbook === true;
 }
 
 function buildCustomSkillIncreaseGroups(customSkillIncreases) {

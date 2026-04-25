@@ -45,7 +45,7 @@ import {
   removeCreationFeatGrantSelection,
   setPermanentItem,
 } from '../../creation/creation-model.js';
-import { buildFeatGrantRequirements, getFeatGrantCompletion } from '../../plan/feat-grants.js';
+import { buildFeatGrantRequirements, getFeatGrantCompletion, getFeatGrantSelections } from '../../plan/feat-grants.js';
 import {
   getCreationData,
   saveCreationData,
@@ -76,6 +76,7 @@ import {
   getSelectedFeatChoiceLabels,
   getSelectedSubclassChoiceLabels,
   hydrateChoiceSets,
+  isRawValueChoiceSet,
   parseChoiceSets,
   refreshGrantedFeatChoiceSections,
   buildMixedAncestryChoiceOptions,
@@ -2990,6 +2991,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _buildFeatGrantRequirements() {
     return buildFeatGrantRequirements({
+      actor: this.actor,
       feats: this._getCreationFeatGrantSources(),
       classEntries: [this.data.class, this.data.dualClass].filter(Boolean),
       level: 1,
@@ -3001,7 +3003,6 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ? this._cachedFeatGrantRequirements
       : await this._buildFeatGrantRequirements();
     const completion = getFeatGrantCompletion({ featGrants: this.data.featGrants ?? [] }, requirements);
-    const stored = new Map((this.data.featGrants ?? []).map((entry) => [entry.requirementId, entry]));
 
     return {
       featGrantRequirements: requirements.map((requirement) => {
@@ -3012,7 +3013,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           requiredCount: state.required,
           missingCount: state.missing,
           complete: state.complete === true,
-          selections: stored.get(requirement.id)?.selections ?? [],
+          selections: getFeatGrantSelections({ featGrants: this.data.featGrants ?? [] }, requirement),
         };
       }),
     };
@@ -3057,6 +3058,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return containers.flatMap((container) =>
       (container.choiceSets ?? []).map((choiceSet) => {
+        if (isRawValueChoiceSet(choiceSet)) return null;
         const selectedValue = container.choices?.[choiceSet.flag];
         if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') return null;
         const option = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
@@ -3154,7 +3156,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         multiSelect: true,
         maxSelect,
         takenItems: requirement.kind === 'formula' ? this._getTakenFormulaGrantSelections() : [],
-        title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
+        title: buildFeatGrantPickerTitle(requirement),
         preset: buildItemGrantPickerPreset(requirement, {
           maxLevelCap: requirement.kind === 'formula' ? 1 : null,
         }),
@@ -3991,6 +3993,12 @@ function getRemainingGrantSelections(requirement, currentSelections) {
   return Math.max(0, required - (currentSelections?.length ?? 0));
 }
 
+function buildFeatGrantPickerTitle(requirement) {
+  const sourceName = String(requirement?.sourceFeatName ?? '').trim();
+  if (!sourceName) return requirement?.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items';
+  return `${sourceName}: ${requirement?.kind === 'formula' ? 'Formula' : 'Item'}`;
+}
+
 function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
   const filters = requirement?.filters ?? {};
   const rarityValues = ['common', 'uncommon', 'rare', 'unique'];
@@ -3998,6 +4006,8 @@ function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
   return {
     ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0 ? { selectedCategories: filters.itemTypes } : {}),
     ...(Array.isArray(filters.traits) && filters.traits.length > 0 ? { selectedTraits: filters.traits } : {}),
+    ...(Array.isArray(filters.requiredTraits) && filters.requiredTraits.length > 0 ? { requiredTraits: filters.requiredTraits } : {}),
+    ...(typeof filters.traitLogic === 'string' ? { traitLogic: filters.traitLogic } : {}),
     ...(rarityFilter.length > 0 ? {
       selectedRarities: rarityFilter,
       lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),

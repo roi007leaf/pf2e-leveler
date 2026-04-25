@@ -69,6 +69,30 @@ describe('ItemPicker', () => {
     ]));
   });
 
+  test('uses custom formula grant title and empty copy', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      title: 'Bomber: Formula',
+      preset: {
+        selectedTraits: ['bomb'],
+      },
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Torch',
+          type: 'equipment',
+          system: { traits: { rarity: 'common', value: [] }, level: { value: 0 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(picker.title).toBe('Bomber: Formula');
+    expect(context.resultsTitle).toBe('Bomber: Formula');
+    expect(context.emptyMessage).toBe('No formulas found');
+    expect(context.items).toEqual([]);
+  });
+
   test('supports multi-select confirmation for item picking', async () => {
     const onSelect = jest.fn();
     const picker = new ItemPicker({ name: 'Actor' }, onSelect, {
@@ -207,6 +231,69 @@ describe('ItemPicker', () => {
     expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-a', 'item-b']);
     expect([...picker.selectedItemUuids]).toEqual(['item-a']);
     expect(picker.maxLevel).toBe('1');
+  });
+
+  test('supports strict formula trait presets for grant picking', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      preset: {
+        selectedTraits: ['alchemical', 'mutagen'],
+        traitLogic: 'and',
+      },
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Generic Alchemical Item',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-b',
+          name: 'Mutagen',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'mutagen'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-b']);
+  });
+
+  test('supports required formula traits combined with alternate selectable traits', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      preset: {
+        requiredTraits: ['alchemical'],
+        selectedTraits: ['ammunition', 'bomb'],
+        traitLogic: 'or',
+      },
+      items: [
+        {
+          uuid: 'item-bomb',
+          name: 'Alchemical Bomb',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'bomb'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-ammo',
+          name: 'Alchemical Ammunition',
+          type: 'ammo',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'ammunition'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-mundane-ammo',
+          name: 'Mundane Ammunition',
+          type: 'ammo',
+          system: { traits: { rarity: 'common', value: ['ammunition'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-elixir',
+          name: 'Alchemical Elixir',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'elixir'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-bomb', 'item-ammo']);
   });
 
   test('locks preset rarity filters for grant picking', async () => {

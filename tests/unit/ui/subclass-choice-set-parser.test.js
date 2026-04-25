@@ -5029,7 +5029,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }));
   });
 
-  it('preserves raw choice values when enriching slug-backed item choices', async () => {
+  it('does not enrich Specialty Crafting enum choices as class-feature item cards', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._loadCompendium = jest.fn(async () => [
       {
@@ -5067,9 +5067,63 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     expect(hydrated[0].options[0]).toEqual(expect.objectContaining({
       value: 'alchemy',
-      uuid: 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn',
-      slug: 'alchemy',
+      label: 'Alchemy',
     }));
+    expect(hydrated[0].options[0].uuid).toBeNull();
+    expect(hydrated[0].options[0].img).toBeNull();
+    expect(hydrated[0].isItemChoice).toBe(false);
+  });
+
+  it('does not treat selected Specialty Crafting enum choices as selected grant sources', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._loadCompendium = jest.fn(async () => [
+      {
+        uuid: 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn',
+        name: 'Alchemy',
+        slug: 'alchemy',
+      },
+    ]);
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.classfeatures.Item.w3aS3tsvH2Ub6XMn') {
+        return {
+          uuid,
+          name: 'Alchemy',
+          img: 'icons/alchemy.webp',
+          type: 'feat',
+          slug: 'alchemy',
+          system: {
+            slug: 'alchemy',
+            category: 'classfeature',
+            traits: { value: ['alchemist'], rarity: 'common' },
+            description: { value: '<p>You gain formulas for four common alchemical items.</p>' },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const parsed = await parseChoiceSets(wizard, [
+      {
+        key: 'ChoiceSet',
+        flag: 'specialtyCrafting',
+        prompt: 'Select a specialty.',
+        choices: [{ value: 'alchemy', label: 'Alchemy' }],
+      },
+    ]);
+    wizard.data.grantedFeatSections = [{
+      slot: 'Compendium.pf2e.feats-srd.Item.QLeMH5mQgh28sa5o',
+      featName: 'Specialty Crafting',
+      choiceSets: parsed,
+    }];
+    wizard.data.grantedFeatChoices = {
+      'Compendium.pf2e.feats-srd.Item.QLeMH5mQgh28sa5o': { specialtyCrafting: 'alchemy' },
+    };
+
+    expect(wizard._getSelectedChoiceGrantSources()).toEqual([]);
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+    expect(wizard._cachedFeatGrantRequirements).toEqual([]);
+    expect(wizard._isStepComplete('featChoices')).toBe(true);
   });
 
   it('does not surface granted feat choice sections when the grant preselects the only choice', async () => {

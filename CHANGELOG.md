@@ -1,11 +1,25 @@
 # Changelog
 
+## 3.3.3
+
+### Character Creation
+
+- **Formula choice filters now cover more counted formula grants** - Research fields, Munitions Crafter, Cauldron, Snare Crafting, Tattoo Artist, and Graft Technician now open formula pickers with tighter rarity, level, and trait presets; know-all formula features such as Talisman Dabbler stay passive instead of bulk-adding formulas
+- **Formula progression gaps now surface as grant choices** - Formula Book now asks for two level-1 formulas, Cauldron and Alchemical Scholar add later-level formula picks, Improbable Elixirs uses Intelligence modifier potion choices, and Brastlewark Snare Engineering handles its fixed snares plus alternate snare picks
+- **Formula pickers now keep the source name and avoid flavor-text traits** - Bomber and similar formula windows now title themselves from the granting source, such as `Bomber: Formula`, show formula-specific empty text, and ignore unrelated description prose when building trait filters
+- **Granted-choice Choose buttons stay left-aligned in creation** - Formula grant prompts no longer reuse item-card alignment rules that pushed the Choose button to the far right of the step
+- **Fixed formula grants now apply without extra picker work** - Fixed formulas such as Black Powder, Philosopher's Stone, and the fixed Skilled Herbalist formulas are resolved by name or slug and added to the actor's formula list automatically
+
 ## 3.3.2
 
 ### Character Creation
 
-- **Specialty Crafting Alchemy choices now apply with the correct PF2e value** - Enriched item-card choices still show the Alchemy feature details, but creation apply now passes the `alchemy` roll option expected by the PF2e system, including for older exported creation plans that stored the enriched UUID
+- **Specialty Crafting Alchemy choices now stay on the correct PF2e value** - Alchemy no longer hydrates into the Alchemy class-feature card, so selecting it completes the Specialty Crafting choice while creation apply still passes the `alchemy` roll option expected by the PF2e system, including for older exported creation plans that stored the enriched UUID
 - **Item-choice Select buttons no longer stretch across no-image rows** - Wizard choice cards without icons now use a two-column layout so the option label keeps the content column and the Select button stays compact
+
+### Level Planner
+
+- **Cantrip Expansion no longer duplicates its spell picks** - The planner now keeps Cantrip Expansion selections in the spellbook extra-cantrips row instead of also rendering them as generic feat granted choices
 
 ## 3.3.1
 

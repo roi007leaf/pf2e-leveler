@@ -66,6 +66,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
     this.lockedRarities = new Set();
     this.selectedTraits = new Set();
+    this.requiredTraits = new Set();
     this.selectedArmorFilters = new Set();
     this.selectedWeaponFilters = new Set();
     this.filterSections = {
@@ -104,7 +105,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   get title() {
-    return `${this.actor.name} — Equipment`;
+    return this.customTitle ?? `${this.actor.name} — Equipment`;
   }
 
   async _prepareContext() {
@@ -126,6 +127,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const renderedItems = capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems;
     return {
       loading: false,
+      resultsTitle: this._getResultsTitle(),
+      emptyMessage: this._getEmptyMessage(),
       items: renderedItems.map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
       renderedCount: renderedItems.length,
@@ -183,6 +186,15 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
+  _getResultsTitle() {
+    return this.customTitle ?? game.i18n?.localize?.('PF2E_LEVELER.ITEM_PICKER.EQUIPMENT') ?? 'Equipment';
+  }
+
+  _getEmptyMessage() {
+    if (this.customTitle && /\bformulas?\b/i.test(this.customTitle)) return 'No formulas found';
+    return 'No items found';
+  }
+
   _filterItems({ ignoreRarity = false } = {}) {
     let items = filterDisallowedForCurrentUser([...this.allItems]);
     items = applySourceFilter(
@@ -202,6 +214,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (this.selectedTraits.size > 0) {
       items = applyTraitFilter(items, this.selectedTraits, (item) => item.system?.traits?.value ?? [], this.traitLogic);
+    }
+    if (this.requiredTraits.size > 0) {
+      items = applyTraitFilter(items, this.requiredTraits, (item) => item.system?.traits?.value ?? [], 'and');
     }
     if (this._shouldApplyEquipmentFilters('armor')) {
       items = items.filter((item) => this._matchesEquipmentFilters(item, 'armor'));
@@ -240,6 +255,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.searchText) return true;
     if (this.maxLevel !== '') return true;
     if (this.selectedTraits.size > 0) return true;
+    if (this.requiredTraits.size > 0) return true;
     if (this._shouldApplyEquipmentFilters('armor') && !this._armorFilterValues.every((v) => this.selectedArmorFilters.has(v))) return true;
     if (this._shouldApplyEquipmentFilters('weapon') && !this._weaponFilterValues.every((v) => this.selectedWeaponFilters.has(v))) return true;
     if (!isUnrestrictedSelection(this.selectedCategories, this._categoryValues)) return true;
@@ -440,6 +456,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const capped = !this._hasActiveFilter() && this.filteredItems.length > RENDER_LIMIT;
     const renderedItems = capped ? this.filteredItems.slice(0, RENDER_LIMIT) : this.filteredItems;
     const context = {
+      resultsTitle: this._getResultsTitle(),
+      emptyMessage: this._getEmptyMessage(),
       items: renderedItems.map((item) => this._toTemplateItem(item)),
       filteredCount: this.filteredItems.length,
       renderedCount: renderedItems.length,
@@ -809,6 +827,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.selectedRarities)) this.selectedRarities = new Set(preset.selectedRarities.map((value) => String(value).toLowerCase()));
     if (Array.isArray(preset.lockedRarities)) this.lockedRarities = new Set(preset.lockedRarities.map((value) => String(value).toLowerCase()));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((value) => String(value).toLowerCase()));
+    if (Array.isArray(preset.requiredTraits)) this.requiredTraits = new Set(preset.requiredTraits.map((value) => String(value).toLowerCase()));
+    if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
     if (preset.maxLevelCap != null && Number.isFinite(Number(preset.maxLevelCap))) this.maxLevelCap = Math.max(0, Number(preset.maxLevelCap));
     if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
     this.maxLevel = this._normalizeMaxLevel(this.maxLevel);

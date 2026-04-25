@@ -1,6 +1,13 @@
 import { getLevelData } from '../plan/plan-model.js';
+import {
+  buildFeatGrantRequirements,
+  buildPlanFormulaProgressionRequirements,
+  getAutomaticFeatGrantEntries,
+  mergeFeatGrantEntries,
+} from '../plan/feat-grants.js';
+import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { capitalize } from '../utils/pf2e-api.js';
+import { capitalize, slugify } from '../utils/pf2e-api.js';
 import { warn } from '../utils/logger.js';
 import { classUsesPhysicalSpellbook, ensureActorHasSpellbook } from '../utils/spellcasting-support.js';
 import { ensureArchetypeSpellcastingEntries } from './apply-spells.js';
@@ -8,7 +15,24 @@ import { ensureArchetypeSpellcastingEntries } from './apply-spells.js';
 export async function applyFeatGrants(actor, plan, level) {
   const levelData = getLevelData(plan, level);
   const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
-  return applyFeatGrantEntries(actor, levelData?.featGrants ?? [], { archetypeEntries, levelData });
+  const requirements = [
+    ...await buildFeatGrantRequirements({
+      actor,
+      plan,
+      level,
+      feats: getLevelFeatEntries(levelData),
+    }),
+    ...await buildPlanFormulaProgressionRequirements({
+      actor,
+      plan,
+      level,
+    }),
+  ];
+  const grants = mergeFeatGrantEntries(
+    levelData?.featGrants ?? [],
+    getAutomaticFeatGrantEntries(requirements),
+  );
+  return applyFeatGrantEntries(actor, grants, { archetypeEntries, levelData });
 }
 
 export async function applyFeatGrantEntries(actor, grants = [], context = {}) {
@@ -42,10 +66,11 @@ async function applyFormulaSelections(actor, selections) {
   const added = [];
 
   for (const selection of selections) {
-    if (!selection?.uuid || known.has(selection.uuid)) continue;
-    current.push({ uuid: selection.uuid });
-    known.add(selection.uuid);
-    added.push({ uuid: selection.uuid, name: selection.name ?? selection.uuid });
+    const resolved = await resolveFormulaSelection(selection);
+    if (!resolved?.uuid || known.has(resolved.uuid)) continue;
+    current.push({ uuid: resolved.uuid });
+    known.add(resolved.uuid);
+    added.push({ uuid: resolved.uuid, name: resolved.name ?? resolved.uuid });
   }
 
   if (added.length > 0) {
@@ -53,6 +78,63 @@ async function applyFormulaSelections(actor, selections) {
   }
 
   return added;
+}
+
+function getLevelFeatEntries(levelData) {
+  return [
+    'classFeats',
+    'skillFeats',
+    'generalFeats',
+    'ancestryFeats',
+    'archetypeFeats',
+    'mythicFeats',
+    'dualClassFeats',
+    'customFeats',
+  ].flatMap((key) => levelData?.[key] ?? []);
+}
+
+async function resolveFormulaSelection(selection) {
+  if (!selection) return null;
+  if (selection.uuid) return selection;
+  const item = await findFormulaItem(selection);
+  if (!item) return null;
+  return {
+    ...selection,
+    uuid: item.uuid ?? item.sourceId ?? item.flags?.core?.sourceId,
+    name: selection.name ?? item.name,
+  };
+}
+
+async function findFormulaItem(selection) {
+  const targetSlug = slugify(selection?.slug ?? selection?.name ?? '');
+  const targetName = String(selection?.name ?? '').trim().toLowerCase();
+  if (!targetSlug && !targetName) return null;
+
+  for (const item of await loadFormulaItems()) {
+    const itemSlug = slugify(item?.slug ?? item?.system?.slug ?? item?.name ?? '');
+    const itemName = String(item?.name ?? '').trim().toLowerCase();
+    if ((targetSlug && itemSlug === targetSlug) || (targetName && itemName === targetName)) return item;
+  }
+  return null;
+}
+
+async function loadFormulaItems() {
+  const items = [];
+  for (const key of getCompendiumKeysForCategory('equipment')) {
+    const pack = game.packs.get(key);
+    if (!pack) continue;
+    items.push(...(await pack.getDocuments().catch(() => [])));
+  }
+  items.push(...getWorldItems());
+  return items;
+}
+
+function getWorldItems() {
+  if (!game.items) return [];
+  if (Array.isArray(game.items)) return [...game.items];
+  if (Array.isArray(game.items.contents)) return [...game.items.contents];
+  if (typeof game.items.filter === 'function') return game.items.filter(() => true);
+  return Array.from(game.items);
 }
 
 async function applyItemSelections(actor, selections) {

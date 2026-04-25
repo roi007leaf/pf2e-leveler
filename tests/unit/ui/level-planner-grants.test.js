@@ -385,6 +385,63 @@ describe('level planner grant previews', () => {
     ]);
   });
 
+  test('surfaces formula progression grants from earlier planned feats', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-cauldron') {
+        return {
+          uuid,
+          name: 'Cauldron',
+          system: {
+            description: {
+              value: '<p>You immediately gain the formulas for four common 1st-level oils or potions. At 4th level and every 2 levels beyond that, you gain the formula for a common oil or potion of that level or lower.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    const planner = {
+      actor,
+      selectedLevel: 4,
+      plan: {
+        classSlug: 'alchemist',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-cauldron', name: 'Cauldron', slug: 'cauldron' }],
+          },
+          4: {
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {},
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, ALCHEMIST, {});
+
+    expect(context.grantRequirements).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'feat-cauldron:cauldron-level-4-formula',
+        sourceFeatName: 'Cauldron',
+        count: 1,
+        missingCount: 1,
+        filters: expect.objectContaining({ maxLevel: 4, traits: ['oil', 'potion'] }),
+      }),
+    ]));
+  });
+
   test('opens grant picker after resolving requirements from source feat text', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'feat-formulas') {
@@ -626,5 +683,57 @@ describe('level planner grant previews', () => {
         filters: expect.objectContaining({ rank: 0, tradition: 'arcane' }),
       }),
     ]);
+  });
+
+  test('does not duplicate spellbook cantrip expansion picks as feat grant choices', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-cantrip-expansion') {
+        return {
+          uuid,
+          name: 'Cantrip Expansion',
+          slug: 'cantrip-expansion',
+          system: {
+            description: {
+              value: '<p>You add two common arcane cantrips of your choice to your spellbook.</p>',
+            },
+            rules: [],
+            traits: { value: [] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    const planner = {
+      actor,
+      selectedLevel: 2,
+      plan: {
+        classSlug: 'wizard',
+        levels: {
+          2: {
+            classFeats: [{ uuid: 'feat-cantrip-expansion', name: 'Cantrip Expansion', slug: 'cantrip-expansion' }],
+            featGrants: [],
+            spells: [
+              { uuid: 'spell-acid-splash', name: 'Acid Splash', rank: 0, isCantrip: true },
+              { uuid: 'spell-allegro', name: 'Allegro', rank: 0, isCantrip: true },
+            ],
+          },
+        },
+      },
+      _compendiumCache: {},
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, WIZARD, {});
+
+    expect(context.classFeat.grantRequirements).toEqual([]);
   });
 });

@@ -195,7 +195,7 @@
 
     <section class="picker__results">
       <div class="picker__results-header">
-        <div class="picker__results-label">{{localize "PF2E_LEVELER.ITEM_PICKER.EQUIPMENT"}}</div>
+        <div class="picker__results-label">{{resultsTitle}}</div>
         <div class="spell-picker__results-meta">
           {{#if multiSelect}}
           <div class="spell-picker__selected-count">{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}</div>
@@ -267,7 +267,7 @@
         </div>
         {{else}}
         <div class="planner-empty" style="padding: 2rem;">
-          <p>{{localize "PF2E_LEVELER.FEAT_PICKER.NO_RESULTS"}}</p>
+          <p>{{emptyMessage}}</p>
         </div>
         {{/each}}
         {{#if capped}}

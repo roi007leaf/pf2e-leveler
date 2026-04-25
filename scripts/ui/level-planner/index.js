@@ -30,7 +30,7 @@ import {
   upsertLevelFeatGrant,
 } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
-import { buildFeatGrantRequirements } from '../../plan/feat-grants.js';
+import { buildFeatGrantRequirements, buildPlanFormulaProgressionRequirements } from '../../plan/feat-grants.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -2078,6 +2078,14 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const requirement = detected.find((entry) => entry?.id === requirementId);
     if (requirement) return requirement;
 
+    const progression = await buildPlanFormulaProgressionRequirements({
+      actor: this.actor,
+      plan: this.plan,
+      level: this.selectedLevel,
+    });
+    const progressionRequirement = progression.find((entry) => entry?.id === requirementId);
+    if (progressionRequirement) return progressionRequirement;
+
     return null;
   }
 
@@ -2180,7 +2188,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         multiSelect: true,
         maxSelect,
         takenItems: requirement.kind === 'formula' ? this._getTakenFormulaGrantSelections() : [],
-        title: requirement.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items',
+        title: buildFeatGrantPickerTitle(requirement),
         preset: buildItemGrantPickerPreset(requirement, {
           maxLevelCap: requirement.kind === 'formula' ? this.selectedLevel : null,
         }),
@@ -2294,6 +2302,12 @@ function getRemainingGrantSelections(requirement, currentSelections) {
   return Math.max(0, required - (currentSelections?.length ?? 0));
 }
 
+function buildFeatGrantPickerTitle(requirement) {
+  const sourceName = String(requirement?.sourceFeatName ?? '').trim();
+  if (!sourceName) return requirement?.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items';
+  return `${sourceName}: ${requirement?.kind === 'formula' ? 'Formula' : 'Item'}`;
+}
+
 function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
   const filters = requirement?.filters ?? {};
   const rarityValues = ['common', 'uncommon', 'rare', 'unique'];
@@ -2301,6 +2315,8 @@ function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
   return {
     ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0 ? { selectedCategories: filters.itemTypes } : {}),
     ...(Array.isArray(filters.traits) && filters.traits.length > 0 ? { selectedTraits: filters.traits } : {}),
+    ...(Array.isArray(filters.requiredTraits) && filters.requiredTraits.length > 0 ? { requiredTraits: filters.requiredTraits } : {}),
+    ...(typeof filters.traitLogic === 'string' ? { traitLogic: filters.traitLogic } : {}),
     ...(rarityFilter.length > 0 ? {
       selectedRarities: rarityFilter,
       lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),

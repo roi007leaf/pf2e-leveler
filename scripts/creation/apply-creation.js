@@ -9,6 +9,7 @@ import { format, localize } from '../utils/i18n.js';
 import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
 import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
 import { applyFeatGrantEntries } from '../apply/apply-feat-grants.js';
+import { buildFeatGrantRequirements, getAutomaticFeatGrantEntries, mergeFeatGrantEntries } from '../plan/feat-grants.js';
 import {
   extractCompendiumUuidsByCategory,
   isCompendiumUuidInCategory,
@@ -93,7 +94,18 @@ async function applyCreationFeatGrants(actor, data) {
   for (const entry of getClassSelectionSourceEntries(data, 'dualClass')) sourceUuids.add(entry.uuid);
   for (const entry of getSelectedChoiceSourceEntries(data)) sourceUuids.add(entry.uuid);
 
-  const grants = (data.featGrants ?? []).filter((grant) => sourceUuids.has(grant?.sourceFeatUuid));
+  const detectedRequirements = await buildFeatGrantRequirements({
+    actor,
+    feats: [...sourceUuids].map((uuid) => ({ uuid })),
+    classEntries: [data.class, data.dualClass].filter(Boolean),
+    level: 1,
+  });
+  const automaticGrants = getAutomaticFeatGrantEntries(detectedRequirements)
+    .filter((grant) => sourceUuids.has(grant?.sourceFeatUuid));
+  const grants = mergeFeatGrantEntries(
+    (data.featGrants ?? []).filter((grant) => sourceUuids.has(grant?.sourceFeatUuid)),
+    automaticGrants,
+  );
   if (grants.length === 0) return { items: [], formulas: [], spells: [] };
   return applyFeatGrantEntries(actor, grants);
 }

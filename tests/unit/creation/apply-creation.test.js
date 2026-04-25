@@ -396,6 +396,105 @@ describe('applyCreation formula grants', () => {
       'formula-6',
     ]);
   });
+
+  it('applies fixed formula grants during creation without stored grant selections', async () => {
+    game.settings.get = jest.fn(() => false);
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.equipment-srd') return null;
+      return {
+        metadata: { packageName: 'pf2e', package: 'pf2e' },
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder',
+            name: 'Black Powder',
+            slug: 'black-powder',
+            type: 'consumable',
+            system: { slug: 'black-powder', traits: { value: ['alchemical'] } },
+          },
+        ]),
+      };
+    });
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        crafting: { formulas: [] },
+        skills: {},
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async (updates) => {
+      if (Object.prototype.hasOwnProperty.call(updates, 'system.crafting.formulas')) {
+        actor.system.crafting.formulas = updates['system.crafting.formulas'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-munitions-crafter') {
+        return {
+          uuid,
+          name: 'Munitions Crafter',
+          toObject: () => ({
+            name: 'Munitions Crafter',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              rules: [],
+              description: {
+                value: '<p>You gain a formula book that includes the formula for black powder and four 1st-level types of common or uncommon alchemical ammunition or bombs of your choice.</p>',
+              },
+            },
+          }),
+          system: {
+            rules: [],
+            description: {
+              value: '<p>You gain a formula book that includes the formula for black powder and four 1st-level types of common or uncommon alchemical ammunition or bombs of your choice.</p>',
+            },
+          },
+        };
+      }
+      return {
+        uuid,
+        name: uuid,
+        toObject: () => ({
+          name: uuid,
+          type: uuid === 'class-alchemist' ? 'class' : 'feat',
+          flags: { core: { sourceId: uuid } },
+          system: { rules: [], description: { value: '' } },
+        }),
+      };
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-alchemist', name: 'Alchemist', slug: 'alchemist' },
+      subclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: { uuid: 'feat-munitions-crafter', name: 'Munitions Crafter', choices: {}, choiceSets: [] },
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [],
+    });
+
+    expect(actor.system.crafting.formulas).toEqual([
+      { uuid: 'Compendium.pf2e.equipment-srd.Item.black-powder' },
+    ]);
+  });
 });
 
 describe('applyCreation granted item choices', () => {
