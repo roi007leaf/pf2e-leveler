@@ -135,6 +135,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       capped,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
+      maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
       publicationOptions,
       categoryOptions,
@@ -464,6 +465,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       capped,
       multiSelect: this.multiSelect,
       selectedCount: this.selectedItemUuids.size,
+      maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
       publicationOptions: this._getPublicationOptions(),
       armorFilterOptions: this._getArmorFilterOptions(),
@@ -850,6 +852,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const el = this._getRootElement();
     if (!el || !this.multiSelect) return;
 
+    const count = this.selectedItemUuids.size;
+    const atMax = this.maxSelect != null && count >= this.maxSelect;
+
     for (const option of el.querySelectorAll('.item-option')) {
       const uuid = option.dataset.uuid;
       const selected = this.selectedItemUuids.has(uuid);
@@ -859,7 +864,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         button.classList.toggle('active', selected);
         const selectable = option.dataset.selectable !== 'false';
         const alreadyTaken = option.dataset.alreadyTaken === 'true';
-        button.disabled = !selectable;
+        button.disabled = !selectable || (!selected && atMax);
         button.textContent = !selectable
           ? game.i18n.localize(alreadyTaken
             ? 'PF2E_LEVELER.ITEM_PICKER.TAKEN'
@@ -872,9 +877,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const countEl = el.querySelector('.spell-picker__selected-count');
     if (countEl) {
-      countEl.textContent = game.i18n.format('PF2E_LEVELER.SPELLS.SELECTED_COUNT', {
-        count: this.selectedItemUuids.size,
-      });
+      countEl.textContent = this.maxSelect != null
+        ? `${count} / ${this.maxSelect}`
+        : game.i18n.format('PF2E_LEVELER.SPELLS.SELECTED_COUNT', { count });
     }
 
     const selectAllButton = el.querySelector('[data-action="toggleSelectAll"]');
@@ -889,7 +894,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const confirmButton = el.querySelector('[data-action="confirmSelection"]');
     if (confirmButton) {
-      confirmButton.disabled = this.selectedItemUuids.size === 0;
+      confirmButton.disabled = count === 0;
     }
   }
 

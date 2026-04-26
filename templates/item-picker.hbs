@@ -198,7 +198,7 @@
         <div class="picker__results-label">{{resultsTitle}}</div>
         <div class="spell-picker__results-meta">
           {{#if multiSelect}}
-          <div class="spell-picker__selected-count">{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}</div>
+          <div class="spell-picker__selected-count">{{#if maxSelect}}{{selectedCount}} / {{maxSelect}}{{else}}{{format "PF2E_LEVELER.SPELLS.SELECTED_COUNT" count=selectedCount}}{{/if}}</div>
           <button type="button" class="item-option__select-btn spell-picker__bulk-btn" data-action="toggleSelectAll" {{#unless filteredCount}}disabled{{/unless}}>
             {{#if allVisibleSelected}}
               {{localize "PF2E_LEVELER.SPELLS.DESELECT_ALL"}}

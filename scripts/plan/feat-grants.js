@@ -146,7 +146,7 @@ function detectRequirements(text, source, context = {}) {
       maxLevel: inferMaxLevel(text) ?? 1,
       rarity: inferRarity(text),
       traits: inferTraits(text),
-    }));
+    }, { sourceName: 'Alchemical Crafting' }));
   }
 
   const itemGrant = inferItemGrant(text);
@@ -167,10 +167,18 @@ function detectRequirements(text, source, context = {}) {
 function buildRequirement(source, kind, count, confidence, filters, options = {}) {
   const idKind = options.idKind ?? kind;
   const id = `${source.uuid}:${idKind}`;
+  const sourceFeatName = options.sourceName ?? source.name;
+  const sourceLabel = String(source.name ?? '').trim();
+  const displayLabel = String(sourceFeatName ?? '').trim();
+  const hasDistinctGrantingSource = sourceLabel && displayLabel && sourceLabel !== displayLabel;
   return {
     id,
     sourceFeatUuid: source.uuid,
-    sourceFeatName: options.sourceName ?? source.name,
+    sourceFeatName,
+    ...(hasDistinctGrantingSource ? {
+      grantingSourceUuid: source.uuid,
+      grantingSourceName: source.name,
+    } : {}),
     kind,
     count,
     confidence,

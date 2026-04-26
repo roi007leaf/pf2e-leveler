@@ -1590,6 +1590,31 @@
   align-self: center;
 }
 
+.pf2e-leveler .wizard-grant-choice__source {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--leveler-spacing-xs);
+  color: var(--leveler-text-muted);
+  font-size: var(--leveler-font-sm);
+}
+
+.pf2e-leveler .wizard-grant-choice__source-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--leveler-accent-light);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pf2e-leveler .wizard-grant-choice__source-link:hover {
+  color: var(--leveler-text-bright);
+}
+
 .pf2e-leveler .wizard-item__select--selected {
   display: inline-flex;
   align-items: center;

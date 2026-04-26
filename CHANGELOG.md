@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.3.4
+
+### Character Creation
+
+- **Formula grant prompts now show their granting source** - Alchemical Crafting formula choices granted by a class or feature now show a clickable `Granted by` source link so restrictions can be inspected from the same step
+- **Formula pickers now show selection limits** - Formula and item grant pickers now display the same selected/required counter as spell pickers and disable extra picks once the limit is reached
+
 ## 3.3.3
 
 ### Character Creation

@@ -113,6 +113,23 @@ describe('CharacterWizard feat grant choices', () => {
     expect(requirements).toHaveLength(3);
   });
 
+  it('labels Alchemical Crafting formula choices with the granting source', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-alchemist', slug: 'alchemist', name: 'Alchemist' };
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featGrantRequirements).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'class-alchemist:alchemical-crafting-formula',
+        sourceFeatName: 'Alchemical Crafting',
+        grantingSourceName: 'Alchemist',
+        grantingSourceUuid: 'class-alchemist',
+      }),
+    ]));
+  });
+
   it('keeps detected formula filters when stored grant was manually configured', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.classFeat = {
@@ -177,6 +194,7 @@ describe('CharacterWizard feat grant choices', () => {
 
     expect(featGrantSection).toContain('wizard-grant-choice__actions');
     expect(featGrantSection).toContain('wizard-grant-choice__button');
+    expect(featGrantSection).toContain('wizard-grant-choice__source-link');
     expect(featGrantSection).not.toContain('class="wizard-item__select"');
   });
 });

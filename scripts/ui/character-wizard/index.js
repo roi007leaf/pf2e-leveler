@@ -4029,6 +4029,8 @@ function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) 
     id: requirementId,
     sourceFeatUuid: stored.sourceFeatUuid ?? detected?.sourceFeatUuid,
     sourceFeatName: stored.sourceFeatName ?? detected?.sourceFeatName,
+    grantingSourceUuid: detected?.grantingSourceUuid ?? null,
+    grantingSourceName: detected?.grantingSourceName ?? null,
     kind: stored.kind ?? detected?.kind,
     count: Number.isFinite(Number(stored.manual?.count)) ? Number(stored.manual.count) : detected?.count,
     confidence: 'manual',

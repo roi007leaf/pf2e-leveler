@@ -530,6 +530,17 @@
           <i class="section-header__icon fa-solid fa-list-check"></i>
           {{this.sourceFeatName}}: {{titleCase this.kind}}
         </div>
+        {{#if this.grantingSourceName}}
+        <div class="wizard-grant-choice__source">
+          <i class="fa-solid fa-link" aria-hidden="true"></i>
+          <span>Granted by</span>
+          {{#if this.grantingSourceUuid}}
+          <button type="button" class="wizard-grant-choice__source-link" data-action="viewItem" data-uuid="{{this.grantingSourceUuid}}">{{this.grantingSourceName}}</button>
+          {{else}}
+          <span class="wizard-grant-choice__source-text">{{this.grantingSourceName}}</span>
+          {{/if}}
+        </div>
+        {{/if}}
         {{#if this.selections.length}}
         <div class="wizard-spell-chips">
           {{#each this.selections}}

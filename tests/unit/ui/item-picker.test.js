@@ -231,6 +231,50 @@ describe('ItemPicker', () => {
     expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-a', 'item-b']);
     expect([...picker.selectedItemUuids]).toEqual(['item-a']);
     expect(picker.maxLevel).toBe('1');
+
+    const context = await picker._prepareContext();
+    expect(context.maxSelect).toBe(1);
+  });
+
+  test('shows max multi-select counter and disables extra formula selections', () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      multiSelect: true,
+      maxSelect: 1,
+      items: [
+        {
+          uuid: 'item-a',
+          name: 'Acid Flask',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-b',
+          name: 'Alchemist Fire',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="spell-picker__selected-count"></div>
+      <button data-action="toggleSelectAll"></button>
+      <button data-action="confirmSelection"></button>
+      <div class="item-option" data-uuid="item-a" data-selectable="true">
+        <button data-action="selectItem"></button>
+      </div>
+      <div class="item-option" data-uuid="item-b" data-selectable="true">
+        <button data-action="selectItem"></button>
+      </div>
+    `;
+
+    picker._toggleSelectedItem('item-a');
+    picker._updateSelectionUI();
+
+    expect(picker.element.querySelector('.spell-picker__selected-count').textContent).toBe('1 / 1');
+    expect(picker.element.querySelector('[data-uuid="item-a"] [data-action="selectItem"]').disabled).toBe(false);
+    expect(picker.element.querySelector('[data-uuid="item-b"] [data-action="selectItem"]').disabled).toBe(true);
   });
 
   test('supports strict formula trait presets for grant picking', () => {
