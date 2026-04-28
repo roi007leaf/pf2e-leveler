@@ -982,6 +982,64 @@ describe('applyCreation ancestry paragon', () => {
     expect(actor.class.slug).toBe('witch');
   });
 
+  it('uses the higher class HP value for both embedded class items during dual-class creation', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'wizard-class' ? 'Wizard' : 'Fighter',
+      toObject: () => ({
+        name: uuid === 'wizard-class' ? 'Wizard' : 'Fighter',
+        type: 'class',
+        system: {
+          slug: uuid === 'wizard-class' ? 'wizard' : 'fighter',
+          hp: uuid === 'wizard-class' ? 6 : 10,
+          rules: [],
+          description: { value: '' },
+          level: { value: 1 },
+        },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
+      dualClass: { uuid: 'fighter-class', name: 'Fighter', slug: 'fighter' },
+      subclass: null,
+      dualSubclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      spells: { cantrips: [], rank1: [] },
+      dualSpells: { cantrips: [], rank1: [] },
+      curriculumSpells: { cantrips: [], rank1: [] },
+      dualCurriculumSpells: { cantrips: [], rank1: [] },
+      equipment: [],
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Fighter', system: expect.objectContaining({ hp: 10 }) }),
+      expect.objectContaining({ name: 'Wizard', system: expect.objectContaining({ hp: 10 }) }),
+    ]);
+  });
+
   it('applies secondary dual-class extras with the secondary class spell data', async () => {
     game.settings.get = jest.fn(() => false);
 
@@ -1342,6 +1400,71 @@ describe('applyCreation ancestry paragon', () => {
     } finally {
       global.CONFIG = originalConfig;
     }
+  });
+
+  it('does not manually backfill ancestry paragon selected feat chains into bonus feats', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const createdDocs = [];
+    const actor = createMockActor({ items: [] });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: uuid === 'feat-ap' ? 'Ancestral Paragon' : uuid === 'feat-na' ? 'Natural Ambition' : 'Alchemical Familiar',
+      toObject: () => ({
+        name: uuid === 'feat-ap' ? 'Ancestral Paragon' : uuid === 'feat-na' ? 'Natural Ambition' : 'Alchemical Familiar',
+        type: 'feat',
+        flags: { core: { sourceId: uuid } },
+        system: { level: { value: 1 }, rules: [], description: { value: '' } },
+      }),
+    }));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: { uuid: 'feat-ap', name: 'Ancestral Paragon', choices: { ancestralParagon: 'feat-na' } },
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [
+        {
+          slot: 'feat-na',
+          featName: 'Natural Ambition',
+          sourceName: 'Ancestral Paragon -> Natural Ambition',
+          choiceSets: [],
+        },
+        {
+          slot: 'feat-familiar',
+          featName: 'Alchemical Familiar',
+          sourceName: 'Ancestral Paragon -> Natural Ambition -> Alchemical Familiar',
+          choiceSets: [],
+        },
+      ],
+      grantedFeatChoices: {},
+    });
+
+    expect(createdDocs).toEqual([
+      expect.objectContaining({ name: 'Ancestral Paragon' }),
+    ]);
   });
 
   it('backfills missing granted feat section items with stored choices after creation', async () => {

@@ -244,9 +244,9 @@ async function collectGrantedFeatSourcesFromItem(item, grantedSources, visited) 
 function resolveGrantRuleUuid(uuid, selections) {
   const raw = String(uuid ?? '').trim();
   if (!raw) return null;
-  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+  if (!raw.includes('{item|flags.')) return raw;
 
-  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+  const resolved = raw.replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
     const value = selections?.[flag];
     return typeof value === 'string' ? value : '';
   });

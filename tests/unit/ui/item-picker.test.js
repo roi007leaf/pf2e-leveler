@@ -302,6 +302,83 @@ describe('ItemPicker', () => {
     expect(picker._filterItems().map((item) => item.uuid)).toEqual(['item-b']);
   });
 
+  test('collapses formula variants to the lowest level when requested', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      collapseFormulaVariants: true,
+      items: [
+        {
+          uuid: 'item-moderate-antidote',
+          name: 'Moderate Antidote',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 6 } },
+        },
+        {
+          uuid: 'item-lesser-antidote',
+          name: 'Lesser Antidote',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-greater-antidote',
+          name: 'Greater Antidote',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 10 } },
+        },
+        {
+          uuid: 'item-lesser-alchemist-fire',
+          name: "Alchemist's Fire (Lesser)",
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'bomb'] }, level: { value: 1 } },
+        },
+        {
+          uuid: 'item-moderate-alchemist-fire',
+          name: "Alchemist's Fire (Moderate)",
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'bomb'] }, level: { value: 3 } },
+        },
+        {
+          uuid: 'item-acid-flask',
+          name: 'Acid Flask',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical', 'bomb'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.items.map((item) => item.uuid)).toEqual([
+      'item-lesser-antidote',
+      'item-lesser-alchemist-fire',
+      'item-acid-flask',
+    ]);
+    expect(context.filteredCount).toBe(3);
+  });
+
+  test('keeps formula variants visible when collapse is not requested', async () => {
+    const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
+      items: [
+        {
+          uuid: 'item-moderate-antidote',
+          name: 'Moderate Antidote',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 6 } },
+        },
+        {
+          uuid: 'item-lesser-antidote',
+          name: 'Lesser Antidote',
+          type: 'consumable',
+          system: { traits: { rarity: 'common', value: ['alchemical'] }, level: { value: 1 } },
+        },
+      ],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.items.map((item) => item.uuid)).toEqual(['item-moderate-antidote', 'item-lesser-antidote']);
+    expect(context.filteredCount).toBe(2);
+  });
+
   test('supports required formula traits combined with alternate selectable traits', () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       preset: {

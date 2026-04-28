@@ -19,6 +19,8 @@ import {
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const renderHandlebarsTemplate = foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
 const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
+const FORMULA_VARIANT_RANKS = ['minor', 'lesser', 'moderate', 'greater', 'major', 'true'];
+const FORMULA_VARIANT_PATTERN = FORMULA_VARIANT_RANKS.join('|');
 
 const CATEGORY_LABELS = {
   ammunition: 'Ammunition',
@@ -56,6 +58,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.customTitle = typeof options.title === 'string' && options.title.trim().length > 0 ? options.title.trim() : null;
     this.allItems = options.items ?? [];
     this.takenItems = Array.isArray(options.takenItems) ? options.takenItems : [];
+    this.collapseFormulaVariants = options.collapseFormulaVariants === true;
     this._takenItemIdentityKeys = new Set(this.takenItems.flatMap((item) => getItemMatchKeys(item)));
     this.filteredItems = [];
     this.selectedItemUuids = new Set();
@@ -240,6 +243,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         (item) => item.system?.traits?.rarity ?? 'common',
         this._availableRarityValues ?? RARITY_VALUES,
       );
+    }
+    if (this.collapseFormulaVariants) {
+      items = collapseFormulaVariantsToLowestLevel(items);
     }
     return items;
   }
@@ -929,6 +935,39 @@ function getItemMatchKeys(item) {
   if (name) keys.add(`name:${name}`);
 
   return [...keys];
+}
+
+function collapseFormulaVariantsToLowestLevel(items) {
+  const byFormula = new Map();
+  const orderedKeys = [];
+
+  for (const item of items) {
+    const key = getFormulaBaseName(item);
+    if (!byFormula.has(key)) orderedKeys.push(key);
+
+    const current = byFormula.get(key);
+    if (!current || getItemLevel(item) < getItemLevel(current)) {
+      byFormula.set(key, item);
+    }
+  }
+
+  return orderedKeys.map((key) => byFormula.get(key));
+}
+
+function getFormulaBaseName(item) {
+  return String(item?.name ?? '')
+    .toLowerCase()
+    .replace(/[\u2019`]/g, "'")
+    .replace(new RegExp(`^\\s*(?:${FORMULA_VARIANT_PATTERN})\\s+`, 'i'), '')
+    .replace(new RegExp(`\\s*\\((?:${FORMULA_VARIANT_PATTERN})\\)\\s*$`, 'i'), '')
+    .replace(new RegExp(`\\s*,\\s*(?:${FORMULA_VARIANT_PATTERN})\\s*$`, 'i'), '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getItemLevel(item) {
+  const level = Number(item?.system?.level?.value ?? item?.level ?? 0);
+  return Number.isFinite(level) ? level : 0;
 }
 
 let _itemCache = null;

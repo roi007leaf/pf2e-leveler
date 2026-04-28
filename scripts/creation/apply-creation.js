@@ -158,9 +158,27 @@ async function applyClassItems(actor, data) {
     appliedNames.push(entry.name);
   }
 
+  normalizeDualClassHp(itemData);
+
   if (itemData.length === 0) return;
   await actor.createEmbeddedDocuments('Item', itemData);
   debug(`Applied classes: ${appliedNames.join(', ')}`);
+}
+
+function normalizeDualClassHp(classItemData) {
+  if (!Array.isArray(classItemData) || classItemData.length < 2) return;
+
+  const highestHp = Math.max(
+    ...classItemData
+      .map((item) => Number(item?.system?.hp))
+      .filter(Number.isFinite),
+  );
+  if (!Number.isFinite(highestHp)) return;
+
+  for (const item of classItemData) {
+    item.system ??= {};
+    item.system.hp = highestHp;
+  }
 }
 
 async function applyMixedAncestryHeritage(actor, entry, choices = {}) {
@@ -768,7 +786,7 @@ function formatManualGrantedSourceSuffix(data, sourceName) {
 }
 
 function shouldApplyManualGrantedSection(data, section) {
-  if (!isAssuranceSection(section)) return true;
+  if (!isAssuranceSection(section)) return !isSelectedFeatGrantChain(data, section);
 
   const sourceSection = findManualGrantedSourceSection(data, section);
   if (!sourceSection) return true;
@@ -785,6 +803,22 @@ function shouldApplyManualGrantedSection(data, section) {
   }
 
   return !findMatchingChoiceOption(sourceChoiceSet.options ?? [], selectedValue);
+}
+
+function isSelectedFeatGrantChain(data, section) {
+  const sourceName = String(section?.sourceName ?? '').trim();
+  if (!sourceName.includes('->')) return false;
+
+  const [primarySource] = sourceName.split('->').map((part) => part.trim()).filter(Boolean);
+  if (!primarySource) return false;
+
+  return [
+    data?.ancestryFeat,
+    data?.ancestryParagonFeat,
+    data?.classFeat,
+    data?.dualClassFeat,
+    data?.skillFeat,
+  ].some((feat) => String(feat?.name ?? '').trim() === primarySource);
 }
 
 function isAssuranceSection(section) {

@@ -790,6 +790,48 @@ describe('computeBuildState', () => {
     expect(state.classArchetypeDedications.has('aldori-duelist-dedication')).toBe(false);
   });
 
+  test('counts same-level archetype feats from class and archetype slots toward dedication completion', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+              name: 'Archaeologist Dedication',
+              slug: 'archaeologist-dedication',
+              traits: ['archetype', 'dedication', 'archaeologist'],
+            },
+          ],
+        },
+        4: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+              name: 'Trap Finder',
+              slug: 'trap-finder',
+              traits: ['archetype', 'archaeologist'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+              name: 'Settlement Scholastics',
+              slug: 'settlement-scholastics',
+              traits: ['archetype', 'archaeologist'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+
+    expect(state.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+  });
+
   test('tracks planned Multitalented dedication choices as class archetype dedications', () => {
     const plan = {
       levels: {

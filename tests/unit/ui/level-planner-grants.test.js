@@ -116,6 +116,48 @@ describe('level planner grant previews', () => {
     ]);
   });
 
+  test('resolves dynamic grant uuids from legacy system rulesSelections paths', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Root Feat',
+          system: {
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.naturalAmbition}',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'feat-choice-result') {
+        return {
+          uuid,
+          name: 'Chosen Grant',
+          system: { rules: [] },
+        };
+      }
+
+      return null;
+    });
+
+    const preview = await buildFeatGrantPreview({
+      actor: { items: [] },
+    }, {
+      uuid: 'feat-root',
+      choices: {
+        naturalAmbition: 'feat-choice-result',
+      },
+    });
+
+    expect(preview.grantedItems).toEqual([
+      expect.objectContaining({ uuid: 'feat-choice-result', name: 'Chosen Grant' }),
+    ]);
+  });
+
   test('includes synthetic skill fallback choice sets for granted feats with overlap prose', async () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -611,6 +653,41 @@ describe('level planner grant previews', () => {
     expect(planner._getTakenFormulaGrantSelections()).toEqual([
       { uuid: 'item-a', name: 'Acid Flask' },
       { uuid: 'item-b', name: 'Alchemist Fire' },
+    ]);
+  });
+
+  test('includes actor known formulas as already taken in planner formula grant picker', () => {
+    const actor = createMockActor({
+      items: [],
+      system: {
+        crafting: {
+          formulas: [
+            { uuid: 'item-known', name: 'Wizard Formula' },
+          ],
+        },
+      },
+    });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.selectedLevel = 2;
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        2: {
+          featGrants: [{
+            requirementId: 'level-2-formulas',
+            kind: 'formula',
+            selections: [{ uuid: 'item-planned', name: 'Planned Formula' }],
+          }],
+        },
+      },
+    };
+
+    expect(planner._getTakenFormulaGrantSelections()).toEqual([
+      { uuid: 'item-known', name: 'Wizard Formula' },
+      { uuid: 'item-planned', name: 'Planned Formula' },
     ]);
   });
 

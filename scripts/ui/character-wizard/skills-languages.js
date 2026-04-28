@@ -60,19 +60,33 @@ export async function buildLanguageContext(wizard) {
 }
 
 export async function collectFeatLanguageGrants(wizard) {
-  const slugs = [];
-  let bonusSlots = 0;
-  const feats = [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.dualClassFeat, wizard.data.skillFeat].filter(Boolean);
-  for (const feat of feats) {
-    if (!feat.uuid) continue;
-    const item = await wizard._getCachedDocument(feat.uuid);
+  const result = { slugs: [], bonusSlots: 0 };
+  const seen = new Set();
+  for (const source of getLanguageGrantSources(wizard)) {
+    if (!source?.uuid) continue;
+    const item = await wizard._getCachedDocument(source.uuid);
     if (!item) continue;
-    const result = { slugs: [], bonusSlots: 0 };
-    await scanItemForLanguages(wizard, item, result);
-    slugs.push(...result.slugs);
-    bonusSlots += result.bonusSlots;
+    await scanItemForLanguages(wizard, item, result, seen);
   }
-  return { slugs, bonusSlots };
+  return result;
+}
+
+function getLanguageGrantSources(wizard) {
+  return [
+    wizard.data.ancestry,
+    wizard.data.heritage,
+    wizard.data.background,
+    wizard.data.class,
+    wizard.data.dualClass,
+    wizard.data.subclass,
+    wizard.data.dualSubclass,
+    wizard.data.ancestryFeat,
+    wizard.data.ancestryParagonFeat,
+    wizard.data.classFeat,
+    wizard.data.dualClassFeat,
+    wizard.data.skillFeat,
+    ...(wizard.data.grantedFeatSections ?? []).map((section) => ({ uuid: section.slot })),
+  ].filter(Boolean);
 }
 
 async function scanItemForLanguages(wizard, item, result, seen = new Set()) {

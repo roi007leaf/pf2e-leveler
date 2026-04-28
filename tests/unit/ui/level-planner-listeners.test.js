@@ -178,6 +178,60 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('stores nested granted feat choices on the source planned feat', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="cantrip" data-value="Compendium.pf2e.spells-srd.Item.daze"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          3: {
+            generalFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+                name: 'Ancestral Paragon',
+                slug: 'ancestral-paragon',
+                choices: {
+                  ancestralParagon: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+                },
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 3,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[3].generalFeats[0].choices).toEqual({
+      ancestralParagon: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+      cantrip: 'Compendium.pf2e.spells-srd.Item.daze',
+    });
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('opens a planned feat choice picker from nested choice set browse controls', () => {
+    document.body.innerHTML = '<button type="button" data-action="openPlannedFeatChoicePicker" data-category="generalFeats" data-flag="cantrip" data-index="0"></button>';
+
+    const planner = {
+      selectedLevel: 3,
+      _openPlannedFeatChoicePicker: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="openPlannedFeatChoicePicker"]').click();
+
+    expect(planner._openPlannedFeatChoicePicker).toHaveBeenCalledWith({
+      category: 'generalFeats',
+      flag: 'cantrip',
+      index: 0,
+    });
+  });
+
   it('adds selected choice-item skill rules onto the planned feat', async () => {
     const originalFromUuid = global.fromUuid;
     document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="druidicOrder" data-value="Compendium.pf2e.classfeatures.Item.animal-order"></button>';

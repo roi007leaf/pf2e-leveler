@@ -270,14 +270,24 @@
             {{/if}}
 
             {{else}}
+            {{#if this.choicePicker}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              {{#if this.choicePicker.selectedOption}}
+              <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+              {{else}}
+              <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+              {{/if}}
+              <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="classFeats" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+            </div>
+            {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -289,6 +299,7 @@
               </div>
               {{/each}}
             </div>
+            {{/if}}
             {{/if}}
             {{/each}}
           </div>
@@ -349,14 +360,24 @@
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
 
             {{else}}
+            {{#if this.choicePicker}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              {{#if this.choicePicker.selectedOption}}
+              <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+              {{else}}
+              <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+              {{/if}}
+              <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="generalFeats" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+            </div>
+            {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -369,6 +390,7 @@
               {{/each}}
             </div>
             {{/if}}
+            {{/if}}
             {{/each}}
             {{#if showGeneralFeatAdoptedAncestry}}
             <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
@@ -379,10 +401,10 @@
               {{#each generalFeatAdoptedAncestryOptions}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -451,14 +473,24 @@
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
 
             {{else}}
+            {{#if this.choicePicker}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              {{#if this.choicePicker.selectedOption}}
+              <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+              {{else}}
+              <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+              {{/if}}
+              <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="ancestryFeats" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+            </div>
+            {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img">
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -470,6 +502,7 @@
               </div>
               {{/each}}
             </div>
+            {{/if}}
             {{/if}}
             {{/each}}
           </div>
@@ -560,14 +593,24 @@
             {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
 
             {{else}}
+            {{#if this.choicePicker}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              {{#if this.choicePicker.selectedOption}}
+              <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+              {{else}}
+              <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+              {{/if}}
+              <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="archetypeFeats" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+            </div>
+            {{else}}
             <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
               {{#each this.options}}
               <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                 {{#if this.img}}
-                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                 {{/if}}
                 <div class="wizard-item__info">
-                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                 </div>
                 {{#if this.selected}}
                 <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -579,6 +622,7 @@
               </div>
               {{/each}}
             </div>
+            {{/if}}
             {{/if}}
             {{/each}}
           </div>
@@ -768,14 +812,24 @@
               {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
 
               {{else}}
+              {{#if this.choicePicker}}
+              <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                {{#if this.choicePicker.selectedOption}}
+                <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+                {{else}}
+                <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+                {{/if}}
+                <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="customFeats" data-index="{{../index}}" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+              </div>
+              {{else}}
               <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}
                 <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                   {{#if this.img}}
-                  <img src="{{this.img}}" alt="" class="wizard-item__img">
+                  <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                   {{/if}}
                   <div class="wizard-item__info">
-                    <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                    <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                   </div>
                   {{#if this.selected}}
                   <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -787,6 +841,7 @@
                 </div>
                 {{/each}}
               </div>
+              {{/if}}
               {{/if}}
               {{/each}}
               {{#each this.feat.grantChoiceSets}}
@@ -823,14 +878,24 @@
               {{#if this.options.length}}<div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">{{#each this.options}}<button type="button" class="skill-btn {{#if this.selected}}selected{{/if}}" disabled><span class="skill-btn__name">{{this.label}}</span></button>{{/each}}</div>{{/if}}
 
               {{else}}
+              {{#if this.choicePicker}}
+              <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                {{#if this.choicePicker.selectedOption}}
+                <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">{{this.choicePicker.selectedOption.label}}</button>
+                {{else}}
+                <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+                {{/if}}
+                <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="customFeats" data-index="{{../index}}" data-flag="{{this.flag}}" style="padding: 3px 10px;">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+              </div>
+              {{else}}
               <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
                 {{#each this.options}}
                 <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
                   {{#if this.img}}
-                  <img src="{{this.img}}" alt="" class="wizard-item__img">
+                  <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
                   {{/if}}
                   <div class="wizard-item__info">
-                    <span class="wizard-item__name wizard-item__name--static">{{this.label}}</span>
+                    <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
                   </div>
                   {{#if this.selected}}
                   <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
@@ -842,6 +907,7 @@
                 </div>
                 {{/each}}
               </div>
+              {{/if}}
               {{/if}}
               {{/each}}
               {{/each}}

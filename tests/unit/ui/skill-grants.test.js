@@ -476,6 +476,62 @@ describe('CharacterWizard skills step grants', () => {
     expect(await wizard._getAdditionalLanguageCount()).toBe(1);
   });
 
+  it('includes language slots from feats granted by a selected background', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-uuid') {
+        return {
+          uuid,
+          system: {
+            languages: { value: ['common'] },
+            additionalLanguages: { value: [], count: 0 },
+          },
+        };
+      }
+
+      if (uuid === 'background-uuid') {
+        return {
+          uuid,
+          name: 'Polyglot Envoy',
+          system: {
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'multilingual-uuid',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'multilingual-uuid') {
+        return {
+          uuid,
+          name: 'Multilingual',
+          system: {
+            rules: [
+              {
+                key: 'ActiveEffectLike',
+                path: 'system.build.languages.max',
+                value: 2,
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-uuid', name: 'Human' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Polyglot Envoy' };
+
+    expect(await wizard._getAdditionalLanguageCount()).toBe(2);
+    await expect(wizard._buildLanguageContext()).resolves.toEqual(expect.objectContaining({
+      maxLanguages: 2,
+    }));
+  });
+
   it('includes language rarity in language context entries', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = { uuid: 'ancestry-uuid', slug: 'human', name: 'Human' };

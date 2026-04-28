@@ -11,8 +11,16 @@ import { parseCurriculum } from './loaders.js';
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;
-  if (typeof wizard?._getCachedDocument === 'function') return wizard._getCachedDocument(uuid);
-  return fromUuid(uuid).catch(() => null);
+  const normalizedUuid = normalizePf2eCompendiumUuid(uuid);
+  if (typeof wizard?._getCachedDocument === 'function') return wizard._getCachedDocument(normalizedUuid);
+  return fromUuid(normalizedUuid).catch(() => null);
+}
+
+export function normalizePf2eCompendiumUuid(uuid) {
+  return String(uuid ?? '').replace(
+    /^Compendium\.pf2e\.([a-z]+)Srd\.Item\./u,
+    (_match, pack) => `Compendium.pf2e.${pack}-srd.Item.`,
+  );
 }
 
 export async function buildSubclassChoicesContext(wizard) {
@@ -913,9 +921,9 @@ export async function extractGrantedTrainedSkills(wizard, rules, currentChoices 
 function resolveGrantRuleUuid(uuid, choices) {
   const raw = String(uuid ?? '').trim();
   if (!raw) return null;
-  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+  if (!raw.includes('{item|flags.')) return raw;
 
-  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+  const resolved = raw.replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
     const value = choices?.[flag];
     return typeof value === 'string' ? value : '';
   });
@@ -1004,10 +1012,14 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
     return resolveConfigChoiceOptions(rule.choices.config);
   }
 
-  const candidates = await loadChoiceSetCandidates(wizard, rule.choices);
+  const resolvedFilter = resolveChoiceSetFilterPlaceholders(rule.choices.filter ?? [], wizard);
+  const candidates = await loadChoiceSetCandidates(wizard, {
+    ...rule.choices,
+    filter: resolvedFilter,
+  });
   const slugsAsValues = !!rule.choices.slugsAsValues;
   const promptImpliesCommonAncestry = isCommonAncestryChoiceSet(rule)
-    && !String(JSON.stringify(rule.choices.filter ?? [])).includes('item:rarity:')
+    && !String(JSON.stringify(resolvedFilter ?? [])).includes('item:rarity:')
   const itemType = typeof rule.choices.itemType === 'string' ? rule.choices.itemType.toLowerCase() : null;
   return candidates
     .filter((item) => {
@@ -1019,7 +1031,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
       if (itemType === 'classfeature') return category === 'classfeature';
       return true;
     })
-    .filter((item) => matchesChoiceSetFilters(item, rule.choices.filter ?? []))
+    .filter((item) => matchesChoiceSetFilters(item, resolvedFilter))
     .filter((item) => !promptImpliesCommonAncestry || String(item.rarity ?? 'common').toLowerCase() === 'common')
     .filter((item) => {
       const cat = String(item.category ?? '').toLowerCase();
@@ -1966,6 +1978,46 @@ function loadOwnedChoiceSetCandidates(wizard, choiceConfig) {
   return ownedItems
     .filter((item) => allowedTypes.size === 0 || allowedTypes.has(String(item.type ?? '').toLowerCase()))
     .map((item) => normalizeChoiceCandidate(item));
+}
+
+function resolveChoiceSetFilterPlaceholders(filter, wizard) {
+  if (typeof filter === 'string') return resolveChoiceSetPlaceholderString(filter, wizard);
+  if (Array.isArray(filter)) return filter.map((entry) => resolveChoiceSetFilterPlaceholders(entry, wizard));
+  if (!filter || typeof filter !== 'object') return filter;
+
+  return Object.fromEntries(
+    Object.entries(filter).map(([key, value]) => [key, resolveChoiceSetFilterPlaceholders(value, wizard)]),
+  );
+}
+
+function resolveChoiceSetPlaceholderString(value, wizard) {
+  return String(value).replace(/\{actor\|([^}]+)\}/g, (_match, path) => {
+    const resolved = resolveActorChoiceSetPath(wizard, path);
+    return resolved == null ? '' : String(resolved);
+  });
+}
+
+function resolveActorChoiceSetPath(wizard, path) {
+  const normalizedPath = String(path ?? '').trim();
+  if (!normalizedPath) return null;
+
+  const actorValue = foundry?.utils?.getProperty?.(wizard?.actor, normalizedPath);
+  if (actorValue != null) return actorValue;
+
+  const dataValue = foundry?.utils?.getProperty?.(wizard?.data, normalizedPath);
+  if (dataValue != null) return dataValue;
+
+  if (normalizedPath === 'class.slug') {
+    return wizard?.data?.class?.slug ?? wizard?.actor?.class?.slug ?? null;
+  }
+  if (normalizedPath === 'system.details.class.trait') {
+    return wizard?.data?.class?.slug ?? wizard?.actor?.class?.slug ?? null;
+  }
+  if (normalizedPath === 'system.details.ancestry.trait') {
+    return wizard?.data?.ancestry?.slug ?? wizard?.actor?.ancestry?.slug ?? null;
+  }
+
+  return null;
 }
 
 function getChoiceSetPackKeys(itemType, filters) {

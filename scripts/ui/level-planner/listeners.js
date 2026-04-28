@@ -95,6 +95,18 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelectorAll('[data-action="openPlannedFeatChoicePicker"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (typeof planner._openPlannedFeatChoicePicker !== 'function') return;
+      const index = Number(button.dataset.index);
+      planner._openPlannedFeatChoicePicker({
+        category: button.dataset.category,
+        flag: button.dataset.flag,
+        index: Number.isInteger(index) && index >= 0 ? index : 0,
+      });
+    });
+  });
+
   el.querySelectorAll('[data-action="promptPlannedFeatLoreChoice"]').forEach((button) => {
     button.addEventListener('click', async () => {
       const category = button.dataset.category;
@@ -109,7 +121,7 @@ export function activateLevelPlannerListeners(planner, html) {
       e.stopPropagation();
       const uuid = e.currentTarget.dataset.uuid;
       if (!uuid) return;
-      const item = await fromUuid(uuid);
+      const item = await fromUuid(uuid).catch(() => null);
       if (item?.sheet) item.sheet.render(true);
     });
   });
@@ -360,7 +372,7 @@ export function getSelectableSkillRank(planner, slug) {
   return buildState.skills[slug] ?? buildState.lores?.[slug] ?? 0;
 }
 
-async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining = false } = {}) {
+export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining = false } = {}) {
   const sourceKey = `choice:${String(flag ?? '').toLowerCase()}`;
   const preservedRules = Array.isArray(feat?.dynamicSkillRules)
     ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)

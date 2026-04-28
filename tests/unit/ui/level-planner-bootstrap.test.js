@@ -1234,6 +1234,350 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('surfaces Natural Ambition class-feat choices under Ancestral Paragon', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      slug: 'ancestral-paragon',
+      name: 'Ancestral Paragon',
+      level: 3,
+    }];
+    planner.plan.levels[3].ancestryFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.natural-ambition',
+      slug: 'natural-ambition',
+      name: 'Natural Ambition',
+      level: 1,
+    }];
+
+    planner._compendiumCache['pf2e.feats-srd'] = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.alchemical-familiar',
+        name: 'Alchemical Familiar',
+        type: 'feat',
+        slug: 'alchemical-familiar',
+        traits: ['alchemist'],
+        otherTags: [],
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
+        name: 'Reactive Shield',
+        type: 'feat',
+        slug: 'reactive-shield',
+        traits: ['fighter'],
+        otherTags: [],
+        rarity: 'common',
+        level: 1,
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.natural-ambition') {
+        return {
+          uuid,
+          slug: 'natural-ambition',
+          name: 'Natural Ambition',
+          system: {
+            description: { value: '' },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'naturalAmbition',
+              prompt: 'Choose a class feat.',
+              choices: {
+                itemType: 'feat',
+                filter: [
+                  'item:type:feat',
+                  'item:level:1',
+                  'item:trait:{actor|system.details.class.trait}',
+                ],
+              },
+            }],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.generalFeatGrantedAncestryFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'naturalAmbition',
+          prompt: 'Choose a class feat.',
+          options: [
+            expect.objectContaining({
+              value: 'Compendium.pf2e.feats-srd.Item.alchemical-familiar',
+              label: 'Alchemical Familiar',
+            }),
+          ],
+        }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('does not duplicate native Ancestral Paragon ancestry-feat grants as granted item links', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      slug: 'ancestral-paragon',
+      name: 'Ancestral Paragon',
+      level: 3,
+      choices: {
+        ancestralParagon: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+      },
+    }];
+
+    planner._compendiumCache['pf2e.feats-srd'] = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+        name: 'Arcane Tattoos',
+        type: 'feat',
+        slug: 'arcane-tattoos',
+        traits: ['ancestry', 'human'],
+        otherTags: [],
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.adapted-cantrip',
+        name: 'Adapted Cantrip',
+        type: 'feat',
+        slug: 'adapted-cantrip',
+        traits: ['ancestry', 'human'],
+        otherTags: [],
+        rarity: 'common',
+        level: 1,
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.ancestral-paragon') {
+        return {
+          uuid,
+          slug: 'ancestral-paragon',
+          name: 'Ancestral Paragon',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'ancestralParagon',
+                prompt: 'Select a 1st-level ancestry feat.',
+                choices: {
+                  itemType: 'feat',
+                  filter: ['item:type:feat', 'item:level:1', 'item:trait:ancestry'],
+                },
+              },
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.ancestralParagon}',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.arcane-tattoos') {
+        return {
+          uuid,
+          slug: 'arcane-tattoos',
+          name: 'Arcane Tattoos',
+          img: 'arcane-tattoos.png',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'cantrip',
+                prompt: 'Select a cantrip.',
+                choices: [{ value: 'Compendium.pf2e.spells-srd.Item.daze', label: 'Daze', uuid: 'Compendium.pf2e.spells-srd.Item.daze', type: 'spell' }],
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.generalFeat.grantedItems).toEqual([]);
+      expect(context.showGeneralFeatGrantedAncestryFeat).toBe(false);
+      expect(context.generalFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'ancestralParagon',
+          options: expect.arrayContaining([
+            expect.objectContaining({ label: 'Arcane Tattoos', selected: true }),
+          ]),
+        }),
+      ]));
+      expect(context.generalFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'cantrip',
+          sourceName: 'Arcane Tattoos',
+        }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('marks nested Arcane Tattoos spell choices selected from Ancestral Paragon storage', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      slug: 'ancestral-paragon',
+      name: 'Ancestral Paragon',
+      level: 3,
+      choices: {
+        ancestralParagon: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+        cantrip: 'Compendium.pf2e.spellsSrd.Item.daze',
+      },
+    }];
+
+    planner._compendiumCache['pf2e.feats-srd'] = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+        name: 'Arcane Tattoos',
+        type: 'feat',
+        slug: 'arcane-tattoos',
+        traits: ['ancestry', 'human'],
+        otherTags: [],
+        rarity: 'common',
+        level: 1,
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.ancestral-paragon') {
+        return {
+          uuid,
+          slug: 'ancestral-paragon',
+          name: 'Ancestral Paragon',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'ancestralParagon',
+                prompt: 'Select a 1st-level ancestry feat.',
+                choices: {
+                  itemType: 'feat',
+                  filter: ['item:type:feat', 'item:level:1', 'item:trait:ancestry'],
+                },
+              },
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.ancestralParagon}',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.arcane-tattoos') {
+        return {
+          uuid,
+          slug: 'arcane-tattoos',
+          name: 'Arcane Tattoos',
+          img: 'arcane-tattoos.png',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'cantrip',
+                prompt: 'Select a cantrip.',
+                choices: [
+                  { value: 'Compendium.pf2e.spellsSrd.Item.daze', uuid: 'Compendium.pf2e.spellsSrd.Item.daze', type: 'spell' },
+                  { value: 'Compendium.pf2e.spellsSrd.Item.shield', uuid: 'Compendium.pf2e.spellsSrd.Item.shield', type: 'spell' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.daze') {
+        return {
+          uuid,
+          name: 'Daze',
+          img: 'daze.png',
+          type: 'spell',
+          system: {
+            level: { value: 0 },
+            traits: { value: ['cantrip'] },
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.shield') {
+        return {
+          uuid,
+          name: 'Shield',
+          img: 'shield.png',
+          type: 'spell',
+          system: {
+            level: { value: 0 },
+            traits: { value: ['cantrip'] },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const cantripSet = context.generalFeat.grantChoiceSets.find((choiceSet) => choiceSet.flag === 'cantrip');
+
+      expect(cantripSet.choiceCategory).toBe('generalFeats');
+      expect(cantripSet.choicePicker).toEqual(expect.objectContaining({
+        kind: 'spell',
+        allowedUuids: [
+          'Compendium.pf2e.spells-srd.Item.daze',
+          'Compendium.pf2e.spells-srd.Item.shield',
+        ],
+        selectedOption: expect.objectContaining({
+          label: 'Daze',
+        }),
+      }));
+      expect(cantripSet.options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ label: 'Daze', selected: true }),
+        expect.objectContaining({ label: 'Shield', selected: false }),
+      ]));
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('shows an ancestry selector under Adopted Ancestry general feats', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'alchemist';
@@ -1935,6 +2279,108 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('adds a language choice set for archetype feats that grant a language slot', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    const originalGame = global.game;
+
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          draconic: 'Draconic',
+          elven: 'Elven',
+        },
+        settings: {
+          campaign: {
+            languages: {
+              common: new Set(['common', 'elven']),
+              uncommon: new Set(['draconic']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+    };
+    global.game = {
+      ...global.game,
+      pf2e: {
+        settings: {
+          campaign: {
+            languages: {
+              common: new Set(['common', 'elven']),
+              uncommon: new Set(['draconic']),
+              rare: new Set(),
+              secret: new Set(),
+            },
+          },
+        },
+      },
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          if (scope === 'pf2e' && ['gradualBoostsVariant', 'freeArchetypeVariant', 'dualClassVariant'].includes(key)) return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          return false;
+        }),
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      system: {
+        rules: [{
+          key: 'ActiveEffectLike',
+          path: 'system.build.languages.max',
+          value: 1,
+        }],
+      },
+    }));
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerLanguageChoice',
+          choiceType: 'language',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'draconic', rarity: 'uncommon' }),
+            expect.objectContaining({ value: 'elven', rarity: 'common' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+      global.game = originalGame;
+    }
+  });
+
   it('unlocks archetype feat picker dedication filtering once a class dedication is planned', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'oracle';
@@ -1961,6 +2407,49 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.excludedTraits).toEqual(['dedication']);
     expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.traitLogic).toBe('and');
+  });
+
+  it('reopens dedication feats when two same-level archetype feats complete the current dedication', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+      slug: 'archaeologist-dedication',
+      name: 'Archaeologist Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication', 'archaeologist'],
+      choices: {},
+    }];
+    planner.plan.levels[4].classFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+      slug: 'trap-finder',
+      name: 'Trap Finder',
+      level: 1,
+      traits: ['archetype', 'archaeologist'],
+      system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+      choices: {},
+    }];
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      slug: 'settlement-scholastics',
+      name: 'Settlement Scholastics',
+      level: 4,
+      traits: ['archetype', 'archaeologist'],
+      system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 4);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 4, buildState);
+
+    expect(buildState.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(buildState.canTakeNewArchetypeDedication).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.excludedTraits).toBeUndefined();
+    expect(preset.lockedTraits).toEqual(['archetype']);
   });
 
   it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', async () => {
@@ -2030,8 +2519,8 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedFeatTypes).toEqual(['archetype']);
     expect(preset.lockedFeatTypes).toEqual(['archetype']);
     expect(preset.selectedTraits).toEqual(['archetype']);
-    expect(preset.excludedTraits).toEqual(['dedication']);
-    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.excludedTraits).toBeUndefined();
+    expect(preset.lockedTraits).toEqual(['archetype']);
     expect(preset.traitLogic).toBe('and');
   });
 
@@ -2142,8 +2631,8 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedFeatTypes).toEqual(['archetype']);
     expect(preset.lockedFeatTypes).toEqual(['archetype']);
     expect(preset.selectedTraits).toEqual(['archetype']);
-    expect(preset.excludedTraits).toEqual(['dedication']);
-    expect(preset.lockedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.excludedTraits).toBeUndefined();
+    expect(preset.lockedTraits).toEqual(['archetype']);
     expect(preset.traitLogic).toBe('and');
   });
 

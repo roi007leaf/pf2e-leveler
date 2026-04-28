@@ -66,7 +66,7 @@ import {
   extractFeat,
   getClassFeaturesForLevel,
 } from './level-context.js';
-import { activateLevelPlannerListeners } from './listeners.js';
+import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules } from './listeners.js';
 import {
   buildSpellContext,
   buildCustomSpellEntryOptions,
@@ -1680,6 +1680,92 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     picker.render(true);
   }
 
+  async _openPlannedFeatChoicePicker({ category, flag, index = 0 } = {}) {
+    const levelData = getLevelData(this.plan, this.selectedLevel);
+    const featList = category ? levelData?.[category] : null;
+    const feat = Array.isArray(featList) ? featList[index] : null;
+    if (!feat || !flag) return;
+
+    const classDef = ClassRegistry.get(this.plan.classSlug);
+    const context = await this._buildLevelContext(classDef, this._getVariantOptions());
+    const choiceSet = this._findRenderedPlannedFeatChoiceSet(context, { category, flag, index });
+    const pickerConfig = choiceSet?.choicePicker;
+    if (!pickerConfig?.allowedUuids?.length) return;
+
+    const selectChoice = async (item) => {
+      feat.choices = { ...(feat.choices ?? {}), [flag]: item.uuid };
+      await syncPlannedFeatChoiceSkillRules(feat, flag, item.uuid, {
+        grantsSkillTraining: choiceSet.grantsSkillTraining === true,
+      });
+      await this._savePlanAndRender();
+    };
+
+    if (pickerConfig.kind === 'spell') {
+      const { SpellPicker } = await import('../spell-picker.js');
+      const picker = new SpellPicker(
+        this.actor,
+        'any',
+        Number.isInteger(pickerConfig.rank) ? pickerConfig.rank : -1,
+        selectChoice,
+        {
+          allowedUuids: pickerConfig.allowedUuids,
+          exactRank: Number.isInteger(pickerConfig.rank) && pickerConfig.rank >= 0,
+          preset: {
+            ...(Number.isInteger(pickerConfig.rank) && pickerConfig.rank >= 0 ? {
+              selectedRanks: [pickerConfig.rank],
+              lockedRanks: [pickerConfig.rank],
+            } : {}),
+          },
+          title: pickerConfig.title,
+        },
+      );
+      picker.render(true);
+      return;
+    }
+
+    const buildState = computeBuildState(this.actor, this.plan, this.selectedLevel);
+    const picker = new FeatPicker(
+      this.actor,
+      pickerConfig.category ?? 'custom',
+      pickerConfig.level ?? this.selectedLevel,
+      buildState,
+      selectChoice,
+      {
+        preset: {
+          allowedFeatUuids: pickerConfig.allowedUuids,
+          selectedRarities: ['common', 'uncommon', 'rare', 'unique'],
+        },
+        title: pickerConfig.title,
+      },
+    );
+    picker.render(true);
+  }
+
+  _findRenderedPlannedFeatChoiceSet(context, { category, flag, index = 0 } = {}) {
+    const contextKeys = {
+      classFeats: ['classFeatChoiceSets', 'classFeat'],
+      skillFeats: ['skillFeatChoiceSets', 'skillFeat'],
+      generalFeats: ['generalFeatChoiceSets', 'generalFeat'],
+      ancestryFeats: ['ancestryFeatChoiceSets', 'ancestryFeat', 'generalFeatGrantedAncestryFeat'],
+      archetypeFeats: ['archetypeFeatChoiceSets', 'archetypeFeat'],
+    };
+
+    if (category === 'customFeats') {
+      const entry = context?.customFeats?.[index];
+      return [...(entry?.choiceSets ?? []), ...(entry?.feat?.grantChoiceSets ?? [])]
+        .find((choiceSet) => choiceSet.flag === flag) ?? null;
+    }
+
+    const keys = contextKeys[category] ?? [];
+    for (const key of keys) {
+      const value = context?.[key];
+      const choiceSets = Array.isArray(value) ? value : value?.grantChoiceSets;
+      const found = (choiceSets ?? []).find((choiceSet) => choiceSet.flag === flag);
+      if (found) return found;
+    }
+    return null;
+  }
+
   _openCustomFeatPicker(level, index = null) {
     const buildState = computeBuildState(this.actor, this.plan, level);
     const existingFeatUuids = new Set();
@@ -1792,12 +1878,13 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         };
       case 'archetypeFeats': {
         const isFreeArchetypeEntryLevel = level === 2;
+        const canChooseDedication = isFreeArchetypeEntryLevel || buildState?.canTakeNewArchetypeDedication === true;
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
           selectedTraits: isFreeArchetypeEntryLevel ? ['archetype', 'dedication'] : ['archetype'],
-          excludedTraits: isFreeArchetypeEntryLevel ? undefined : ['dedication'],
-          lockedTraits: isFreeArchetypeEntryLevel ? ['archetype'] : ['archetype', 'dedication'],
+          excludedTraits: canChooseDedication ? undefined : ['dedication'],
+          lockedTraits: canChooseDedication ? ['archetype'] : ['archetype', 'dedication'],
           traitLogic: 'and',
           maxLevel: level,
         };
@@ -2188,6 +2275,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         multiSelect: true,
         maxSelect,
         takenItems: requirement.kind === 'formula' ? this._getTakenFormulaGrantSelections() : [],
+        collapseFormulaVariants: requirement.kind === 'formula',
         title: buildFeatGrantPickerTitle(requirement),
         preset: buildItemGrantPickerPreset(requirement, {
           maxLevelCap: requirement.kind === 'formula' ? this.selectedLevel : null,
@@ -2234,7 +2322,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _getTakenFormulaGrantSelections() {
     const selectedLevel = Number(this.selectedLevel);
     const maxLevel = Number.isFinite(selectedLevel) ? selectedLevel : MAX_LEVEL;
-    const selections = [];
+    const selections = getActorKnownFormulaSelections(this.actor);
 
     for (let level = 1; level <= maxLevel; level++) {
       const levelData = this.plan?.levels?.[level];
@@ -2331,6 +2419,19 @@ function normalizeRarityFilter(value, allowedValues) {
   const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
   const allowed = new Set(allowedValues);
   return [...new Set(values.map((entry) => String(entry).toLowerCase()).filter((entry) => allowed.has(entry)))];
+}
+
+function getActorKnownFormulaSelections(actor) {
+  return (actor?.system?.crafting?.formulas ?? [])
+    .map((formula) => {
+      const uuid = typeof formula === 'string' ? formula : formula?.uuid;
+      if (!uuid) return null;
+      return {
+        uuid,
+        ...(formula?.name ? { name: formula.name } : {}),
+      };
+    })
+    .filter(Boolean);
 }
 
 function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) {

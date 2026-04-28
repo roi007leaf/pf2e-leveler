@@ -11,7 +11,7 @@ import {
 import { computeBuildState } from '../../plan/build-state.js';
 import { isCantripExpansionFeat } from '../../plan/spellbook-feats.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities, loadTaggedClassFeatures } from '../character-wizard/loaders.js';
-import { extractGrantedTrainedSkills, parseChoiceSets } from '../character-wizard/choice-sets.js';
+import { extractGrantedTrainedSkills, normalizePf2eCompendiumUuid, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
 import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
@@ -46,6 +46,11 @@ export async function buildLevelContext(planner, classDef, options) {
     : [];
   const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, classFeat);
   const generalFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, generalFeat);
+  const generalFeatHasNativeAncestryGrantChoice = generalFeatGrantsAncestryFeat
+    && hasNativeAncestryFeatChoiceSet(generalFeatChoiceSets);
+  if (generalFeatHasNativeAncestryGrantChoice) {
+    suppressNativeAncestryGrantPreview(generalFeat);
+  }
   const ancestryFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, ancestryFeat);
   const generalFeatGrantedAncestryFeat = generalFeatGrantsAncestryFeat
     ? mergePlannerChoiceSetsIntoFeat(ancestryFeat, ancestryFeatChoiceSets)
@@ -53,6 +58,15 @@ export async function buildLevelContext(planner, classDef, options) {
   const archetypeFeat = await enrichPlannerFeat(planner, extractFeat(levelData.archetypeFeats));
   const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
   const customFeats = await buildCustomPlannerFeatEntries(planner, levelData.customFeats ?? []);
+  stampGrantChoiceCategory(classFeat, 'classFeats');
+  stampGrantChoiceCategory(skillFeat, 'skillFeats');
+  stampGrantChoiceCategory(generalFeat, 'generalFeats');
+  stampGrantChoiceCategory(ancestryFeat, 'ancestryFeats');
+  stampGrantChoiceCategory(generalFeatGrantedAncestryFeat, 'ancestryFeats');
+  stampGrantChoiceCategory(archetypeFeat, 'archetypeFeats');
+  for (const entry of customFeats) {
+    stampGrantChoiceCategory(entry.feat, 'customFeats');
+  }
   const customSkillIncreaseGroups = buildCustomSkillIncreaseGroups(levelData.customSkillIncreases ?? []);
   const customAvailableSkills = buildCustomAvailableSkills(planner, levelData, level);
   const customSpellEntryOptions = buildCustomSpellEntryOptions(planner, level);
@@ -84,7 +98,8 @@ export async function buildLevelContext(planner, classDef, options) {
     showAncestryFeat: choiceTypes.has('ancestryFeat') && !generalFeatGrantsAncestryFeat,
     ancestryFeat,
     ancestryFeatChoiceSets,
-    showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat,
+    showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat
+      && (!generalFeatHasNativeAncestryGrantChoice || !!generalFeatGrantedAncestryFeat),
     generalFeatGrantedAncestryFeat,
     showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
@@ -432,6 +447,26 @@ function isAncestralParagonFeat(feat) {
   return slug === 'ancestral-paragon' || name === 'ancestral paragon';
 }
 
+function hasNativeAncestryFeatChoiceSet(choiceSets) {
+  return (choiceSets ?? []).some((choiceSet) => {
+    const prompt = String(choiceSet?.prompt ?? '').toLowerCase();
+    if (prompt.includes('ancestry feat')) return true;
+    return (choiceSet?.options ?? []).some((option) =>
+      (option?.traits ?? []).map((trait) => String(trait).toLowerCase()).includes('ancestry'));
+  });
+}
+
+function suppressNativeAncestryGrantPreview(feat) {
+  if (!feat) return;
+  const selectedValues = new Set(
+    Object.values(feat.choices ?? {})
+      .filter((value) => typeof value === 'string' && value.length > 0),
+  );
+  if (selectedValues.size === 0) return;
+
+  feat.grantedItems = (feat.grantedItems ?? []).filter((item) => !selectedValues.has(item?.uuid));
+}
+
 function isAdoptedAncestryFeat(feat) {
   if (!feat) return false;
   const slug = String(feat.slug ?? '').toLowerCase();
@@ -496,11 +531,7 @@ async function buildPlannerFeatChoiceSets(planner, feat) {
   }
 
   return combined
-    .map((entry) => ({
-      ...entry,
-      options: hydratePlannerChoiceOptions(planner, entry, feat),
-      choiceType: entry.choiceType ?? (entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item'),
-    }))
+    .map((entry) => decoratePlannerChoiceSetForRender(planner, entry, feat))
     .filter((entry) => entry.choiceType === 'lore' || entry.options.length > 0);
 }
 
@@ -536,10 +567,47 @@ async function buildPlannerSpecialChoiceSets(planner, feat, source) {
     });
   }
 
+  if (hasLanguageChoiceSlot(source) && !special.some((entry) => entry.choiceType === 'language')) {
+    special.push(buildPlannerLanguageChoiceSet());
+  }
+
   const dedicationSubclassChoiceSet = await buildPlannerDedicationSubclassChoiceSet(planner, feat, source);
   if (dedicationSubclassChoiceSet) special.push(dedicationSubclassChoiceSet);
 
   return special;
+}
+
+function hasLanguageChoiceSlot(source) {
+  return (source?.system?.rules ?? []).some((rule) => {
+    if (rule?.key !== 'ActiveEffectLike' || rule?.path !== 'system.build.languages.max') return false;
+    return getLanguageSlotCount(rule.value) > 0;
+  });
+}
+
+function getLanguageSlotCount(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+  const parsed = parseInt(value, 10);
+  if (Number.isFinite(parsed)) return parsed;
+  return value.startsWith('ternary(') ? 1 : 0;
+}
+
+function buildPlannerLanguageChoiceSet() {
+  return {
+    flag: 'levelerLanguageChoice',
+    prompt: 'Select a language.',
+    choiceType: 'language',
+    options: filterDisallowedForCurrentUser(annotateGuidanceBySlug(getAvailableLanguages(), 'language')).map((entry) => ({
+      value: entry.slug,
+      label: entry.label,
+      rarity: entry.rarity,
+      isRecommended: entry.isRecommended,
+      isNotRecommended: entry.isNotRecommended,
+      isDisallowed: entry.isDisallowed,
+      guidanceSelectionBlocked: entry.guidanceSelectionBlocked,
+      guidanceSelectionTooltip: entry.guidanceSelectionTooltip,
+    })),
+  };
 }
 
 async function buildPlannerDedicationSubclassChoiceSet(planner, feat, source) {
@@ -592,7 +660,9 @@ function hydratePlannerChoiceOptions(planner, entry, feat) {
   const selectedValue = String(feat?.choices?.[entry.flag] ?? '');
   const options = (entry.options ?? []).map((option) => ({
     ...option,
-    selected: String(option?.value ?? '') === selectedValue,
+    uuid: option.uuid ?? (isItemUuid(option.value) ? option.value : null),
+    selected: plannerChoiceValueMatches(option?.value, selectedValue)
+      || plannerChoiceValueMatches(option?.uuid, selectedValue),
   }));
 
   const isSkillChoiceSet = (entry.choiceType === 'skill')
@@ -613,6 +683,93 @@ function hydratePlannerChoiceOptions(planner, entry, feat) {
       selected: true,
     },
   ];
+}
+
+function decoratePlannerChoiceSetForRender(planner, entry, feat) {
+  const choiceType = entry.choiceType
+    ?? (entry.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item');
+  const hydratedEntry = { ...entry, choiceType };
+  const options = hydratePlannerChoiceOptions(planner, hydratedEntry, feat);
+  const decorated = {
+    ...hydratedEntry,
+    options,
+  };
+  const choicePicker = buildPlannerChoicePickerMetadata(decorated);
+  if (choicePicker) decorated.choicePicker = choicePicker;
+  return decorated;
+}
+
+function buildPlannerChoicePickerMetadata(choiceSet) {
+  if (choiceSet?.choiceType !== 'item') return null;
+  const options = (choiceSet.options ?? []).filter((option) => isItemUuid(option.uuid ?? option.value));
+  if (options.length === 0) return null;
+  const allowedUuids = options.map((option) => option.uuid ?? option.value);
+  const selectedOption = options.find((option) => option.selected) ?? null;
+  const isSpell = options.some((option) =>
+    String(option.type ?? '').toLowerCase() === 'spell'
+    || String(option.uuid ?? option.value ?? '').includes('.spells-'));
+
+  if (isSpell) {
+    const rank = inferChoiceSetSpellRank(choiceSet);
+    return {
+      kind: 'spell',
+      allowedUuids,
+      rank,
+      title: choiceSet.prompt,
+      selectedOption,
+    };
+  }
+
+  return {
+    kind: 'feat',
+    allowedUuids,
+    category: inferChoiceSetFeatCategory(choiceSet, options),
+    level: inferChoiceSetFeatLevel(options),
+    title: choiceSet.prompt,
+    selectedOption,
+  };
+}
+
+function inferChoiceSetSpellRank(choiceSet) {
+  const text = `${choiceSet?.flag ?? ''} ${choiceSet?.prompt ?? ''}`.toLowerCase();
+  if (text.includes('cantrip')) return 0;
+  const ranks = (choiceSet?.options ?? [])
+    .map((option) => Number(option.rank ?? option.level ?? option.system?.level?.value))
+    .filter(Number.isFinite);
+  if (ranks.length > 0 && ranks.every((rank) => rank === ranks[0])) return ranks[0];
+  return -1;
+}
+
+function inferChoiceSetFeatCategory(choiceSet, options) {
+  const text = `${choiceSet?.flag ?? ''} ${choiceSet?.prompt ?? ''}`.toLowerCase();
+  if (text.includes('ancestry')) return 'ancestry';
+  if (text.includes('class')) return 'class';
+  if (text.includes('skill')) return 'skill';
+  if (text.includes('archetype')) return 'archetype';
+  const traits = options.flatMap((option) => option.traits ?? []).map((trait) => String(trait).toLowerCase());
+  if (traits.includes('ancestry')) return 'ancestry';
+  if (traits.includes('skill')) return 'skill';
+  return 'custom';
+}
+
+function inferChoiceSetFeatLevel(options) {
+  const levels = options
+    .map((option) => Number(option.level ?? option.system?.level?.value))
+    .filter(Number.isFinite);
+  if (levels.length === 0) return 1;
+  return Math.max(...levels);
+}
+
+function isItemUuid(value) {
+  return /^(?:Compendium|Actor)\./.test(String(value ?? ''));
+}
+
+function plannerChoiceValueMatches(candidate, selectedValue) {
+  const candidateText = String(candidate ?? '');
+  const selectedText = String(selectedValue ?? '');
+  if (!candidateText || !selectedText) return false;
+  return candidateText === selectedText
+    || normalizePf2eCompendiumUuid(candidateText) === normalizePf2eCompendiumUuid(selectedText);
 }
 
 async function backfillPlannerFeatSkillRules(feat, source) {
@@ -674,11 +831,12 @@ async function collectGrantPreviewEntries({
     const choiceSets = dedupePlannerChoiceSets([...parsedChoiceSets, ...fallbackChoiceSets, ...dedicationChoiceSets]);
     for (const choiceSet of choiceSets) {
       if (grantChoiceSets.some((entry) => getChoiceSetSignature(entry) === getChoiceSetSignature(choiceSet))) continue;
-      grantChoiceSets.push({
+      const choiceType = choiceSet.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item';
+      grantChoiceSets.push(decoratePlannerChoiceSetForRender(planner, {
         ...choiceSet,
-        choiceType: choiceSet.options.every((option) => SKILLS.includes(String(option.value ?? '').toLowerCase())) ? 'skill' : 'item',
+        choiceType,
         sourceName: item.name,
-      });
+      }, { choices: storedChoices }));
     }
   }
 
@@ -766,6 +924,14 @@ function mergePlannerChoiceSetsIntoFeat(feat, choiceSets) {
     ...feat,
     grantChoiceSets: dedupePlannerChoiceSets([...(feat.grantChoiceSets ?? []), ...(choiceSets ?? [])]),
   };
+}
+
+function stampGrantChoiceCategory(feat, category) {
+  if (!feat || !Array.isArray(feat.grantChoiceSets)) return;
+  feat.grantChoiceSets = feat.grantChoiceSets.map((choiceSet) => ({
+    ...choiceSet,
+    choiceCategory: category,
+  }));
 }
 
 function getChoiceSetSignature(entry) {
@@ -900,9 +1066,9 @@ function extractGrantPreselectedChoices(rule) {
 function resolveGrantRuleUuid(uuid, choices) {
   const raw = String(uuid ?? '').trim();
   if (!raw) return null;
-  if (!raw.includes('{item|flags.pf2e.rulesSelections.')) return raw;
+  if (!raw.includes('{item|flags.')) return raw;
 
-  const resolved = raw.replace(/\{item\|flags\.pf2e\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+  const resolved = raw.replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
     const value = choices?.[flag];
     return typeof value === 'string' ? value : '';
   });

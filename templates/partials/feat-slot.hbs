@@ -75,27 +75,41 @@
   {{#if (eq this.choiceType "skill")}}
   <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
     {{#each this.options}}
-    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../../category}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-grants-skill-training="{{#if ../grantsSkillTraining}}true{{else}}false{{/if}}" {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
+    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../choiceCategory}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-grants-skill-training="{{#if ../grantsSkillTraining}}true{{else}}false{{/if}}" {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
       <span class="skill-btn__name">{{this.label}}</span>
     </button>
     {{/each}}
+  </div>
+  {{else}}
+  {{#if this.choicePicker}}
+  <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    {{#if this.choicePicker.selectedOption}}
+    <button type="button" data-action="viewItem" data-uuid="{{this.choicePicker.selectedOption.uuid}}" style="background:none;border:0;padding:0;color:inherit;cursor:pointer;text-decoration:underline;">
+      {{this.choicePicker.selectedOption.label}}
+    </button>
+    {{else}}
+    <span>{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+    {{/if}}
+    <button type="button" class="spell-add-btn" data-action="openPlannedFeatChoicePicker" data-category="{{this.choiceCategory}}" data-flag="{{this.flag}}" style="padding: 3px 10px;">
+      {{localize "PF2E_LEVELER.UI.BROWSE"}}
+    </button>
   </div>
   {{else}}
   <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
     {{#each this.options}}
     <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}">
       {{#if this.img}}
-      <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>
+      <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
       {{/if}}
       <div class="wizard-item__info">
-        <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewFeat" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+        <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
       </div>
       {{#if this.selected}}
       <button type="button" class="wizard-item__select wizard-item__select--selected" disabled>
         <i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}
       </button>
       {{else}}
-      <button type="button" class="wizard-item__select" data-action="selectPlannedFeatChoice" data-category="{{../../category}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
+      <button type="button" class="wizard-item__select" data-action="selectPlannedFeatChoice" data-category="{{../choiceCategory}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
         {{#if this.guidanceSelectionBlocked}}
           {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}
         {{else}}
@@ -106,6 +120,7 @@
     </div>
     {{/each}}
   </div>
+  {{/if}}
   {{/if}}
   {{/each}}
 {{else}}
