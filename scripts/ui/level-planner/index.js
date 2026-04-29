@@ -88,7 +88,9 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
 const FEAT_SKILL_RULES_VERSION = 3;
 const FEAT_ALIASES_VERSION = 1;
+const FEAT_CORE_METADATA_VERSION = 1;
 const FEAT_SPELLCASTING_VERSION = FEAT_SPELLCASTING_METADATA_VERSION;
+const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 const INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS = [
   'arcana',
   'crafting',
@@ -456,9 +458,20 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (changed) savePlan(this.actor, plan);
 
     // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
-    const SKILL_RULES_FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
+    outerCoreMetadata: for (const levelData of Object.values(plan.levels)) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.coreMetadataVersion !== FEAT_CORE_METADATA_VERSION) {
+            this._needsFeatCoreMetadataBackfill = true;
+            break outerCoreMetadata;
+          }
+        }
+      }
+    }
+
+    // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
     outer: for (const levelData of Object.values(plan.levels)) {
-      for (const key of SKILL_RULES_FEAT_KEYS) {
+      for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
           if (feat.skillRulesResolved !== true || feat.skillRulesVersion !== FEAT_SKILL_RULES_VERSION) {
             this._needsSkillRulesBackfill = true;
@@ -470,7 +483,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Flag if any stored feats are missing alias resolution.
     outerAliases: for (const levelData of Object.values(plan.levels)) {
-      for (const key of SKILL_RULES_FEAT_KEYS) {
+      for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
           if (feat.aliasesResolved !== true || feat.aliasesVersion !== FEAT_ALIASES_VERSION) {
             this._needsFeatAliasesBackfill = true;
@@ -481,7 +494,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     outerSpellcasting: for (const levelData of Object.values(plan.levels)) {
-      for (const key of SKILL_RULES_FEAT_KEYS) {
+      for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
           if (feat.spellcastingMetadataVersion !== FEAT_SPELLCASTING_VERSION) {
             this._needsSpellcastingMetadataBackfill = true;
@@ -492,8 +505,29 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
+  async _backfillFeatCoreMetadata() {
+    for (const levelData of Object.values(this.plan.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData[key] ?? []) {
+          if (feat.coreMetadataVersion === FEAT_CORE_METADATA_VERSION) continue;
+          if (!feat.uuid) {
+            feat.coreMetadataVersion = FEAT_CORE_METADATA_VERSION;
+            continue;
+          }
+          try {
+            const doc = await fromUuid(feat.uuid);
+            if (doc) applyStoredFeatCoreMetadata(feat, doc);
+          } catch {
+            // Leave existing minimal feat data intact.
+          }
+          feat.coreMetadataVersion = FEAT_CORE_METADATA_VERSION;
+        }
+      }
+    }
+    await savePlan(this.actor, this.plan);
+  }
+
   async _backfillFeatSkillRules() {
-    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
     for (const levelData of Object.values(this.plan.levels ?? {})) {
       for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
@@ -519,7 +553,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _backfillFeatAliases() {
-    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
     for (const levelData of Object.values(this.plan.levels ?? {})) {
       for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
@@ -545,7 +578,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _backfillFeatSpellcastingMetadata() {
-    const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
     for (const levelData of Object.values(this.plan.levels ?? {})) {
       for (const key of FEAT_KEYS) {
         for (const feat of levelData[key] ?? []) {
@@ -889,6 +921,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext() {
+    if (this._needsFeatCoreMetadataBackfill) {
+      this._needsFeatCoreMetadataBackfill = false;
+      await this._backfillFeatCoreMetadata();
+    }
     if (this._needsSkillRulesBackfill) {
       this._needsSkillRulesBackfill = false;
       await this._backfillFeatSkillRules();
@@ -1617,6 +1653,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _openFeatPicker(category, level) {
+    if (this._needsFeatCoreMetadataBackfill) {
+      this._needsFeatCoreMetadataBackfill = false;
+      await this._backfillFeatCoreMetadata();
+    }
     const categoryMap = {
       classFeats: 'class',
       dualClassFeats: 'dualClass',
@@ -1655,6 +1695,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           img: feat.img,
           level: feat.system.level.value,
           traits: [...(feat.system?.traits?.value ?? [])],
+          system: buildStoredFeatSystemData(feat),
+          coreMetadataVersion: FEAT_CORE_METADATA_VERSION,
           choices: {},
           aliases,
           aliasesResolved: true,
@@ -1797,6 +1839,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             img: feat.img,
             level: feat.system.level.value,
             traits: [...(feat.system?.traits?.value ?? [])],
+            system: buildStoredFeatSystemData(feat),
+            coreMetadataVersion: FEAT_CORE_METADATA_VERSION,
             choices: {},
             aliases,
             aliasesResolved: true,
@@ -1882,7 +1926,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
-          selectedTraits: isFreeArchetypeEntryLevel ? ['archetype', 'dedication'] : ['archetype'],
+          selectedTraits: canChooseDedication ? ['archetype', 'dedication'] : ['archetype'],
           excludedTraits: canChooseDedication ? undefined : ['dedication'],
           lockedTraits: canChooseDedication ? ['archetype'] : ['archetype', 'dedication'],
           traitLogic: 'and',
@@ -2382,6 +2426,59 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       content: '.planner-content',
     });
   }
+}
+
+function buildStoredFeatSystemData(feat) {
+  const prerequisites = feat?.system?.prerequisites?.value;
+  const description = String(feat?.system?.description?.value ?? '').trim();
+  const rules = (feat?.system?.rules ?? [])
+    .filter((rule) => rule?.key === 'ActiveEffectLike' && rule?.path === 'system.build.languages.max')
+    .map((rule) => ({
+      key: rule.key,
+      path: rule.path,
+      ...(rule.mode ? { mode: rule.mode } : {}),
+      value: rule.value,
+    }));
+  if (
+    (!Array.isArray(prerequisites) || prerequisites.length === 0) &&
+    rules.length === 0 &&
+    !/\blanguage(?:s)?\b/i.test(description)
+  ) {
+    return undefined;
+  }
+
+  const system = {};
+  if (Array.isArray(prerequisites) && prerequisites.length > 0) {
+    system.prerequisites = {
+      value: prerequisites
+        .map((entry) => {
+          const value = typeof entry === 'string' ? entry : entry?.value;
+          return typeof value === 'string' && value.trim().length > 0
+            ? { value: value.trim() }
+            : null;
+        })
+        .filter(Boolean),
+    };
+  }
+  if (rules.length > 0) system.rules = rules;
+  if (/\blanguage(?:s)?\b/i.test(description)) system.description = { value: description };
+  return system;
+}
+
+function applyStoredFeatCoreMetadata(target, source) {
+  target.name = source?.name ?? target.name;
+  target.slug = source?.slug ?? target.slug;
+  target.img = source?.img ?? target.img;
+  const level = Number(source?.system?.level?.value ?? source?.level);
+  if (Number.isFinite(level)) target.level = level;
+  target.traits = [
+    ...new Set([
+      ...(Array.isArray(target?.traits) ? target.traits : []),
+      ...(source?.system?.traits?.value ?? []),
+    ]),
+  ];
+  const system = buildStoredFeatSystemData(source);
+  if (system) target.system = system;
 }
 
 function getRemainingGrantSelections(requirement, currentSelections) {

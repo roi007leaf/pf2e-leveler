@@ -1166,7 +1166,7 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
       ...(Array.isArray(feat?.traits) ? feat.traits : []),
       ...(feat?.system?.traits?.value ?? []),
     ].map((trait) => String(trait).toLowerCase());
-    if (!featTraits.includes('archetype')) continue;
+    if (!isArchetypeTimelineEntry(entry, featTraits)) continue;
 
     const candidateDedications = timeline
       .filter(
@@ -1205,16 +1205,39 @@ function buildArchetypeFeatTimeline(actor, plan, atLevel) {
 
   const plannedFeats = [];
   let order = actorFeats.length;
+  const featKeys = [
+    'classFeats',
+    'skillFeats',
+    'generalFeats',
+    'ancestryFeats',
+    'archetypeFeats',
+    'mythicFeats',
+    'dualClassFeats',
+    'customFeats',
+  ];
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan?.levels?.[level];
     if (!levelData) continue;
-    for (const feat of levelData.archetypeFeats ?? []) {
-      plannedFeats.push({ feat, level, order });
-      order++;
+    for (const key of featKeys) {
+      for (const feat of levelData[key] ?? []) {
+        if (
+          !isArchetypeDedication(feat) &&
+          key !== 'archetypeFeats' &&
+          !getFeatTraitSlugs(feat).includes('archetype')
+        ) {
+          continue;
+        }
+        plannedFeats.push({ feat, level, order, category: key });
+        order++;
+      }
     }
   }
 
   return [...actorFeats, ...plannedFeats].sort(compareTimelineEntries);
+}
+
+function isArchetypeTimelineEntry(entry, featTraits = getFeatTraitSlugs(entry?.feat)) {
+  return entry?.category === 'archetypeFeats' || featTraits.includes('archetype');
 }
 
 function getActorFeatLevel(feat) {
@@ -1407,11 +1430,15 @@ function getPrimaryFeatAlias(feat) {
 }
 
 function isArchetypeDedication(feat) {
-  const traits = [
+  const traits = getFeatTraitSlugs(feat);
+  return traits.includes('dedication') && traits.includes('archetype');
+}
+
+function getFeatTraitSlugs(feat) {
+  return [
     ...(Array.isArray(feat?.traits) ? feat.traits : []),
     ...(feat?.system?.traits?.value ?? []),
   ].map((trait) => String(trait).toLowerCase());
-  return traits.includes('dedication') && traits.includes('archetype');
 }
 
 function getArchetypeAssociationTraits(feat) {

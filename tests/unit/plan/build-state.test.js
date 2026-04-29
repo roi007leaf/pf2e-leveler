@@ -832,6 +832,118 @@ describe('computeBuildState', () => {
     expect(state.canTakeNewArchetypeDedication).toBe(true);
   });
 
+  test('counts same-level generic archetype feats by stored dedication prerequisite text', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+              name: 'Archaeologist Dedication',
+              slug: 'archaeologist-dedication',
+              traits: ['archetype', 'dedication', 'archaeologist'],
+            },
+          ],
+        },
+        4: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+              name: 'Trap Finder',
+              slug: 'trap-finder',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+              name: 'Settlement Scholastics',
+              slug: 'settlement-scholastics',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+
+    expect(state.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+  });
+
+  test('counts generic same-level skill and free-archetype feats after earlier completed dedications', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+              name: 'Medic Dedication',
+              slug: 'medic-dedication',
+              traits: ['archetype', 'dedication', 'medic'],
+            },
+          ],
+        },
+        3: {
+          skillFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+              name: 'Treat Condition',
+              slug: 'treat-condition',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+            },
+          ],
+        },
+        4: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.holistic-care',
+              name: 'Holistic Care',
+              slug: 'holistic-care',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+            },
+          ],
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+              name: 'Archaeologist Dedication',
+              slug: 'archaeologist-dedication',
+              traits: ['archetype', 'dedication', 'archaeologist'],
+            },
+          ],
+        },
+        5: {
+          skillFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+              name: 'Settlement Scholastics',
+              slug: 'settlement-scholastics',
+              traits: ['archetype', 'skill'],
+            },
+          ],
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+              name: 'Trap Finder',
+              slug: 'trap-finder',
+              traits: ['skill'],
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 5);
+
+    expect(state.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+  });
+
   test('tracks planned Multitalented dedication choices as class archetype dedications', () => {
     const plan = {
       levels: {

@@ -69,6 +69,41 @@ describe('ItemPicker', () => {
     ]));
   });
 
+  test('filters formula items by player rarity permissions when loading items', async () => {
+    game.user = { isGM: false };
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope !== 'pf2e-leveler') return false;
+      if (key === 'playerAllowUncommon') return false;
+      if (key === 'playerAllowRare') return false;
+      if (key === 'playerAllowUnique') return false;
+      return false;
+    });
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.equipment-srd') return null;
+      return {
+        metadata: { packageName: 'pf2e', package: 'pf2e' },
+        getDocuments: jest.fn(async () => [
+          {
+            uuid: 'formula-common',
+            name: 'Common Formula',
+            type: 'consumable',
+            system: { traits: { rarity: 'common', value: [] }, level: { value: 1 } },
+          },
+          {
+            uuid: 'formula-rare',
+            name: 'Rare Formula',
+            type: 'consumable',
+            system: { traits: { rarity: 'rare', value: [] }, level: { value: 1 } },
+          },
+        ]),
+      };
+    });
+
+    const items = await loadItems();
+
+    expect(items.map((item) => item.uuid)).toEqual(['formula-common']);
+  });
+
   test('uses custom formula grant title and empty copy', async () => {
     const picker = new ItemPicker({ name: 'Actor' }, jest.fn(), {
       title: 'Bomber: Formula',

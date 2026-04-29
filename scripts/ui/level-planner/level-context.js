@@ -45,6 +45,8 @@ export async function buildLevelContext(planner, classDef, options) {
     ? await buildAdoptedAncestryOptions(planner, generalFeat)
     : [];
   const classFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, classFeat);
+  const skillFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, skillFeat);
+  const skillFeatWithChoiceSets = mergePlannerChoiceSetsIntoFeat(skillFeat, skillFeatChoiceSets);
   const generalFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, generalFeat);
   const generalFeatHasNativeAncestryGrantChoice = generalFeatGrantsAncestryFeat
     && hasNativeAncestryFeatChoiceSet(generalFeatChoiceSets);
@@ -61,7 +63,7 @@ export async function buildLevelContext(planner, classDef, options) {
   const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
   const customFeats = await buildCustomPlannerFeatEntries(planner, levelData.customFeats ?? []);
   stampGrantChoiceCategory(classFeat, 'classFeats');
-  stampGrantChoiceCategory(skillFeat, 'skillFeats');
+  stampGrantChoiceCategory(skillFeatWithChoiceSets, 'skillFeats');
   stampGrantChoiceCategory(generalFeat, 'generalFeats');
   stampGrantChoiceCategory(ancestryFeat, 'ancestryFeats');
   stampGrantChoiceCategory(
@@ -93,7 +95,7 @@ export async function buildLevelContext(planner, classDef, options) {
     classFeat,
     classFeatChoiceSets,
     showSkillFeat: choiceTypes.has('skillFeat'),
-    skillFeat,
+    skillFeat: skillFeatWithChoiceSets,
     showGeneralFeat: choiceTypes.has('generalFeat'),
     generalFeat,
     generalFeatChoiceSets,
@@ -541,9 +543,10 @@ async function buildAdoptedAncestryOptions(planner, feat) {
 async function buildPlannerFeatChoiceSets(planner, feat) {
   if (!feat?.uuid) return [];
 
-  const source = await fromUuid(feat.uuid).catch(() => null);
-  if (source) {
-    await backfillPlannerFeatSkillRules(feat, source);
+  const resolvedSource = await fromUuid(feat.uuid).catch(() => null);
+  const source = resolvedSource ?? feat;
+  if (resolvedSource) {
+    await backfillPlannerFeatSkillRules(feat, resolvedSource);
   }
   const rules = Array.isArray(source?.system?.rules) ? source.system.rules : [];
 
@@ -614,8 +617,12 @@ async function buildPlannerSpecialChoiceSets(planner, feat, source) {
     });
   }
 
-  if (hasLanguageChoiceSlot(source) && !special.some((entry) => entry.choiceType === 'language')) {
-    special.push(buildPlannerLanguageChoiceSet());
+  const textLanguageRarities = getLanguageChoiceRaritiesFromDescription(source);
+  if (
+    (hasLanguageChoiceSlot(source) || textLanguageRarities) &&
+    !special.some((entry) => entry.choiceType === 'language')
+  ) {
+    special.push(buildPlannerLanguageChoiceSet({ rarities: textLanguageRarities }));
   }
 
   const dedicationSubclassChoiceSet = await buildPlannerDedicationSubclassChoiceSet(planner, feat, source);
@@ -639,21 +646,39 @@ function getLanguageSlotCount(value) {
   return value.startsWith('ternary(') ? 1 : 0;
 }
 
-function buildPlannerLanguageChoiceSet() {
+function getLanguageChoiceRaritiesFromDescription(source) {
+  const description = String(source?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!/\b(?:learn|gain|choose|select)\b[^.]*\blanguage(?:s)?\b[^.]*\b(?:choice|choose|select)\b/u.test(description)) {
+    return null;
+  }
+  if (/\bcommon\s+or\s+uncommon\s+language\b/u.test(description)) return new Set(['common', 'uncommon']);
+  if (/\bcommon\s+language\b/u.test(description)) return new Set(['common']);
+  if (/\buncommon\s+language\b/u.test(description)) return new Set(['uncommon']);
+  return null;
+}
+
+function buildPlannerLanguageChoiceSet({ rarities = null } = {}) {
+  const allowedRarities = rarities instanceof Set ? rarities : null;
   return {
     flag: 'levelerLanguageChoice',
     prompt: 'Select a language.',
     choiceType: 'language',
-    options: filterDisallowedForCurrentUser(annotateGuidanceBySlug(getAvailableLanguages(), 'language')).map((entry) => ({
-      value: entry.slug,
-      label: entry.label,
-      rarity: entry.rarity,
-      isRecommended: entry.isRecommended,
-      isNotRecommended: entry.isNotRecommended,
-      isDisallowed: entry.isDisallowed,
-      guidanceSelectionBlocked: entry.guidanceSelectionBlocked,
-      guidanceSelectionTooltip: entry.guidanceSelectionTooltip,
-    })),
+    options: filterDisallowedForCurrentUser(annotateGuidanceBySlug(getAvailableLanguages(), 'language'))
+      .filter((entry) => !allowedRarities || allowedRarities.has(String(entry.rarity ?? 'common').toLowerCase()))
+      .map((entry) => ({
+        value: entry.slug,
+        label: entry.label,
+        rarity: entry.rarity,
+        isRecommended: entry.isRecommended,
+        isNotRecommended: entry.isNotRecommended,
+        isDisallowed: entry.isDisallowed,
+        guidanceSelectionBlocked: entry.guidanceSelectionBlocked,
+        guidanceSelectionTooltip: entry.guidanceSelectionTooltip,
+      })),
   };
 }
 

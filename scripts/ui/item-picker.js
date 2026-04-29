@@ -1,5 +1,6 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
+import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
@@ -1001,9 +1002,10 @@ export async function loadItems() {
       item.publicationTitle = item.publicationTitle ?? item.system?.publication?.title ?? null;
       return item;
     }));
-  _itemCache = items;
+  _itemCache = items.filter((item) =>
+    isRarityAllowedForCurrentUser(item?.system?.traits?.rarity ?? item?.rarity ?? 'common'));
   annotateGuidance(_itemCache);
-  return items;
+  return _itemCache;
 }
 
 export function invalidateItemCache() {

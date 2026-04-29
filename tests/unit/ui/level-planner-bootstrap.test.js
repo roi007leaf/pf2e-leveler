@@ -2385,6 +2385,365 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('adds a common-or-uncommon language choice set from feat description text', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+    const originalGame = global.game;
+
+    const languageSettings = {
+      common: new Set(['common', 'elven']),
+      uncommon: new Set(['draconic']),
+      rare: new Set(['necril']),
+      secret: new Set(),
+    };
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          draconic: 'Draconic',
+          elven: 'Elven',
+          necril: 'Necril',
+        },
+        settings: {
+          campaign: {
+            languages: languageSettings,
+          },
+        },
+      },
+    };
+    global.game = {
+      ...global.game,
+      pf2e: {
+        settings: {
+          campaign: {
+            languages: languageSettings,
+          },
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.settlement-scholastics') {
+        return {
+          uuid,
+          name: 'Settlement Scholastics',
+          slug: 'settlement-scholastics',
+          system: {
+            description: {
+              value: '<p>You gain the Additional Lore skill feat and learn a single common or uncommon language of your choice that is prevalent in that settlement.</p>',
+            },
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.additional-lore' }],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.additional-lore') {
+        return {
+          uuid,
+          name: 'Additional Lore',
+          slug: 'additional-lore',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      const choiceSet = context.archetypeFeatChoiceSets.find((entry) => entry.flag === 'levelerLanguageChoice');
+      expect(choiceSet).toEqual(expect.objectContaining({
+        choiceType: 'language',
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'draconic', rarity: 'uncommon' }),
+          expect.objectContaining({ value: 'elven', rarity: 'common' }),
+        ]),
+      }));
+      expect(choiceSet.options.map((entry) => entry.value)).not.toContain('necril');
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+      global.game = originalGame;
+    }
+  });
+
+  it('renders description-based language choices on skill feat cards', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          elven: 'Elven',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].skillFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.settlement-scholastics') {
+        return {
+          uuid,
+          name: 'Settlement Scholastics',
+          slug: 'settlement-scholastics',
+          system: {
+            description: {
+              value: '<p>You gain Additional Lore and learn a single common or uncommon language of your choice.</p>',
+            },
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.additional-lore' }],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.additional-lore') {
+        return {
+          uuid,
+          name: 'Additional Lore',
+          slug: 'additional-lore',
+          system: { rules: [] },
+        };
+      }
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.skillFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerLanguageChoice',
+          choiceType: 'language',
+          choiceCategory: 'skillFeats',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'elven' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('adds a language choice set for predicate-gated archetype language slots', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          elven: 'Elven',
+        },
+      },
+    };
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      system: {
+        rules: [{
+          key: 'ActiveEffectLike',
+          path: 'system.build.languages.max',
+          mode: 'add',
+          value: 'ternary(gte(@actor.system.abilities.int.mod,2),1,0)',
+        }],
+      },
+    }));
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerLanguageChoice',
+          choiceType: 'language',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'elven' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('uses stored planned feat rules for language choices when the source document cannot be resolved', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          elven: 'Elven',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async () => null);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+      system: {
+        rules: [{
+          key: 'ActiveEffectLike',
+          path: 'system.build.languages.max',
+          value: 1,
+        }],
+      },
+    }];
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerLanguageChoice',
+          choiceType: 'language',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'elven' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
+  it('uses stored planned feat description text for language choices when the source document cannot be resolved', async () => {
+    const originalConfig = global.CONFIG;
+    const originalFromUuid = global.fromUuid;
+
+    global.CONFIG = {
+      PF2E: {
+        languages: {
+          common: 'Common',
+          elven: 'Elven',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async () => null);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: {
+          languages: { value: ['common'] },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 4;
+    planner.plan.levels[4].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      name: 'Settlement Scholastics',
+      slug: 'settlement-scholastics',
+      choices: {},
+      system: {
+        description: {
+          value: '<p>You gain Additional Lore and learn a single common or uncommon language of your choice.</p>',
+        },
+      },
+    }];
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.archetypeFeatChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'levelerLanguageChoice',
+          choiceType: 'language',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'elven' }),
+          ]),
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('unlocks archetype feat picker dedication filtering once a class dedication is planned', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'oracle';
@@ -2451,9 +2810,122 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     expect(buildState.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
-    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
+  });
+
+  it('reopens level 6 free-archetype dedication browsing after a level 4 skill archetype feat and level 6 free-archetype feat', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+      slug: 'archaeologist-dedication',
+      name: 'Archaeologist Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication'],
+      choices: {},
+    }];
+    planner.plan.levels[4].skillFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      slug: 'settlement-scholastics',
+      name: 'Settlement Scholastics',
+      level: 4,
+      traits: ['archetype', 'skill'],
+      choices: { levelerLanguageChoice: 'aklo' },
+    }];
+    planner.plan.levels[6].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+      slug: 'trap-finder',
+      name: 'Trap Finder',
+      level: 1,
+      traits: ['archetype', 'skill'],
+      choices: {},
+    }];
+
+    const buildState = computeBuildState(planner.actor, planner.plan, 6);
+    const preset = await planner._buildFeatPickerPreset('archetypeFeats', 6, buildState);
+
+    expect(buildState.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(buildState.canTakeNewArchetypeDedication).toBe(true);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
+    expect(preset.excludedTraits).toBeUndefined();
+    expect(preset.lockedTraits).toEqual(['archetype']);
+  });
+
+  it('backfills stale planned feat traits before building dedication picker state', async () => {
+    const originalFromUuid = global.fromUuid;
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'magus';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { freeArchetype: true });
+    planner.plan.levels[2].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+      slug: 'archaeologist-dedication',
+      name: 'Archaeologist Dedication',
+      level: 2,
+      traits: ['archetype', 'dedication'],
+      choices: {},
+    }];
+    planner.plan.levels[4].skillFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+      slug: 'settlement-scholastics',
+      name: 'Settlement Scholastics',
+      choices: { levelerLanguageChoice: 'aklo' },
+    }];
+    planner.plan.levels[6].archetypeFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+      slug: 'trap-finder',
+      name: 'Trap Finder',
+      choices: {},
+    }];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.settlement-scholastics') {
+        return {
+          uuid,
+          name: 'Settlement Scholastics',
+          slug: 'settlement-scholastics',
+          img: 'settlement.webp',
+          system: {
+            level: { value: 4 },
+            traits: { value: ['archetype', 'skill'] },
+            prerequisites: { value: [{ value: 'Archaeologist Dedication' }] },
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.trap-finder') {
+        return {
+          uuid,
+          name: 'Trap Finder',
+          slug: 'trap-finder',
+          img: 'trap.webp',
+          system: {
+            level: { value: 1 },
+            traits: { value: ['skill'] },
+            prerequisites: { value: [{ value: 'Archaeologist Dedication' }] },
+          },
+        };
+      }
+      return null;
+    });
+
+    try {
+      await planner._backfillFeatCoreMetadata();
+      const buildState = computeBuildState(planner.actor, planner.plan, 6);
+      const preset = await planner._buildFeatPickerPreset('archetypeFeats', 6, buildState);
+
+      expect(planner.plan.levels[4].skillFeats[0].traits).toEqual(['archetype', 'skill']);
+      expect(planner.plan.levels[6].archetypeFeats[0].traits).toEqual(['skill']);
+      expect(buildState.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+      expect(preset.excludedTraits).toBeUndefined();
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
   });
 
   it('unlocks archetype feat picker dedication filtering once any dedication is planned in the plan', async () => {
@@ -2522,7 +2994,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
     expect(preset.selectedFeatTypes).toEqual(['archetype']);
     expect(preset.lockedFeatTypes).toEqual(['archetype']);
-    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
     expect(preset.traitLogic).toBe('and');
@@ -2634,7 +3106,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(buildState.canTakeNewArchetypeDedication).toBe(true);
     expect(preset.selectedFeatTypes).toEqual(['archetype']);
     expect(preset.lockedFeatTypes).toEqual(['archetype']);
-    expect(preset.selectedTraits).toEqual(['archetype']);
+    expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
     expect(preset.traitLogic).toBe('and');

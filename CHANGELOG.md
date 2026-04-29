@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.7
+
+### Level Planner
+
+- **Settlement Scholastics now prompts for its text-granted language** - Feats that describe a common or uncommon language choice in their description now surface a planner language picker even when PF2e only models the feat with a granted item rule
+- **Same-level archetype completion now survives generic feat traits** - Planned archetype feats now retain prerequisite text so generic `archetype`/`skill` feats such as Trap Finder and Settlement Scholastics count toward completing the current dedication before reopening new dedications
+- **Reopened free-archetype pickers now default to dedications** - When a completed dedication allows a new dedication, the archetype picker opens with the `dedication` trait already selected
+- **Formula pickers now respect player rarity permissions** - Formula/item loading now applies the same player rarity settings used by feat and spell browsing
+
 ## 3.3.6
 
 ### Level Planner

@@ -49,6 +49,28 @@ describe('applyLanguages', () => {
     expect(result).toEqual(['draconic']);
   });
 
+  test('applies languages selected from skill feat language choices', async () => {
+    const plan = {
+      levels: {
+        4: {
+          skillFeats: [{
+            name: 'Settlement Scholastics',
+            choices: {
+              levelerLanguageChoice: 'elven',
+            },
+          }],
+        },
+      },
+    };
+
+    const result = await applyLanguages(mockActor, plan, 4);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.details.languages.value': ['common', 'elven'],
+    });
+    expect(result).toEqual(['elven']);
+  });
+
   test('returns empty when no bonus languages exist', async () => {
     const plan = { levels: { 5: { abilityBoosts: ['int'] } } };
     const result = await applyLanguages(mockActor, plan, 5);
