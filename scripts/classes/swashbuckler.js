@@ -15,6 +15,7 @@ export const SWASHBUCKLER = {
   abilityBoostSchedule: [5, 10, 15, 20],
 
   classFeatures: [
+    { level: 1, name: 'Precise Strike', key: 'precise-strike' },
     { level: 3, name: 'Fortitude Expertise', key: 'fortitude-expertise' },
     { level: 3, name: 'Opportune Riposte', key: 'opportune-riposte' },
     { level: 3, name: 'Stylish Tricks', key: 'stylish-tricks' },
@@ -25,7 +26,12 @@ export const SWASHBUCKLER = {
     { level: 7, name: 'Vivacious Speed', key: 'vivacious-speed' },
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Exemplary Finisher', key: 'exemplary-finisher' },
-    { level: 9, name: 'Swashbuckler Expertise', key: 'swashbuckler-expertise', proficiencies: { classdc: 2 } },
+    {
+      level: 9,
+      name: 'Swashbuckler Expertise',
+      key: 'swashbuckler-expertise',
+      proficiencies: { classdc: 2 },
+    },
     { level: 11, name: 'Continuous Flair', key: 'continuous-flair' },
     { level: 11, name: 'Perception Mastery', key: 'perception-mastery' },
     { level: 11, name: 'Vivacious Speed', key: 'vivacious-speed' },
