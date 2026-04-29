@@ -426,7 +426,13 @@ async function applyMissingGrantedFeatSection(actor, data, section) {
   const itemData = foundry.utils.deepClone(item.toObject());
   applyStoredChoices(itemData, getStoredChoiceSelections(data, uuid), section.choiceSets ?? []);
 
-  const sourceSuffix = formatManualGrantedSourceSuffix(data, section?.sourceName);
+  const nestedSource = findNestedManualGrantedSourceItem(actor, data, section);
+  if (nestedSource?.id) {
+    itemData.system ??= {};
+    itemData.system.location = nestedSource.id;
+  }
+
+  const sourceSuffix = nestedSource?.id ? '' : formatManualGrantedSourceSuffix(data, section?.sourceName);
   if (sourceSuffix) {
     itemData.name = `${itemData.name} (${sourceSuffix})`;
   }
@@ -786,6 +792,7 @@ function formatManualGrantedSourceSuffix(data, sourceName) {
 }
 
 function shouldApplyManualGrantedSection(data, section) {
+  if (isAncestryParagonGrantChain(data, section)) return true;
   if (!isAssuranceSection(section)) return !isSelectedFeatGrantChain(data, section);
 
   const sourceSection = findManualGrantedSourceSection(data, section);
@@ -805,6 +812,24 @@ function shouldApplyManualGrantedSection(data, section) {
   return !findMatchingChoiceOption(sourceChoiceSet.options ?? [], selectedValue);
 }
 
+function isAncestryParagonGrantChain(data, section) {
+  const sourceName = String(section?.sourceName ?? '').trim();
+  if (!sourceName.includes('->')) return false;
+  const [primarySource] = sourceName.split('->').map((part) => part.trim()).filter(Boolean);
+  return !!primarySource && String(data?.ancestryParagonFeat?.name ?? '').trim() === primarySource;
+}
+
+function findNestedManualGrantedSourceItem(actor, data, section) {
+  if (!isAncestryParagonGrantChain(data, section)) return null;
+  const sourceUuid = data?.ancestryParagonFeat?.uuid ?? null;
+  const sourceName = data?.ancestryParagonFeat?.name ?? null;
+  return getActorItems(actor).find((item) =>
+    (sourceUuid && getActorItemSourceId(item) === sourceUuid)
+    || (sourceUuid && item?.uuid === sourceUuid)
+    || (sourceName && item?.name === sourceName),
+  ) ?? null;
+}
+
 function isSelectedFeatGrantChain(data, section) {
   const sourceName = String(section?.sourceName ?? '').trim();
   if (!sourceName.includes('->')) return false;
@@ -819,6 +844,19 @@ function isSelectedFeatGrantChain(data, section) {
     data?.dualClassFeat,
     data?.skillFeat,
   ].some((feat) => String(feat?.name ?? '').trim() === primarySource);
+}
+
+function getActorItems(actor) {
+  if (Array.isArray(actor?.items)) return actor.items;
+  if (Array.isArray(actor?.items?.contents)) return actor.items.contents;
+  return [];
+}
+
+function getActorItemSourceId(item) {
+  return item?.sourceId
+    ?? item?.flags?.core?.sourceId
+    ?? item?._stats?.compendiumSource
+    ?? null;
 }
 
 function isAssuranceSection(section) {

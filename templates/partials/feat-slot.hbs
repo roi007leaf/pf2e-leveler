@@ -13,20 +13,22 @@
       data-uuid='{{feat.uuid}}'
     >{{feat.name}}</span>
     <span class='feat-slot__level'>Lvl {{feat.level}}</span>
-    <i
-      class='feat-slot__change fa-solid fa-pen-to-square'
-      data-action='openFeatPicker'
-      data-category='{{category}}'
-      data-level='{{level}}'
-      data-tooltip='{{localize "PF2E_LEVELER.UI.CHANGE"}}'
-    ></i>
-    <i
-      class='feat-slot__clear fa-solid fa-xmark'
-      data-action='clearFeat'
-      data-category='{{category}}'
-      data-level='{{level}}'
-      data-tooltip='{{localize "PF2E_LEVELER.UI.REMOVE"}}'
-    ></i>
+    {{#unless feat.readOnly}}
+      <i
+        class='feat-slot__change fa-solid fa-pen-to-square'
+        data-action='openFeatPicker'
+        data-category='{{category}}'
+        data-level='{{level}}'
+        data-tooltip='{{localize "PF2E_LEVELER.UI.CHANGE"}}'
+      ></i>
+      <i
+        class='feat-slot__clear fa-solid fa-xmark'
+        data-action='clearFeat'
+        data-category='{{category}}'
+        data-level='{{level}}'
+        data-tooltip='{{localize "PF2E_LEVELER.UI.REMOVE"}}'
+      ></i>
+    {{/unless}}
   </div>
   {{#if feat.manualSpellNote}}
   <div class='feat-slot__note'>

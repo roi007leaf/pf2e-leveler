@@ -1150,7 +1150,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.showSkillIncrease).toBe(true);
   });
 
-  it('shows an ancestry feat slot under Ancestral Paragon general feats', async () => {
+  it('hides the nested Ancestral Paragon feat preview until an ancestry feat is selected', async () => {
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'alchemist';
 
@@ -1166,7 +1166,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
     expect(context.showGeneralFeat).toBe(true);
-    expect(context.showGeneralFeatGrantedAncestryFeat).toBe(true);
+    expect(context.showGeneralFeatGrantedAncestryFeat).toBe(false);
     expect(context.showAncestryFeat).toBe(false);
   });
 
@@ -1326,7 +1326,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
-  it('does not duplicate native Ancestral Paragon ancestry-feat grants as granted item links', async () => {
+  it('renders native Ancestral Paragon selections as nested granted feats instead of bonus feat links', async () => {
     const originalFromUuid = global.fromUuid;
 
     const actor = createMockActor({ items: [] });
@@ -1422,7 +1422,12 @@ describe('LevelPlanner bootstrap from existing actor', () => {
       const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
 
       expect(context.generalFeat.grantedItems).toEqual([]);
-      expect(context.showGeneralFeatGrantedAncestryFeat).toBe(false);
+      expect(context.showGeneralFeatGrantedAncestryFeat).toBe(true);
+      expect(context.generalFeatGrantedAncestryFeat).toEqual(expect.objectContaining({
+        uuid: 'Compendium.pf2e.feats-srd.Item.arcane-tattoos',
+        name: 'Arcane Tattoos',
+        readOnly: true,
+      }));
       expect(context.generalFeatChoiceSets).toEqual(expect.arrayContaining([
         expect.objectContaining({
           flag: 'ancestralParagon',
@@ -1431,10 +1436,9 @@ describe('LevelPlanner bootstrap from existing actor', () => {
           ]),
         }),
       ]));
-      expect(context.generalFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+      expect(context.generalFeatGrantedAncestryFeat.grantChoiceSets).toEqual(expect.arrayContaining([
         expect.objectContaining({
           flag: 'cantrip',
-          sourceName: 'Arcane Tattoos',
         }),
       ]));
     } finally {
@@ -1556,7 +1560,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     try {
       const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
-      const cantripSet = context.generalFeat.grantChoiceSets.find((choiceSet) => choiceSet.flag === 'cantrip');
+      const cantripSet = context.generalFeatGrantedAncestryFeat.grantChoiceSets.find((choiceSet) => choiceSet.flag === 'cantrip');
 
       expect(cantripSet.choiceCategory).toBe('generalFeats');
       expect(cantripSet.choicePicker).toEqual(expect.objectContaining({

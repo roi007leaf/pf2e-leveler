@@ -53,7 +53,9 @@ export async function buildLevelContext(planner, classDef, options) {
   }
   const ancestryFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, ancestryFeat);
   const generalFeatGrantedAncestryFeat = generalFeatGrantsAncestryFeat
-    ? mergePlannerChoiceSetsIntoFeat(ancestryFeat, ancestryFeatChoiceSets)
+    ? generalFeatHasNativeAncestryGrantChoice
+      ? await buildNativeAncestralParagonGrantedFeat(planner, generalFeat, generalFeatChoiceSets, ancestryFeat, ancestryFeatChoiceSets)
+      : mergePlannerChoiceSetsIntoFeat(ancestryFeat, ancestryFeatChoiceSets)
     : ancestryFeat;
   const archetypeFeat = await enrichPlannerFeat(planner, extractFeat(levelData.archetypeFeats));
   const archetypeFeatChoiceSets = await buildPlannerFeatChoiceSets(planner, archetypeFeat);
@@ -62,7 +64,10 @@ export async function buildLevelContext(planner, classDef, options) {
   stampGrantChoiceCategory(skillFeat, 'skillFeats');
   stampGrantChoiceCategory(generalFeat, 'generalFeats');
   stampGrantChoiceCategory(ancestryFeat, 'ancestryFeats');
-  stampGrantChoiceCategory(generalFeatGrantedAncestryFeat, 'ancestryFeats');
+  stampGrantChoiceCategory(
+    generalFeatGrantedAncestryFeat,
+    generalFeatGrantedAncestryFeat?.choiceStorageCategory ?? 'ancestryFeats',
+  );
   stampGrantChoiceCategory(archetypeFeat, 'archetypeFeats');
   for (const entry of customFeats) {
     stampGrantChoiceCategory(entry.feat, 'customFeats');
@@ -99,7 +104,7 @@ export async function buildLevelContext(planner, classDef, options) {
     ancestryFeat,
     ancestryFeatChoiceSets,
     showGeneralFeatGrantedAncestryFeat: generalFeatGrantsAncestryFeat
-      && (!generalFeatHasNativeAncestryGrantChoice || !!generalFeatGrantedAncestryFeat),
+      && !!generalFeatGrantedAncestryFeat,
     generalFeatGrantedAncestryFeat,
     showSkillIncrease: choiceTypes.has('skillIncrease') && !planner._shouldHideHistoricalSkillIncrease(level),
     availableSkills: planner._buildSkillContext(levelData, level),
@@ -465,6 +470,48 @@ function suppressNativeAncestryGrantPreview(feat) {
   if (selectedValues.size === 0) return;
 
   feat.grantedItems = (feat.grantedItems ?? []).filter((item) => !selectedValues.has(item?.uuid));
+}
+
+async function buildNativeAncestralParagonGrantedFeat(planner, generalFeat, generalFeatChoiceSets, fallbackFeat, fallbackChoiceSets) {
+  const selectedUuid = getSelectedNativeAncestralParagonFeatUuid(generalFeat, generalFeatChoiceSets);
+  if (!selectedUuid) {
+    return fallbackFeat ? mergePlannerChoiceSetsIntoFeat(fallbackFeat, fallbackChoiceSets) : null;
+  }
+
+  const source = await fromUuid(selectedUuid).catch(() => null);
+  if (!source) return fallbackFeat ? mergePlannerChoiceSetsIntoFeat(fallbackFeat, fallbackChoiceSets) : null;
+
+  const feat = await enrichPlannerFeat(planner, {
+    uuid: source.uuid ?? selectedUuid,
+    slug: source.slug ?? null,
+    name: source.name,
+    img: source.img ?? null,
+    level: source.system?.level?.value ?? source.level ?? null,
+    traits: [...(source.system?.traits?.value ?? source.traits ?? [])],
+    choices: { ...(generalFeat?.choices ?? {}) },
+    readOnly: true,
+    choiceStorageCategory: 'generalFeats',
+  });
+  const choiceSets = await buildPlannerFeatChoiceSets(planner, feat);
+  return {
+    ...mergePlannerChoiceSetsIntoFeat(feat, choiceSets),
+    readOnly: true,
+    choiceStorageCategory: 'generalFeats',
+  };
+}
+
+function getSelectedNativeAncestralParagonFeatUuid(generalFeat, choiceSets) {
+  for (const choiceSet of choiceSets ?? []) {
+    if (!hasNativeAncestryFeatChoiceSet([choiceSet])) continue;
+    const selectedOption = (choiceSet.options ?? []).find((option) => option.selected);
+    const selectedFromOption = selectedOption?.uuid ?? selectedOption?.value;
+    if (isItemUuid(selectedFromOption)) return selectedFromOption;
+
+    const selectedFromChoice = generalFeat?.choices?.[choiceSet.flag];
+    if (isItemUuid(selectedFromChoice)) return selectedFromChoice;
+  }
+
+  return null;
 }
 
 function isAdoptedAncestryFeat(feat) {

@@ -1402,7 +1402,7 @@ describe('applyCreation ancestry paragon', () => {
     }
   });
 
-  it('does not manually backfill ancestry paragon selected feat chains into bonus feats', async () => {
+  it('backfills ancestry paragon selected feat chains nested under Ancestral Paragon', async () => {
     game.settings.get = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
       if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
@@ -1412,8 +1412,10 @@ describe('applyCreation ancestry paragon', () => {
     const createdDocs = [];
     const actor = createMockActor({ items: [] });
     actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
-      createdDocs.push(...docs);
-      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+      const created = docs.map((doc, index) => ({ ...doc, id: `${String(doc.name).toLowerCase().replace(/\W+/g, '-')}-${createdDocs.length + index}` }));
+      createdDocs.push(...created);
+      actor.items.push(...created);
+      return created;
     });
     actor.update = jest.fn(async () => {});
     actor.testUserPermission = jest.fn(() => true);
@@ -1463,7 +1465,9 @@ describe('applyCreation ancestry paragon', () => {
     });
 
     expect(createdDocs).toEqual([
-      expect.objectContaining({ name: 'Ancestral Paragon' }),
+      expect.objectContaining({ name: 'Ancestral Paragon', id: 'ancestral-paragon-0' }),
+      expect.objectContaining({ name: 'Natural Ambition', system: expect.objectContaining({ location: 'ancestral-paragon-0' }) }),
+      expect.objectContaining({ name: 'Alchemical Familiar', system: expect.objectContaining({ location: 'ancestral-paragon-0' }) }),
     ]);
   });
 

@@ -1,10 +1,15 @@
 # Changelog
 
+## 3.3.6
+
+### Level Planner
+
+- **Ancestral Paragon granted feats now nest under Ancestral Paragon when applied** - Selected ancestry feat chains such as Natural Ambition into Alchemical Familiar are applied beneath Ancestral Paragon instead of as bonus feat fallbacks
+
 ## 3.3.5
 
 ### Level Planner
 
-- **Ancestral Paragon granted feats now stay in the bonus feat section** - Granted ancestry feats such as Natural Ambition no longer also appear as nested general feat selections under Ancestral Paragon
 - **Dual-class HP now uses the highest class value** - Dual-class planning now assigns the better class HP value instead of whichever class was processed first
 - **Alchemist formula pickers now ignore already known wizard formulas** - Alchemist formula choices no longer show formulas already known from another source as selectable options
 - **Formula pickers now collapse formula variants** - Formula browsing now shows only the lowest version of a formula family, since learning it unlocks higher versions for crafting
