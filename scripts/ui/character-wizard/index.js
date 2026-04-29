@@ -45,7 +45,11 @@ import {
   removeCreationFeatGrantSelection,
   setPermanentItem,
 } from '../../creation/creation-model.js';
-import { buildFeatGrantRequirements, getFeatGrantCompletion, getFeatGrantSelections } from '../../plan/feat-grants.js';
+import {
+  buildFeatGrantRequirements,
+  getFeatGrantCompletion,
+  getFeatGrantSelections,
+} from '../../plan/feat-grants.js';
 import {
   getCreationData,
   saveCreationData,
@@ -267,7 +271,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     super();
     this.actor = actor;
     const storedCreationData = getCreationData(actor);
-    this.data = storedCreationData ? normalizeCreationData(storedCreationData) : createCreationData();
+    this.data = storedCreationData
+      ? normalizeCreationData(storedCreationData)
+      : createCreationData();
     this.currentStep = 0;
     this.featSubStep = 'ancestry';
     this.spellSubStep = 'cantrips';
@@ -303,11 +309,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._isDualClassCreationEnabled()) return false;
 
     const dualClassLabels = [
-      String(this.data?.dualSubclass?.name ?? '').trim().toLowerCase(),
-      String(this.data?.dualClass?.name ?? '').trim().toLowerCase(),
+      String(this.data?.dualSubclass?.name ?? '')
+        .trim()
+        .toLowerCase(),
+      String(this.data?.dualClass?.name ?? '')
+        .trim()
+        .toLowerCase(),
     ].filter(Boolean);
     const isDualClassGrantedSection = (section) => {
-      const sourceName = String(section?.sourceName ?? '').trim().toLowerCase();
+      const sourceName = String(section?.sourceName ?? '')
+        .trim()
+        .toLowerCase();
       return dualClassLabels.some((label) => label && sourceName.startsWith(label));
     };
     const dualClassSectionSlots = new Set(
@@ -317,15 +329,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     );
 
     const hasDualClassState = !!(
-      this.data?.dualClass
-      || this.data?.dualSubclass
-      || this.data?.dualClassFeat
-      || (this.data?.dualSpells?.cantrips?.length ?? 0) > 0
-      || (this.data?.dualSpells?.rank1?.length ?? 0) > 0
-      || (this.data?.dualCurriculumSpells?.cantrips?.length ?? 0) > 0
-      || (this.data?.dualCurriculumSpells?.rank1?.length ?? 0) > 0
-      || dualClassSectionSlots.size > 0
-      || [...dualClassSectionSlots].some((slot) => {
+      this.data?.dualClass ||
+      this.data?.dualSubclass ||
+      this.data?.dualClassFeat ||
+      (this.data?.dualSpells?.cantrips?.length ?? 0) > 0 ||
+      (this.data?.dualSpells?.rank1?.length ?? 0) > 0 ||
+      (this.data?.dualCurriculumSpells?.cantrips?.length ?? 0) > 0 ||
+      (this.data?.dualCurriculumSpells?.rank1?.length ?? 0) > 0 ||
+      dualClassSectionSlots.size > 0 ||
+      [...dualClassSectionSlots].some((slot) => {
         const choices = getGrantedFeatChoiceValues(this.data, slot);
         return Object.keys(choices).length > 0;
       })
@@ -338,7 +350,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       (section) => !dualClassSectionSlots.has(section.slot),
     );
     this.data.grantedFeatChoices = Object.fromEntries(
-      Object.entries(this.data.grantedFeatChoices ?? {}).filter(([slot]) => !dualClassSectionSlots.has(slot)),
+      Object.entries(this.data.grantedFeatChoices ?? {}).filter(
+        ([slot]) => !dualClassSectionSlots.has(slot),
+      ),
     );
     return true;
   }
@@ -424,8 +438,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _hasSubclass() {
     return !!(
-      (this.data.class?.subclassTag ?? SUBCLASS_TAGS[this.data.class?.slug])
-      || (this.data.dualClass?.subclassTag ?? SUBCLASS_TAGS[this.data.dualClass?.slug])
+      (this.data.class?.subclassTag ?? SUBCLASS_TAGS[this.data.class?.slug]) ||
+      (this.data.dualClass?.subclassTag ?? SUBCLASS_TAGS[this.data.dualClass?.slug])
     );
   }
 
@@ -445,8 +459,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getPendingSubclassClassEntries() {
     const entries = [];
-    const primaryHasSubclass = !!(this.data.class?.subclassTag ?? SUBCLASS_TAGS[this.data.class?.slug]);
-    const secondaryHasSubclass = !!(this.data.dualClass?.subclassTag ?? SUBCLASS_TAGS[this.data.dualClass?.slug]);
+    const primaryHasSubclass = !!(
+      this.data.class?.subclassTag ?? SUBCLASS_TAGS[this.data.class?.slug]
+    );
+    const secondaryHasSubclass = !!(
+      this.data.dualClass?.subclassTag ?? SUBCLASS_TAGS[this.data.dualClass?.slug]
+    );
 
     if (primaryHasSubclass && !this.data.subclass) {
       entries.push({ key: 'class', classEntry: this.data.class });
@@ -466,7 +484,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _hasSubclassChoices() {
-    return this._getStepHandlers().some((entry) => entry.handler.shouldShowSubclassChoices(entry.data));
+    return this._getStepHandlers().some((entry) =>
+      entry.handler.shouldShowSubclassChoices(entry.data),
+    );
   }
 
   _getStepHandlers() {
@@ -503,9 +523,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getCurrentHandlerTarget() {
-    return this._getStepHandlers().find((entry) =>
-      entry.steps.some((step) => step.id === this.stepId),
-    )?.key ?? 'class';
+    return (
+      this._getStepHandlers().find((entry) => entry.steps.some((step) => step.id === this.stepId))
+        ?.key ?? 'class'
+    );
   }
 
   _hasFeatChoices() {
@@ -587,27 +608,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       publicationOptions,
       this._publicationFilterCollapsed,
     );
-    const stepContext = filterStepContextByPublication(
-      rawStepContext,
-      publicationOptions,
-    );
+    const stepContext = filterStepContextByPublication(rawStepContext, publicationOptions);
     const browserStep = buildBrowserStepContext(this.stepId, this.data, stepContext);
-      if (browserStep?.stepId === 'background') {
-        browserStep.backgroundSkillFilters = (browserStep.backgroundSkillFilters ?? []).map(
-          (entry) => ({
-            ...entry,
-            selected: this._backgroundSkillFilters.has(entry.value),
-          }),
-        );
-        browserStep.backgroundAttributeFilters = (browserStep.backgroundAttributeFilters ?? []).map(
-          (entry) => ({
-            ...entry,
-            selected: this._backgroundAttributeFilters.has(entry.value),
-          }),
-        );
-        browserStep.backgroundSkillLogic = this._backgroundSkillFilterLogic;
-        browserStep.backgroundAttributeLogic = this._backgroundAttributeFilterLogic;
-      }
+    if (browserStep?.stepId === 'background') {
+      browserStep.backgroundSkillFilters = (browserStep.backgroundSkillFilters ?? []).map(
+        (entry) => ({
+          ...entry,
+          selected: this._backgroundSkillFilters.has(entry.value),
+        }),
+      );
+      browserStep.backgroundAttributeFilters = (browserStep.backgroundAttributeFilters ?? []).map(
+        (entry) => ({
+          ...entry,
+          selected: this._backgroundAttributeFilters.has(entry.value),
+        }),
+      );
+      browserStep.backgroundSkillLogic = this._backgroundSkillFilterLogic;
+      browserStep.backgroundAttributeLogic = this._backgroundAttributeFilterLogic;
+    }
     const applyOverlay = this.isApplying ? await this._buildApplyOverlayContext() : {};
 
     return {
@@ -737,12 +755,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _ensureDualClassMetadata(classItem = null) {
     if (!this.data.dualClass?.uuid) return;
-    const resolvedClassItem = classItem ?? (await this._getCachedDocument(this.data.dualClass.uuid));
+    const resolvedClassItem =
+      classItem ?? (await this._getCachedDocument(this.data.dualClass.uuid));
     if (!resolvedClassItem) return;
     ensureClassItemRegistered(resolvedClassItem, this.data.dualClass.slug);
 
     const keyAbility = this._normalizeClassKeyAbilityOptions(resolvedClassItem);
-    if (!Array.isArray(this.data.dualClass.keyAbility) || this.data.dualClass.keyAbility.length === 0) {
+    if (
+      !Array.isArray(this.data.dualClass.keyAbility) ||
+      this.data.dualClass.keyAbility.length === 0
+    ) {
       this.data.dualClass.keyAbility = keyAbility;
     }
 
@@ -1014,9 +1036,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         } else if (this._isDualClassCreationEnabled() && target === 'class') {
           const previousDualClass = this.data.dualClass;
           const previousDualSubclass = this.data.dualSubclass;
-          const previousDualSelections = foundry.utils.deepClone(getClassSelectionData(this.data, 'dualClass'));
-          const previousDualSpells = foundry.utils.deepClone(this.data.dualSpells ?? { cantrips: [], rank1: [] });
-          const previousDualCurriculumSpells = foundry.utils.deepClone(this.data.dualCurriculumSpells ?? { cantrips: [], rank1: [] });
+          const previousDualSelections = foundry.utils.deepClone(
+            getClassSelectionData(this.data, 'dualClass'),
+          );
+          const previousDualSpells = foundry.utils.deepClone(
+            this.data.dualSpells ?? { cantrips: [], rank1: [] },
+          );
+          const previousDualCurriculumSpells = foundry.utils.deepClone(
+            this.data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },
+          );
           setClass(this.data, item);
           if (previousDualClass && previousDualClass.uuid !== item.uuid) {
             this.data.dualClass = previousDualClass;
@@ -1050,15 +1078,19 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const sanctification = item.system?.sanctification ?? {};
         const domains = item.system?.domains ?? { primary: [], alternate: [] };
         const skill = item.system?.skill ?? null;
-        setDeity(this.data, {
-          uuid: item.uuid,
-          name: item.name,
-          img: item.img,
-          font,
-          sanctification,
-          domains,
-          skill,
-        }, target ?? this._getCurrentHandlerTarget());
+        setDeity(
+          this.data,
+          {
+            uuid: item.uuid,
+            name: item.name,
+            img: item.img,
+            font,
+            sanctification,
+            domains,
+            skill,
+          },
+          target ?? this._getCurrentHandlerTarget(),
+        );
         break;
       }
       default:
@@ -1274,7 +1306,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const choiceSet = choiceSets.find((entry) => entry.flag === flag);
     if (!choiceSet?.isFeatChoice) return;
 
-    const buildState = await this._buildCreationFeatBuildState(slot === 'dualClass' ? 'dualClass' : 'class');
+    const buildState = await this._buildCreationFeatBuildState(
+      slot === 'dualClass' ? 'dualClass' : 'class',
+    );
     const preset = this._buildFeatChoicePickerPreset(choiceSet, buildState);
     const targetLevel = Number(preset.maxLevel ?? 20) || 20;
 
@@ -1349,19 +1383,30 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;
     const classState = {
       slug: classSlug,
-      subclassType: classSlug ? CREATION_CLASS_SUBCLASS_TYPES[classSlug] ?? null : null,
+      subclassType: classSlug ? (CREATION_CLASS_SUBCLASS_TYPES[classSlug] ?? null) : null,
     };
     const classes = classState.slug ? [classState] : [];
-    const featState = this._buildCreationSelectedFeatState([
-      subclassEntry,
-      target === 'dualClass' ? this.data.subclass : this.data.dualSubclass,
-      this.data.ancestryFeat,
-      this.data.ancestryParagonFeat,
-      this.data.classFeat,
-      this.data.dualClassFeat,
-      this.data.skillFeat,
-      ...(this.data.grantedFeatSections ?? []),
-    ], classState);
+    const featState = this._buildCreationSelectedFeatState(
+      [
+        subclassEntry,
+        target === 'dualClass' ? this.data.subclass : this.data.dualSubclass,
+        this.data.ancestryFeat,
+        this.data.ancestryParagonFeat,
+        this.data.classFeat,
+        this.data.dualClassFeat,
+        this.data.skillFeat,
+        ...(this.data.grantedFeatSections ?? []),
+      ],
+      classState,
+    );
+
+    const classDef = classSlug ? ClassRegistry.get(classSlug) : null;
+    const classFeatures = new Set();
+    for (const feature of classDef?.classFeatures ?? []) {
+      if (feature.level > level) continue;
+      if (feature.key) classFeatures.add(feature.key);
+      if (feature.name) classFeatures.add(slugify(feature.name));
+    }
 
     return {
       level,
@@ -1374,6 +1419,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       attributes,
       skills: skillsMap,
       divineFont: classSelections.divineFont,
+      classFeatures,
     };
   }
 
@@ -1392,7 +1438,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const featAliasSources = new Map();
 
     for (const entry of entries) {
-      const slug = String(entry?.slug ?? '').trim().toLowerCase();
+      const slug = String(entry?.slug ?? '')
+        .trim()
+        .toLowerCase();
       if (!slug) continue;
       feats.add(slug);
       const alias = this._getCreationSubclassFeatAlias(slug, classState);
@@ -1440,7 +1488,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!sourceName) return null;
 
     const candidates = [
-      { target: 'dualClass', label: this.data.dualSubclass?.name ?? this.data.dualClass?.name ?? '' },
+      {
+        target: 'dualClass',
+        label: this.data.dualSubclass?.name ?? this.data.dualClass?.name ?? '',
+      },
       { target: 'class', label: this.data.subclass?.name ?? this.data.class?.name ?? '' },
     ];
 
@@ -1526,35 +1577,39 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _openItemPicker() {
     import('../item-picker.js').then(({ ItemPicker }) => {
-      const picker = new ItemPicker(this.actor, (items) => {
-        const selectedItems = Array.isArray(items) ? items : [items];
-        const budgetCp = this._getGoldBudgetCp();
-        let currentCp = equipmentTotalCp(this.data.equipment ?? []);
-        let changed = false;
-        for (const item of selectedItems) {
-          if (!item) continue;
-          if (budgetCp > 0 && !game.user.isGM) {
-            const itemCp =
-              (item.system?.price?.value?.gp ?? 0) * 100 +
-              (item.system?.price?.value?.sp ?? 0) * 10 +
-              (item.system?.price?.value?.cp ?? 0);
-            if (currentCp + itemCp > budgetCp) {
-              const limitGp = budgetCp / 100;
-              ui.notifications.warn(
-                game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', {
-                  limit: limitGp,
-                }),
-              );
-              continue;
+      const picker = new ItemPicker(
+        this.actor,
+        (items) => {
+          const selectedItems = Array.isArray(items) ? items : [items];
+          const budgetCp = this._getGoldBudgetCp();
+          let currentCp = equipmentTotalCp(this.data.equipment ?? []);
+          let changed = false;
+          for (const item of selectedItems) {
+            if (!item) continue;
+            if (budgetCp > 0 && !game.user.isGM) {
+              const itemCp =
+                (item.system?.price?.value?.gp ?? 0) * 100 +
+                (item.system?.price?.value?.sp ?? 0) * 10 +
+                (item.system?.price?.value?.cp ?? 0);
+              if (currentCp + itemCp > budgetCp) {
+                const limitGp = budgetCp / 100;
+                ui.notifications.warn(
+                  game.i18n.format('PF2E_LEVELER.SETTINGS.EQUIPMENT_GOLD_LIMIT.EXCEEDED', {
+                    limit: limitGp,
+                  }),
+                );
+                continue;
+              }
+              currentCp += itemCp;
             }
-            currentCp += itemCp;
+            const batchSize = Number(item.system?.price?.per ?? 1);
+            addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
+            changed = true;
           }
-          const batchSize = Number(item.system?.price?.per ?? 1);
-          addEquipment(this.data, item, batchSize > 1 ? batchSize : 1);
-          changed = true;
-        }
-        if (changed) this._saveAndRender();
-      }, { multiSelect: true });
+          if (changed) this._saveAndRender();
+        },
+        { multiSelect: true },
+      );
       picker.render(true);
     });
   }
@@ -1849,10 +1904,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _matchesBackgroundFilterSet(itemValues, requiredValues, logic = 'or') {
     if (!(requiredValues instanceof Set) || requiredValues.size === 0) return true;
-    const normalizedItemValues = new Set((itemValues ?? []).map((value) => String(value).trim().toLowerCase()).filter(Boolean));
+    const normalizedItemValues = new Set(
+      (itemValues ?? []).map((value) => String(value).trim().toLowerCase()).filter(Boolean),
+    );
     if (normalizedItemValues.size === 0) return false;
-    if (logic === 'and') return [...requiredValues].every((value) => normalizedItemValues.has(String(value).trim().toLowerCase()));
-    return [...requiredValues].some((value) => normalizedItemValues.has(String(value).trim().toLowerCase()));
+    if (logic === 'and')
+      return [...requiredValues].every((value) =>
+        normalizedItemValues.has(String(value).trim().toLowerCase()),
+      );
+    return [...requiredValues].some((value) =>
+      normalizedItemValues.has(String(value).trim().toLowerCase()),
+    );
   }
 
   _prevStep() {
@@ -2030,26 +2092,31 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _isCaster() {
     const primaryClassDef = this.data.class?.slug ? ClassRegistry.get(this.data.class.slug) : null;
-    const secondaryClassDef = this.data.dualClass?.slug ? ClassRegistry.get(this.data.dualClass.slug) : null;
+    const secondaryClassDef = this.data.dualClass?.slug
+      ? ClassRegistry.get(this.data.dualClass.slug)
+      : null;
     return !!primaryClassDef?.spellcasting || !!secondaryClassDef?.spellcasting;
   }
 
   _needsSpellSelection() {
     const primaryClassDef = this.data.class?.slug ? ClassRegistry.get(this.data.class.slug) : null;
-    const primaryNeeds = !!this.data.class?.slug
-      && this.classHandler.needsSpellSelection(this.data, primaryClassDef);
+    const primaryNeeds =
+      !!this.data.class?.slug && this.classHandler.needsSpellSelection(this.data, primaryClassDef);
     if (primaryNeeds) return true;
     if (!this.data.dualClass?.slug) return false;
 
     const secondaryClassDef = ClassRegistry.get(this.data.dualClass.slug);
     const secondaryHandler = getClassHandler(this.data.dualClass.slug);
-    return secondaryHandler.needsSpellSelection({
-      ...this.data,
-      class: this.data.dualClass,
-      subclass: this.data.dualSubclass,
-      spells: this.data.dualSpells ?? { cantrips: [], rank1: [] },
-      curriculumSpells: this.data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },
-    }, secondaryClassDef);
+    return secondaryHandler.needsSpellSelection(
+      {
+        ...this.data,
+        class: this.data.dualClass,
+        subclass: this.data.dualSubclass,
+        spells: this.data.dualSpells ?? { cantrips: [], rank1: [] },
+        curriculumSpells: this.data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },
+      },
+      secondaryClassDef,
+    );
   }
 
   async _hasClassFeatAtLevel1(target = 'class') {
@@ -2073,7 +2140,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ...resolvedClassItems.map((item) => Number(item.system?.trainedSkills?.additional ?? 3)),
     );
     const intMod = await this._computeIntMod();
-    const duplicateAutoTrainedSkills = await this._getDuplicateAutoTrainedSkillCount(resolvedClassItems);
+    const duplicateAutoTrainedSkills =
+      await this._getDuplicateAutoTrainedSkillCount(resolvedClassItems);
     return Math.max(0, additional + intMod + duplicateAutoTrainedSkills);
   }
 
@@ -2081,17 +2149,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const resolvedClassItems = Array.isArray(classItems)
       ? classItems.filter(Boolean)
       : [
-        classItems ??
-        (this.data.class?.uuid ? await this._getCachedDocument(this.data.class.uuid) : null),
-        this.data.dualClass?.uuid ? await this._getCachedDocument(this.data.dualClass.uuid) : null,
-      ].filter(Boolean);
+          classItems ??
+            (this.data.class?.uuid ? await this._getCachedDocument(this.data.class.uuid) : null),
+          this.data.dualClass?.uuid
+            ? await this._getCachedDocument(this.data.dualClass.uuid)
+            : null,
+        ].filter(Boolean);
 
     const dualSelections = getClassSelectionData(this.data, 'dualClass');
     const autoTrainedSkills = new Set([
       ...resolvedClassItems.flatMap((item) =>
         (item.system?.trainedSkills?.value ?? []).filter(
           (s) => typeof s === 'string' && s.length > 0,
-        )),
+        ),
+      ),
       ...(this.data.subclass?.grantedSkills ?? []).filter(
         (s) => typeof s === 'string' && s.length > 0,
       ),
@@ -2156,9 +2227,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!classItem) return [];
     return [
       ...new Set([
-        ...((classItem.system?.trainedSkills?.value ?? []).filter(
+        ...(classItem.system?.trainedSkills?.value ?? []).filter(
           (skill) => typeof skill === 'string' && skill.length > 0,
-        )),
+        ),
         ...this._parseGrantedSkills(
           classItem.system?.rules ?? [],
           classItem.system?.description?.value ?? '',
@@ -2198,16 +2269,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!this._hasSubclassChoices()) return true;
         const sections = [
           this.data.subclass
-            ? { choiceSets: this.data.subclass.choiceSets ?? [], choices: this.data.subclass.choices ?? {} }
+            ? {
+                choiceSets: this.data.subclass.choiceSets ?? [],
+                choices: this.data.subclass.choices ?? {},
+              }
             : null,
           this.data.dualSubclass
-            ? { choiceSets: this.data.dualSubclass.choiceSets ?? [], choices: this.data.dualSubclass.choices ?? {} }
+            ? {
+                choiceSets: this.data.dualSubclass.choiceSets ?? [],
+                choices: this.data.dualSubclass.choices ?? {},
+              }
             : null,
         ].filter((section) => (section?.choiceSets?.length ?? 0) > 0);
-        return sections.every((section) => section.choiceSets.every((cs) => {
-          const val = section.choices[cs.flag];
-          return typeof val === 'string' && val !== '[object Object]';
-        }));
+        return sections.every((section) =>
+          section.choiceSets.every((cs) => {
+            const val = section.choices[cs.flag];
+            return typeof val === 'string' && val !== '[object Object]';
+          }),
+        );
       }
       case 'featChoices': {
         if (!this._hasFeatChoices()) return true;
@@ -2231,12 +2310,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             choices: getGrantedFeatChoiceValues(this.data, section.slot),
           })),
         ];
-        return sections.every((section) =>
-          section.choiceSets.every((cs) => {
-            const val = section.choices?.[cs.flag];
-            return typeof val === 'string' && val !== '[object Object]';
-          }),
-        ) && grantsComplete;
+        return (
+          sections.every((section) =>
+            section.choiceSets.every((cs) => {
+              const val = section.choices?.[cs.flag];
+              return typeof val === 'string' && val !== '[object Object]';
+            }),
+          ) && grantsComplete
+        );
       }
       case 'boosts':
         if (typeof this._cachedBoostStepComplete === 'boolean')
@@ -2261,26 +2342,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         if (!this._needsSpellSelection()) return true;
         const spellHandlerResult = this.classHandler.isStepComplete('spells', this.data);
         if (spellHandlerResult !== null) return spellHandlerResult;
-        const primaryClassDef = this.data.class?.slug ? ClassRegistry.get(this.data.class.slug) : null;
-        const secondaryClassDef = this.data.dualClass?.slug ? ClassRegistry.get(this.data.dualClass.slug) : null;
+        const primaryClassDef = this.data.class?.slug
+          ? ClassRegistry.get(this.data.class.slug)
+          : null;
+        const secondaryClassDef = this.data.dualClass?.slug
+          ? ClassRegistry.get(this.data.dualClass.slug)
+          : null;
         const primaryLimits = this._cachedSpellSelectionLimits?.primary ?? {};
         const secondaryLimits = this._cachedSpellSelectionLimits?.secondary ?? {};
-        const primaryComplete = !primaryClassDef?.spellcasting
-          || (
-            (this.data.spells?.cantrips?.length ?? 0) >= (primaryLimits.maxCantrips ?? 0)
-            && (
-              (primaryLimits.maxRank1 ?? 0) <= 0
-              || (this.data.spells?.rank1?.length ?? 0) >= (primaryLimits.maxRank1 ?? 0)
-            )
-          );
-        const secondaryComplete = !secondaryClassDef?.spellcasting
-          || (
-            (this.data.dualSpells?.cantrips?.length ?? 0) >= (secondaryLimits.maxCantrips ?? 0)
-            && (
-              (secondaryLimits.maxRank1 ?? 0) <= 0
-              || (this.data.dualSpells?.rank1?.length ?? 0) >= (secondaryLimits.maxRank1 ?? 0)
-            )
-          );
+        const primaryComplete =
+          !primaryClassDef?.spellcasting ||
+          ((this.data.spells?.cantrips?.length ?? 0) >= (primaryLimits.maxCantrips ?? 0) &&
+            ((primaryLimits.maxRank1 ?? 0) <= 0 ||
+              (this.data.spells?.rank1?.length ?? 0) >= (primaryLimits.maxRank1 ?? 0)));
+        const secondaryComplete =
+          !secondaryClassDef?.spellcasting ||
+          ((this.data.dualSpells?.cantrips?.length ?? 0) >= (secondaryLimits.maxCantrips ?? 0) &&
+            ((secondaryLimits.maxRank1 ?? 0) <= 0 ||
+              (this.data.dualSpells?.rank1?.length ?? 0) >= (secondaryLimits.maxRank1 ?? 0)));
         return primaryComplete && secondaryComplete;
       }
       case 'equipment':
@@ -2394,16 +2473,18 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         const subclassGroups = [];
         for (const pendingEntry of pendingEntries) {
-          const pendingData = pendingEntry.key === 'dualClass'
-            ? {
-                ...this.data,
-                class: this.data.dualClass,
-                subclass: this.data.dualSubclass,
-              }
-            : this.data;
-          const pendingHandler = pendingEntry.key === 'dualClass'
-            ? getClassHandler(this.data.dualClass?.slug)
-            : this.classHandler;
+          const pendingData =
+            pendingEntry.key === 'dualClass'
+              ? {
+                  ...this.data,
+                  class: this.data.dualClass,
+                  subclass: this.data.dualSubclass,
+                }
+              : this.data;
+          const pendingHandler =
+            pendingEntry.key === 'dualClass'
+              ? getClassHandler(this.data.dualClass?.slug)
+              : this.classHandler;
           let subclasses = (await this._loadSubclassesForClass(pendingEntry.classEntry)).filter(
             (i) => i.uuid !== this.data.subclass?.uuid && i.uuid !== this.data.dualSubclass?.uuid,
           );
@@ -2984,8 +3065,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _buildFeatChoicesContext() {
     return {
-      ...await buildFeatChoicesContext(this),
-      ...await this._buildFeatGrantChoicesContext(),
+      ...(await buildFeatChoicesContext(this)),
+      ...(await this._buildFeatGrantChoicesContext()),
     };
   }
 
@@ -3002,7 +3083,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const requirements = this._cachedFeatGrantRequirements?.length
       ? this._cachedFeatGrantRequirements
       : await this._buildFeatGrantRequirements();
-    const completion = getFeatGrantCompletion({ featGrants: this.data.featGrants ?? [] }, requirements);
+    const completion = getFeatGrantCompletion(
+      { featGrants: this.data.featGrants ?? [] },
+      requirements,
+    );
 
     return {
       featGrantRequirements: requirements.map((requirement) => {
@@ -3013,7 +3097,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           requiredCount: state.required,
           missingCount: state.missing,
           complete: state.complete === true,
-          selections: getFeatGrantSelections({ featGrants: this.data.featGrants ?? [] }, requirement),
+          selections: getFeatGrantSelections(
+            { featGrants: this.data.featGrants ?? [] },
+            requirement,
+          ),
         };
       }),
     };
@@ -3027,7 +3114,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       this.data.dualClassFeat,
       this.data.skillFeat,
       ...(this.data.grantedFeatSections ?? []).map((section) =>
-        section?.slot ? { uuid: section.slot, name: section.featName } : null),
+        section?.slot ? { uuid: section.slot, name: section.featName } : null,
+      ),
       this.data.subclass,
       this.data.dualSubclass,
       ...this._getSelectedChoiceGrantSources(),
@@ -3043,36 +3131,69 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getSelectedChoiceGrantSources() {
     const containers = [
-      { choiceSets: this.data.subclass?.choiceSets ?? [], choices: this.data.subclass?.choices ?? {} },
-      { choiceSets: this.data.dualSubclass?.choiceSets ?? [], choices: this.data.dualSubclass?.choices ?? {} },
-      { choiceSets: this.data.ancestryFeat?.choiceSets ?? [], choices: this.data.ancestryFeat?.choices ?? {} },
-      { choiceSets: this.data.ancestryParagonFeat?.choiceSets ?? [], choices: this.data.ancestryParagonFeat?.choices ?? {} },
-      { choiceSets: this.data.classFeat?.choiceSets ?? [], choices: this.data.classFeat?.choices ?? {} },
-      { choiceSets: this.data.dualClassFeat?.choiceSets ?? [], choices: this.data.dualClassFeat?.choices ?? {} },
-      { choiceSets: this.data.skillFeat?.choiceSets ?? [], choices: this.data.skillFeat?.choices ?? {} },
-      ...((this.data.grantedFeatSections ?? []).map((section) => ({
+      {
+        choiceSets: this.data.subclass?.choiceSets ?? [],
+        choices: this.data.subclass?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.dualSubclass?.choiceSets ?? [],
+        choices: this.data.dualSubclass?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.ancestryFeat?.choiceSets ?? [],
+        choices: this.data.ancestryFeat?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.ancestryParagonFeat?.choiceSets ?? [],
+        choices: this.data.ancestryParagonFeat?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.classFeat?.choiceSets ?? [],
+        choices: this.data.classFeat?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.dualClassFeat?.choiceSets ?? [],
+        choices: this.data.dualClassFeat?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.skillFeat?.choiceSets ?? [],
+        choices: this.data.skillFeat?.choices ?? {},
+      },
+      ...(this.data.grantedFeatSections ?? []).map((section) => ({
         choiceSets: section.choiceSets ?? [],
         choices: getGrantedFeatChoiceValues(this.data, section.slot),
-      }))),
+      })),
     ];
 
     return containers.flatMap((container) =>
-      (container.choiceSets ?? []).map((choiceSet) => {
-        if (isRawValueChoiceSet(choiceSet)) return null;
-        const selectedValue = container.choices?.[choiceSet.flag];
-        if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') return null;
-        const option = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
-        const uuid = option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
-        if (!uuid) return null;
-        return { uuid, name: option?.label ?? choiceSet.prompt ?? uuid };
-      }).filter(Boolean));
+      (container.choiceSets ?? [])
+        .map((choiceSet) => {
+          if (isRawValueChoiceSet(choiceSet)) return null;
+          const selectedValue = container.choices?.[choiceSet.flag];
+          if (
+            typeof selectedValue !== 'string' ||
+            selectedValue.length === 0 ||
+            selectedValue === '[object Object]'
+          )
+            return null;
+          const option = findMatchingChoiceOption(choiceSet.options ?? [], selectedValue);
+          const uuid =
+            option?.uuid ?? (selectedValue.startsWith('Compendium.') ? selectedValue : null);
+          if (!uuid) return null;
+          return { uuid, name: option?.label ?? choiceSet.prompt ?? uuid };
+        })
+        .filter(Boolean),
+    );
   }
 
   async _openFeatGrantPicker(requirementId) {
     const requirement = await this._getFeatGrantRequirement(requirementId);
     if (!requirement) return;
 
-    if (requirement.confidence === 'manual-required' && !Number.isFinite(Number(requirement.count))) {
+    if (
+      requirement.confidence === 'manual-required' &&
+      !Number.isFinite(Number(requirement.count))
+    ) {
       await this._configureManualFeatGrant(requirement);
       return;
     }
@@ -3085,12 +3206,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _getFeatGrantRequirement(requirementId) {
-    const stored = (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId);
+    const stored = (this.data.featGrants ?? []).find(
+      (entry) => entry?.requirementId === requirementId,
+    );
     const requirements = this._cachedFeatGrantRequirements?.length
       ? this._cachedFeatGrantRequirements
       : await this._buildFeatGrantRequirements();
     const detected = requirements.find((entry) => entry?.id === requirementId) ?? null;
-    if (stored?.manual) return mergeStoredManualFeatGrantRequirement(stored, detected, requirementId);
+    if (stored?.manual)
+      return mergeStoredManualFeatGrantRequirement(stored, detected, requirementId);
     return detected;
   }
 
@@ -3117,7 +3241,11 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ok: {
         label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
         callback: (event, button, dialog) => {
-          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          const root =
+            dialog?.element ??
+            dialog ??
+            button?.form ??
+            event?.currentTarget?.closest?.('.application');
           return {
             kind: root?.querySelector?.('select[name="kind"]')?.value ?? requirement.kind ?? 'item',
             count: Math.max(1, Number(root?.querySelector?.('input[name="count"]')?.value ?? 1)),
@@ -3185,9 +3313,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         multiSelect: true,
         maxSelect,
         preset: {
-          ...(Number.isFinite(Number(filters.rank)) ? { selectedRanks: [Number(filters.rank)] } : {}),
-          ...(filters.tradition ? { selectedTraditions: [filters.tradition], lockedTraditions: [filters.tradition] } : {}),
-          ...(Array.isArray(filters.rarity) ? { selectedRarities: filters.rarity, lockedRarities: ['common', 'uncommon', 'rare', 'unique'].filter((rarity) => !filters.rarity.includes(rarity)) } : {}),
+          ...(Number.isFinite(Number(filters.rank))
+            ? { selectedRanks: [Number(filters.rank)] }
+            : {}),
+          ...(filters.tradition
+            ? { selectedTraditions: [filters.tradition], lockedTraditions: [filters.tradition] }
+            : {}),
+          ...(Array.isArray(filters.rarity)
+            ? {
+                selectedRarities: filters.rarity,
+                lockedRarities: ['common', 'uncommon', 'rare', 'unique'].filter(
+                  (rarity) => !filters.rarity.includes(rarity),
+                ),
+              }
+            : {}),
         },
       },
     );
@@ -3195,7 +3334,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getStoredFeatGrantSelections(requirementId) {
-    return (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)?.selections ?? [];
+    return (
+      (this.data.featGrants ?? []).find((entry) => entry?.requirementId === requirementId)
+        ?.selections ?? []
+    );
   }
 
   _getTakenFormulaGrantSelections() {
@@ -3227,7 +3369,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       sourceFeatUuid: requirement.sourceFeatUuid,
       sourceFeatName: requirement.sourceFeatName,
       kind: requirement.kind,
-      manual: requirement.confidence === 'manual' ? { count: requirement.count, filters: requirement.filters ?? {} } : undefined,
+      manual:
+        requirement.confidence === 'manual'
+          ? { count: requirement.count, filters: requirement.filters ?? {} }
+          : undefined,
       selections,
     });
   }
@@ -3433,13 +3578,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _buildFeatContext() {
     const ancestralParagonEnabled = isAncestralParagonEnabled();
-    const hasClassFeat = typeof this._cachedHasClassFeatAtLevel1 === 'boolean'
-      ? this._cachedHasClassFeatAtLevel1
-      : await this._hasClassFeatAtLevel1();
+    const hasClassFeat =
+      typeof this._cachedHasClassFeatAtLevel1 === 'boolean'
+        ? this._cachedHasClassFeatAtLevel1
+        : await this._hasClassFeatAtLevel1();
     this._cachedHasClassFeatAtLevel1 = hasClassFeat;
-    const hasDualClassFeat = typeof this._cachedHasDualClassFeatAtLevel1 === 'boolean'
-      ? this._cachedHasDualClassFeatAtLevel1
-      : await this._hasClassFeatAtLevel1('dualClass');
+    const hasDualClassFeat =
+      typeof this._cachedHasDualClassFeatAtLevel1 === 'boolean'
+        ? this._cachedHasDualClassFeatAtLevel1
+        : await this._hasClassFeatAtLevel1('dualClass');
     this._cachedHasDualClassFeatAtLevel1 = hasDualClassFeat;
     const hasSkillFeat = this._needsLevel1SkillFeatSelection();
 
@@ -3490,7 +3637,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (typeof this._cachedHasDualClassFeatAtLevel1 === 'boolean')
       return this._cachedHasDualClassFeatAtLevel1;
 
-    const classItem = this.data.dualClass?.uuid ? this._documentCache.get(this.data.dualClass.uuid) : null;
+    const classItem = this.data.dualClass?.uuid
+      ? this._documentCache.get(this.data.dualClass.uuid)
+      : null;
     const classFeatLevels = classItem?.system?.classFeatLevels?.value ?? [];
     return classFeatLevels.includes(1);
   }
@@ -3853,7 +4002,8 @@ function collectSourceEntries(value, found = new Map()) {
 
   const sourceKey = String(value.sourcePackage ?? value.sourcePack ?? '').trim();
   if (sourceKey) {
-    const label = String(value.sourcePackageLabel ?? value.sourceLabel ?? sourceKey).trim() || sourceKey;
+    const label =
+      String(value.sourcePackageLabel ?? value.sourceLabel ?? sourceKey).trim() || sourceKey;
     if (!found.has(sourceKey)) found.set(sourceKey, { key: sourceKey, label });
   }
 
@@ -3892,18 +4042,19 @@ function buildBrowserStepContext(stepId, data, stepContext) {
   const config = BROWSER_STEP_CONFIG[stepId];
   if (!config) return null;
 
-  const groupedItems =
-    Array.isArray(stepContext?.classGroups)
-      ? stepContext.classGroups.flatMap((group) => group.items ?? [])
-      : Array.isArray(stepContext?.subclassGroups)
-        ? stepContext.subclassGroups.flatMap((group) => group.items ?? [])
-        : null;
+  const groupedItems = Array.isArray(stepContext?.classGroups)
+    ? stepContext.classGroups.flatMap((group) => group.items ?? [])
+    : Array.isArray(stepContext?.subclassGroups)
+      ? stepContext.subclassGroups.flatMap((group) => group.items ?? [])
+      : null;
   const baseItems = Array.isArray(stepContext?.items) ? stepContext.items : [];
   const items = sortByGuidancePriority(
     filterDisallowedForCurrentUser(annotateGuidance(groupedItems ?? baseItems)).map((item) => ({
       ...item,
       trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
-      boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
+      boostsText: Array.isArray(item?.backgroundAttributes)
+        ? item.backgroundAttributes.join(',')
+        : '',
     })),
     (a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? '')),
   );
@@ -3912,7 +4063,8 @@ function buildBrowserStepContext(stepId, data, stepContext) {
     title: config.title ? config.title : localize(config.titleKey),
     resultsLabel: config.resultsLabel ? config.resultsLabel : localize(config.resultsKey),
     items,
-    selected: stepContext?.selected ?? (config.selectedKey ? (data[config.selectedKey] ?? null) : null),
+    selected:
+      stepContext?.selected ?? (config.selectedKey ? (data[config.selectedKey] ?? null) : null),
     clearAction: stepContext?.clearAction ?? config.clearAction,
     showSearch: config.showSearch !== false,
     showRarityFilters: config.showRarityFilters !== false,
@@ -3933,11 +4085,7 @@ function buildBrowserStepContext(stepId, data, stepContext) {
         selected: group.selected,
         target: group.key,
         clearAction:
-          stepId === 'class'
-            ? 'clearClass'
-            : stepId === 'subclass'
-              ? 'clearSubclass'
-              : null,
+          stepId === 'class' ? 'clearClass' : stepId === 'subclass' ? 'clearSubclass' : null,
       }));
     if (selectedGroups.length > 0) context.selectedGroups = selectedGroups;
     context.groups = browserGroups.map((group) => ({
@@ -3948,7 +4096,9 @@ function buildBrowserStepContext(stepId, data, stepContext) {
         filterDisallowedForCurrentUser(annotateGuidance(group.items ?? [])).map((item) => ({
           ...item,
           trainedSkillsText: Array.isArray(item?.trainedSkills) ? item.trainedSkills.join(',') : '',
-          boostsText: Array.isArray(item?.backgroundAttributes) ? item.backgroundAttributes.join(',') : '',
+          boostsText: Array.isArray(item?.backgroundAttributes)
+            ? item.backgroundAttributes.join(',')
+            : '',
         })),
         (a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? '')),
       ),
@@ -3995,7 +4145,8 @@ function getRemainingGrantSelections(requirement, currentSelections) {
 
 function buildFeatGrantPickerTitle(requirement) {
   const sourceName = String(requirement?.sourceFeatName ?? '').trim();
-  if (!sourceName) return requirement?.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items';
+  if (!sourceName)
+    return requirement?.kind === 'formula' ? 'Choose Formulas' : 'Choose Granted Items';
   return `${sourceName}: ${requirement?.kind === 'formula' ? 'Formula' : 'Item'}`;
 }
 
@@ -4004,24 +4155,38 @@ function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
   const rarityValues = ['common', 'uncommon', 'rare', 'unique'];
   const rarityFilter = normalizeRarityFilter(filters.rarity, rarityValues);
   return {
-    ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0 ? { selectedCategories: filters.itemTypes } : {}),
-    ...(Array.isArray(filters.traits) && filters.traits.length > 0 ? { selectedTraits: filters.traits } : {}),
-    ...(Array.isArray(filters.requiredTraits) && filters.requiredTraits.length > 0 ? { requiredTraits: filters.requiredTraits } : {}),
+    ...(Array.isArray(filters.itemTypes) && filters.itemTypes.length > 0
+      ? { selectedCategories: filters.itemTypes }
+      : {}),
+    ...(Array.isArray(filters.traits) && filters.traits.length > 0
+      ? { selectedTraits: filters.traits }
+      : {}),
+    ...(Array.isArray(filters.requiredTraits) && filters.requiredTraits.length > 0
+      ? { requiredTraits: filters.requiredTraits }
+      : {}),
     ...(typeof filters.traitLogic === 'string' ? { traitLogic: filters.traitLogic } : {}),
-    ...(rarityFilter.length > 0 ? {
-      selectedRarities: rarityFilter,
-      lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
-    } : {}),
-    ...(Number.isFinite(Number(maxLevelCap)) ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) } : (
-      Number.isFinite(Number(filters.maxLevel)) ? { maxLevel: Number(filters.maxLevel) } : {}
-    )),
+    ...(rarityFilter.length > 0
+      ? {
+          selectedRarities: rarityFilter,
+          lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
+        }
+      : {}),
+    ...(Number.isFinite(Number(maxLevelCap))
+      ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) }
+      : Number.isFinite(Number(filters.maxLevel))
+        ? { maxLevel: Number(filters.maxLevel) }
+        : {}),
   };
 }
 
 function normalizeRarityFilter(value, allowedValues) {
-  const values = Array.isArray(value) ? value : (typeof value === 'string' ? [value] : []);
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
   const allowed = new Set(allowedValues);
-  return [...new Set(values.map((entry) => String(entry).toLowerCase()).filter((entry) => allowed.has(entry)))];
+  return [
+    ...new Set(
+      values.map((entry) => String(entry).toLowerCase()).filter((entry) => allowed.has(entry)),
+    ),
+  ];
 }
 
 function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) {
@@ -4032,7 +4197,9 @@ function mergeStoredManualFeatGrantRequirement(stored, detected, requirementId) 
     grantingSourceUuid: detected?.grantingSourceUuid ?? null,
     grantingSourceName: detected?.grantingSourceName ?? null,
     kind: stored.kind ?? detected?.kind,
-    count: Number.isFinite(Number(stored.manual?.count)) ? Number(stored.manual.count) : detected?.count,
+    count: Number.isFinite(Number(stored.manual?.count))
+      ? Number(stored.manual.count)
+      : detected?.count,
     confidence: 'manual',
     filters: {
       ...(detected?.filters ?? {}),
@@ -4114,9 +4281,7 @@ function _compactSourceOwnerLabel(label) {
 
 function buildBackgroundFilterOptions(items, field, allowedValues, labels) {
   const resolveValues =
-    typeof labels?.fieldValues === 'function'
-      ? labels.fieldValues
-      : (item) => item?.[field] ?? [];
+    typeof labels?.fieldValues === 'function' ? labels.fieldValues : (item) => item?.[field] ?? [];
   const available = new Set();
   for (const item of items) {
     for (const value of resolveValues(item)) {
@@ -4142,11 +4307,15 @@ function buildBackgroundFilterOptions(items, field, allowedValues, labels) {
 }
 
 function normalizeBackgroundSkillValue(value) {
-  const normalized = String(value ?? '').trim().toLowerCase();
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
   return SKILL_SLUG_ALIASES[normalized] ?? normalized;
 }
 
 function normalizeBackgroundAttributeValue(value) {
-  const normalized = String(value ?? '').trim().toLowerCase();
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
   return ATTRIBUTE_SLUG_ALIASES[normalized] ?? normalized;
 }
