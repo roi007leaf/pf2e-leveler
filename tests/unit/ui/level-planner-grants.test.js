@@ -1,5 +1,6 @@
 import { buildFeatGrantPreview, buildLevelContext } from '../../../scripts/ui/level-planner/level-context.js';
 import { LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
+import { ItemPicker } from '../../../scripts/ui/item-picker.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
@@ -233,6 +234,100 @@ describe('level planner grant previews', () => {
           sourceName: 'Fighter Dedication',
         }),
       ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  test('does not duplicate granted feat fallback prompts or preselected granted choices', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          performance: 'Performance',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-root') {
+        return {
+          uuid,
+          name: 'Ancestral Paragon',
+          system: {
+            rules: [
+              { key: 'GrantItem', uuid: 'feat-seasong' },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'feat-seasong') {
+        return {
+          uuid,
+          name: 'Seasong',
+          system: {
+            description: {
+              value: '<p>You become trained in Performance. If you would automatically become trained in Performance, you instead become trained in a skill of your choice. In addition, you gain Virtuosic Performer for singing.</p>',
+            },
+            rules: [
+              { key: 'ActiveEffectLike', path: 'system.skills.performance.rank', value: 1 },
+              {
+                key: 'GrantItem',
+                uuid: 'feat-virtuosic-performer',
+                preselectChoices: { performanceType: 'singing' },
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'feat-virtuosic-performer') {
+        return {
+          uuid,
+          name: 'Virtuosic Performer',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'performanceType',
+                prompt: 'Select a performance type.',
+                choices: [
+                  { value: 'acting', label: 'Acting' },
+                  { value: 'singing', label: 'Singing' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const preview = await buildFeatGrantPreview({
+        actor: {
+          system: {
+            skills: {
+              performance: { rank: 1 },
+              diplomacy: { rank: 0 },
+            },
+          },
+          items: [],
+        },
+        plan: { levels: {} },
+        selectedLevel: 1,
+      }, {
+        uuid: 'feat-root',
+        choices: {},
+      });
+
+      expect(preview.grantChoiceSets.filter((entry) => entry.flag === 'levelerSkillFallback1')).toHaveLength(1);
+      expect(preview.grantChoiceSets.filter((entry) => entry.flag === 'performanceType')).toHaveLength(0);
     } finally {
       global.CONFIG = originalConfig;
     }
@@ -607,6 +702,45 @@ describe('level planner grant previews', () => {
       kind: 'formula',
       count: 2,
     }));
+  });
+
+  test('keeps common formula rarity as default instead of a locked grant filter', async () => {
+    const actor = createMockActor({ items: [] });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn(async () => {});
+    actor.unsetFlag = jest.fn(async () => {});
+    const planner = new LevelPlanner(actor);
+    planner.plan = {
+      classSlug: 'alchemist',
+      levels: {
+        1: { featGrants: [] },
+      },
+    };
+    planner.selectedLevel = 1;
+    const applyPresetSpy = jest.spyOn(ItemPicker.prototype, '_applyPreset');
+    const renderSpy = jest.spyOn(ItemPicker.prototype, 'render').mockImplementation(() => {});
+
+    await planner._openFeatGrantItemPicker({
+      id: 'feature-bomber:formula',
+      sourceFeatUuid: 'feature-bomber',
+      sourceFeatName: 'Bomber',
+      kind: 'formula',
+      count: 2,
+      confidence: 'inferred',
+      filters: {
+        maxLevel: 1,
+        rarity: ['common'],
+        traits: ['alchemical', 'bomb'],
+      },
+    });
+
+    expect(applyPresetSpy).toHaveBeenCalledWith(expect.objectContaining({
+      selectedRarities: ['common'],
+    }));
+    expect(applyPresetSpy.mock.calls[0][0]).not.toHaveProperty('lockedRarities');
+
+    renderSpy.mockRestore();
+    applyPresetSpy.mockRestore();
   });
 
   test('collects already taken formula grant selections through selected planner level', () => {

@@ -12,7 +12,11 @@ import {
   MIXED_ANCESTRY_UUID,
   PROFICIENCY_RANKS,
 } from '../../../scripts/constants.js';
-import { computeBuildState } from '../../../scripts/plan/build-state.js';
+import {
+  computeBuildState,
+  computePlanArchetypeDedicationProgress,
+  syncPlanArchetypeDedicationProgress,
+} from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
   setLevelBoosts,
@@ -165,6 +169,21 @@ describe('computeBuildState', () => {
     mockActor.system.skills.crafting.rank = 1;
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.skills.crafting).toBe(PROFICIENCY_RANKS.TRAINED);
+  });
+
+  test('trains the actor deity skill for champion-style deity classes', () => {
+    mockActor.items = [
+      {
+        type: 'deity',
+        name: 'Upion and Warrik',
+        system: {
+          skill: 'performance',
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 1);
+    expect(state.skills.performance).toBe(PROFICIENCY_RANKS.TRAINED);
   });
 
   test('applies planned skill increases', () => {
@@ -832,6 +851,108 @@ describe('computeBuildState', () => {
     expect(state.canTakeNewArchetypeDedication).toBe(true);
   });
 
+  test('counts class-slot archetype feats by dedication prerequisite even without archetype trait', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+              name: 'Archaeologist Dedication',
+              slug: 'archaeologist-dedication',
+              traits: ['archetype', 'dedication', 'archaeologist'],
+            },
+          ],
+        },
+        4: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.trap-finder',
+              name: 'Trap Finder',
+              slug: 'trap-finder',
+              traits: ['skill'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+        },
+        6: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.settlement-scholastics',
+              name: 'Settlement Scholastics',
+              slug: 'settlement-scholastics',
+              traits: ['skill'],
+              system: { prerequisites: { value: [{ value: 'Archaeologist Dedication' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 6);
+    const planProgress = computePlanArchetypeDedicationProgress(mockActor, plan, 6);
+
+    expect(state.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+    expect(planProgress.dedications).toEqual([
+      expect.objectContaining({ slug: 'archaeologist-dedication', count: 2, complete: true }),
+    ]);
+  });
+
+  test('counts class-slot additional archetype feats by stored source metadata', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-dedication',
+              name: 'Archaeologist Dedication',
+              slug: 'archaeologist-dedication',
+              traits: ['archetype', 'dedication', 'archaeologist'],
+            },
+          ],
+        },
+        4: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.archaeologist-luck',
+              name: "Archaeologist's Luck",
+              slug: 'archaeologist-luck',
+              traits: ['fortune'],
+              additionalArchetype: {
+                unlockLevel: 4,
+                sourceTraits: ['archaeologist'],
+              },
+            },
+          ],
+        },
+        6: {
+          classFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.magical-scholastics',
+              name: 'Magical Scholastics',
+              slug: 'magical-scholastics',
+              traits: ['arcane'],
+              additionalArchetype: {
+                unlockLevel: 6,
+                sourceTraits: ['archaeologist'],
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 6);
+    const planProgress = computePlanArchetypeDedicationProgress(mockActor, plan, 6);
+
+    expect(state.archetypeDedicationProgress.get('archaeologist-dedication')).toBe(2);
+    expect(state.canTakeNewArchetypeDedication).toBe(true);
+    expect(planProgress.dedications).toEqual([
+      expect.objectContaining({ slug: 'archaeologist-dedication', count: 2, complete: true }),
+    ]);
+  });
+
   test('counts same-level generic archetype feats by stored dedication prerequisite text', () => {
     const plan = {
       levels: {
@@ -1107,6 +1228,85 @@ describe('computeBuildState', () => {
     expect(state.archetypeDedicationProgress.get('medic-dedication')).toBe(1);
     expect(state.incompleteArchetypeDedications.has('medic-dedication')).toBe(true);
     expect(state.canTakeNewArchetypeDedication).toBe(false);
+  });
+
+  test('builds plan-level dedication progress metadata for saved plans', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.medic-dedication',
+              name: 'Medic Dedication',
+              slug: 'medic-dedication',
+              traits: ['archetype', 'dedication', 'medic'],
+            },
+          ],
+        },
+        4: {
+          skillFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.treat-condition',
+              name: 'Treat Condition',
+              slug: 'treat-condition',
+              traits: ['archetype', 'skill'],
+              system: { prerequisites: { value: [{ value: 'Medic Dedication' }] } },
+            },
+          ],
+        },
+      },
+    };
+
+    const progress = computePlanArchetypeDedicationProgress(mockActor, plan, 4);
+
+    expect(progress).toEqual({
+      version: 1,
+      atLevel: 4,
+      canTakeNewDedication: false,
+      dedications: [
+        {
+          slug: 'medic-dedication',
+          name: 'Medic Dedication',
+          count: 1,
+          complete: false,
+          specialSecondDedication: false,
+        },
+      ],
+    });
+  });
+
+  test('syncs plan-level dedication progress onto the plan object', () => {
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [
+            {
+              uuid: 'Compendium.pf2e.feats-srd.Item.cavalier-dedication',
+              name: 'Cavalier Dedication',
+              slug: 'cavalier-dedication',
+              traits: ['archetype', 'dedication', 'cavalier'],
+            },
+          ],
+        },
+      },
+    };
+
+    syncPlanArchetypeDedicationProgress(mockActor, plan, 4);
+
+    expect(plan.archetypeDedicationProgress).toEqual({
+      version: 1,
+      atLevel: 4,
+      canTakeNewDedication: true,
+      dedications: [
+        {
+          slug: 'cavalier-dedication',
+          name: 'Cavalier Dedication',
+          count: 0,
+          complete: false,
+          specialSecondDedication: true,
+        },
+      ],
+    });
   });
 
   test('completed dedication progress reopens taking another dedication', () => {

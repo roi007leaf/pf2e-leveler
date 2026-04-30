@@ -1,10 +1,12 @@
 import { MODULE_ID, PLAN_FLAG } from '../constants.js';
+import { syncPlanArchetypeDedicationProgress } from './build-state.js';
 
 export function getPlan(actor) {
   return actor.getFlag(MODULE_ID, PLAN_FLAG) ?? null;
 }
 
 export async function savePlan(actor, plan) {
+  syncPlanArchetypeDedicationProgress(actor, plan);
   await actor.setFlag(MODULE_ID, PLAN_FLAG, plan);
 }
 

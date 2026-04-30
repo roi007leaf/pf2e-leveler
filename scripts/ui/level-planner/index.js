@@ -39,7 +39,6 @@ import { isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsE
 import { getDedicationAliasesFromDescription } from '../../utils/feat-aliases.js';
 import { extractFeatSpellcastingMetadata, FEAT_SPELLCASTING_METADATA_VERSION } from '../../utils/spellcasting-support.js';
 import { localize } from '../../utils/i18n.js';
-import { debug } from '../../utils/logger.js';
 import { FeatPicker } from '../feat-picker.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { loadFeats } from '../../feats/feat-cache.js';
@@ -66,7 +65,7 @@ import {
   extractFeat,
   getClassFeaturesForLevel,
 } from './level-context.js';
-import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules } from './listeners.js';
+import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules, syncSameLevelSkillIncreaseFromFeatRules } from './listeners.js';
 import {
   buildSpellContext,
   buildCustomSpellEntryOptions,
@@ -621,7 +620,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this._seedPlanFromActor(actor, plan, options);
     savePlan(actor, plan);
-    debug(`Auto-created plan for ${actor.name} (${classSlug})`);
     return plan;
   }
 
@@ -1688,6 +1686,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         const slug = feat.slug ?? feat.uuid ?? null;
         const skillRules = await extractFeatSkillRules(feat);
         const aliases = getDedicationAliasesFromDescription(feat);
+        const additionalArchetype = picker.getAdditionalArchetypeMetadata(feat);
         setLevelFeat(this.plan, level, category, {
           uuid: feat.uuid,
           name: feat.name,
@@ -1701,6 +1700,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           aliases,
           aliasesResolved: true,
           aliasesVersion: FEAT_ALIASES_VERSION,
+          ...(additionalArchetype ? { additionalArchetype } : {}),
           spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
           spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
           skillRules,
@@ -1736,9 +1736,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const selectChoice = async (item) => {
       feat.choices = { ...(feat.choices ?? {}), [flag]: item.uuid };
-      await syncPlannedFeatChoiceSkillRules(feat, flag, item.uuid, {
+      const selectedRules = await syncPlannedFeatChoiceSkillRules(feat, flag, item.uuid, {
         grantsSkillTraining: choiceSet.grantsSkillTraining === true,
       });
+      syncSameLevelSkillIncreaseFromFeatRules(this, selectedRules);
       await this._savePlanAndRender();
     };
 
@@ -1787,7 +1788,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const contextKeys = {
       classFeats: ['classFeatChoiceSets', 'classFeat'],
       skillFeats: ['skillFeatChoiceSets', 'skillFeat'],
-      generalFeats: ['generalFeatChoiceSets', 'generalFeat'],
+      generalFeats: ['generalFeatChoiceSets', 'generalFeat', 'generalFeatGrantedAncestryFeat'],
       ancestryFeats: ['ancestryFeatChoiceSets', 'ancestryFeat', 'generalFeatGrantedAncestryFeat'],
       archetypeFeats: ['archetypeFeatChoiceSets', 'archetypeFeat'],
     };
@@ -1832,6 +1833,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           const slug = feat.slug ?? feat.uuid ?? null;
           const skillRules = await extractFeatSkillRules(feat);
           const aliases = getDedicationAliasesFromDescription(feat);
+          const additionalArchetype = picker.getAdditionalArchetypeMetadata(feat);
           addLevelCustomFeat(this.plan, level, {
             uuid: feat.uuid,
             name: feat.name,
@@ -1845,6 +1847,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             aliases,
             aliasesResolved: true,
             aliasesVersion: FEAT_ALIASES_VERSION,
+            ...(additionalArchetype ? { additionalArchetype } : {}),
             spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
             spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
             skillRules,
@@ -1876,14 +1879,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         const allowedFeatUuids = requiredSecondLevelFeat
           ? await this._resolveRequiredSecondLevelClassFeatUuids(requiredSecondLevelFeat)
           : [];
-        debug('Level planner class feat preset', {
-          actor: this.actor?.name ?? null,
-          level,
-          classSlug,
-          enforceSubclassDedicationRequirement,
-          requiredSecondLevelFeat,
-          allowedFeatUuids,
-        });
         return {
           selectedFeatTypes: ['class', 'archetype'],
           lockedFeatTypes: ['class'],
@@ -1922,7 +1917,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         };
       case 'archetypeFeats': {
         const isFreeArchetypeEntryLevel = level === 2;
-        const canChooseDedication = isFreeArchetypeEntryLevel || buildState?.canTakeNewArchetypeDedication === true;
+        const ignoreDedicationLock =
+          game.settings.get(MODULE_ID, 'ignoreFreeArchetypeDedicationLock') === true;
+        const canChooseDedication = isFreeArchetypeEntryLevel
+          || ignoreDedicationLock
+          || buildState?.canTakeNewArchetypeDedication === true;
         return {
           selectedFeatTypes: ['archetype'],
           lockedFeatTypes: ['archetype'],
@@ -1930,6 +1929,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           excludedTraits: canChooseDedication ? undefined : ['dedication'],
           lockedTraits: canChooseDedication ? ['archetype'] : ['archetype', 'dedication'],
           traitLogic: 'and',
+          ignoreDedicationLock,
           maxLevel: level,
         };
       }
@@ -2504,12 +2504,18 @@ function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
     ...(typeof filters.traitLogic === 'string' ? { traitLogic: filters.traitLogic } : {}),
     ...(rarityFilter.length > 0 ? {
       selectedRarities: rarityFilter,
-      lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
+      ...(shouldLockGrantRarityFilter(rarityFilter)
+        ? { lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)) }
+        : {}),
     } : {}),
     ...(Number.isFinite(Number(maxLevelCap)) ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) } : (
       Number.isFinite(Number(filters.maxLevel)) ? { maxLevel: Number(filters.maxLevel) } : {}
     )),
   };
+}
+
+function shouldLockGrantRarityFilter(rarityFilter) {
+  return !(rarityFilter.length === 1 && rarityFilter[0] === 'common');
 }
 
 function normalizeRarityFilter(value, allowedValues) {

@@ -337,6 +337,46 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     }));
   });
 
+  it('keeps skill rules from browsed nested feat choices while building level context', async () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.items = [];
+    actor.system.skills.crafting.rank = 0;
+    global.fromUuid = jest.fn(async () => ({
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      name: 'Ancestral Paragon',
+      system: { rules: [] },
+    }));
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 3;
+    planner.plan.levels[3].generalFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+      name: 'Ancestral Paragon',
+      slug: 'ancestral-paragon',
+      choices: {
+        ancestralParagon: 'Compendium.pf2e.feats-srd.Item.eye-for-treasure',
+      },
+      dynamicSkillRules: [
+        { skill: 'crafting', value: 1, source: 'choice:ancestralparagon' },
+      ],
+    }];
+
+    const context = await planner._buildLevelContext(ALCHEMIST, {});
+    const crafting = context.availableSkills.find((entry) => entry.slug === 'crafting');
+
+    expect(crafting).toEqual(expect.objectContaining({
+      rank: 1,
+      nextRankName: 'expert',
+      featGranted: true,
+      selected: false,
+    }));
+    expect(planner.plan.levels[3].generalFeats[0].dynamicSkillRules).toEqual([
+      { skill: 'crafting', value: 1, source: 'choice:ancestralparagon' },
+    ]);
+  });
+
   it('keeps earlier feat-granted skill ranks marked as feat-granted at later levels', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';

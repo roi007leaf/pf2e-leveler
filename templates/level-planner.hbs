@@ -539,7 +539,7 @@
                     {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                   </span>
                 </span>
-                {{#if this.featGranted}}
+                {{#if this.lockedByFeat}}
                 <span class="skill-btn__rank rank-text-{{this.rankName}}">{{titleCase this.rankName}}</span>
                 {{else}}
                 <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>

@@ -1,9 +1,5 @@
 const PREFIX = 'PF2e Leveler |';
 
-export function debug(...args) {
-  console.debug(PREFIX, ...args);
-}
-
 export function info(...args) {
   console.info(PREFIX, ...args);
 }

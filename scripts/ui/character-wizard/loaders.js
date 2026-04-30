@@ -3,6 +3,7 @@ import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { filterEntriesByRarityForCurrentUser } from '../../access/player-content.js';
 import { createMixedAncestryHeritage } from '../../heritages/mixed-ancestry.js';
 import { slugify } from '../../utils/pf2e-api.js';
+import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import {
   extractCompendiumUuidsByCategory,
   isCompendiumUuidInCategory,
@@ -40,7 +41,7 @@ export async function loadCompendium(wizard, key) {
     traditions: d.system?.traits?.traditions ?? d.system?.traditions?.value ?? [],
     rarity: d.system?.traits?.rarity ?? 'common',
     level: d.system?.level?.value ?? 0,
-    category: d.system?.category ?? null,
+    category: normalizeCategoryValue(d.system?.category),
     ancestrySlug: d.system?.ancestry?.slug ?? null,
     usage: d.system?.usage?.value ?? null,
     range: normalizeRangeValue(d.system?.range ?? null),
@@ -53,7 +54,7 @@ export async function loadCompendium(wizard, key) {
     font: d.system?.font ?? [],
     sanctification: d.system?.sanctification ?? {},
     domains: d.system?.domains ?? { primary: [], alternate: [] },
-    skill: d.system?.skill ?? null,
+    skill: normalizeSkillSlug(d.system?.skill),
     keyAbility: normalizeKeyAbilityOptions(d.system?.keyAbility ?? null),
   }));
   items.sort((a, b) => a.name.localeCompare(b.name));
@@ -730,7 +731,7 @@ function getWorldItemsForCategory(category) {
       traditions: item.system?.traits?.traditions ?? item.system?.traditions?.value ?? [],
       rarity: item.system?.traits?.rarity ?? 'common',
       level: item.system?.level?.value ?? 0,
-      category: item.system?.category ?? null,
+      category: normalizeCategoryValue(item.system?.category),
       ancestrySlug: item.system?.ancestry?.slug ?? null,
       usage: item.system?.usage?.value ?? null,
       range: normalizeRangeValue(item.system?.range ?? null),
@@ -742,7 +743,7 @@ function getWorldItemsForCategory(category) {
       font: item.system?.font ?? [],
       sanctification: item.system?.sanctification ?? {},
       domains: item.system?.domains ?? { primary: [], alternate: [] },
-      skill: item.system?.skill ?? null,
+      skill: normalizeSkillSlug(item.system?.skill),
       keyAbility: normalizeKeyAbilityOptions(item.system?.keyAbility ?? null),
     }));
 }
@@ -761,6 +762,12 @@ function isClassFeatureCategory(category) {
     (typeof category === 'object' && category !== null ? category.value : category) ?? '',
   ).toLowerCase();
   return ['classfeature', 'class-feature', 'ancestryfeature', 'ancestry-feature'].includes(normalized);
+}
+
+function normalizeCategoryValue(category) {
+  return String(
+    (typeof category === 'object' && category !== null ? category.value : category) ?? '',
+  ).toLowerCase() || null;
 }
 
 function getAllWorldItems() {

@@ -10,6 +10,7 @@ import {
 } from '../../system-support/profiles.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
+import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 
 export async function buildLanguageContext(wizard) {
   const ancestryItem = wizard.data.ancestry?.uuid ? await wizard._getCachedDocument(wizard.data.ancestry.uuid) : null;
@@ -235,7 +236,6 @@ export async function buildSkillContext(wizard) {
   const bgSkills = await getBackgroundTrainedSkills(wizard) ?? [];
   const selectedSkills = Array.isArray(wizard.data.skills) ? wizard.data.skills : [];
   const selectedSubclassChoiceSkills = getSelectedSubclassChoiceSkillMap(wizard.data);
-  const dualSelections = getClassSelectionData(wizard.data, 'dualClass');
   const subclassSkills = [
     ...(Array.isArray(wizard.data.subclass?.grantedSkills) ? wizard.data.subclass.grantedSkills : []),
     ...(Array.isArray(wizard.data.dualSubclass?.grantedSkills) ? wizard.data.dualSubclass.grantedSkills : []),
@@ -251,11 +251,7 @@ export async function buildSkillContext(wizard) {
     ...(Array.isArray(wizard.data.dualClassFeat?.grantedSkills) ? wizard.data.dualClassFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.skillFeat?.grantedSkills) ? wizard.data.skillFeat.grantedSkills : []),
   ];
-  const deitySkills = new Map(
-    [wizard.data.deity, dualSelections.deity]
-      .filter(Boolean)
-      .flatMap((deity) => (deity?.skill ? [[deity.skill, deity.name ?? 'Deity']] : [])),
-  );
+  const deitySkills = await collectWizardDeitySkillMap(wizard);
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
   const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
   const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
@@ -351,6 +347,46 @@ function localizeSkillSlug(slug) {
   const label = typeof raw === 'string' ? raw : (raw?.label ?? slug);
   if (game.i18n?.has?.(label)) return game.i18n.localize(label);
   return humanizeSkillLikeLabel(slug);
+}
+
+export async function collectWizardDeitySkillMap(wizard) {
+  const primarySelections = getClassSelectionData(wizard.data, 'class');
+  const dualSelections = getClassSelectionData(wizard.data, 'dualClass');
+  const actorItems = wizard.actor?.items?.contents
+    ?? (Array.isArray(wizard.actor?.items) ? wizard.actor.items : Array.from(wizard.actor?.items ?? []));
+  const candidates = [
+    wizard.data.deity,
+    primarySelections.deity,
+    dualSelections.deity,
+    actorItems.find((item) => item?.type === 'deity') ?? null,
+    wizard.actor?.system?.details?.deity ?? null,
+  ].filter(Boolean);
+
+  const entries = new Map();
+  for (const deity of candidates) {
+    const resolved = await resolveWizardDeitySkill(wizard, deity);
+    if (resolved?.skill) entries.set(resolved.skill, resolved.name ?? 'Deity');
+  }
+  return entries;
+}
+
+async function resolveWizardDeitySkill(wizard, deity) {
+  const directSkill = normalizeSkillSlug(deity?.skill ?? deity?.system?.skill);
+  if (directSkill) return { skill: directSkill, name: deity?.name };
+
+  const uuid = deity?.uuid ?? deity?.sourceId ?? deity?.flags?.core?.sourceId;
+  if (typeof uuid === 'string' && uuid.length > 0) {
+    const doc = await wizard._getCachedDocument?.(uuid)?.catch?.(() => null);
+    const skill = normalizeSkillSlug(doc?.system?.skill ?? doc?.skill);
+    if (skill) return { skill, name: deity?.name ?? doc?.name };
+  }
+
+  const name = String(deity?.name ?? '').trim().toLowerCase();
+  if (!name) return null;
+  const deities = typeof wizard._loadDeities === 'function' ? await wizard._loadDeities() : [];
+  const matched = deities.find((entry) => String(entry?.name ?? '').trim().toLowerCase() === name);
+  const skill = normalizeSkillSlug(matched?.skill ?? matched?.system?.skill);
+  return skill ? { skill, name: deity?.name ?? matched?.name } : null;
 }
 
 export function getActiveSkillSlugs() {

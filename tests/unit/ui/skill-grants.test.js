@@ -862,6 +862,134 @@ describe('CharacterWizard skills step grants', () => {
     }));
   });
 
+  it('marks deity-granted skills as auto-trained when deity skill uses PF2e value object shape', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'champion', uuid: 'class-uuid', name: 'Champion' };
+    wizard.data.deity = {
+      uuid: 'deity-uuid',
+      name: 'Shelyn',
+      skill: { value: 'performance' },
+    };
+
+    const context = await wizard._buildSkillContext();
+    expect(context.find((entry) => entry.slug === 'performance')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Shelyn',
+    }));
+  });
+
+  it('marks deity-granted skills as auto-trained when deity skill uses PF2e array shape', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'champion', uuid: 'class-uuid', name: 'Champion' };
+    wizard.data.deity = {
+      uuid: 'deity-uuid',
+      name: 'Upion and Warrik',
+      skill: ['performance'],
+    };
+
+    const context = await wizard._buildSkillContext();
+    expect(context.find((entry) => entry.slug === 'performance')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Upion and Warrik',
+    }));
+  });
+
+  it('marks primary class selection deity skills as auto-trained', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'champion', uuid: 'class-uuid', name: 'Champion' };
+    wizard.data.classSelections.class.deity = {
+      uuid: 'deity-uuid',
+      name: 'Upion and Warrik',
+      skill: 'performance',
+    };
+
+    const context = await wizard._buildSkillContext();
+    expect(context.find((entry) => entry.slug === 'performance')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Upion and Warrik',
+    }));
+  });
+
+  it('resolves stale deity selections by uuid when the stored deity has no skill', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-uuid') {
+        return {
+          system: {
+            trainedSkills: {
+              additional: 3,
+              value: [],
+            },
+          },
+        };
+      }
+      if (uuid === 'deity-uuid') {
+        return {
+          name: 'Upion and Warrik',
+          system: {
+            skill: 'performance',
+          },
+        };
+      }
+
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'champion', uuid: 'class-uuid', name: 'Champion' };
+    wizard.data.deity = { uuid: 'deity-uuid', name: 'Upion and Warrik' };
+
+    const context = await wizard._buildSkillContext();
+    expect(context.find((entry) => entry.slug === 'performance')).toEqual(expect.objectContaining({
+      autoTrained: true,
+      source: 'Upion and Warrik',
+    }));
+  });
+
   it('marks skills that appear in later skill choice sets', async () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {

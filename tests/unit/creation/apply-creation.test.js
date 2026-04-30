@@ -191,6 +191,44 @@ describe('getAdditionalSelectedItems', () => {
     ]);
   });
 
+  it('does not manually add stale Champion devotion spell choices', () => {
+    const items = getAdditionalSelectedItems({
+      class: { slug: 'champion', name: 'Champion' },
+      grantedFeatSections: [
+        {
+          slot: 'feature-devotion-spells',
+          featName: 'Devotion Spells',
+          sourceName: 'Champion -> Devotion Spells',
+          choiceSets: [
+            {
+              flag: 'devotionSpell',
+              prompt: 'Select a spell.',
+              options: [
+                {
+                  value: 'Compendium.pf2e.spells-srd.Item.shields-of-the-spirit',
+                  uuid: 'Compendium.pf2e.spells-srd.Item.shields-of-the-spirit',
+                  label: 'Shields of the Spirit',
+                  type: 'spell',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      grantedFeatChoices: {
+        'feature-devotion-spells': {
+          devotionSpell: 'Compendium.pf2e.spells-srd.Item.shields-of-the-spirit',
+        },
+      },
+      devotionSpell: {
+        uuid: 'Compendium.pf2e.spells-srd.Item.shields-of-the-spirit',
+        name: 'Shields of the Spirit',
+      },
+    });
+
+    expect(items).toEqual([]);
+  });
+
   it('manually adds selected ancestry feat spell choice results when the stored selection uses the option UUID', () => {
     const items = getAdditionalSelectedItems({
       ancestryFeat: {
@@ -498,6 +536,130 @@ describe('applyCreation formula grants', () => {
 });
 
 describe('applyCreation granted item choices', () => {
+  it('adds the selected Deity Domain initial domain spell as a second devotion spell', async () => {
+    game.settings.get = jest.fn(() => false);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        resources: { focus: { max: 1, value: 1 } },
+        crafting: { formulas: [] },
+        skills: {},
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) =>
+      docs.map((doc, index) => ({ ...doc, id: doc.type === 'spellcastingEntry' ? 'focus-entry' : `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-champion') {
+        return {
+          uuid,
+          name: 'Champion',
+          type: 'class',
+          toObject: () => ({
+            name: 'Champion',
+            type: 'class',
+            system: { rules: [], description: { value: '' } },
+          }),
+        };
+      }
+      if (uuid === 'feat-deitys-domain') {
+        return {
+          uuid,
+          name: "Deity's Domain",
+          type: 'feat',
+          toObject: () => ({
+            name: "Deity's Domain",
+            type: 'feat',
+            system: {
+              slug: 'deitys-domain',
+              level: { value: 1 },
+              rules: [{
+                key: 'ChoiceSet',
+                flag: 'deitysDomain',
+                choices: 'system.details.deities.domains',
+              }],
+              description: { value: 'You gain the domain’s initial domain spell as a devotion spell.' },
+            },
+          }),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.zul5cBTfr7NXHBZf') {
+        return {
+          uuid,
+          name: 'Dazzling Flash',
+          type: 'spell',
+          system: { traits: { value: ['cleric', 'focus', 'light'], traditions: [] } },
+          toObject: () => ({
+            name: 'Dazzling Flash',
+            type: 'spell',
+            system: { traits: { value: ['cleric', 'focus', 'light'], traditions: [] } },
+          }),
+        };
+      }
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-champion', name: 'Champion', slug: 'champion' },
+      subclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: {
+        uuid: 'feat-deitys-domain',
+        name: "Deity's Domain",
+        choices: { deitysDomain: 'sun' },
+      },
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [],
+      permanentItems: [],
+      equipment: [],
+      spells: { cantrips: [], rank1: [] },
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Champion Focus Spells',
+        type: 'spellcastingEntry',
+        system: expect.objectContaining({
+          tradition: { value: 'divine' },
+          prepared: { value: 'focus' },
+        }),
+      }),
+    ]);
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Dazzling Flash',
+        type: 'spell',
+        system: expect.objectContaining({
+          location: { value: 'focus-entry' },
+        }),
+      }),
+    ]);
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.resources.focus.max': 2,
+      'system.resources.focus.value': 2,
+    });
+  });
+
   it('maps legacy UUID-backed Specialty Crafting choices back to the PF2e roll option value', async () => {
     game.settings.get = jest.fn(() => false);
 
@@ -1322,6 +1484,52 @@ describe('applyCreation ancestry paragon', () => {
     }));
   });
 
+  it('trains the selected deity skill when deity skill uses PF2e value object shape', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          performance: { rank: 0 },
+        },
+        details: {
+          languages: { value: [] },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async (updates) => {
+      if (Object.prototype.hasOwnProperty.call(updates, 'system.skills.performance.rank')) {
+        actor.system.skills.performance.rank = updates['system.skills.performance.rank'];
+      }
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async () => null);
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-uuid', name: 'Champion' },
+      deity: { uuid: 'deity-uuid', name: 'Shelyn', skill: { value: 'performance' } },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(actor.update).toHaveBeenCalledWith({ 'system.skills.performance.rank': 1 });
+  });
+
   it('trains a selected synthetic feat fallback skill during creation', async () => {
     game.settings.get = jest.fn(() => false);
     const originalConfig = global.CONFIG;
@@ -2101,6 +2309,101 @@ describe('applyCreation ancestry paragon', () => {
       'system.resources.focus.max': 1,
       'system.resources.focus.value': 1,
     });
+  });
+
+  it('does not turn Halo description light text into a focus cantrip during creation', async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+      if (scope === 'pf2e' && key === 'campaignFeatSections') return [];
+      return false;
+    });
+
+    const createdDocs = [];
+    const actor = createMockActor({
+      items: [],
+      system: {
+        resources: { focus: { max: 0, value: 0 } },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      createdDocs.push(...docs);
+      return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
+    });
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'ancestry-feat-halo') {
+        return {
+          uuid,
+          name: 'Halo',
+          toObject: () => ({
+            name: 'Halo',
+            type: 'feat',
+            system: {
+              level: { value: 1 },
+              rules: [],
+              description: {
+                value: '<p>You have a halo of light and goodness that sheds light with the effects of a @UUID[Compendium.pf2e.spells-srd.Item.light]{Light} cantrip.</p>',
+              },
+            },
+          }),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.light') {
+        return {
+          uuid,
+          name: 'Light',
+          type: 'spell',
+          system: { traits: { value: ['cantrip', 'light'], traditions: [] } },
+          toObject: () => ({
+            name: 'Light',
+            type: 'spell',
+            system: { traits: { value: ['cantrip', 'light'], traditions: [] } },
+          }),
+        };
+      }
+
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: {
+        uuid: 'ancestry-feat-halo',
+        name: 'Halo',
+        choices: {},
+      },
+      ancestryParagonFeat: null,
+      classFeat: null,
+      skillFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(createdDocs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Halo', type: 'feat' }),
+    ]));
+    expect(createdDocs).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'spellcastingEntry' }),
+    ]));
+    expect(createdDocs).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Light', type: 'spell' }),
+    ]));
+    expect(actor.update).not.toHaveBeenCalledWith(expect.objectContaining({
+      'system.resources.focus.max': expect.any(Number),
+    }));
   });
 
   it('does not manually apply the selected subclass item during creation', async () => {

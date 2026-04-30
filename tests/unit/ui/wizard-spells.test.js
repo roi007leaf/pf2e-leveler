@@ -21,6 +21,35 @@ const { ClassRegistry } = jest.requireMock('../../../scripts/classes/registry.js
 const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
 
 describe('buildSpellContext', () => {
+  it('renders champion devotion spells in the non-caster spell step', async () => {
+    ClassRegistry.get.mockReturnValue(null);
+
+    const focusSpells = [
+      { uuid: 'shield-spirit', name: 'Shields of the Spirit', img: 'shield.webp' },
+      { uuid: 'lay-on-hands', name: 'Lay on Hands', img: 'loh.webp' },
+    ];
+    const wizard = {
+      data: {
+        class: { slug: 'champion' },
+        deity: { name: 'Iomedae' },
+        devotionSpell: null,
+      },
+      classHandler: {
+        needsNonCasterSpellStep: () => true,
+        resolveFocusSpells: async () => focusSpells,
+        buildFocusContext: (_data, spells) => ({ focusSpells: spells, isDevotionChoice: true }),
+      },
+    };
+
+    const context = await buildSpellContext(wizard);
+
+    expect(context.spellSections).toEqual([]);
+    expect(context.focusSpells).toEqual(focusSpells);
+    expect(context.focusCantrips).toEqual([]);
+    expect(context.focusNonCantrips).toEqual(focusSpells);
+    expect(context.isDevotionChoice).toBe(true);
+  });
+
   it('limits wizard character creation spell options to common spells', async () => {
     ClassRegistry.get.mockReturnValue({
       slug: 'wizard',

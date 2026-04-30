@@ -100,6 +100,10 @@ function isFocusLikeSpell(spell) {
   return traditions.length === 0;
 }
 
+function isExplicitFocusSpell(spell) {
+  return (spell.system?.traits?.value ?? []).includes('focus');
+}
+
 async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
   const focusSpells = [];
 
@@ -123,7 +127,7 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
       for (const uuid of descUuids) {
         if (focusSpells.some((s) => s.uuid === uuid)) continue;
         const spell = await fromUuid(uuid).catch(() => null);
-        if (spell && isFocusLikeSpell(spell)) focusSpells.push(spell);
+        if (spell && isExplicitFocusSpell(spell)) focusSpells.push(spell);
       }
     }
   }

@@ -219,7 +219,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           this.buildState?.feats ?? new Set(),
         )
       : new Map();
-    this.allFeats = getFeatsForSelection(
+    const categoryFeats = getFeatsForSelection(
       availableFeats,
       this.category,
       this.actor,
@@ -233,6 +233,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         ignoreDedicationLock: this._ignoreDedicationLock,
       },
     );
+    this.allFeats = this.allowedFeatUuids.size > 0
+      ? [
+          ...categoryFeats,
+          ...directlyAllowedFeats.filter(
+            (feat) => !categoryFeats.some((entry) => this._getFeatUuid(entry) === this._getFeatUuid(feat)),
+          ),
+        ]
+      : categoryFeats;
     annotateGuidance(this.allFeats);
     this._showSkillFilter = this._featsHaveSkillRelevance();
   }
@@ -1233,6 +1241,23 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (level != null) return level;
     }
     return null;
+  }
+
+  getAdditionalArchetypeMetadata(feat) {
+    const unlockLevel = this._getAdditionalArchetypeUnlockLevel(feat);
+    if (unlockLevel == null) return null;
+
+    const sourceTraits = new Set();
+    for (const key of this._getAdditionalArchetypeFeatKeys(feat)) {
+      const traits = this.additionalArchetypeFeatTraits.get(key);
+      if (!(traits instanceof Set)) continue;
+      for (const trait of traits) sourceTraits.add(String(trait).toLowerCase());
+    }
+
+    return {
+      unlockLevel,
+      sourceTraits: [...sourceTraits].sort(),
+    };
   }
 
   _getPrerequisiteBuildState(feat) {

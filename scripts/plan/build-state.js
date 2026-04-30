@@ -3,6 +3,7 @@ import {
   ATTRIBUTES,
   MIXED_ANCESTRY_CHOICE_FLAG,
   MIXED_ANCESTRY_UUID,
+  MAX_LEVEL,
   SKILLS,
   PROFICIENCY_RANKS,
 } from '../constants.js';
@@ -12,6 +13,7 @@ import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './
 import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
 import { evaluatePredicate } from '../utils/predicate.js';
+import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 
 const CLASS_SUBCLASS_TYPES = {
   alchemist: 'research field',
@@ -38,6 +40,8 @@ const CLASS_SUBCLASS_TYPES = {
 };
 
 const VARIABLE_SPELLCASTING_TRADITIONS = new Set(['bloodline', 'patron']);
+const SECOND_DEDICATION_EXCEPTION_SLUGS = new Set(['cavalier-dedication']);
+const PLAN_DEDICATION_PROGRESS_VERSION = 1;
 
 export function computeBuildState(actor, plan, atLevel) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -478,6 +482,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
   }
 
   applyActorSkillRankRules(skills, actor, atLevel);
+  applyActorDeitySkill(skills, actor);
 
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
@@ -505,6 +510,23 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
   }
 
   return skills;
+}
+
+function applyActorDeitySkill(skills, actor) {
+  const deitySkill = resolveActorDeitySkill(actor);
+  if (!deitySkill || !SKILLS.includes(deitySkill)) return skills;
+  skills[deitySkill] = Math.max(skills[deitySkill] ?? PROFICIENCY_RANKS.UNTRAINED, PROFICIENCY_RANKS.TRAINED);
+  return skills;
+}
+
+function resolveActorDeitySkill(actor) {
+  const deityItem = getOwnedItems(actor).find((item) => item?.type === 'deity') ?? null;
+  return normalizeSkillSlug(
+    deityItem?.skill
+      ?? deityItem?.system?.skill
+      ?? actor?.system?.details?.deity?.skill
+      ?? actor?.system?.details?.deity?.system?.skill,
+  );
 }
 
 function applyPlannedSkillRankRules(skills, plan, atLevel) {
@@ -1104,7 +1126,10 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
           ...(Array.isArray(feat?.traits) ? feat.traits : []),
           ...(feat?.system?.traits?.value ?? []),
         ].map((trait) => String(trait).toLowerCase());
-        const isArchetypeFeat = featTraits.includes('archetype');
+        const isArchetypeFeat =
+          featTraits.includes('archetype') ||
+          isStoredAdditionalArchetypeFeat(feat) ||
+          hasArchetypeDedicationPrerequisite(feat);
         if (
           !featSlug ||
           featSlug === dedicationSlug ||
@@ -1145,7 +1170,12 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
           ...(Array.isArray(feat?.traits) ? feat.traits : []),
           ...(feat?.system?.traits?.value ?? []),
         ].map((trait) => String(trait).toLowerCase());
-        if (!featTraits.includes('archetype')) continue;
+        if (
+          !featTraits.includes('archetype') &&
+          !isStoredAdditionalArchetypeFeat(feat) &&
+          !hasArchetypeDedicationPrerequisite(feat)
+        )
+          continue;
         matched.add(featSlug);
       }
     }
@@ -1223,7 +1253,9 @@ function buildArchetypeFeatTimeline(actor, plan, atLevel) {
         if (
           !isArchetypeDedication(feat) &&
           key !== 'archetypeFeats' &&
-          !getFeatTraitSlugs(feat).includes('archetype')
+          !isStoredAdditionalArchetypeFeat(feat) &&
+          !getFeatTraitSlugs(feat).includes('archetype') &&
+          !hasArchetypeDedicationPrerequisite(feat)
         ) {
           continue;
         }
@@ -1237,7 +1269,12 @@ function buildArchetypeFeatTimeline(actor, plan, atLevel) {
 }
 
 function isArchetypeTimelineEntry(entry, featTraits = getFeatTraitSlugs(entry?.feat)) {
-  return entry?.category === 'archetypeFeats' || featTraits.includes('archetype');
+  return (
+    entry?.category === 'archetypeFeats' ||
+    featTraits.includes('archetype') ||
+    isStoredAdditionalArchetypeFeat(entry?.feat) ||
+    hasArchetypeDedicationPrerequisite(entry?.feat)
+  );
 }
 
 function getActorFeatLevel(feat) {
@@ -1259,7 +1296,57 @@ function computeIncompleteArchetypeDedications(actor, plan, atLevel) {
 }
 
 function canTakeNewArchetypeDedication(actor, plan, atLevel) {
-  return computeIncompleteArchetypeDedications(actor, plan, atLevel).size === 0;
+  const incompleteDedications = computeIncompleteArchetypeDedications(actor, plan, atLevel);
+  return (
+    incompleteDedications.size === 0 ||
+    hasSecondDedicationException(actor, plan, atLevel, incompleteDedications)
+  );
+}
+
+export function syncPlanArchetypeDedicationProgress(actor, plan, atLevel = MAX_LEVEL) {
+  if (!plan) return plan;
+  plan.archetypeDedicationProgress = computePlanArchetypeDedicationProgress(actor, plan, atLevel);
+  return plan;
+}
+
+export function computePlanArchetypeDedicationProgress(actor, plan, atLevel = MAX_LEVEL) {
+  const progress = computeArchetypeDedicationProgress(actor, plan, atLevel);
+  const incompleteDedications = new Set(
+    [...progress.entries()].filter(([, count]) => count < 2).map(([slug]) => slug),
+  );
+  const nameBySlug = new Map();
+  for (const entry of buildArchetypeFeatTimeline(actor, plan, atLevel)) {
+    if (!isArchetypeDedication(entry.feat)) continue;
+    const slug = getPrimaryFeatAlias(entry.feat);
+    if (!slug || nameBySlug.has(slug)) continue;
+    nameBySlug.set(slug, String(entry.feat?.name ?? slug));
+  }
+
+  return {
+    version: PLAN_DEDICATION_PROGRESS_VERSION,
+    atLevel,
+    canTakeNewDedication:
+      incompleteDedications.size === 0 ||
+      hasSecondDedicationException(actor, plan, atLevel, incompleteDedications),
+    dedications: [...progress.entries()]
+      .map(([slug, count]) => ({
+        slug,
+        name: nameBySlug.get(slug) ?? slug,
+        count,
+        complete: count >= 2,
+        specialSecondDedication: SECOND_DEDICATION_EXCEPTION_SLUGS.has(slug),
+      }))
+      .sort((a, b) => a.slug.localeCompare(b.slug)),
+  };
+}
+
+function hasSecondDedicationException(actor, plan, atLevel, incompleteDedications) {
+  if (incompleteDedications.size !== 1) return false;
+  const [incompleteSlug] = [...incompleteDedications];
+  if (!SECOND_DEDICATION_EXCEPTION_SLUGS.has(incompleteSlug)) return false;
+
+  const dedications = computeArchetypeDedications(actor, plan, atLevel);
+  return dedications.size === 1 && dedications.has(incompleteSlug);
 }
 
 function getFeatAliases(feat) {
@@ -1454,6 +1541,9 @@ function getArchetypeAssociationTraits(feat) {
   const traits = [
     ...(Array.isArray(feat?.traits) ? feat.traits : []),
     ...(feat?.system?.traits?.value ?? []),
+    ...(Array.isArray(feat?.additionalArchetype?.sourceTraits)
+      ? feat.additionalArchetype.sourceTraits
+      : []),
   ]
     .map((trait) => String(trait).toLowerCase())
     .filter((trait) => trait && !genericTraits.has(trait));
@@ -1464,6 +1554,13 @@ function getArchetypeAssociationTraits(feat) {
   if (slug.endsWith('-dedication')) return new Set([slug.replace(/-dedication$/u, '')]);
 
   return new Set();
+}
+
+function isStoredAdditionalArchetypeFeat(feat) {
+  return (
+    Array.isArray(feat?.additionalArchetype?.sourceTraits) &&
+    feat.additionalArchetype.sourceTraits.length > 0
+  );
 }
 
 function getArchetypeAssociationPhrases(feat) {
@@ -1501,6 +1598,10 @@ function getArchetypePrerequisiteText(feat) {
     )
     .filter(Boolean)
     .join(' ; ');
+}
+
+function hasArchetypeDedicationPrerequisite(feat) {
+  return /\bdedication\b/u.test(getArchetypePrerequisiteText(feat));
 }
 
 function isClassArchetypeDedication(feat) {

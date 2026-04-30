@@ -58,6 +58,7 @@ import { evaluatePredicate } from '../../utils/predicate.js';
 import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { isAncestralParagonEnabled, isDualClassEnabled, slugify } from '../../utils/pf2e-api.js';
+import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import {
@@ -76,6 +77,7 @@ import {
   getSelectedFeatChoiceLabels,
   getSelectedSubclassChoiceLabels,
   hydrateChoiceSets,
+  isHandlerManagedFocusSpellChoiceRenderSection,
   isRawValueChoiceSet,
   parseChoiceSets,
   refreshGrantedFeatChoiceSections,
@@ -94,6 +96,7 @@ import { buildSummaryContext } from './summary.js';
 import {
   buildLanguageContext,
   buildSkillContext,
+  collectWizardDeitySkillMap,
   collectFeatLanguageGrants,
   getBackgroundLores,
   getBackgroundTrainedSkills,
@@ -509,13 +512,24 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _hasFeatChoices() {
+    const hasVisibleChoiceSets = (slot, feat) =>
+      (feat?.choiceSets?.length ?? 0) > 0
+      && !isHandlerManagedFocusSpellChoiceRenderSection(this, {
+        slot,
+        featName: feat?.name,
+        sourceName: feat?.sourceName,
+        choiceSets: feat?.choiceSets ?? [],
+      });
+    const visibleGrantedSections = (this.data.grantedFeatSections ?? [])
+      .filter((section) => !isHandlerManagedFocusSpellChoiceRenderSection(this, section));
+
     return (
-      (this.data.ancestryFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.ancestryParagonFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.classFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.dualClassFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.skillFeat?.choiceSets?.length ?? 0) > 0 ||
-      (this.data.grantedFeatSections?.length ?? 0) > 0 ||
+      hasVisibleChoiceSets('ancestry', this.data.ancestryFeat) ||
+      hasVisibleChoiceSets('ancestryParagon', this.data.ancestryParagonFeat) ||
+      hasVisibleChoiceSets('class', this.data.classFeat) ||
+      hasVisibleChoiceSets('dualClass', this.data.dualClassFeat) ||
+      hasVisibleChoiceSets('skill', this.data.skillFeat) ||
+      visibleGrantedSections.length > 0 ||
       (this._cachedFeatGrantRequirements?.length ?? 0) > 0 ||
       (this.data.featGrants?.length ?? 0) > 0
     );
@@ -1049,7 +1063,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const font = item.system?.font ?? [];
         const sanctification = item.system?.sanctification ?? {};
         const domains = item.system?.domains ?? { primary: [], alternate: [] };
-        const skill = item.system?.skill ?? null;
+        const skill = normalizeSkillSlug(item.system?.skill);
         setDeity(this.data, {
           uuid: item.uuid,
           name: item.name,
@@ -1336,7 +1350,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ...classSkillsForState,
       ...bgSkillsForState,
       ...(subclassEntry?.grantedSkills ?? []),
-      ...(classSelections.deity?.skill ? [classSelections.deity.skill] : []),
+      ...(normalizeSkillSlug(classSelections.deity?.skill) ? [normalizeSkillSlug(classSelections.deity?.skill)] : []),
       ...(this.data.ancestryFeat?.grantedSkills ?? []),
       ...(this.data.ancestryParagonFeat?.grantedSkills ?? []),
       ...(this.data.classFeat?.grantedSkills ?? []),
@@ -2086,7 +2100,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         this.data.dualClass?.uuid ? await this._getCachedDocument(this.data.dualClass.uuid) : null,
       ].filter(Boolean);
 
-    const dualSelections = getClassSelectionData(this.data, 'dualClass');
+    const deitySkills = await collectWizardDeitySkillMap(this);
     const autoTrainedSkills = new Set([
       ...resolvedClassItems.flatMap((item) =>
         (item.system?.trainedSkills?.value ?? []).filter(
@@ -2099,8 +2113,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         (s) => typeof s === 'string' && s.length > 0,
       ),
       ...getSelectedSubclassChoiceSkillMap(this.data).keys(),
-      ...(this.data.deity?.skill ? [this.data.deity.skill] : []),
-      ...(dualSelections.deity?.skill ? [dualSelections.deity.skill] : []),
+      ...deitySkills.keys(),
     ]);
     if (autoTrainedSkills.size === 0) return 0;
 
@@ -2227,10 +2240,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             .filter(Boolean)
             .map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
+            section,
             choiceSets: section.choiceSets ?? [],
             choices: getGrantedFeatChoiceValues(this.data, section.slot),
           })),
-        ];
+        ].filter((section) =>
+          !section.section || !isHandlerManagedFocusSpellChoiceRenderSection(this, section.section));
         return sections.every((section) =>
           section.choiceSets.every((cs) => {
             const val = section.choices?.[cs.flag];
@@ -4010,12 +4025,18 @@ function buildItemGrantPickerPreset(requirement, { maxLevelCap = null } = {}) {
     ...(typeof filters.traitLogic === 'string' ? { traitLogic: filters.traitLogic } : {}),
     ...(rarityFilter.length > 0 ? {
       selectedRarities: rarityFilter,
-      lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)),
+      ...(shouldLockGrantRarityFilter(rarityFilter)
+        ? { lockedRarities: rarityValues.filter((rarity) => !rarityFilter.includes(rarity)) }
+        : {}),
     } : {}),
     ...(Number.isFinite(Number(maxLevelCap)) ? { maxLevel: Number(maxLevelCap), maxLevelCap: Number(maxLevelCap) } : (
       Number.isFinite(Number(filters.maxLevel)) ? { maxLevel: Number(filters.maxLevel) } : {}
     )),
   };
+}
+
+function shouldLockGrantRarityFilter(rarityFilter) {
+  return !(rarityFilter.length === 1 && rarityFilter[0] === 'common');
 }
 
 function normalizeRarityFilter(value, allowedValues) {

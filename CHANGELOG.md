@@ -1,5 +1,26 @@
 # Changelog
 
+## 3.3.8
+
+### Level Planner
+
+- **Dedication progress now counts archetype feats in class feat slots** - Dedication unlock checks now count archetype feats selected in either class feat or free-archetype slots, including additional archetype feats that lack an `archetype` trait
+- **Cavalier-style dedication exceptions now use feat data instead of a manual checkbox** - Dedication progress tracking now keeps per-dedication feat counts and recognizes special dedication text that permits another dedication before the normal two-feat completion
+- **Ancestral Paragon follow-up choices now stay nested and deduplicated** - Nested granted feats such as Arcane Tattoos and Seasoned no longer duplicate their cantrip, skill, or performance-type prompts when shown under Ancestral Paragon
+- **Natural Ambition now offers its level-1 class feat choice in the planner** - The planner builds a class-aware fallback picker for Natural Ambition when the PF2e rule data does not expose usable options
+- **Feat-trained skill choices now update same-level skill increases** - If a feat trains a selected skill and the current level has a skill increase, the planner now moves that increase to the newly trained skill when the next rank is legal, and hides locked upgrades when the rank cap blocks them
+- **Browsed nested feat skill grants now update same-level skill increases** - Ancestral Paragon choices such as Eye for Treasure now keep their granted Crafting rank in the planner and move the level's skill increase to Crafting when expert is legal
+- **Guardian archetype feat grants now show the full granted feat list** - Basic Defender and similar granted feat pickers now include eligible guardian archetype feats instead of only feats that are also base class feats
+- **Armor proficiency grants no longer ask useless armor choices** - Feats that would grant armor training no longer prompt for an armor category when the actor is already trained in all relevant armor categories
+- **Deity skill fallbacks now understand PF2e array and object skill data** - Champion and cleric deity skill handling now resolves deity skill values stored as strings, PF2e value objects, arrays, actor deity items, or selected deity UUIDs
+
+### Character Creation
+
+- **Champion deity skills now apply during creation** - Deity skills such as Upion and Warrik's Performance now train correctly, including when the skill value is stored as a PF2e array
+- **Deity's Domain now grants the selected devotion spell** - The selected domain's initial focus spell is added as a second devotion spell and increases the focus pool correctly
+- **Champion devotion spell choices no longer appear or apply twice** - Devotion spell selection now lives in the Spells step, stale granted-feature choice sections are hidden from Feat Choices, and old saved choices are ignored during import
+- **Halo no longer grants Light as a focus cantrip** - Description-only spell links are no longer treated as granted spells, so Halo only applies the feat and does not create a bogus `Light` focus cantrip
+
 ## 3.3.7
 
 ### Level Planner

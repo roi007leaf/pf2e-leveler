@@ -178,6 +178,121 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('moves the same-level skill increase onto a selected feat-trained skill when legal', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="levelerSkillFallback1" data-value="arcana" data-grants-skill-training="true"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          3: {
+            generalFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+                name: 'Ancestral Paragon',
+                slug: 'ancestral-paragon',
+              },
+            ],
+            skillIncreases: [{ skill: 'acrobatics', toRank: 2 }],
+          },
+        },
+      },
+      selectedLevel: 3,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[3].generalFeats[0].dynamicSkillRules).toEqual([
+      { skill: 'arcana', value: 1, source: 'choice:levelerskillfallback1' },
+    ]);
+    expect(planner.plan.levels[3].skillIncreases).toEqual([
+      { skill: 'arcana', toRank: 2 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('moves the same-level skill increase onto a browsed feat that grants a skill rank', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="ancestralParagon" data-value="Compendium.pf2e.feats-srd.Item.eye-for-treasure"></button>';
+    global.fromUuid = jest.fn(async () => ({
+      uuid: 'Compendium.pf2e.feats-srd.Item.eye-for-treasure',
+      name: 'Eye for Treasure',
+      system: {
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.crafting.rank', value: 1 },
+        ],
+      },
+    }));
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          3: {
+            generalFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+                name: 'Ancestral Paragon',
+                slug: 'ancestral-paragon',
+              },
+            ],
+            skillIncreases: [{ skill: 'acrobatics', toRank: 2 }],
+          },
+        },
+      },
+      selectedLevel: 3,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[3].generalFeats[0].dynamicSkillRules).toEqual([
+      { skill: 'crafting', value: 1, predicate: null, source: 'choice:ancestralparagon' },
+    ]);
+    expect(planner.plan.levels[3].skillIncreases).toEqual([
+      { skill: 'crafting', toRank: 2 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('does not move the same-level skill increase when the feat-trained skill cannot be upgraded', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="levelerSkillFallback1" data-value="arcana" data-grants-skill-training="true"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          3: {
+            generalFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.ancestral-paragon',
+                name: 'Ancestral Paragon',
+                slug: 'ancestral-paragon',
+              },
+            ],
+            skillIncreases: [{ skill: 'acrobatics', toRank: 2 }],
+          },
+        },
+      },
+      selectedLevel: 3,
+      _savePlanAndRender: jest.fn(),
+    };
+    planner.actor.system.skills.arcana.rank = 2;
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[3].skillIncreases).toEqual([
+      { skill: 'acrobatics', toRank: 2 },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
   it('stores nested granted feat choices on the source planned feat', async () => {
     document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="generalFeats" data-flag="cantrip" data-value="Compendium.pf2e.spells-srd.Item.daze"></button>';
 

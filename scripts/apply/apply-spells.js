@@ -2,7 +2,7 @@ import { SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize } from '../utils/pf2e-api.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../data/subclass-spells.js';
-import { debug, warn } from '../utils/logger.js';
+import { warn } from '../utils/logger.js';
 import {
   classUsesPhysicalSpellbook,
   collectArchetypeSpellcastingConfigs,
@@ -130,7 +130,6 @@ async function updateDivineFont(actor, classDef, level) {
   update[`system.slots.slot${highestRank}.value`] = maxSlots;
 
   await actor.updateEmbeddedDocuments('Item', [update]);
-  debug(`Updated divine font: ${maxSlots} slots at rank ${highestRank}`);
 }
 
 async function ensureSpellcastingEntries(actor, classDef) {
@@ -227,11 +226,9 @@ async function findOrCreateEntry(actor, config) {
   );
 
   if (existing) {
-    debug(`Found existing spellcasting entry: ${existing.name}`);
     return existing;
   }
 
-  debug(`Creating spellcasting entry: ${config.name}`);
   const entryData = buildEntryData(config);
   const created = await actor.createEmbeddedDocuments('Item', [entryData]);
   return created[0];
@@ -368,7 +365,6 @@ async function updateSpellSlots(actor, entries, slots, classDef, level) {
   const validUpdates = updates.filter(Boolean);
   if (validUpdates.length > 0) {
     await actor.updateEmbeddedDocuments('Item', validUpdates);
-    debug(`Updated spell slots for ${validUpdates.length} entries`);
   }
 }
 
@@ -451,7 +447,6 @@ async function addPlannedSpells(actor, entries, levelData, classSlug = null, inc
     const created = await actor.createEmbeddedDocuments('Item', [spellData]);
     if (created.length > 0) {
       added.push({ name: spellPlan.name, rank: spellPlan.rank });
-      debug(`Added spell: ${spellPlan.name} to ${entry.name}`);
     }
   }
 
@@ -505,7 +500,6 @@ async function addGrantedSpells(actor, entries, classDef, _plan, level) {
     spellData.system.location = { value: entry.id };
     await actor.createEmbeddedDocuments('Item', [spellData]);
     added.push({ name: spell.name, rank: rankNum });
-    debug(`Added granted spell: ${spell.name} (rank ${rankNum})`);
   }
 
   return added;
@@ -547,7 +541,6 @@ async function addSubclassFocusSpells(actor, classDef, plan, level) {
   spellData.system.location = { value: focusEntry.id };
   await actor.createEmbeddedDocuments('Item', [spellData]);
   await increaseFocusPool(actor, 1);
-  debug(`Added subclass focus spell: ${spell.name} (${focusTier})`);
 
   return [{ name: spell.name }];
 }

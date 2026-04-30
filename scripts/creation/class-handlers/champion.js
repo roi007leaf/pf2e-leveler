@@ -111,6 +111,8 @@ export class ChampionHandler extends BaseClassHandler {
     if (data.devotionSpell) {
       const spell = await fromUuid(data.devotionSpell.uuid).catch(() => null);
       if (spell) {
+        if (actorHasSpellSource(actor, spell.uuid)) return;
+
         const focusEntryName = `${capitalize(data.class?.name ?? 'Champion')} Focus Spells`;
         let focusEntry = actor.items?.find((i) =>
           i.type === 'spellcastingEntry'
@@ -144,4 +146,15 @@ export class ChampionHandler extends BaseClassHandler {
       }
     }
   }
+}
+
+function actorHasSpellSource(actor, uuid) {
+  return (actor.items ?? []).some((item) =>
+    item?.type === 'spell'
+    && (
+      item?.sourceId === uuid
+      || item?.flags?.core?.sourceId === uuid
+      || item?._stats?.compendiumSource === uuid
+      || item?.uuid === uuid
+    ));
 }

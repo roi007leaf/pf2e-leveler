@@ -366,6 +366,85 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('applies defense predicates and hides already-known armor training choices', async () => {
+    const wizard = new CharacterWizard(createMockActor({
+      system: {
+        proficiencies: {
+          defenses: {
+            light: { rank: 1 },
+            medium: { rank: 1 },
+            heavy: { rank: 1 },
+          },
+        },
+      },
+    }));
+
+    const sets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        rollOption: 'guardian-dedication',
+        prompt: 'Choose armor training.',
+        choices: [
+          {
+            value: 'light-and-medium',
+            label: 'Light and medium armor',
+            predicate: { or: ['defense:light:rank:0', 'defense:medium:rank:0'] },
+          },
+          {
+            value: 'heavy',
+            label: 'Heavy armor',
+            predicate: { nor: ['defense:light:rank:0', 'defense:medium:rank:0'] },
+          },
+        ],
+      },
+    ]);
+
+    expect(sets).toEqual([]);
+  });
+
+  it('keeps useful armor training choices when the actor lacks that defense rank', async () => {
+    const wizard = new CharacterWizard(createMockActor({
+      system: {
+        proficiencies: {
+          defenses: {
+            light: { rank: 1 },
+            medium: { rank: 1 },
+            heavy: { rank: 0 },
+          },
+        },
+      },
+    }));
+
+    const sets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        rollOption: 'guardian-dedication',
+        prompt: 'Choose armor training.',
+        choices: [
+          {
+            value: 'light-and-medium',
+            label: 'Light and medium armor',
+            predicate: { or: ['defense:light:rank:0', 'defense:medium:rank:0'] },
+          },
+          {
+            value: 'heavy',
+            label: 'Heavy armor',
+            predicate: { nor: ['defense:light:rank:0', 'defense:medium:rank:0'] },
+          },
+        ],
+      },
+    ]);
+
+    expect(sets).toEqual([
+      expect.objectContaining({
+        flag: 'guardian-dedication',
+        options: [
+          expect.objectContaining({ value: 'heavy', label: 'Heavy armor' }),
+        ],
+      }),
+    ]);
+  });
+
   it('supports grouped or filters for subclass follow-up options', async () => {
     const wizard = new CharacterWizard(createMockActor());
 
@@ -5681,6 +5760,44 @@ describe('CharacterWizard subclass choice-set parsing', () => {
         autoTrainedSource: 'Elven Lore',
         disabled: true,
       }));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('recognizes automatically trained skill fallback wording like Seasong', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...(originalConfig ?? {}),
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          performance: 'Performance',
+          diplomacy: 'Diplomacy',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['performance'];
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.seasong',
+      name: 'Seasong',
+      system: {
+        description: {
+          value: '<p>You become trained in Performance. If you would automatically become trained in Performance, you instead become trained in a skill of your choice.</p>',
+        },
+        rules: [
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: 'system.skills.performance.rank', value: 1 },
+        ],
+      },
+    };
+
+    try {
+      const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+
+      expect(sets.filter((entry) => entry.flag === 'levelerSkillFallback1')).toHaveLength(1);
     } finally {
       global.CONFIG = originalConfig;
     }

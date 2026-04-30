@@ -1,10 +1,10 @@
 import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
-import { debug } from '../../utils/logger.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 import { slugify } from '../../utils/pf2e-api.js';
+import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { extractCompendiumUuidsByCategory } from '../../system-support/profiles.js';
 import { buildSkillContext } from './skills-languages.js';
 import { parseCurriculum } from './loaders.js';
@@ -96,7 +96,10 @@ export async function buildFeatChoicesContext(wizard) {
       choiceSets: await hydrateChoiceSets(wizard, section.choiceSets ?? [], getGrantedFeatChoiceValues(wizard.data, section.slot)),
     });
   }
-  return { featChoiceSections: sections };
+  return {
+    featChoiceSections: sections.filter((section) =>
+      !isHandlerManagedFocusSpellChoiceRenderSection(wizard, section)),
+  };
 }
 
 function inferGrantedFeatChoiceTarget(wizard, section) {
@@ -184,7 +187,6 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
   const sections = [];
   const seenSections = new Set();
   const scannedItems = new Set();
-  const shouldLogDeityDomains = wizard.data.class?.slug === 'cleric' && !!wizard.data.deity;
 
   const topItems = [
     { uuid: wizard.data.ancestry?.uuid, label: wizard.data.ancestry?.name },
@@ -235,11 +237,13 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     }
     const isSubclassSelector = isSubclassSelectionItem(wizard, item, parsedChoiceSets);
     const isHandlerManagedSelector = isHandlerManagedSelectionItem(wizard, item);
+    const isHandlerManagedFocusChoice = isHandlerManagedFocusSpellChoiceSection(wizard, item, parsedChoiceSets);
 
     const fullySatisfied = areChoiceSetsSatisfied(parsedChoiceSets, currentChoices);
     const shouldPushSection = !skipDirectSection
       && !isSubclassSelector
       && !isHandlerManagedSelector
+      && !isHandlerManagedFocusChoice
       && parsedChoiceSets.length > 0
       && !seenSections.has(item.uuid)
       && !(suppressIfSatisfied && fullySatisfied);
@@ -313,12 +317,12 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     await scanItem(item, entry.label, entry);
   }
 
-  maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections, shouldLogDeityDomains);
+  maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections);
 
   return sections;
 }
 
-function maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections, shouldLogDeityDomains) {
+function maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections) {
   if (wizard.data.class?.slug !== 'cleric' || !wizard.data.deity) return;
   if (!isCloisteredClericDoctrine(wizard.data.subclass)) return;
 
@@ -350,14 +354,6 @@ function maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSect
     ],
   });
 
-  if (shouldLogDeityDomains) {
-    debug('Added synthetic cleric Domain Initiate section', {
-      deity: wizard.data.deity.name,
-      doctrine: wizard.data.subclass?.name ?? null,
-      optionCount: options.length,
-      options: options.map((option) => option.label),
-    });
-  }
 }
 
 function isCloisteredClericDoctrine(subclass) {
@@ -379,6 +375,52 @@ function isSubclassSelectionItem(wizard, item, parsedChoiceSets) {
     const filters = JSON.stringify(rule?.choices?.filter ?? []);
     return typeof filters === 'string' && filters.includes(subclassTag);
   });
+}
+
+function isHandlerManagedFocusSpellChoiceSection(wizard, item, parsedChoiceSets) {
+  if (wizard.data.class?.slug !== 'champion') return false;
+  if (wizard.classHandler?.isFocusSpellChoice?.() !== true) return false;
+  if (!Array.isArray(parsedChoiceSets) || parsedChoiceSets.length === 0) return false;
+  if (!parsedChoiceSets.every(isSpellChoiceSet)) return false;
+
+  const slug = String(item?.slug ?? '').trim().toLowerCase();
+  const name = String(item?.name ?? '').trim().toLowerCase();
+  return slug === 'devotion-spells' || name === 'devotion spells';
+}
+
+export function isHandlerManagedFocusSpellChoiceRenderSection(wizard, section) {
+  if (wizard.data.class?.slug !== 'champion') return false;
+  if (wizard.classHandler?.isFocusSpellChoice?.() !== true) return false;
+  if (!Array.isArray(section?.choiceSets) || section.choiceSets.length === 0) return false;
+  if (!section.choiceSets.every(isSpellChoiceSet)) return false;
+
+  const labels = [
+    section?.slug,
+    section?.featName,
+    section?.name,
+    section?.sourceName,
+    section?.slot,
+  ].map((value) => String(value ?? '').trim().toLowerCase());
+
+  return labels.some((label) =>
+    label === 'devotion-spells'
+    || label === 'devotion spells'
+    || label.endsWith('-> devotion spells')
+    || label.includes('feature-devotion-spells'));
+}
+
+function isSpellChoiceSet(choiceSet) {
+  if (choiceSet?.isSpellChoice === true) return true;
+  if (choiceSet?.flag === 'devotionSpell') return true;
+
+  const itemType = String(choiceSet?.choices?.itemType ?? '').toLowerCase();
+  if (itemType === 'spell') return true;
+
+  const filterText = safeSerializeChoiceFilters(choiceSet?.choices?.filter ?? []).toLowerCase();
+  if (filterText.includes('item:type:spell')) return true;
+
+  const options = choiceSet?.options ?? [];
+  return options.length > 0 && options.every((option) => String(option?.type ?? '').toLowerCase() === 'spell');
 }
 
 function isHandlerManagedSelectionItem(wizard, item) {
@@ -648,8 +690,9 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     const flag = getChoiceSetFlag(rule, index);
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
-    if (!matchesChoiceSetPredicate(normalizedRule.predicate, buildChoiceSetRollOptions(wizard, allRules, currentChoices))) continue;
-    const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem);
+    const rollOptions = buildChoiceSetRollOptions(wizard, allRules, currentChoices);
+    if (!matchesChoiceSetPredicate(normalizedRule.predicate, rollOptions)) continue;
+    const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem, rollOptions);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
       const set = {
@@ -859,6 +902,7 @@ function hasSkillFallbackText(html) {
   if (description.includes('skill of your choice') && description.includes('already trained')) return true;
 
   return [
+    /if you would automatically become trained in [^.]+?,?\s+you instead become trained in a skill of your choice\.?/,
     /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
     /for each of (?:these|those) skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
     /if you were already trained in both,?\s+you become trained in a skill of your choice\.?/,
@@ -963,11 +1007,11 @@ async function resolveAssociatedDeitySkill(wizard, rules, currentChoices = {}) {
 
   if (typeof selectedDeityUuid === 'string' && selectedDeityUuid !== '[object Object]') {
     const deityItem = await resolveDocument(wizard, selectedDeityUuid);
-    const deitySkill = deityItem?.system?.skill ?? null;
+    const deitySkill = normalizeSkillSlug(deityItem?.system?.skill);
     if (SKILLS.includes(deitySkill)) return deitySkill;
   }
 
-  return wizard?.data?.deity?.skill ?? null;
+  return normalizeSkillSlug(wizard?.data?.deity?.skill);
 }
 
 function isDeityChoiceRule(rule) {
@@ -986,16 +1030,19 @@ function isDeityChoiceRule(rule) {
     || localizedPrompt === 'select a deity';
 }
 
-async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, sourceItem = null) {
+async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, sourceItem = null, rollOptions = {}) {
   if (Array.isArray(rule.choices)) {
+    const validChoices = rule.choices
+      .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
+      .filter((c) => matchesChoiceSetPredicate(c?.predicate ?? c?.value?.predicate, rollOptions))
+      .filter((c) => !choiceGrantsKnownDefenseTraining(c, rollOptions));
+
     if (isRawValueChoiceSet(rule)) {
-      return rule.choices
-        .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
+      return validChoices
         .map((c) => normalizeRawChoiceOption(c));
     }
 
-    return Promise.all(rule.choices
-      .filter((c) => extractChoiceValue(c) || extractChoiceLabel(c))
+    return Promise.all(validChoices
       .map((c) => enrichChoiceOption(wizard, c, { preserveRawValue: shouldPreserveRawChoiceValue(rule) })));
   }
 
@@ -1635,7 +1682,32 @@ export function buildChoiceSetRollOptions(wizard, rules, currentChoices) {
   for (const slug of getSelectedFeatRollOptionSlugs(wizard)) {
     values[`feat:${slug}`] = true;
   }
+  for (const category of ['unarmored', 'light', 'medium', 'heavy']) {
+    const rank = getActorDefenseRank(wizard, category);
+    values[`defense:${category}:rank:${rank}`] = true;
+  }
   return values;
+}
+
+function getActorDefenseRank(wizard, category) {
+  const defenses = wizard?.actor?.system?.proficiencies?.defenses ?? {};
+  const entry = defenses?.[category] ?? wizard?.actor?.system?.defenses?.[category] ?? null;
+  const rank = Number(entry?.rank ?? entry?.value ?? entry);
+  return Number.isFinite(rank) ? rank : 0;
+}
+
+function choiceGrantsKnownDefenseTraining(choice, rollOptions) {
+  if (!String(JSON.stringify(choice?.predicate ?? choice?.value?.predicate ?? '')).includes('defense:')) return false;
+  const value = String(extractChoiceValue(choice) ?? '').toLowerCase();
+  const label = String(extractChoiceLabel(choice) ?? '').toLowerCase();
+  const text = `${value} ${label}`;
+  const categories = [];
+  if (/\blight\b/.test(text)) categories.push('light');
+  if (/\bmedium\b/.test(text)) categories.push('medium');
+  if (/\bheavy\b/.test(text)) categories.push('heavy');
+  if (categories.length === 0) return false;
+  return categories.every((category) =>
+    [1, 2, 3, 4].some((rank) => rollOptions[`defense:${category}:rank:${rank}`] === true));
 }
 
 export function inferChoiceSetSelection(wizard, flag, choices = []) {
@@ -1993,7 +2065,7 @@ function resolveChoiceSetFilterPlaceholders(filter, wizard) {
 function resolveChoiceSetPlaceholderString(value, wizard) {
   return String(value).replace(/\{actor\|([^}]+)\}/g, (_match, path) => {
     const resolved = resolveActorChoiceSetPath(wizard, path);
-    return resolved == null ? '' : String(resolved);
+    return resolved == null ? '' : String(normalizeChoiceSetPathValue(resolved));
   });
 }
 
@@ -2002,10 +2074,10 @@ function resolveActorChoiceSetPath(wizard, path) {
   if (!normalizedPath) return null;
 
   const actorValue = foundry?.utils?.getProperty?.(wizard?.actor, normalizedPath);
-  if (actorValue != null) return actorValue;
+  if (isResolvedChoiceSetPathValue(actorValue)) return actorValue;
 
   const dataValue = foundry?.utils?.getProperty?.(wizard?.data, normalizedPath);
-  if (dataValue != null) return dataValue;
+  if (isResolvedChoiceSetPathValue(dataValue)) return dataValue;
 
   if (normalizedPath === 'class.slug') {
     return wizard?.data?.class?.slug ?? wizard?.actor?.class?.slug ?? null;
@@ -2018,6 +2090,23 @@ function resolveActorChoiceSetPath(wizard, path) {
   }
 
   return null;
+}
+
+function isResolvedChoiceSetPathValue(value) {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'object') return normalizeChoiceSetPathValue(value).length > 0;
+  return true;
+}
+
+function normalizeChoiceSetPathValue(value) {
+  if (value == null) return '';
+  if (typeof value !== 'object') return String(value).trim();
+  for (const key of ['value', 'slug', 'trait']) {
+    const nested = value?.[key];
+    if (typeof nested === 'string' && nested.trim().length > 0) return nested.trim();
+  }
+  return '';
 }
 
 function getChoiceSetPackKeys(itemType, filters) {
@@ -2181,7 +2270,7 @@ function resolveChoiceSetFilterOperand(item, operand) {
     case 'slug':
       return String(item.slug ?? '').toLowerCase();
     case 'category':
-      return String(item.category ?? '').toLowerCase();
+      return normalizeChoiceCategory(item.category);
     case 'rarity':
       return String(item.rarity ?? 'common').toLowerCase();
     case 'ancestry':
@@ -2224,7 +2313,7 @@ function matchesChoiceSetFilterString(item, filter) {
     case 'slug':
       return item.slug === value;
     case 'category':
-      return String(item.category ?? '').toLowerCase() === value.toLowerCase();
+      return normalizeChoiceCategory(item.category) === value.toLowerCase();
     case 'rarity':
       return String(item.rarity ?? 'common').toLowerCase() === value.toLowerCase();
     case 'ancestry':
@@ -2266,6 +2355,12 @@ function normalizeChoiceCandidate(item) {
     damageTypes: [...new Set(damageTypeEntries.filter((type) => typeof type === 'string' && type.length > 0))],
     isMagical: !!rawSystem?.traits?.value?.includes?.('magical'),
   };
+}
+
+function normalizeChoiceCategory(category) {
+  return String(
+    (typeof category === 'object' && category !== null ? category.value : category) ?? '',
+  ).toLowerCase();
 }
 
 function hasMeaningfulRange(range) {

@@ -3,13 +3,15 @@ import { getClassSelectionData, getGrantedFeatChoiceValues } from './creation-mo
 import { ClassRegistry } from '../classes/registry.js';
 import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
-import { debug, info, warn } from '../utils/logger.js';
+import { info, warn } from '../utils/logger.js';
 import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
 import { format, localize } from '../utils/i18n.js';
 import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
 import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
 import { applyFeatGrantEntries } from '../apply/apply-feat-grants.js';
+import { getInitialDomainSpell } from '../data/domain-spells.js';
 import { buildFeatGrantRequirements, getAutomaticFeatGrantEntries, mergeFeatGrantEntries } from '../plan/feat-grants.js';
+import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 import {
   extractCompendiumUuidsByCategory,
   isCompendiumUuidInCategory,
@@ -49,7 +51,6 @@ export async function applyCreation(actor, data, onProgress = null) {
       updates[`system.skills.${skill}.rank`] = 1;
     }
     await actor.update(updates);
-    debug(`Trained ${data.skills.length} skills`);
   }
 
   reportProgress(0.58, 'Applying lore and level 1 feats...');
@@ -135,7 +136,6 @@ export async function applyItem(actor, entry, type, choices = {}) {
   const itemData = foundry.utils.deepClone(item.toObject());
   applyStoredChoices(itemData, choices);
   await actor.createEmbeddedDocuments('Item', [itemData]);
-  debug(`Applied ${type}: ${entry.name}`);
 }
 
 async function applyClassItems(actor, data) {
@@ -162,7 +162,6 @@ async function applyClassItems(actor, data) {
 
   if (itemData.length === 0) return;
   await actor.createEmbeddedDocuments('Item', itemData);
-  debug(`Applied classes: ${appliedNames.join(', ')}`);
 }
 
 function normalizeDualClassHp(classItemData) {
@@ -220,7 +219,6 @@ async function applyMixedAncestryHeritage(actor, entry, choices = {}) {
   };
 
   await actor.createEmbeddedDocuments('Item', [itemData]);
-  debug(`Applied heritage: ${entry?.name ?? 'Mixed Ancestry'}`);
 }
 
 async function applyFeat(actor, entry, group, level) {
@@ -231,7 +229,6 @@ async function applyFeat(actor, entry, group, level) {
   itemData.system.level = { ...itemData.system.level, taken: level };
   applyStoredChoices(itemData, entry.choices ?? {});
   await actor.createEmbeddedDocuments('Item', [itemData]);
-  debug(`Applied feat: ${entry.name} (${group}-${level})`);
 }
 
 async function applyBoosts(actor, data) {
@@ -297,7 +294,6 @@ async function applyLanguages(actor, data) {
   const current = actor.system?.details?.languages?.value ?? [];
   const merged = [...new Set([...current, ...additionalLangs])];
   await actor.update({ 'system.details.languages.value': merged });
-  debug(`Applied ${additionalLangs.length} additional languages: ${additionalLangs.join(', ')}`);
 }
 
 async function applyLores(actor, data) {
@@ -317,19 +313,27 @@ async function applyLores(actor, data) {
 
   if (toCreate.length > 0) {
     await actor.createEmbeddedDocuments('Item', toCreate);
-    debug(`Created ${toCreate.length} lore skills: ${toCreate.map((l) => l.name).join(', ')}`);
   }
 }
 
 async function applyDeitySkill(actor, data) {
-  const deitySkill = data.deity?.skill;
+  const classSelections = getClassSelectionData(data, 'class');
+  const deitySkill = await resolveCreationDeitySkill(data.deity ?? classSelections.deity);
   if (!deitySkill) return;
 
   const currentRank = Number(actor.system?.skills?.[deitySkill]?.rank ?? 0);
   if (currentRank >= 1) return;
 
   await actor.update({ [`system.skills.${deitySkill}.rank`]: 1 });
-  debug(`Trained deity skill: ${deitySkill}`);
+}
+
+async function resolveCreationDeitySkill(deity) {
+  const directSkill = normalizeSkillSlug(deity?.skill ?? deity?.system?.skill);
+  if (directSkill) return directSkill;
+  const uuid = deity?.uuid ?? deity?.sourceId ?? deity?.flags?.core?.sourceId;
+  if (typeof uuid !== 'string' || uuid.length === 0) return null;
+  const doc = await fromUuid(uuid).catch(() => null);
+  return normalizeSkillSlug(doc?.system?.skill ?? doc?.skill);
 }
 
 async function applySelectedItems(actor, data) {
@@ -350,7 +354,6 @@ async function applyEquipment(actor, data) {
     if (!item) continue;
     const itemData = foundry.utils.deepClone(item.toObject());
     await actor.createEmbeddedDocuments('Item', [itemData]);
-    debug(`Applied permanent item: ${entry.name} (level ${entry.itemLevel})`);
   }
   for (const entry of (data.equipment ?? [])) {
     const item = await fromUuid(entry.uuid).catch(() => null);
@@ -358,7 +361,6 @@ async function applyEquipment(actor, data) {
     const itemData = foundry.utils.deepClone(item.toObject());
     itemData.system.quantity = entry.quantity ?? 1;
     await actor.createEmbeddedDocuments('Item', [itemData]);
-    debug(`Applied equipment: ${entry.name} x${entry.quantity ?? 1}`);
   }
 }
 
@@ -375,13 +377,13 @@ async function applySelectedSkillChoices(actor, data) {
 
   if (Object.keys(updates).length === 0) return;
   await actor.update(updates);
-  debug(`Applied selected skill choices: ${Object.keys(updates).join(', ')}`);
 }
 
 async function ensureGrantedFeatSectionsApplied(actor, data) {
   for (const section of (data.grantedFeatSections ?? [])) {
     const uuid = section?.slot;
     if (typeof uuid !== 'string' || uuid.length === 0) continue;
+    if (isHandlerManagedFocusSpellChoiceSection(data, section)) continue;
     if (!shouldApplyManualGrantedSection(data, section)) continue;
     if (actorHasItemSource(actor, uuid)) continue;
 
@@ -406,7 +408,6 @@ async function applySelectedFormulas(actor, data) {
 
   if (!changed) return;
   await actor.update({ 'system.crafting.formulas': current });
-  debug(`Applied selected formulas: ${entries.map((entry) => entry.name).join(', ')}`);
 }
 
 async function applyDirectFeatGrantedSpells(actor, data) {
@@ -444,7 +445,6 @@ async function applyMissingGrantedFeatSection(actor, data, section) {
   itemData.flags[MODULE_ID].manualGrantedFallbackOriginalName = item?.name ?? itemData.name;
 
   await actor.createEmbeddedDocuments('Item', [itemData]);
-  debug(`Backfilled missing granted feat section: ${itemData.name}`);
 }
 
 export function getAdditionalSelectedItems(data) {
@@ -454,10 +454,12 @@ export function getAdditionalSelectedItems(data) {
     { choiceSets: data.ancestryParagonFeat?.choiceSets ?? [], choices: data.ancestryParagonFeat?.choices ?? {} },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
-    ...((data.grantedFeatSections ?? []).map((section) => ({
-      choiceSets: section.choiceSets ?? [],
-      choices: getGrantedFeatChoiceValues(data, section.slot),
-    }))),
+    ...((data.grantedFeatSections ?? [])
+      .filter((section) => !isHandlerManagedFocusSpellChoiceSection(data, section))
+      .map((section) => ({
+        choiceSets: section.choiceSets ?? [],
+        choices: getGrantedFeatChoiceValues(data, section.slot),
+      }))),
   ];
 
   const seen = new Set();
@@ -563,12 +565,22 @@ async function getDirectFeatGrantedSpellEntries(data) {
     if (!feat) continue;
     const featData = typeof feat.toObject === 'function' ? feat.toObject() : feat;
 
-    for (const uuid of extractSpellUuidsFromFeat(featData)) {
+    for (const uuid of extractSpellUuidsFromFeat(featData, featEntry.choices ?? {})) {
       if (seen.has(uuid)) continue;
       seen.add(uuid);
       entries.push({
         uuid,
         name: featEntry.name ?? featData.name ?? 'Granted Spell',
+        _type: 'spell',
+      });
+    }
+
+    for (const spell of extractDomainSpellEntriesFromFeat(featData, featEntry.choices ?? {})) {
+      if (seen.has(spell.uuid)) continue;
+      seen.add(spell.uuid);
+      entries.push({
+        uuid: spell.uuid,
+        name: spell.name,
         _type: 'spell',
       });
     }
@@ -653,10 +665,12 @@ function getSelectedChoiceSourceEntries(data) {
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
     { choiceSets: data.dualClassFeat?.choiceSets ?? [], choices: data.dualClassFeat?.choices ?? {} },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
-    ...((data.grantedFeatSections ?? []).map((section) => ({
-      choiceSets: section.choiceSets ?? [],
-      choices: getGrantedFeatChoiceValues(data, section.slot),
-    }))),
+    ...((data.grantedFeatSections ?? [])
+      .filter((section) => !isHandlerManagedFocusSpellChoiceSection(data, section))
+      .map((section) => ({
+        choiceSets: section.choiceSets ?? [],
+        choices: getGrantedFeatChoiceValues(data, section.slot),
+      }))),
   ];
 
   return containers.flatMap((container) =>
@@ -670,22 +684,62 @@ function getSelectedChoiceSourceEntries(data) {
     }).filter(Boolean));
 }
 
-function extractSpellUuidsFromFeat(feat) {
+function extractSpellUuidsFromFeat(feat, choices = {}) {
   const uuids = new Set();
 
   for (const rule of feat?.system?.rules ?? []) {
     if (rule?.key === 'GrantItem' && typeof rule?.uuid === 'string' && isCompendiumUuidInCategory(rule.uuid, 'spells')) {
-      uuids.add(rule.uuid);
+      const resolvedUuid = resolveGrantRuleUuid(rule.uuid, choices);
+      if (resolvedUuid && isCompendiumUuidInCategory(resolvedUuid, 'spells')) uuids.add(resolvedUuid);
     }
   }
 
   const html = String(feat?.system?.description?.value ?? '');
   if (!html) return [...uuids];
   if (hasEmbeddedSpellChoiceDescription(html)) return [...uuids];
+  if (!hasDirectSpellGrantDescription(html)) return [...uuids];
 
   for (const uuid of extractCompendiumUuidsByCategory(html, 'spells')) uuids.add(uuid);
 
   return [...uuids];
+}
+
+function extractDomainSpellEntriesFromFeat(feat, choices = {}) {
+  if (!isDomainSpellFeat(feat)) return [];
+
+  return Object.entries(choices)
+    .filter(([flag, value]) => isDomainChoiceFlag(flag) && typeof value === 'string' && value !== '[object Object]')
+    .map(([, value]) => getInitialDomainSpell(value))
+    .filter(Boolean);
+}
+
+function isDomainSpellFeat(feat) {
+  const slug = String(feat?.system?.slug ?? feat?.slug ?? '').trim().toLowerCase();
+  if (['deitys-domain', 'domain-initiate'].includes(slug)) return true;
+
+  const text = String(feat?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  return text.includes('initial domain spell');
+}
+
+function isDomainChoiceFlag(flag) {
+  return ['deitysdomain', 'domaininitiate'].includes(String(flag ?? '').trim().toLowerCase());
+}
+
+function resolveGrantRuleUuid(uuid, choices) {
+  const raw = String(uuid ?? '').trim();
+  if (!raw) return null;
+  if (!raw.includes('{item|flags.')) return raw;
+
+  const resolved = raw.replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/gu, (_match, flag) => {
+    const value = choices?.[flag];
+    return typeof value === 'string' ? value : '';
+  });
+
+  return resolved.includes('{item|') ? null : resolved;
 }
 
 function hasEmbeddedSpellChoiceDescription(html) {
@@ -697,6 +751,19 @@ function hasEmbeddedSpellChoiceDescription(html) {
   return /\b(?:choose|select|pick)\b/.test(text)
     && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text))
     && extractCompendiumUuidsByCategory(html, 'spells').length > 0;
+}
+
+function hasDirectSpellGrantDescription(html) {
+  const text = String(html ?? '')
+    .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gu, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!text) return false;
+
+  return /\b(?:you\s+)?(?:can\s+)?cast\b/.test(text)
+    || /\b(?:gain|gains|grant|grants|learn|add)\b.{0,100}\b(?:cantrip|spell|focus spell|innate spell)\b/u.test(text);
 }
 
 function isApplicableStoredChoice(itemData, flag, value) {
@@ -1018,6 +1085,38 @@ function isSpellChoiceOption(option, uuid) {
   return isCompendiumUuidInCategory(uuid, 'spells');
 }
 
+function isHandlerManagedFocusSpellChoiceSection(data, section) {
+  if (data?.class?.slug !== 'champion') return false;
+  if (!Array.isArray(section?.choiceSets) || section.choiceSets.length === 0) return false;
+  if (!section.choiceSets.every(isStoredSpellChoiceSet)) return false;
+
+  const labels = [
+    section?.slug,
+    section?.featName,
+    section?.name,
+    section?.sourceName,
+    section?.slot,
+  ].map((value) => String(value ?? '').trim().toLowerCase());
+
+  return labels.some((label) =>
+    label === 'devotion-spells'
+    || label === 'devotion spells'
+    || label.endsWith('-> devotion spells')
+    || label.includes('feature-devotion-spells'));
+}
+
+function isStoredSpellChoiceSet(choiceSet) {
+  if (choiceSet?.isSpellChoice === true) return true;
+  if (choiceSet?.flag === 'devotionSpell') return true;
+  if (String(choiceSet?.choices?.itemType ?? '').toLowerCase() === 'spell') return true;
+
+  const filterText = JSON.stringify(choiceSet?.choices?.filter ?? []).toLowerCase();
+  if (filterText.includes('item:type:spell')) return true;
+
+  const options = choiceSet?.options ?? [];
+  return options.length > 0 && options.every((option) => isSpellChoiceOption(option, option?.uuid ?? option?.value));
+}
+
 function isFormulaChoiceSet(choiceSet) {
   if (choiceSet?.syntheticType === 'formula-choice') return true;
   const prompt = String(choiceSet?.prompt ?? '').toLowerCase();
@@ -1044,7 +1143,6 @@ async function applySelectedSpell(actor, entry, data) {
     await ensureFocusPool(actor);
   }
 
-  debug(`Applied selected spell choice: ${spell.name}`);
 }
 
 function isFocusLikeSpell(spell) {
@@ -1082,12 +1180,19 @@ async function ensureSpellcastingEntry(actor, spell, data, { focusLike = false }
 
 function resolveSpellTradition(spell, data, classDef, focusLike) {
   if (focusLike && data.subclass?.tradition) return data.subclass.tradition;
+  if (focusLike && isDivineFocusSpell(spell, data)) return 'divine';
   if (classDef?.spellcasting?.tradition && !['bloodline', 'patron'].includes(classDef.spellcasting.tradition)) {
     return classDef.spellcasting.tradition;
   }
   if (data.subclass?.tradition) return data.subclass.tradition;
   const traditions = spell.system?.traits?.traditions ?? [];
   return traditions[0] ?? 'arcane';
+}
+
+function isDivineFocusSpell(spell, data) {
+  const traits = spell.system?.traits?.value ?? [];
+  return ['cleric', 'champion'].some((trait) => traits.includes(trait))
+    || ['cleric', 'champion'].includes(data.class?.slug);
 }
 
 async function ensureFocusPool(actor) {

@@ -1,4 +1,5 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+import { ItemPicker } from '../../../scripts/ui/item-picker.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -25,6 +26,39 @@ describe('CharacterWizard feat grant choices', () => {
             description: {
               value: '<p>You gain formulas for two common alchemical items.</p>',
             },
+          },
+        };
+      }
+      if (uuid === 'class-champion') {
+        return {
+          uuid,
+          name: 'Champion',
+          system: {
+            items: {
+              devotion: {
+                uuid: 'feature-devotion-spells',
+                name: 'Devotion Spells',
+                level: 1,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === 'feature-devotion-spells') {
+        return {
+          uuid,
+          name: 'Devotion Spells',
+          slug: 'devotion-spells',
+          system: {
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'devotionSpell',
+              prompt: 'Select a spell.',
+              choices: {
+                itemType: 'spell',
+                filter: ['item:type:spell'],
+              },
+            }],
           },
         };
       }
@@ -65,6 +99,72 @@ describe('CharacterWizard feat grant choices', () => {
       ],
     }];
 
+    expect(wizard._isStepComplete('featChoices')).toBe(true);
+  });
+
+  it('does not duplicate Champion devotion spell choice in feat choices', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-champion', slug: 'champion', name: 'Champion' };
+    wizard.classHandler = {
+      getExtraSteps: () => [],
+      isFocusSpellChoice: () => true,
+      isStepComplete: () => null,
+    };
+    wizard._loadCompendiumCategory = jest.fn(async (category) => {
+      if (category !== 'spells') return [];
+      return [
+        {
+          uuid: 'shield-spirit',
+          name: 'Shields of the Spirit',
+          type: 'spell',
+          traits: ['champion', 'focus'],
+          traditions: [],
+        },
+        {
+          uuid: 'lay-on-hands',
+          name: 'Lay on Hands',
+          type: 'spell',
+          traits: ['champion', 'focus'],
+          traditions: [],
+        },
+      ];
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+
+    expect(wizard.data.grantedFeatSections).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ featName: 'Devotion Spells' }),
+    ]));
+  });
+
+  it('hides stale Champion devotion spell sections from feat choices', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-champion', slug: 'champion', name: 'Champion' };
+    wizard.classHandler = {
+      getExtraSteps: () => [],
+      isFocusSpellChoice: () => true,
+      isStepComplete: () => null,
+    };
+    wizard.data.grantedFeatSections = [{
+      slot: 'feature-devotion-spells',
+      featName: 'Devotion Spells',
+      sourceName: 'Champion -> Devotion Spells',
+      choiceSets: [{
+        flag: 'devotionSpell',
+        prompt: 'Select a spell.',
+        options: [{
+          value: 'shield-spirit',
+          uuid: 'shield-spirit',
+          label: 'Shields of the Spirit',
+          type: 'spell',
+        }],
+      }],
+    }];
+
+    const context = await wizard._buildFeatChoicesContext();
+
+    expect(context.featChoiceSections).toEqual([]);
+    expect(wizard._hasFeatChoices()).toBe(false);
     expect(wizard._isStepComplete('featChoices')).toBe(true);
   });
 
@@ -157,6 +257,35 @@ describe('CharacterWizard feat grant choices', () => {
         traits: ['alchemical'],
       }),
     }));
+  });
+
+  it('keeps common formula rarity as default instead of a locked creation grant filter', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.featGrants = [];
+    const applyPresetSpy = jest.spyOn(ItemPicker.prototype, '_applyPreset');
+    const renderSpy = jest.spyOn(ItemPicker.prototype, 'render').mockImplementation(() => {});
+
+    await wizard._openFeatGrantItemPicker({
+      id: 'feature-bomber:formula',
+      sourceFeatUuid: 'feature-bomber',
+      sourceFeatName: 'Bomber',
+      kind: 'formula',
+      count: 2,
+      confidence: 'inferred',
+      filters: {
+        maxLevel: 1,
+        rarity: ['common'],
+        traits: ['alchemical', 'bomb'],
+      },
+    });
+
+    expect(applyPresetSpy).toHaveBeenCalledWith(expect.objectContaining({
+      selectedRarities: ['common'],
+    }));
+    expect(applyPresetSpy.mock.calls[0][0]).not.toHaveProperty('lockedRarities');
+
+    renderSpy.mockRestore();
+    applyPresetSpy.mockRestore();
   });
 
   it('collects already taken formula grant selections during creation', () => {

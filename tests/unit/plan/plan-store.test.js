@@ -24,8 +24,14 @@ describe('Plan Store', () => {
   });
 
   test('savePlan calls setFlag with correct args', async () => {
-    const plan = { version: 1, classSlug: 'alchemist' };
+    const plan = { version: 1, classSlug: 'alchemist', levels: {} };
     await savePlan(mockActor, plan);
+    expect(plan.archetypeDedicationProgress).toEqual({
+      version: 1,
+      atLevel: 20,
+      canTakeNewDedication: true,
+      dedications: [],
+    });
     expect(mockActor.setFlag).toHaveBeenCalledWith('pf2e-leveler', 'plan', plan);
   });
 

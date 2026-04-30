@@ -1,8 +1,8 @@
 import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelFeatGrantSelection, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
-import { debug } from '../../utils/logger.js';
 import { SKILLS } from '../../constants.js';
 import { normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
+import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -80,17 +80,9 @@ export function activateLevelPlannerListeners(planner, html) {
         : null;
       if (!feat || !flag || !value) return;
       feat.choices = { ...(feat.choices ?? {}), [flag]: value };
-      await syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining });
-      if (String(feat?.slug ?? '').toLowerCase() === 'druid-dedication' || String(feat?.name ?? '').toLowerCase() === 'druid dedication') {
-        debug('Planner druid dedication choice selected', {
-          level: planner.selectedLevel,
-          flag,
-          value,
-          choices: feat.choices,
-          skillRules: feat.skillRules ?? [],
-          dynamicSkillRules: feat.dynamicSkillRules ?? [],
-        });
-      }
+      const selectedRules = await syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining });
+      syncSameLevelSkillIncreaseFromFeatChoice(planner, value, { grantsSkillTraining });
+      syncSameLevelSkillIncreaseFromFeatRules(planner, selectedRules);
       planner._savePlanAndRender();
     });
   });
@@ -354,6 +346,25 @@ export function activateLevelPlannerListeners(planner, html) {
   });
 }
 
+function syncSameLevelSkillIncreaseFromFeatChoice(planner, value, { grantsSkillTraining = false } = {}) {
+  if (!grantsSkillTraining) return;
+
+  const levelData = getLevelData(planner.plan, planner.selectedLevel);
+  if (!Array.isArray(levelData?.skillIncreases)) return;
+
+  const selectedSkill = normalizeSelectedSkillChoice(value);
+  if (!selectedSkill) return;
+
+  const currentRank = getSelectableSkillRank(planner, selectedSkill);
+  const toRank = currentRank + 1;
+  if (toRank > getMaxSkillRank(planner.selectedLevel)) {
+    if (levelData.skillIncreases[0]?.skill === selectedSkill) levelData.skillIncreases = [];
+    return;
+  }
+
+  setLevelSkillIncrease(planner.plan, planner.selectedLevel, { skill: selectedSkill, toRank });
+}
+
 export function getSelectableSkillRank(planner, slug) {
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   applyActorSkillRankRules(buildState.skills, planner.actor, planner.selectedLevel);
@@ -388,7 +399,7 @@ export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grant
       { skill: selectedSkill, value: 1, source: sourceKey },
     ];
     feat.dynamicLoreRules = preservedLoreRules;
-    return;
+    return [{ skill: selectedSkill, value: 1, source: sourceKey }];
   }
 
   const selectedLore = grantsSkillTraining ? normalizeSelectedLoreChoice(value) : null;
@@ -398,26 +409,26 @@ export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grant
       ...preservedLoreRules,
       { skill: selectedLore, value: 1, source: sourceKey },
     ];
-    return;
+    return [];
   }
 
   if (typeof value !== 'string' || !value.startsWith('Compendium.')) {
     feat.dynamicSkillRules = preservedRules;
     feat.dynamicLoreRules = preservedLoreRules;
-    return;
+    return [];
   }
 
   if (typeof fromUuid !== 'function') {
     feat.dynamicSkillRules = preservedRules;
     feat.dynamicLoreRules = preservedLoreRules;
-    return;
+    return [];
   }
 
   const selectedItem = await fromUuid(value).catch(() => null);
   if (!selectedItem) {
     feat.dynamicSkillRules = preservedRules;
     feat.dynamicLoreRules = preservedLoreRules;
-    return;
+    return [];
   }
 
   const { extractFeatSkillRules } = await import('./index.js');
@@ -430,6 +441,17 @@ export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grant
     })),
   ];
   feat.dynamicLoreRules = preservedLoreRules;
+  return selectedRules;
+}
+
+export function syncSameLevelSkillIncreaseFromFeatRules(planner, rules = []) {
+  const grantedSkills = [...new Set((rules ?? [])
+    .filter((rule) => Number(rule?.value ?? 0) >= 1)
+    .map((rule) => normalizeSelectedSkillChoice(rule?.skill))
+    .filter(Boolean))];
+  if (grantedSkills.length !== 1) return;
+
+  syncSameLevelSkillIncreaseFromFeatChoice(planner, grantedSkills[0], { grantsSkillTraining: true });
 }
 
 function normalizeSelectedSkillChoice(value) {

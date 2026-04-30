@@ -396,6 +396,72 @@ describe('applyFeats', () => {
     }
   });
 
+  test('does not turn Halo description light text into a focus cantrip', async () => {
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{
+        name: 'Halo',
+        system: {
+          rules: [],
+          description: {
+            value: '@UUID[Compendium.pf2e.spells-srd.Item.light]{Light}',
+          },
+        },
+      }]);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-halo') {
+        return {
+          uuid,
+          name: 'Halo',
+          system: {
+            level: { value: 1 },
+            location: null,
+            rules: [],
+            description: {
+              value: '@UUID[Compendium.pf2e.spells-srd.Item.light]{Light}',
+            },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Halo',
+            system: {
+              level: { value: 1 },
+              location: null,
+              rules: [],
+              description: {
+                value: '@UUID[Compendium.pf2e.spells-srd.Item.light]{Light}',
+              },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.light') {
+        return {
+          uuid,
+          name: 'Light',
+          system: { traits: { value: ['cantrip', 'light'], traditions: [] } },
+          toObject: jest.fn(() => ({
+            name: 'Light',
+            system: { traits: { value: ['cantrip', 'light'], traditions: [] } },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      classSlug: 'champion',
+      levels: {
+        1: {
+          ancestryFeats: [{ uuid: 'feat-halo', name: 'Halo', slug: 'halo' }],
+        },
+      },
+    }, 1);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledTimes(1);
+    expect(mockActor.update).not.toHaveBeenCalled();
+  });
+
   test('skips creating feats already present on the actor by source id', async () => {
     mockActor.items = [{
       type: 'feat',

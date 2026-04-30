@@ -86,6 +86,8 @@ export async function buildSpellContext(wizard) {
 
   const focusSpells = await resolveFocusSpells(wizard);
   const { isDevotionChoice, ...focusCtx } = wizard.classHandler.buildFocusContext(wizard.data, focusSpells);
+  const renderedFocusSpells = focusCtx.focusSpells ?? focusSpells;
+  const { focusCantrips, focusNonCantrips } = await splitFocusSpells(renderedFocusSpells, { isDevotionChoice });
   return {
     spellSubStep: 'focus',
     cantrips: [],
@@ -94,7 +96,9 @@ export async function buildSpellContext(wizard) {
     selectedRank1: [],
     grantedCantrips: [],
     grantedRank1s: [],
-    focusSpells: focusCtx.focusSpells,
+    focusSpells: renderedFocusSpells,
+    focusCantrips,
+    focusNonCantrips,
     isDevotionChoice,
     traitOptions: [],
     maxCantrips: 0,
@@ -206,18 +210,7 @@ async function buildCasterSpellSection(wizard, {
   }
   const traitOptions = [...allTraits].filter((trait) => trait !== 'cantrip').sort();
 
-  let focusCantrips = [];
-  let focusNonCantrips = [];
-
-  if (isDevotionChoice) {
-    focusNonCantrips = [...focusSpells];
-  } else {
-    for (const spellEntry of focusSpells) {
-      const spell = await fromUuid(spellEntry.uuid).catch(() => null);
-      if (spell?.system?.traits?.value?.includes('cantrip')) focusCantrips.push(spellEntry);
-      else focusNonCantrips.push(spellEntry);
-    }
-  }
+  const { focusCantrips, focusNonCantrips } = await splitFocusSpells(focusSpells, { isDevotionChoice });
 
   return {
     target,
@@ -242,6 +235,21 @@ async function buildCasterSpellSection(wizard, {
     showSpellRarityFilters: !restrictToCommonSpellOptions,
     ...await classHandler.getSpellContext(sectionData, classDef),
   };
+}
+
+async function splitFocusSpells(focusSpells, { isDevotionChoice = false } = {}) {
+  if (isDevotionChoice) {
+    return { focusCantrips: [], focusNonCantrips: [...(focusSpells ?? [])] };
+  }
+
+  const focusCantrips = [];
+  const focusNonCantrips = [];
+  for (const spellEntry of focusSpells ?? []) {
+    const spell = await fromUuid(spellEntry.uuid).catch(() => null);
+    if (spell?.system?.traits?.value?.includes('cantrip')) focusCantrips.push(spellEntry);
+    else focusNonCantrips.push(spellEntry);
+  }
+  return { focusCantrips, focusNonCantrips };
 }
 
 function projectSpellSectionData(data, target = 'primary') {

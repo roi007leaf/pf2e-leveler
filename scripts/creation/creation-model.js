@@ -1,3 +1,5 @@
+import { normalizeSkillSlug } from '../utils/skill-slugs.js';
+
 const CURRENT_VERSION = 1;
 const HANDLER_SELECTION_KEYS = [
   'implement',
@@ -707,7 +709,7 @@ export function setTargetedDeity(data, item, target = 'class') {
         font: normalizedFont,
         sanctification: item.sanctification ?? {},
         domains: item.domains ?? { primary: [], alternate: [] },
-        skill: item.skill ?? null,
+        skill: normalizeSkillSlug(item.skill),
       }
     : null;
   // Auto-set sanctification / divine font if deity only allows one option

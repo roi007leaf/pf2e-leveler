@@ -1326,6 +1326,45 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Allowed Feat']);
   });
 
+  test('surfaces allowed class feats that do not match the actor class trait', async () => {
+    const guardianFeat = createFeat({
+      name: 'Intercept Foe',
+      uuid: 'Compendium.pf2e.feats-srd.Item.intercept-foe',
+      slug: 'intercept-foe',
+    });
+    guardianFeat.system.traits.value = ['guardian'];
+    guardianFeat.system.category = 'class';
+    game.packs.get.mockImplementation((key) =>
+      key === 'pf2e.feats-srd' ? { getDocuments: jest.fn(async () => []) } : null);
+
+    const picker = new FeatPicker(
+      createActor(),
+      'class',
+      2,
+      createBuildState({ level: 2 }),
+      jest.fn(),
+      {
+        preset: {
+          allowedFeatUuids: [guardianFeat.uuid],
+          minLevel: 1,
+          maxLevel: 2,
+          lockMinLevel: true,
+          lockMaxLevel: true,
+        },
+      },
+    );
+    picker._loadDirectlyAllowedFeats = jest.fn(async () => [guardianFeat]);
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await picker._initializeFeats();
+    } finally {
+      warnSpy.mockRestore();
+    }
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Intercept Foe']);
+  });
+
   test('marks required allowed feats with a subclass limitation badge', () => {
     const feat = {
       uuid: 'Compendium.test.feats.Item.allowed',
