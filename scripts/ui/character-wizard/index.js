@@ -1377,6 +1377,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       ...(this.data.grantedFeatSections ?? []),
     ], classState);
 
+    const classDef = classSlug ? ClassRegistry.get(classSlug) : null;
+    const classFeatures = new Set();
+    for (const feature of classDef?.classFeatures ?? []) {
+      if (feature.level > level) continue;
+      if (feature.key) classFeatures.add(feature.key);
+      if (feature.name) classFeatures.add(slugify(feature.name));
+    }
+
     return {
       level,
       class: classState,
@@ -1388,6 +1396,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       attributes,
       skills: skillsMap,
       divineFont: classSelections.divineFont,
+      classFeatures,
     };
   }
 
