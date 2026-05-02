@@ -5262,6 +5262,35 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(wizard._isStepComplete('featChoices')).toBe(true);
   });
 
+  it('uses object choice slugs as stored values when multiple options share a mechanical value', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const hydrated = await wizard._hydrateChoiceSets([
+      {
+        flag: 'dragonBloodline',
+        prompt: 'Select a dragon.',
+        options: [
+          { value: { value: 'fire', slug: 'brass', label: 'Brass Dragon' } },
+          { value: { value: 'fire', slug: 'underworld', label: 'Underworld Dragon' } },
+          { value: { value: 'fire', slug: 'gold', label: 'Gold Dragon' } },
+          { value: { value: 'fire', slug: 'magma', label: 'Magma Dragon' } },
+          { value: { value: 'fire', slug: 'red', label: 'Red Dragon' } },
+        ],
+      },
+    ], { dragonBloodline: 'underworld' });
+
+    expect(hydrated[0].options.map((option) => option.value)).toEqual([
+      'brass',
+      'underworld',
+      'gold',
+      'magma',
+      'red',
+    ]);
+    expect(hydrated[0].options.filter((option) => option.selected).map((option) => option.value)).toEqual([
+      'underworld',
+    ]);
+  });
+
   it('does not surface granted feat choice sections when the grant preselects the only choice', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.background = {

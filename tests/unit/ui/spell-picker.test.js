@@ -607,6 +607,67 @@ describe('SpellPicker', () => {
     expect(picker._filterSpells().map((spell) => spell.uuid)).not.toContain('heal');
   });
 
+  test('can hide spells with excluded traits', async () => {
+    clearSpellPickerCache();
+    game.packs.get = jest.fn((key) => {
+      if (key !== 'pf2e.spells-srd') return null;
+      return {
+        getDocuments: jest.fn(async () => [
+          makeSpell('force-barrage', 'Force Barrage', 1, ['arcane']),
+          makeSpell('mythic-barrage', 'Mythic Barrage', 1, ['arcane'], ['mythic']),
+          makeSpell('healing-spark', 'Healing Spark', 1, ['arcane'], ['healing']),
+        ]),
+      };
+    });
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    await picker._prepareContext();
+
+    picker.excludedTraits = new Set(['mythic']);
+
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['force-barrage', 'healing-spark']));
+    expect(picker._filterSpells().map((spell) => spell.uuid)).not.toContain('mythic-barrage');
+  });
+
+  test('trait input can add hide chips through the DOM path', () => {
+    jest.useFakeTimers();
+
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
+    picker.allSpells = [
+      makeSpell('force-barrage', 'Force Barrage', 1, ['arcane']),
+      makeSpell('mythic-barrage', 'Mythic Barrage', 1, ['arcane'], ['mythic']),
+    ];
+    picker._allTraitOptions = ['mythic'];
+    picker.element = document.createElement('div');
+    picker.element.innerHTML = `
+      <div class="pf2e-leveler spell-picker">
+        <button type="button" data-action="toggleTraitFilterMode">SHOW</button>
+        <button type="button" data-action="toggleTraitLogic">OR</button>
+        <input type="text" data-action="traitInput">
+        <ul data-role="trait-autocomplete"></ul>
+        <div data-role="selected-trait-chips"></div>
+        <div class="spell-picker__list"></div>
+        <div class="picker__results-count"></div>
+      </div>
+    `;
+    picker._scheduleListUpdate = jest.fn();
+
+    picker._onRender();
+    picker.element.querySelector('[data-action="toggleTraitFilterMode"]').click();
+    const traitInput = picker.element.querySelector('[data-action="traitInput"]');
+    traitInput.value = 'mythic';
+    traitInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    expect(picker.traitFilterMode).toBe('exclude');
+    expect([...picker.excludedTraits]).toEqual(['mythic']);
+    expect([...picker.selectedTraits]).toEqual([]);
+    expect(picker._scheduleListUpdate).toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
   test('does not crash when a spell is missing system.level.value but has a valid heightened level', async () => {
     clearSpellPickerCache();
     game.packs.get = jest.fn((key) => {

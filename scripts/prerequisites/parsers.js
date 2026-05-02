@@ -233,6 +233,9 @@ export function parsePrerequisiteNode(text) {
   const languageNode = tryParseLanguageNode(normalized);
   if (languageNode) return languageNode;
 
+  const featAlternativesNode = tryParseFeatAlternativeNode(normalized);
+  if (featAlternativesNode) return featAlternativesNode;
+
   const andClauses = splitClauses(normalized, ';');
   if (andClauses.length > 1) {
     return {
@@ -859,6 +862,26 @@ function tryParseRankWithAlternativeSubjects(text) {
     kind: 'any',
     text: String(text ?? '').trim(),
     children: subjects.map((subject) => parsePrerequisiteNode(`${rankName} in ${subject}`)),
+  };
+}
+
+function tryParseFeatAlternativeNode(text) {
+  const normalized = String(text ?? '').trim();
+  if (!normalized || !/[,;]/.test(normalized) || !new RegExp(`\\b${OR_WORD_PATTERN}\\b`, 'i').test(normalized)) return null;
+
+  const subjects = splitCommaOrList(normalized);
+  if (subjects.length < 2) return null;
+
+  const children = subjects.map((subject) => {
+    const parsed = parsePrerequisite(subject);
+    return parsed?.type === 'feat' ? { kind: 'leaf', ...parsed } : null;
+  });
+  if (children.some((child) => !child)) return null;
+
+  return {
+    kind: 'any',
+    text: normalized,
+    children,
   };
 }
 

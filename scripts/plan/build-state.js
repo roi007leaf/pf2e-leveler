@@ -14,6 +14,7 @@ import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
 import { evaluatePredicate } from '../utils/predicate.js';
 import { normalizeSkillSlug } from '../utils/skill-slugs.js';
+import { getFeatLoreRules, getFeatSkillRules, PLAN_FEAT_KEYS } from '../utils/feat-skill-rules.js';
 
 const CLASS_SUBCLASS_TYPES = {
   alchemist: 'research field',
@@ -568,18 +569,9 @@ function computeLoreSkills(actor, plan, atLevel) {
       lores[loreSlug] = Math.max(lores[loreSlug] ?? 0, 1);
     }
 
-    for (const key of [
-      'classFeats',
-      'skillFeats',
-      'generalFeats',
-      'ancestryFeats',
-      'archetypeFeats',
-      'mythicFeats',
-      'dualClassFeats',
-      'customFeats',
-    ]) {
+    for (const key of PLAN_FEAT_KEYS) {
       for (const feat of levelData[key] ?? []) {
-        for (const rule of [...(feat?.dynamicLoreRules ?? []), ...(feat?.loreRules ?? [])]) {
+        for (const rule of getFeatLoreRules(feat)) {
           const skill = String(rule?.skill ?? '')
             .trim()
             .toLowerCase();
@@ -644,20 +636,10 @@ export function applyActorSkillRankRules(skills, actor, atLevel) {
 }
 
 export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = level) {
-  const FEAT_KEYS = [
-    'classFeats',
-    'skillFeats',
-    'generalFeats',
-    'ancestryFeats',
-    'archetypeFeats',
-    'mythicFeats',
-    'dualClassFeats',
-    'customFeats',
-  ];
   const levelData = plan?.levels?.[level];
   if (!levelData) return skills;
 
-  for (const key of FEAT_KEYS) {
+  for (const key of PLAN_FEAT_KEYS) {
     for (const feat of levelData[key] ?? []) {
       for (const rule of getPlannedFeatSkillRules(feat)) {
         if (!matchesRuleAtLevel(rule, atLevel)) continue;
@@ -687,9 +669,7 @@ export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = l
 }
 
 function getPlannedFeatSkillRules(feat) {
-  const base = Array.isArray(feat?.skillRules) ? feat.skillRules : [];
-  const dynamic = Array.isArray(feat?.dynamicSkillRules) ? feat.dynamicSkillRules : [];
-  return [...base, ...dynamic];
+  return getFeatSkillRules(feat);
 }
 
 function computeProficiencies(actor, classDefs, atLevel) {
@@ -979,6 +959,7 @@ function computeClassFeatures(actor, plan, classDefs, atLevel) {
     const itemNameSlug = slugify(item?.name ?? '');
     if (itemSlug) features.add(itemSlug);
     if (itemNameSlug) features.add(itemNameSlug);
+    addOwnedClassFeatureSelectionAliases(features, item, [itemSlug, itemNameSlug]);
 
     for (const alias of extractLinkedFeatureAliases(
       item?.system?.description?.value ?? item?.description ?? '',
@@ -992,6 +973,25 @@ function computeClassFeatures(actor, plan, classDefs, atLevel) {
   }
 
   return features;
+}
+
+function addOwnedClassFeatureSelectionAliases(features, item, featureAliases) {
+  const selectedAliases = new Set();
+
+  for (const selected of Object.values(item?.flags?.pf2e?.rulesSelections ?? {})) {
+    collectFeatureChoiceAliases(selectedAliases, selected);
+  }
+  for (const selected of Object.values(item?.flags?.['pf2e-leveler']?.classFeatureChoices ?? {})) {
+    collectFeatureChoiceAliases(selectedAliases, selected);
+  }
+
+  for (const selectedAlias of selectedAliases) {
+    features.add(selectedAlias);
+    for (const featureAlias of featureAliases) {
+      if (!featureAlias || featureAlias === selectedAlias) continue;
+      features.add(`${selectedAlias}-${featureAlias}`);
+    }
+  }
 }
 
 function isOwnedClassFeatureItem(item, atLevel) {
@@ -1032,6 +1032,10 @@ function addPlannedClassFeatureChoiceAliases(features, levelData) {
 }
 
 function addFeatureChoiceAlias(features, value) {
+  collectFeatureChoiceAliases(features, value);
+}
+
+function collectFeatureChoiceAliases(features, value) {
   if (typeof value !== 'string' || value.length === 0 || value === '[object Object]') return;
   if (value.startsWith('Compendium.')) {
     const match = value.match(/\.Item\.([^.]+)$/u);
@@ -1778,7 +1782,7 @@ function resolveInjectedValue(value, item) {
   });
 }
 
-function evaluateRuleNumericValue(value, atLevel, item) {
+export function evaluateRuleNumericValue(value, atLevel, item) {
   const resolved = resolveInjectedValue(value, item);
   if (typeof resolved === 'number') return resolved;
 

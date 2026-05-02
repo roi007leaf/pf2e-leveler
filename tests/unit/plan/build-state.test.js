@@ -4,6 +4,7 @@ import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { GUARDIAN } from '../../../scripts/classes/guardian.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
+import { MAGUS } from '../../../scripts/classes/magus.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
@@ -32,6 +33,7 @@ beforeAll(() => {
   ClassRegistry.register(FIGHTER);
   ClassRegistry.register(GUARDIAN);
   ClassRegistry.register(INVESTIGATOR);
+  ClassRegistry.register(MAGUS);
   ClassRegistry.register(ROGUE);
   ClassRegistry.register(SORCERER);
   ClassRegistry.register(WIZARD);
@@ -242,6 +244,26 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 15).skills.acrobatics).toBe(4);
   });
 
+  test('derives Operatic Adventurer Performance scaling and Theater Lore', () => {
+    setLevelFeat(plan, 12, 'skillFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.operatic-adventurer',
+      name: 'Operatic Adventurer',
+      slug: 'operatic-adventurer',
+      skillRules: [
+        {
+          skill: 'performance',
+          value: 3,
+        },
+      ],
+      skillRulesResolved: true,
+    });
+    mockActor.system.skills.performance.rank = 1;
+
+    expect(computeBuildState(mockActor, plan, 12).skills.performance).toBe(PROFICIENCY_RANKS.MASTER);
+    expect(computeBuildState(mockActor, plan, 12).lores['theater-lore']).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(computeBuildState(mockActor, plan, 15).skills.performance).toBe(PROFICIENCY_RANKS.LEGENDARY);
+  });
+
   test('applies textual trained-or-expert feat skill rules based on current rank', () => {
     setLevelFeat(plan, 2, 'archetypeFeats', {
       uuid: 'Compendium.pf2e.feats-srd.Item.blackjacket-dedication',
@@ -368,6 +390,36 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 3);
 
     expect(state.classFeatures.has('blessing-of-swiftness')).toBe(true);
+  });
+
+  test('adds selected hybrid study aliases from owned class feature rule selections', () => {
+    const magusActor = createMockActor({
+      class: { slug: 'magus', name: 'Magus' },
+      items: [
+        {
+          type: 'feat',
+          slug: 'hybrid-study',
+          name: 'Hybrid Study',
+          flags: {
+            pf2e: {
+              rulesSelections: {
+                hybridStudy: 'twisting-tree',
+              },
+            },
+          },
+          system: {
+            category: 'classfeature',
+            level: { value: 1, taken: 1 },
+          },
+        },
+      ],
+    });
+
+    const magusPlan = createPlan('magus');
+    const state = computeBuildState(magusActor, magusPlan, 7);
+
+    expect(state.classFeatures.has('twisting-tree')).toBe(true);
+    expect(state.classFeatures.has('twisting-tree-hybrid-study')).toBe(true);
   });
 
   test('includes linked granted feature aliases from owned class-feature items', () => {

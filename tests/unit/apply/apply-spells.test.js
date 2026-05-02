@@ -402,6 +402,77 @@ describe('applySpells', () => {
     ]));
   });
 
+  test('adds planned studious spells to the Magus Studious spellcasting entry', async () => {
+    const magusActor = {
+      items: [
+        {
+          id: 'magus-primary-entry',
+          type: 'spellcastingEntry',
+          name: 'Magus Spells',
+          system: {
+            tradition: { value: 'arcane' },
+            prepared: { value: 'prepared' },
+            ability: { value: 'int' },
+          },
+        },
+      ],
+      system: {
+        resources: {
+          focus: { max: 0, value: 0 },
+        },
+      },
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({
+        id: doc.type === 'spellcastingEntry' ? `created-entry-${index}` : `created-item-${index}`,
+        ...doc,
+      }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      update: jest.fn(async () => {}),
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Resist Energy',
+      img: 'spell.png',
+      system: { level: { value: 2 }, traits: { value: ['arcane'] } },
+      toObject: () => ({
+        name: 'Resist Energy',
+        type: 'spell',
+        system: { level: { value: 2 }, traits: { value: ['arcane'] } },
+      }),
+    }));
+
+    const plan = {
+      classSlug: 'magus',
+      levels: {
+        7: {
+          spells: [{
+            uuid: 'studious-spell',
+            name: 'Resist Energy',
+            rank: 2,
+            entryType: 'studious',
+          }],
+        },
+      },
+    };
+
+    await applySpells(magusActor, plan, 7);
+
+    expect(magusActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Magus Studious Spells',
+        type: 'spellcastingEntry',
+      }),
+    ]);
+    expect(magusActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Resist Energy',
+        system: expect.objectContaining({
+          location: { value: 'created-entry-0' },
+        }),
+      }),
+    ]);
+  });
+
   test('creates an archetype spellcasting entry for a spellcasting dedication', async () => {
     const archetypeActor = {
       items: [

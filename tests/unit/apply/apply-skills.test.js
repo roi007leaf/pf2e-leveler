@@ -96,4 +96,48 @@ describe('applySkillIncreases', () => {
       { skill: 'stealth', toRank: 1, featChoice: true },
     ]);
   });
+
+  test('applies Operatic Adventurer Performance scaling and Theater Lore at later levels', async () => {
+    mockActor = {
+      system: {
+        skills: {
+          performance: { rank: 3 },
+        },
+      },
+      items: [{
+        id: 'theater-lore',
+        type: 'lore',
+        slug: 'theater-lore',
+        name: 'Theater Lore',
+        system: { proficient: { value: 1 } },
+      }],
+      update: jest.fn(() => Promise.resolve()),
+      createEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+      updateEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+    };
+
+    const plan = {
+      levels: {
+        12: {
+          skillFeats: [{
+            slug: 'operatic-adventurer',
+            name: 'Operatic Adventurer',
+            skillRules: [{ skill: 'performance', value: 3 }],
+          }],
+        },
+        15: {},
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 15);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.skills.performance.rank': 4,
+    });
+    expect(mockActor.createEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(mockActor.updateEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(result).toEqual([
+      { skill: 'performance', toRank: 4, featChoice: true },
+    ]);
+  });
 });

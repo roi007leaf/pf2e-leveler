@@ -51,6 +51,16 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="searchIntBonusLanguages"]')?.addEventListener('input', (event) => {
+    const query = String(event.currentTarget.value ?? '').trim().toLowerCase();
+    const section = event.currentTarget.closest('.level-section') ?? el;
+    section.querySelectorAll('[data-action="toggleIntBonusLanguage"]').forEach((button) => {
+      const label = String(button.dataset.name ?? '').toLowerCase();
+      const slug = String(button.dataset.language ?? '').toLowerCase();
+      button.hidden = !!query && !label.includes(query) && !slug.includes(query);
+    });
+  });
+
   el.querySelector('[data-action="selectDualClass"]')?.addEventListener('change', (event) => {
     planner._setDualClassSlug(event.currentTarget.value);
   });

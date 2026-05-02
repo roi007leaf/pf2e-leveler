@@ -33,6 +33,7 @@
       <div class="picker__filter-group picker__filter-group--compact">
         <div class="wizard-trait-input spell-picker__trait-input picker__trait-autocomplete-wrap">
           <input type="text" class="wizard-trait-input__field" placeholder="{{localize 'PF2E_LEVELER.SPELLS.TRAIT_FILTER'}}" data-action="traitInput" data-target="spells" autocomplete="off">
+          <button type="button" class="picker__prereq-toggle" data-action="toggleTraitFilterMode">{{#if (eq traitFilterMode "exclude")}}HIDE{{else}}SHOW{{/if}}</button>
           <button type="button" class="picker__prereq-toggle" data-action="toggleTraitLogic">{{#if (eq traitLogic "and")}}AND{{else}}OR{{/if}}</button>
           <ul class="picker__trait-autocomplete" data-role="trait-autocomplete"></ul>
         </div>
@@ -42,6 +43,7 @@
             type="button"
             class="picker__source-chip {{#if this.selected}}selected{{/if}}"
             data-action="toggleTraitChip"
+            data-mode="{{this.mode}}"
             data-trait="{{this.value}}">
             <span>{{this.label}}</span>
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>

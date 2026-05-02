@@ -221,11 +221,12 @@
             {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_LANGUAGES" selected=intBonusLanguageCount count=intelligenceBenefit.count}}
           </div>
           <div class="level-section__body">
+            <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchIntBonusLanguages">
             <div class="skill-btn-grid">
               {{#each intBonusLanguageOptions}}
               <button type="button"
                 class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
-                data-action="toggleIntBonusLanguage" data-language="{{this.slug}}"
+                data-action="toggleIntBonusLanguage" data-language="{{this.slug}}" data-name="{{this.label}}"
                 {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
                 <span class="skill-btn__content">
                   <span class="skill-btn__name">{{this.label}}</span>

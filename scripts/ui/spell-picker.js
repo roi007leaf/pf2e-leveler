@@ -20,6 +20,27 @@ const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
 let cachedSpells = null;
 let cachedSpellSourceSignature = '';
 
+function buildTraitFilterChips(availableTraits, selectedTraits, excludedTraits) {
+  const available = new Set(availableTraits ?? []);
+  const selected = [...(selectedTraits ?? [])]
+    .filter((trait) => available.size === 0 || available.has(trait))
+    .map((trait) => ({
+      value: trait,
+      label: trait,
+      mode: 'include',
+      selected: true,
+    }));
+  const excluded = [...(excludedTraits ?? [])]
+    .filter((trait) => available.size === 0 || available.has(trait))
+    .map((trait) => ({
+      value: trait,
+      label: `Hide: ${trait}`,
+      mode: 'exclude',
+      selected: true,
+    }));
+  return [...selected, ...excluded];
+}
+
 export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor, tradition, rank, onSelect, options = {}) {
     super();
@@ -48,7 +69,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.lockedCategories = new Set(rank === 0 ? ['cantrip'] : (options.exactRank && rank > 0 ? ['spell'] : []));
     this.lockedRanks = new Set(options.exactRank && rank > 0 ? [rank] : []);
     this.selectedTraits = new Set();
+    this.excludedTraits = new Set();
     this.traitLogic = 'or';
+    this.traitFilterMode = 'include';
     this.selectedRarities = getAllowedRaritiesForCurrentUser();
     this.lockedRarities = new Set();
     this.selectedPublications = new Set();
@@ -155,12 +178,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
       traitOptions: buildChipOptions(this._allTraitOptions, this.selectedTraits),
-      selectedTraitChips: buildChipOptions(this._allTraitOptions, this.selectedTraits).filter((option) => option.selected),
+      selectedTraitChips: buildTraitFilterChips(this._allTraitOptions, this.selectedTraits, this.excludedTraits),
       rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: this._getRarityLabels(),
         lockedValues: this._getRarityToggleLockedValues(),
       }),
       traitLogic: this.traitLogic,
+      traitFilterMode: this.traitFilterMode,
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
@@ -215,7 +239,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const trait = traitInput.value.trim().toLowerCase();
         if (!trait) return;
         traitInput.value = '';
-        this.selectedTraits.add(trait);
+        this._addTraitFilter(trait);
         this._closeAutocomplete(el);
         this._scheduleListUpdate();
         return;
@@ -394,13 +418,21 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
+      if (action === 'toggleTraitFilterMode') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.traitFilterMode = this.traitFilterMode === 'exclude' ? 'include' : 'exclude';
+        this._updateFilterControlState();
+        return;
+      }
+
       if (action === 'toggleTraitChip') {
         e.preventDefault();
         e.stopPropagation();
         const trait = String(target.dataset.trait ?? '').trim().toLowerCase();
         if (!trait) return;
-        if (this.selectedTraits.has(trait)) this.selectedTraits.delete(trait);
-        else this.selectedTraits.add(trait);
+        if (target.dataset.mode === 'exclude') this.excludedTraits.delete(trait);
+        else this.selectedTraits.delete(trait);
         this._scheduleListUpdate();
       }
     }, { signal });
@@ -439,12 +471,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       allVisibleSelected: this.filteredSpells.length > 0
         && this.filteredSpells.every((spell) => this.selectedSpellUuids.has(spell.uuid)),
       filteredCount: this.filteredSpells.length,
-      selectedTraitChips: buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected),
+      selectedTraitChips: buildTraitFilterChips(this._allTraitOptions ?? [], this.selectedTraits, this.excludedTraits),
       rarityOptions: buildChipOptions(this._getVisibleRarityValues(), this.selectedRarities, {
         labels: this._getRarityLabels(),
         lockedValues: this._getRarityToggleLockedValues(),
       }),
       traitLogic: this.traitLogic,
+      traitFilterMode: this.traitFilterMode,
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
@@ -496,6 +529,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       spells = spells.filter((spell) => this.selectedCategories.has(normalizeSpellCategory(spell)));
     }
     spells = applyTraitFilter(spells, this.selectedTraits, (spell) => spell.system?.traits?.value ?? [], this.traitLogic);
+    if (this.excludedTraits.size > 0) {
+      spells = spells.filter((spell) => {
+        const traits = new Set((spell.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase()));
+        return [...this.excludedTraits].every((trait) => !traits.has(trait));
+      });
+    }
     if (this.searchText) spells = spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
     if (this.multiSelect) {
       const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
@@ -656,14 +695,18 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const logicButton = root.querySelector('[data-action="toggleTraitLogic"]');
     if (logicButton) logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
 
+    const modeButton = root.querySelector('[data-action="toggleTraitFilterMode"]');
+    if (modeButton) modeButton.textContent = this.traitFilterMode === 'exclude' ? 'HIDE' : 'SHOW';
+
     const traitChipContainer = root.querySelector('[data-role="selected-trait-chips"]');
     if (traitChipContainer) {
-      const selectedTraitChips = buildChipOptions(this._allTraitOptions ?? [], this.selectedTraits).filter((option) => option.selected);
+      const selectedTraitChips = buildTraitFilterChips(this._allTraitOptions ?? [], this.selectedTraits, this.excludedTraits);
       traitChipContainer.style.display = selectedTraitChips.length > 0 ? '' : 'none';
       traitChipContainer.innerHTML = selectedTraitChips.map((chip) => `
         <button type="button"
           class="picker__source-chip ${chip.selected ? 'selected' : ''}"
           data-action="toggleTraitChip"
+          data-mode="${chip.mode}"
           data-trait="${chip.value}">
           <span>${chip.label}</span>
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -939,9 +982,23 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (Array.isArray(preset.lockedRanks)) this.lockedRanks = new Set(preset.lockedRanks);
     if (Array.isArray(preset.lockedTraditions)) this.lockedTraditions = new Set(preset.lockedTraditions.map((t) => String(t).toLowerCase()));
     if (Array.isArray(preset.selectedTraits)) this.selectedTraits = new Set(preset.selectedTraits.map((trait) => String(trait).toLowerCase()));
+    if (Array.isArray(preset.excludedTraits)) this.excludedTraits = new Set(preset.excludedTraits.map((trait) => String(trait).toLowerCase()));
     if (Array.isArray(preset.selectedRarities)) this.selectedRarities = new Set(preset.selectedRarities.map((rarity) => String(rarity).toLowerCase()));
     if (Array.isArray(preset.lockedRarities)) this.lockedRarities = new Set(preset.lockedRarities.map((rarity) => String(rarity).toLowerCase()));
     if (typeof preset.traitLogic === 'string') this.traitLogic = preset.traitLogic.toLowerCase() === 'and' ? 'and' : 'or';
+    if (typeof preset.traitFilterMode === 'string') this.traitFilterMode = preset.traitFilterMode.toLowerCase() === 'exclude' ? 'exclude' : 'include';
+  }
+
+  _addTraitFilter(trait) {
+    const normalized = String(trait ?? '').trim().toLowerCase();
+    if (!normalized) return;
+    if (this.traitFilterMode === 'exclude') {
+      this.selectedTraits.delete(normalized);
+      this.excludedTraits.add(normalized);
+      return;
+    }
+    this.excludedTraits.delete(normalized);
+    this.selectedTraits.add(normalized);
   }
 
   _updateAutocomplete(el, query) {
@@ -950,7 +1007,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const q = query.trim().toLowerCase();
     if (!q) { this._closeAutocomplete(el); return; }
     const traits = (this._allTraitOptions ?? [])
-      .filter((t) => t.includes(q) && !this.selectedTraits.has(t));
+      .filter((t) => t.includes(q) && !this.selectedTraits.has(t) && !this.excludedTraits.has(t));
     if (traits.length === 0) { this._closeAutocomplete(el); return; }
     dropdown.innerHTML = traits.slice(0, 15).map((t) => {
       const idx = t.indexOf(q);
@@ -965,7 +1022,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         e.preventDefault();
         const input = el.querySelector('[data-action="traitInput"]');
         if (input) input.value = '';
-        this.selectedTraits.add(li.dataset.trait);
+        this._addTraitFilter(li.dataset.trait);
         this._closeAutocomplete(el);
         this._scheduleListUpdate();
       });

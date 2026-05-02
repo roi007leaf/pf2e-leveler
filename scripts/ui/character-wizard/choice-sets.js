@@ -1917,8 +1917,8 @@ export function extractChoiceValue(choice) {
   if (typeof rawValue === 'string') return rawValue;
   if (rawValue && typeof rawValue === 'object') {
     return rawValue.uuid
-      ?? rawValue.value
       ?? rawValue.slug
+      ?? rawValue.value
       ?? choice.uuid
       ?? choice.slug
       ?? (typeof choice.label === 'string' ? choice.label : '')

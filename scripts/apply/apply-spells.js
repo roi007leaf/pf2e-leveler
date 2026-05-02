@@ -610,6 +610,7 @@ function getSubclassChoices(subclassItem) {
 function resolveTargetEntry(actor, entries, entryType) {
   if (entryType === 'apparition') return entries.apparition;
   if (entryType === 'animist') return entries.animist;
+  if (entryType === 'studious') return entries.studious ?? null;
   if (typeof entryType === 'string' && entryType.startsWith('existing:')) {
     const itemId = entryType.slice('existing:'.length);
     return actor.items?.find?.((item) => item?.type === 'spellcastingEntry' && item.id === itemId) ?? null;

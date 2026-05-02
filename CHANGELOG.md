@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.3.10
+
+### Level Planner
+
+- **Feat-granted innate spells now apply during level-up** - Dragonblood's Form of the Dragon and similar feats that grant non-focus spells now create/use an innate spellcasting entry and add the granted spell
+- **Dragon Disciple focus spells now use their own spellcasting entry** - Breath of the Dragon, Wings of the Dragon, and similar archetype focus spell grants no longer get placed into an existing class focus entry with the wrong DC
+- **Mighty Dragon Shape now upgrades Dragon Form's frequency** - Applying Mighty Dragon Shape changes the owned Dragon Form innate spell to once per hour
+- **Magus studious spell selections now go into the studious entry** - Planned Studious Spells now target the Magus Studious Spells entry instead of the main Magus spellcasting entry
+- **Operatic Adventurer now contributes its full skill benefits** - The planner and level-up apply now treat Operatic Adventurer as master Performance, legendary Performance at level 15, and trained Theater Lore
+- **Comma-separated dedication alternatives now parse correctly** - Prerequisites such as Acrobat Dedication, Celebrity Dedication, or Dandy Dedication now match any owned/planned dedication instead of collapsing into one invalid prerequisite
+- **Selected class feature options now provide combined prerequisite aliases** - Magus Hybrid Study choices such as Twisting Tree now satisfy prerequisites worded as Twisting Tree Hybrid Study
+- **Dragon choices with shared damage types no longer over-select** - Dragon Disciple Dedication and similar choice sets now store the selected dragon slug instead of collapsing multiple fire dragons into one shared value
+- **Intelligence bonus language choices now have search** - The planner's Intelligence bonus language list can be filtered by language name or slug
+- **Spell trait filters can now hide matching spells** - The spell picker trait box now has a SHOW/HIDE mode so traits such as mythic or healing can be excluded from results
+
 ## 3.3.9
 
 ### Level Planner

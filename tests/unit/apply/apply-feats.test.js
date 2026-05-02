@@ -369,6 +369,255 @@ describe('applyFeats', () => {
     }
   });
 
+  test('adds non-focus GrantItem spells from ancestry feats as innate spells', async () => {
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: 'Form of the Dragon' }])
+      .mockResolvedValueOnce([{
+        id: 'innate-entry-id',
+        type: 'spellcastingEntry',
+        system: { prepared: { value: 'innate' } },
+      }])
+      .mockResolvedValueOnce([{ name: 'Dragon Form' }]);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-form-of-the-dragon') {
+        return {
+          uuid,
+          name: 'Form of the Dragon',
+          system: {
+            level: { value: 17 },
+            location: null,
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.spells-srd.Item.dragon-form' }],
+            description: { value: '' },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Form of the Dragon',
+            system: {
+              level: { value: 17 },
+              location: null,
+              rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.spells-srd.Item.dragon-form' }],
+              description: { value: '' },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.dragon-form') {
+        return {
+          uuid,
+          name: 'Dragon Form',
+          system: {
+            traits: { value: ['polymorph'], traditions: ['arcane', 'primal'] },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Dragon Form',
+            flags: { core: { sourceId: 'Compendium.pf2e.spells-srd.Item.dragon-form' } },
+            system: {
+              traits: { value: ['polymorph'], traditions: ['arcane', 'primal'] },
+            },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      classSlug: 'sorcerer',
+      levels: {
+        17: {
+          ancestryFeats: [{
+            uuid: 'feat-form-of-the-dragon',
+            name: 'Form of the Dragon',
+            slug: 'form-of-the-dragon',
+          }],
+        },
+      },
+    }, 17);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenNthCalledWith(2, 'Item', [{
+      name: 'Innate Spells',
+      type: 'spellcastingEntry',
+      system: {
+        tradition: { value: 'arcane' },
+        prepared: { value: 'innate' },
+        ability: { value: 'cha' },
+        proficiency: { value: 1 },
+      },
+    }]);
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenNthCalledWith(3, 'Item', [
+      expect.objectContaining({
+        name: 'Dragon Form',
+        system: expect.objectContaining({
+          location: { value: 'innate-entry-id' },
+        }),
+      }),
+    ]);
+    expect(mockActor.update).not.toHaveBeenCalled();
+  });
+
+  test('adds archetype-granted focus spells to a separate archetype focus entry', async () => {
+    mockActor.items = [{
+      id: 'magus-focus-entry',
+      type: 'spellcastingEntry',
+      name: 'Magus Focus Spells',
+      system: {
+        tradition: { value: 'arcane' },
+        prepared: { value: 'focus' },
+        ability: { value: 'int' },
+      },
+    }];
+    mockActor.system.resources.focus = { max: 1, value: 1 };
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: 'Breath of the Dragon' }])
+      .mockResolvedValueOnce([{
+        id: 'dragon-disciple-focus-entry',
+        type: 'spellcastingEntry',
+        system: { prepared: { value: 'focus' } },
+      }])
+      .mockResolvedValueOnce([{ name: 'Dragon Breath' }]);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-breath-of-the-dragon') {
+        return {
+          uuid,
+          name: 'Breath of the Dragon',
+          system: {
+            level: { value: 8 },
+            location: null,
+            traits: { value: ['archetype', 'dragon-disciple'] },
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.spells-srd.Item.dragon-breath' }],
+            description: { value: '' },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Breath of the Dragon',
+            system: {
+              level: { value: 8 },
+              location: null,
+              traits: { value: ['archetype', 'dragon-disciple'] },
+              rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.spells-srd.Item.dragon-breath' }],
+              description: { value: '' },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.dragon-breath') {
+        return {
+          uuid,
+          name: 'Dragon Breath',
+          system: {
+            traits: { value: ['focus'], traditions: [] },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Dragon Breath',
+            system: {
+              traits: { value: ['focus'], traditions: [] },
+            },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      classSlug: 'magus',
+      levels: {
+        8: {
+          archetypeFeats: [{
+            uuid: 'feat-breath-of-the-dragon',
+            name: 'Breath of the Dragon',
+            slug: 'breath-of-the-dragon',
+          }],
+        },
+      },
+    }, 8);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenNthCalledWith(2, 'Item', [
+      expect.objectContaining({
+        name: 'Dragon Disciple Focus Spells',
+        type: 'spellcastingEntry',
+        flags: {
+          'pf2e-leveler': {
+            archetypeFocusEntry: 'dragon-disciple',
+          },
+        },
+        system: expect.objectContaining({
+          prepared: { value: 'focus' },
+          ability: { value: 'cha' },
+        }),
+      }),
+    ]);
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenNthCalledWith(3, 'Item', [
+      expect.objectContaining({
+        name: 'Dragon Breath',
+        system: expect.objectContaining({
+          location: { value: 'dragon-disciple-focus-entry' },
+        }),
+      }),
+    ]);
+  });
+
+  test('Mighty Dragon Shape upgrades Dragon Form innate frequency to once per hour', async () => {
+    mockActor.items = [{
+      id: 'dragon-form-spell',
+      type: 'spell',
+      name: 'Dragon Form',
+      slug: 'dragon-form',
+      sourceId: 'Compendium.pf2e.spells-srd.Item.dragon-form',
+      system: {
+        frequency: { max: 1, per: 'day', value: 1 },
+      },
+    }];
+    mockActor.updateEmbeddedDocuments = jest.fn(async () => []);
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-mighty-dragon-shape') {
+        return {
+          uuid,
+          name: 'Mighty Dragon Shape',
+          system: {
+            level: { value: 18 },
+            location: null,
+            traits: { value: ['archetype', 'dragon-disciple'] },
+            rules: [],
+            description: { value: '' },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Mighty Dragon Shape',
+            system: {
+              level: { value: 18 },
+              location: null,
+              traits: { value: ['archetype', 'dragon-disciple'] },
+              rules: [],
+              description: { value: '' },
+            },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      classSlug: 'magus',
+      levels: {
+        18: {
+          archetypeFeats: [{
+            uuid: 'feat-mighty-dragon-shape',
+            name: 'Mighty Dragon Shape',
+            slug: 'mighty-dragon-shape',
+          }],
+        },
+      },
+    }, 18);
+
+    expect(mockActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      _id: 'dragon-form-spell',
+      'system.frequency.max': 1,
+      'system.frequency.per': 'PT1H',
+      'system.frequency.value': 1,
+    }]);
+  });
+
   test('fills the focus pool from SF2e description focus spell links', async () => {
     const originalGame = global.game;
     global.game = {

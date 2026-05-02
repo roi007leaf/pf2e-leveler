@@ -87,7 +87,8 @@ export async function applyFeats(actor, plan, level) {
 
   const created = await actor.createEmbeddedDocuments('Item', itemsToCreate);
 
-  await applyFocusSpellsFromFeats(actor, plan, itemsToCreate);
+  await applyGrantItemSpellsFromFeats(actor, plan, itemsToCreate);
+  await applyPostFeatSpellAdjustments(actor, itemsToCreate);
 
   return created;
 }
@@ -109,8 +110,9 @@ function isExplicitFocusSpell(spell) {
   return (spell.system?.traits?.value ?? []).includes('focus');
 }
 
-async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
+async function applyGrantItemSpellsFromFeats(actor, plan, featDatas) {
   const focusSpells = [];
+  const innateSpells = [];
 
   for (const featData of featDatas) {
     const rules = featData.system?.rules ?? [];
@@ -119,9 +121,10 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
       if (!isCompendiumUuidInCategory(rule.uuid, 'spells')) continue;
       const spell = await fromUuid(rule.uuid).catch(() => null);
       if (!spell) continue;
-      if (!isFocusLikeSpell(spell)) continue;
-      if (!focusSpells.some((s) => s.uuid === spell.uuid)) {
-        focusSpells.push(spell);
+      if (isFocusLikeSpell(spell) && !focusSpells.some((entry) => entry.spell.uuid === spell.uuid)) {
+        focusSpells.push({ spell, source: featData });
+      } else if (!isFocusLikeSpell(spell) && !innateSpells.some((s) => s.uuid === spell.uuid)) {
+        innateSpells.push(spell);
       }
     }
 
@@ -130,35 +133,59 @@ async function applyFocusSpellsFromFeats(actor, plan, featDatas) {
     if (html) {
       const descUuids = extractCompendiumUuidsByCategory(html, 'spells');
       for (const uuid of descUuids) {
-        if (focusSpells.some((s) => s.uuid === uuid)) continue;
+        if (focusSpells.some((entry) => entry.spell.uuid === uuid)) continue;
         const spell = await fromUuid(uuid).catch(() => null);
-        if (spell && isExplicitFocusSpell(spell)) focusSpells.push(spell);
+        if (spell && isExplicitFocusSpell(spell)) focusSpells.push({ spell, source: featData });
       }
     }
   }
 
+  await applyInnateSpellsFromFeats(actor, innateSpells);
+  await applyFocusSpells(actor, plan, focusSpells);
+}
+
+async function applyInnateSpellsFromFeats(actor, innateSpells) {
+  if (innateSpells.length === 0) return;
+
+  const innateEntry = await ensureInnateSpellcastingEntry(actor, innateSpells[0]);
+
+  for (const spell of innateSpells) {
+    const existing = actor.items?.find((i) => i.type === 'spell' && (i.sourceId ?? i.flags?.core?.sourceId) === spell.uuid);
+    if (existing) continue;
+    const spellData = foundry.utils.deepClone(spell.toObject());
+    spellData.system.location = { value: innateEntry.id };
+    await actor.createEmbeddedDocuments('Item', [spellData]);
+  }
+}
+
+async function ensureInnateSpellcastingEntry(actor, spell) {
+  const existing = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'innate');
+  if (existing) return existing;
+
+  const traditions = spell.system?.traits?.traditions ?? [];
+  const created = await actor.createEmbeddedDocuments('Item', [{
+    name: 'Innate Spells',
+    type: 'spellcastingEntry',
+    system: {
+      tradition: { value: traditions[0] ?? 'arcane' },
+      prepared: { value: 'innate' },
+      ability: { value: 'cha' },
+      proficiency: { value: 1 },
+    },
+  }]);
+  return created[0];
+}
+
+async function applyFocusSpells(actor, plan, focusSpells) {
   if (focusSpells.length === 0) return;
 
   const classDef = ClassRegistry.get(plan.classSlug);
   const tradition = classDef?.spellcasting?.tradition ?? 'arcane';
   const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
 
-  let focusEntry = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus');
-  if (!focusEntry) {
-    const created = await actor.createEmbeddedDocuments('Item', [{
-      name: `${capitalize(plan.classSlug)} Focus Spells`,
-      type: 'spellcastingEntry',
-      system: {
-        tradition: { value: tradition },
-        prepared: { value: 'focus' },
-        ability: { value: ability },
-        proficiency: { value: 1 },
-      },
-    }]);
-    focusEntry = created[0];
-  }
-
-  for (const spell of focusSpells) {
+  for (const { spell, source } of focusSpells) {
+    const focusEntry = await ensureFocusEntryForFeatSpell(actor, plan, spell, source, { tradition, ability });
+    if (!focusEntry) continue;
     const existing = actor.items?.find((i) => i.type === 'spell' && (i.sourceId ?? i.flags?.core?.sourceId) === spell.uuid);
     if (existing) continue;
     const spellData = foundry.utils.deepClone(spell.toObject());
@@ -196,6 +223,108 @@ function prepareForCreation(item, featEntry, group, level) {
   }
   addSyntheticGrantItemRule(data, featEntry);
   return data;
+}
+
+async function ensureFocusEntryForFeatSpell(actor, plan, spell, source, fallback) {
+  const archetypeSlug = getArchetypeFocusSlug(source);
+  if (archetypeSlug) return ensureArchetypeFocusEntry(actor, spell, archetypeSlug);
+
+  let focusEntry = actor.items?.find((i) => i.type === 'spellcastingEntry' && i.system?.prepared?.value === 'focus');
+  if (focusEntry) return focusEntry;
+
+  const created = await actor.createEmbeddedDocuments('Item', [{
+    name: `${capitalize(plan.classSlug)} Focus Spells`,
+    type: 'spellcastingEntry',
+    system: {
+      tradition: { value: fallback.tradition },
+      prepared: { value: 'focus' },
+      ability: { value: fallback.ability },
+      proficiency: { value: 1 },
+    },
+  }]);
+  return created[0];
+}
+
+async function ensureArchetypeFocusEntry(actor, spell, archetypeSlug) {
+  const existing = actor.items?.find((i) =>
+    i.type === 'spellcastingEntry'
+    && i.system?.prepared?.value === 'focus'
+    && (
+      i.flags?.['pf2e-leveler']?.archetypeFocusEntry === archetypeSlug
+      || String(i.name ?? '').trim().toLowerCase().includes(archetypeSlug.replace(/-/gu, ' '))
+    ));
+  if (existing) return existing;
+
+  const traditions = spell.system?.traits?.traditions ?? [];
+  const created = await actor.createEmbeddedDocuments('Item', [{
+    name: `${humanizeSlug(archetypeSlug)} Focus Spells`,
+    type: 'spellcastingEntry',
+    flags: {
+      'pf2e-leveler': {
+        archetypeFocusEntry: archetypeSlug,
+      },
+    },
+    system: {
+      tradition: { value: traditions[0] ?? 'arcane' },
+      prepared: { value: 'focus' },
+      ability: { value: 'cha' },
+      proficiency: { value: 1 },
+    },
+  }]);
+  return created[0];
+}
+
+function getArchetypeFocusSlug(source) {
+  const location = String(source?.system?.location ?? '').toLowerCase();
+  const traits = (source?.system?.traits?.value ?? []).map((trait) => String(trait).trim().toLowerCase()).filter(Boolean);
+  if (!location.startsWith('archetype-') && !traits.includes('archetype')) return null;
+
+  const ignored = new Set(['archetype', 'dedication', 'multiclass']);
+  const trait = traits.find((value) => !ignored.has(value) && value.includes('-'));
+  if (trait) return trait;
+
+  const slug = String(source?.slug ?? source?.system?.slug ?? '').trim().toLowerCase();
+  if (slug.includes('dragon')) return 'dragon-disciple';
+  return null;
+}
+
+function humanizeSlug(slug) {
+  return String(slug ?? '')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => capitalize(part))
+    .join(' ');
+}
+
+async function applyPostFeatSpellAdjustments(actor, featDatas) {
+  if (!featDatas.some((feat) => isMightyDragonShape(feat))) return;
+  const dragonForm = findActorSpell(actor, 'dragon-form', 'Dragon Form');
+  if (!dragonForm?.id || typeof actor.updateEmbeddedDocuments !== 'function') return;
+
+  await actor.updateEmbeddedDocuments('Item', [{
+    _id: dragonForm.id,
+    'system.frequency.max': 1,
+    'system.frequency.per': 'PT1H',
+    'system.frequency.value': 1,
+  }]);
+}
+
+function isMightyDragonShape(feat) {
+  const slug = String(feat?.slug ?? feat?.system?.slug ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? '').trim().toLowerCase();
+  return slug === 'mighty-dragon-shape' || name === 'mighty dragon shape';
+}
+
+function findActorSpell(actor, slug, name) {
+  const targetSlug = String(slug ?? '').trim().toLowerCase();
+  const targetName = String(name ?? '').trim().toLowerCase();
+  return (actor.items ?? []).find((item) => {
+    if (item?.type !== 'spell') return false;
+    const itemSlug = String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase();
+    const itemName = String(item?.name ?? '').trim().toLowerCase();
+    const source = String(item?.sourceId ?? item?.flags?.core?.sourceId ?? item?.uuid ?? '').trim().toLowerCase();
+    return itemSlug === targetSlug || itemName === targetName || source.endsWith(`.${targetSlug}`);
+  }) ?? null;
 }
 
 function hasSyntheticRepeatableGrantChoice(featEntry) {

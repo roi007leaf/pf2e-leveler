@@ -698,6 +698,16 @@ describe('parsePrerequisiteNode', () => {
     );
   });
 
+  test('parses comma-or feat dedication alternatives as separate feat prerequisites', () => {
+    const result = parsePrerequisiteNode('Acrobat Dedication, Celebrity Dedication, or Dandy Dedication');
+    expect(result.kind).toBe('any');
+    expect(result.children).toEqual([
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'acrobat-dedication' }),
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'celebrity-dedication' }),
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'dandy-dedication' }),
+    ]);
+  });
+
   test('parses French trained-in-skill-list wording as any-of-skills node', () => {
     const result = parsePrerequisiteNode(
       'qualifi\u00e9 en Arcanes, Nature, Occultisme ou Religion',

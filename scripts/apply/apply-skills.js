@@ -1,13 +1,14 @@
 import { SKILLS } from '../constants.js';
+import { getAllPlannedFeats } from '../plan/plan-model.js';
+import { evaluateRuleNumericValue } from '../plan/build-state.js';
+import { getFeatLoreRules, getFeatSkillRules } from '../utils/feat-skill-rules.js';
 
 export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
   const skillIncreases = [...(levelData?.skillIncreases ?? []), ...(levelData?.customSkillIncreases ?? [])];
   const intBonusSkills = levelData?.intBonusSkills ?? [];
-  const featSkillRules = getLevelFeatSkillRules(levelData);
-  const featLoreRules = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']
-    .flatMap((key) => levelData?.[key] ?? [])
-    .flatMap((feat) => feat?.dynamicLoreRules ?? []);
+  const featSkillRules = getPlannedFeatSkillRules(plan, level);
+  const featLoreRules = getPlannedFeatLoreRules(plan, level);
   if (skillIncreases.length === 0 && intBonusSkills.length === 0 && featSkillRules.length === 0 && featLoreRules.length === 0) return [];
 
   const updates = {};
@@ -18,8 +19,7 @@ export async function applySkillIncreases(actor, plan, level) {
     const skill = String(inc?.skill ?? '').trim().toLowerCase();
     if (!skill) continue;
     if (skill.endsWith('-lore') || !SKILLS.includes(skill)) {
-      loreItemsToCreate.push({ skill, toRank: inc.toRank });
-      applied.push(inc);
+      loreItemsToCreate.push({ skill, toRank: inc.toRank, appliedEntry: inc });
       continue;
     }
     updates[`system.skills.${skill}.rank`] = inc.toRank;
@@ -28,8 +28,7 @@ export async function applySkillIncreases(actor, plan, level) {
 
   for (const skill of intBonusSkills) {
     if (String(skill ?? '').endsWith('-lore')) {
-      loreItemsToCreate.push({ skill, toRank: 1, intBonus: true });
-      applied.push({ skill, toRank: 1, intBonus: true });
+      loreItemsToCreate.push({ skill, toRank: 1, intBonus: true, appliedEntry: { skill, toRank: 1, intBonus: true } });
       continue;
     }
     const currentRank = actor.system?.skills?.[skill]?.rank ?? 0;
@@ -47,12 +46,11 @@ export async function applySkillIncreases(actor, plan, level) {
     const rawTargetRank = currentRank >= 1 && rule?.valueIfAlreadyTrained != null
       ? rule.valueIfAlreadyTrained
       : rule?.value;
-    const toRank = Number(rawTargetRank ?? 1);
+    const toRank = evaluateRuleNumericValue(rawTargetRank ?? 1, level, rule);
     if (!Number.isFinite(toRank) || toRank <= currentRank) continue;
 
     if (skill.endsWith('-lore') || !SKILLS.includes(skill)) {
-      loreItemsToCreate.push({ skill, toRank });
-      applied.push({ skill, toRank, featChoice: true });
+      loreItemsToCreate.push({ skill, toRank, appliedEntry: { skill, toRank, featChoice: true } });
       continue;
     }
 
@@ -62,10 +60,9 @@ export async function applySkillIncreases(actor, plan, level) {
 
   for (const rule of featLoreRules) {
     const skill = String(rule?.skill ?? '').trim().toLowerCase();
-    const toRank = Number(rule?.value ?? 1);
+    const toRank = evaluateRuleNumericValue(rule?.value ?? 1, level, rule);
     if (!skill || !skill.endsWith('-lore') || !Number.isFinite(toRank) || toRank <= 0) continue;
-    loreItemsToCreate.push({ skill, toRank });
-    applied.push({ skill, toRank, featChoice: true });
+    loreItemsToCreate.push({ skill, toRank, appliedEntry: { skill, toRank, featChoice: true } });
   }
 
   if (Object.keys(updates).length > 0) {
@@ -88,6 +85,7 @@ export async function applySkillIncreases(actor, plan, level) {
         const currentRank = Number(existing.system?.proficient?.value ?? existing.system?.proficiency?.value ?? existing.system?.rank ?? 0);
         if (entry.toRank > currentRank) {
           loreUpdates.push({ _id: existing.id, 'system.proficient.value': entry.toRank });
+          applied.push(entry.appliedEntry);
         }
         continue;
       }
@@ -98,6 +96,7 @@ export async function applySkillIncreases(actor, plan, level) {
           proficient: { value: entry.toRank },
         },
       });
+      applied.push(entry.appliedEntry);
     }
     if (loreCreates.length > 0) await actor.createEmbeddedDocuments('Item', loreCreates);
     if (loreUpdates.length > 0) await actor.updateEmbeddedDocuments('Item', loreUpdates);
@@ -106,13 +105,12 @@ export async function applySkillIncreases(actor, plan, level) {
   return applied;
 }
 
-function getLevelFeatSkillRules(levelData) {
-  return ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']
-    .flatMap((key) => levelData?.[key] ?? [])
-    .flatMap((feat) => [
-      ...(Array.isArray(feat?.skillRules) ? feat.skillRules : []),
-      ...(Array.isArray(feat?.dynamicSkillRules) ? feat.dynamicSkillRules : []),
-    ]);
+function getPlannedFeatSkillRules(plan, level) {
+  return getAllPlannedFeats(plan, level).flatMap((feat) => getFeatSkillRules(feat));
+}
+
+function getPlannedFeatLoreRules(plan, level) {
+  return getAllPlannedFeats(plan, level).flatMap((feat) => getFeatLoreRules(feat));
 }
 
 function getPendingSkillRank(actor, updates, skill) {

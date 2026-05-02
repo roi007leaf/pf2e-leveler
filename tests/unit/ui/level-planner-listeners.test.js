@@ -98,6 +98,38 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('filters intelligence bonus languages by label or slug without rerendering', () => {
+    document.body.innerHTML = `
+      <div class="level-section">
+        <input type="text" data-action="searchIntBonusLanguages">
+        <button type="button" data-action="toggleIntBonusLanguage" data-language="draconic" data-name="Draconic"></button>
+        <button type="button" data-action="toggleIntBonusLanguage" data-language="elven" data-name="Elven"></button>
+        <button type="button" data-action="toggleIntBonusLanguage" data-language="undercommon" data-name="Undercommon"></button>
+      </div>
+    `;
+
+    const planner = {
+      _handleIntBonusLanguageToggle: jest.fn(),
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    const search = document.querySelector('[data-action="searchIntBonusLanguages"]');
+    search.value = 'dra';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(document.querySelector('[data-language="draconic"]').hidden).toBe(false);
+    expect(document.querySelector('[data-language="elven"]').hidden).toBe(true);
+    expect(document.querySelector('[data-language="undercommon"]').hidden).toBe(true);
+    expect(planner._savePlanAndRender).not.toHaveBeenCalled();
+
+    search.value = 'under';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(document.querySelector('[data-language="draconic"]').hidden).toBe(true);
+    expect(document.querySelector('[data-language="undercommon"]').hidden).toBe(false);
+  });
+
   it('uses same-level planned feat skill rank rules when selecting a skill increase', () => {
     document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="acrobatics"></button>';
 
