@@ -22,6 +22,7 @@ import { saveCreationData } from '../../../scripts/creation/creation-store.js';
 import { getClassHandler } from '../../../scripts/creation/class-handlers/registry.js';
 import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
+import { SWASHBUCKLER } from '../../../scripts/classes/swashbuckler.js';
 const { getCreationData } = jest.requireMock('../../../scripts/creation/creation-store.js');
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -2643,5 +2644,26 @@ describe('CharacterWizard feat step ancestry filtering', () => {
       { uuid: 'a', sourcePack: 'module.alpha', sourceLabel: 'Alpha Pack' },
     ]);
     expect(filtered.selectedCantrips).toEqual([{ uuid: 'x', name: 'Keep Me' }]);
+  });
+
+  it('includes class features in the build state used for prerequisite checking', async () => {
+    ClassRegistry.register(SWASHBUCKLER);
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = {
+      slug: 'swashbuckler',
+      name: 'Swashbuckler',
+      uuid: 'Compendium.pf2e.classes.Item.Swashbuckler',
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getBackgroundTrainedSkills = jest.fn(async () => []);
+    wizard._buildCreationAbilityModifiers = jest.fn(async () => ({}));
+    wizard._collectHeritageGrantedTraits = jest.fn(async () => []);
+    wizard._collectSenses = jest.fn(async () => []);
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.classFeatures).toBeInstanceOf(Set);
+    expect(buildState.classFeatures.has('precise-strike')).toBe(true);
   });
 });

@@ -15,6 +15,7 @@ export const SWASHBUCKLER = {
   abilityBoostSchedule: [5, 10, 15, 20],
 
   classFeatures: [
+    { level: 1, name: 'Precise Strike', key: 'precise-strike' },
     { level: 3, name: 'Fortitude Expertise', key: 'fortitude-expertise' },
     { level: 3, name: 'Opportune Riposte', key: 'opportune-riposte' },
     { level: 3, name: 'Stylish Tricks', key: 'stylish-tricks' },
