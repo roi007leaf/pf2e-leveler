@@ -4,10 +4,12 @@ import { ItemPicker } from '../../../scripts/ui/item-picker.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
 
 beforeAll(() => {
   if (!ClassRegistry.get('alchemist')) ClassRegistry.register(ALCHEMIST);
   if (!ClassRegistry.get('wizard')) ClassRegistry.register(WIZARD);
+  if (!ClassRegistry.get('fighter')) ClassRegistry.register(FIGHTER);
 });
 
 describe('level planner grant previews', () => {
@@ -453,6 +455,163 @@ describe('level planner grant previews', () => {
       ],
       grantChoiceSets: [],
     });
+  });
+
+  test('builds synthetic class feat choices for advanced multiclass feats without Foundry GrantItem automation', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-advanced-maneuver') {
+        return {
+          uuid,
+          name: 'Advanced Maneuver',
+          slug: 'advanced-maneuver',
+          system: {
+            slug: 'advanced-maneuver',
+            traits: { value: ['archetype', 'fighter'] },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const planner = {
+      actor: createMockActor({ items: [] }),
+      selectedLevel: 8,
+      plan: {
+        classSlug: 'alchemist',
+        levels: {
+          8: {
+            archetypeFeats: [{
+              uuid: 'feat-advanced-maneuver',
+              name: 'Advanced Maneuver',
+              slug: 'advanced-maneuver',
+              traits: ['archetype', 'fighter'],
+              choices: {},
+            }],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-feats': [
+          { uuid: 'Compendium.pf2e.feats-srd.Item.combat-grab', name: 'Combat Grab', type: 'feat', category: 'class', level: 2, traits: ['fighter'], rarity: 'common' },
+          { uuid: 'Compendium.pf2e.feats-srd.Item.furious-focus', name: 'Furious Focus', type: 'feat', category: 'class', level: 6, traits: ['fighter'], rarity: 'common' },
+          { uuid: 'Compendium.pf2e.feats-srd.Item.reactive-strike', name: 'Reactive Strike', type: 'feat', category: 'class', level: 4, traits: ['fighter'], rarity: 'common' },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, ALCHEMIST, {});
+
+    expect(context.archetypeFeatChoiceSets).toEqual([
+      expect.objectContaining({
+        flag: 'levelerAdvancedClassFeat',
+        syntheticType: 'advanced-multiclass-class-feat',
+        options: [
+          expect.objectContaining({ value: 'Compendium.pf2e.feats-srd.Item.combat-grab', label: 'Combat Grab', level: 2 }),
+          expect.objectContaining({ value: 'Compendium.pf2e.feats-srd.Item.reactive-strike', label: 'Reactive Strike', level: 4 }),
+        ],
+      }),
+    ]);
+    expect(context.archetypeFeatChoiceSets[0].options).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'Compendium.pf2e.feats-srd.Item.furious-focus' }),
+    ]));
+  });
+
+  test('renders class feature choice sets from level feature rules', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feature-blessing-of-the-devoted') {
+        return {
+          uuid,
+          name: 'Blessing of the Devoted',
+          type: 'classfeature',
+          system: {
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'blessing',
+              prompt: 'Select a blessing.',
+              choices: [
+                { value: 'Compendium.pf2e.classfeatures.Item.blessing-swiftness', label: 'Blessing of Swiftness', slug: 'blessing-of-swiftness' },
+                { value: 'Compendium.pf2e.classfeatures.Item.blessing-grace', label: 'Blessing of Grace', slug: 'blessing-of-grace' },
+              ],
+            }],
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({
+      items: [],
+      class: {
+        slug: 'alchemist',
+        name: 'Alchemist',
+        system: {
+          items: {
+            blessing: {
+              level: 3,
+              name: 'Blessing of the Devoted',
+              uuid: 'feature-blessing-of-the-devoted',
+              img: 'blessing.png',
+            },
+          },
+        },
+      },
+    });
+    const planner = {
+      actor,
+      selectedLevel: 3,
+      plan: {
+        classSlug: 'alchemist',
+        levels: {
+          3: {
+            classFeatureChoices: {
+              'blessing-of-the-devoted': {
+                blessing: {
+                  value: 'Compendium.pf2e.classfeatures.Item.blessing-swiftness',
+                  label: 'Blessing of Swiftness',
+                  slug: 'blessing-of-swiftness',
+                },
+              },
+            },
+          },
+        },
+      },
+      _compendiumCache: {},
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, ALCHEMIST, {});
+
+    expect(context.classFeatures).toEqual([
+      expect.objectContaining({
+        name: 'Blessing of the Devoted',
+        choiceSets: [
+          expect.objectContaining({
+            flag: 'blessing',
+            options: [
+              expect.objectContaining({ label: 'Blessing of Swiftness', selected: true }),
+              expect.objectContaining({ label: 'Blessing of Grace', selected: false }),
+            ],
+          }),
+        ],
+      }),
+    ]);
   });
 
   test('attaches detected grant requirements and completion to enriched planner feats', async () => {

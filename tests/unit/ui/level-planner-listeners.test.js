@@ -70,6 +70,34 @@ describe('Level planner skill increase listeners', () => {
     expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 
+  it('stores planned class feature choices', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedClassFeatureChoice" data-feature-key="blessing-of-the-devoted" data-flag="blessing" data-value="Compendium.pf2e.classfeatures.Item.blessing-swiftness" data-label="Blessing of Swiftness" data-slug="blessing-of-swiftness"></button>';
+
+    const planner = {
+      plan: {
+        levels: {
+          3: {},
+        },
+      },
+      selectedLevel: 3,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedClassFeatureChoice"]').click();
+
+    expect(planner.plan.levels[3].classFeatureChoices).toEqual({
+      'blessing-of-the-devoted': {
+        blessing: {
+          value: 'Compendium.pf2e.classfeatures.Item.blessing-swiftness',
+          label: 'Blessing of Swiftness',
+          slug: 'blessing-of-swiftness',
+        },
+      },
+    });
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
   it('uses same-level planned feat skill rank rules when selecting a skill increase', () => {
     document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="acrobatics"></button>';
 

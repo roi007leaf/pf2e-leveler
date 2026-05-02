@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.3.9
+
+### Level Planner
+
+- **Advanced multiclass feats now prompt for their granted class feat** - Advanced Defender and similar multiclass archetype feats now offer eligible class feats up to half character level, can be taken again at later levels, and apply the selected class feat grant
+- **Class feature choices now count in future prerequisites** - Champion Blessing of the Devoted and similar class feature choices now appear in the planner, persist to the actor, reload from existing actors, and contribute aliases for later prerequisite checks
+- **Custom feat browsing now includes other-class feats** - Custom feat slots can now find class feats from any registered class, making manual cross-class selections easier
+
+### Character Creation
+
+- **Background skill choices can still select an already trained skill when the background grants a follow-up benefit** - Glory Hound can now choose Performance even when trained from another source, while backgrounds that grant Assurance still avoid duplicate trained skills
+
 ## 3.3.8
 
 ### Level Planner

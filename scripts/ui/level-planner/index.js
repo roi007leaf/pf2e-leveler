@@ -265,6 +265,30 @@ function isArchetypeLikeFeat(feat) {
   return getDedicationAliasesFromDescription(feat).length > 0;
 }
 
+function isActorClassFeatureItem(item) {
+  if (!item || !['feat', 'action', 'classfeature'].includes(String(item?.type ?? '').toLowerCase())) return false;
+  if (item.type === 'classfeature') return true;
+  const category = String(item?.system?.category?.value ?? item?.system?.category ?? '').toLowerCase();
+  return ['classfeature', 'class-feature'].includes(category);
+}
+
+function getActorClassFeaturePlanKey(item) {
+  return slugifyClassFeatureKey(item?.slug ?? item?.system?.slug ?? item?.name ?? getCompendiumItemId(item?.sourceId ?? item?.flags?.core?.sourceId ?? item?.uuid));
+}
+
+function getCompendiumItemId(uuid) {
+  const match = String(uuid ?? '').match(/\.Item\.([^.]+)$/u);
+  return match?.[1] ?? null;
+}
+
+function slugifyClassFeatureKey(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-|-$/gu, '');
+}
+
 export async function extractFeatSkillRules(feat, documentResolver = fromUuid, visited = new Set()) {
   if (!feat) return [];
 
@@ -696,6 +720,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _seedPlanFromActor(actor, plan, options) {
     this._seedPlanBoostsFromActor(actor, plan);
     this._seedPlanFeatsFromActor(actor, plan, options);
+    this._seedPlanClassFeatureChoicesFromActor(actor, plan);
   }
 
   _seedPlanBoostsFromActor(actor, plan) {
@@ -807,6 +832,28 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         skillRulesResolved: false,
         skillRulesVersion: 0,
       });
+    }
+  }
+
+  _seedPlanClassFeatureChoicesFromActor(actor, plan) {
+    const actorItems = actor?.items?.contents
+      ?? (Array.isArray(actor?.items) ? actor.items : []);
+    for (const item of actorItems) {
+      if (!isActorClassFeatureItem(item)) continue;
+      const rulesSelections = item?.flags?.pf2e?.rulesSelections ?? {};
+      if (Object.keys(rulesSelections).length === 0) continue;
+
+      const level = this._getActorFeatTakenLevel(item);
+      if (!Number.isInteger(level) || !plan?.levels?.[level]) continue;
+
+      const featureKey = getActorClassFeaturePlanKey(item);
+      if (!featureKey) continue;
+      plan.levels[level].classFeatureChoices ??= {};
+      plan.levels[level].classFeatureChoices[featureKey] ??= {};
+      for (const [flag, value] of Object.entries(rulesSelections)) {
+        if (typeof value !== 'string' || value.length === 0) continue;
+        plan.levels[level].classFeatureChoices[featureKey][flag] = { value };
+      }
     }
   }
 

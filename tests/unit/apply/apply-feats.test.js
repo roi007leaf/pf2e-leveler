@@ -85,6 +85,63 @@ describe('applyFeats', () => {
     expect(createdData.system.location).toBe('bonus-2');
   });
 
+  test('injects selected advanced multiclass class feat grants when Foundry data has no GrantItem rule', async () => {
+    const existingAdvancedManeuver = {
+      name: 'Advanced Maneuver',
+      flags: { core: { sourceId: 'feat-advanced-maneuver' } },
+    };
+    mockActor.items = [existingAdvancedManeuver];
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-advanced-maneuver') {
+        return {
+          uuid,
+          name: 'Advanced Maneuver',
+          img: 'icon.png',
+          flags: { core: { sourceId: 'feat-advanced-maneuver' } },
+          system: { level: { value: 6 }, location: null, rules: [] },
+          toObject: jest.fn(() => ({
+            name: 'Advanced Maneuver',
+            flags: { core: { sourceId: 'feat-advanced-maneuver' } },
+            system: { level: { value: 6 }, location: null, rules: [] },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.combat-grab') {
+        return {
+          uuid,
+          name: 'Combat Grab',
+          flags: { core: { sourceId: 'Compendium.pf2e.feats-srd.Item.combat-grab' } },
+          system: { level: { value: 2 } },
+          toObject: jest.fn(() => ({
+            name: 'Combat Grab',
+            flags: { core: { sourceId: 'Compendium.pf2e.feats-srd.Item.combat-grab' } },
+            system: { level: { value: 2 } },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      levels: {
+        8: {
+          archetypeFeats: [{
+            uuid: 'feat-advanced-maneuver',
+            name: 'Advanced Maneuver',
+            slug: 'advanced-maneuver',
+            choices: { levelerAdvancedClassFeat: 'Compendium.pf2e.feats-srd.Item.combat-grab' },
+          }],
+        },
+      },
+    }, 8);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('archetype-8');
+    expect(createdData.system.rules).toEqual([
+      { key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.combat-grab' },
+    ]);
+  });
+
   test('routes dual class feats to the Workbench dual-class campaign feat section when present', async () => {
     jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue(['xdy_dualclass']);
 

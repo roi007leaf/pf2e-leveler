@@ -83,7 +83,7 @@ export function computeBuildState(actor, plan, atLevel) {
     canTakeNewArchetypeDedication: canTakeNewArchetypeDedication(actor, plan, atLevel),
     classArchetypeDedications: computeClassArchetypeDedications(actor, plan, atLevel),
     classArchetypeTraits: computeClassArchetypeTraits(actor, plan, atLevel),
-    classFeatures: computeClassFeatures(actor, [classDef, dualClassDef], atLevel),
+    classFeatures: computeClassFeatures(actor, plan, [classDef, dualClassDef], atLevel),
     senses: computeSenses(actor),
   };
 }
@@ -956,7 +956,7 @@ function slugifySense(value) {
     .replace(/[\s_]+/g, '-');
 }
 
-function computeClassFeatures(actor, classDefs, atLevel) {
+function computeClassFeatures(actor, plan, classDefs, atLevel) {
   const trackedClassDefs = Array.isArray(classDefs)
     ? classDefs.filter(Boolean)
     : [classDefs].filter(Boolean);
@@ -987,6 +987,10 @@ function computeClassFeatures(actor, classDefs, atLevel) {
     }
   }
 
+  for (const levelData of getPlanLevelDataUpTo(plan, atLevel)) {
+    addPlannedClassFeatureChoiceAliases(features, levelData);
+  }
+
   return features;
 }
 
@@ -1004,6 +1008,39 @@ function isOwnedClassFeatureItem(item, atLevel) {
     item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level ?? 0,
   );
   return Number.isFinite(level) ? level <= atLevel : true;
+}
+
+function getPlanLevelDataUpTo(plan, atLevel) {
+  return Object.entries(plan?.levels ?? {})
+    .filter(([level]) => Number(level) <= atLevel)
+    .map(([, levelData]) => levelData)
+    .filter(Boolean);
+}
+
+function addPlannedClassFeatureChoiceAliases(features, levelData) {
+  for (const choiceBucket of Object.values(levelData?.classFeatureChoices ?? {})) {
+    for (const choice of Object.values(choiceBucket ?? {})) {
+      if (typeof choice === 'string') {
+        addFeatureChoiceAlias(features, choice);
+        continue;
+      }
+      addFeatureChoiceAlias(features, choice?.value);
+      addFeatureChoiceAlias(features, choice?.label);
+      addFeatureChoiceAlias(features, choice?.slug);
+    }
+  }
+}
+
+function addFeatureChoiceAlias(features, value) {
+  if (typeof value !== 'string' || value.length === 0 || value === '[object Object]') return;
+  if (value.startsWith('Compendium.')) {
+    const match = value.match(/\.Item\.([^.]+)$/u);
+    const normalizedCompendiumAlias = slugify(match?.[1] ?? '');
+    if (normalizedCompendiumAlias) features.add(normalizedCompendiumAlias);
+    return;
+  }
+  const normalized = slugify(value);
+  if (normalized) features.add(normalized);
 }
 
 function extractLinkedFeatureAliases(html) {

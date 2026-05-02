@@ -352,6 +352,24 @@ describe('computeBuildState', () => {
     expect(state.classFeatures.has('double-brew')).toBe(false);
   });
 
+  test('adds planned class feature choice aliases to prerequisite state', () => {
+    plan.levels[3] = {
+      classFeatureChoices: {
+        'blessing-of-the-devoted': {
+          blessing: {
+            value: 'Compendium.pf2e.classfeatures.Item.blessing-swiftness',
+            label: 'Blessing of Swiftness',
+            slug: 'blessing-of-swiftness',
+          },
+        },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 3);
+
+    expect(state.classFeatures.has('blessing-of-swiftness')).toBe(true);
+  });
+
   test('includes linked granted feature aliases from owned class-feature items', () => {
     const guardianActor = createMockActor({
       class: { slug: 'guardian', name: 'Guardian' },

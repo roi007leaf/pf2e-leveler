@@ -1300,9 +1300,17 @@ function isAssuranceChoiceSource(source) {
 function shouldAllowAutoTrainedSkillSelection(sourceItem, rule) {
   const sourceSlug = String(sourceItem?.system?.slug ?? sourceItem?.slug ?? '').toLowerCase();
   const sourceName = String(sourceItem?.name ?? '').toLowerCase();
+  const sourceType = String(sourceItem?.type ?? '').toLowerCase();
   if (!isSkillChoiceSet(rule)) return false;
-  return sourceSlug === 'assurance'
+  return (sourceType === 'background' && !sourceGrantsAssurance(sourceItem))
+    || sourceSlug === 'assurance'
     || sourceName === 'assurance';
+}
+
+function sourceGrantsAssurance(sourceItem) {
+  return (sourceItem?.system?.rules ?? []).some((rule) =>
+    rule?.key === 'GrantItem'
+    && /(?:w6gl9epmitfdhji0|assurance)/u.test(String(rule?.uuid ?? '').toLowerCase()));
 }
 
 function isAssuranceGrant(item) {

@@ -360,6 +360,7 @@ function ensureLevelData(plan, level) {
 }
 
 function ensureCustomLevelData(levelData) {
+  if (!levelData.classFeatureChoices || typeof levelData.classFeatureChoices !== 'object') levelData.classFeatureChoices = {};
   if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
   if (!Array.isArray(levelData.customSkillIncreases)) levelData.customSkillIncreases = [];
   if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];

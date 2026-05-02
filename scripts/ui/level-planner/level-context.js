@@ -28,6 +28,8 @@ const MANUAL_SPELL_FEATS = new Set([
   'masterful-warden',
 ]);
 
+const ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG = 'levelerAdvancedClassFeat';
+
 export async function buildLevelContext(planner, classDef, options) {
   if (!planner.plan || !classDef) return {};
 
@@ -80,7 +82,7 @@ export async function buildLevelContext(planner, classDef, options) {
   const customSpellGroups = buildCustomSpellGroups(levelData.customSpells ?? [], customSpellEntryOptions);
 
   return {
-    classFeatures: getClassFeaturesForLevel(planner, level),
+    classFeatures: await buildClassFeatureEntries(planner, level, levelData),
     grantRequirements: await buildPlannerClassGrantRequirements(planner, levelData, level),
     showBoosts: choiceTypes.has('abilityBoosts'),
     boostCount: choices.find((choice) => choice.type === 'abilityBoosts')?.count ?? 4,
@@ -188,7 +190,13 @@ export function getClassFeaturesForLevel(planner, level) {
     const key = String(feature?.uuid ?? feature?.name ?? '').trim().toLowerCase();
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
-    features.push({ name: feature.name, uuid: feature.uuid, img: feature.img });
+    features.push({
+      key: getClassFeatureKey(feature),
+      name: feature.name,
+      slug: feature.slug ?? feature.key ?? null,
+      uuid: feature.uuid,
+      img: feature.img,
+    });
   }
 
   const dualClassSlug = String(planner.plan?.dualClassSlug ?? '').trim().toLowerCase();
@@ -201,10 +209,66 @@ export function getClassFeaturesForLevel(planner, level) {
     const key = String(feature?.key ?? feature?.name ?? '').trim().toLowerCase();
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
-    features.push({ name: feature.name, uuid: feature.uuid ?? null, img: feature.img ?? null });
+    features.push({
+      key: getClassFeatureKey(feature),
+      name: feature.name,
+      slug: feature.slug ?? feature.key ?? null,
+      uuid: feature.uuid ?? null,
+      img: feature.img ?? null,
+    });
   }
 
   return features;
+}
+
+async function buildClassFeatureEntries(planner, level, levelData) {
+  const features = getClassFeaturesForLevel(planner, level);
+  const wizard = createPlannerChoiceWizard(planner);
+
+  return Promise.all(features.map(async (feature) => {
+    if (!feature.uuid) return { ...feature, choiceSets: [] };
+    const source = await fromUuid(feature.uuid).catch(() => null);
+    const rules = Array.isArray(source?.system?.rules) ? source.system.rules : [];
+    if (rules.length === 0) return { ...feature, choiceSets: [] };
+
+    const storedChoices = levelData?.classFeatureChoices?.[feature.key] ?? {};
+    const choiceSets = await parseChoiceSets(wizard, rules, getClassFeatureChoiceValues(storedChoices), source);
+    return {
+      ...feature,
+      choiceSets: choiceSets
+        .map((entry) => decoratePlannerClassFeatureChoiceSet(entry, storedChoices))
+        .filter((entry) => entry.options.length > 0),
+    };
+  }));
+}
+
+function getClassFeatureKey(feature) {
+  return String(feature?.key ?? feature?.slug ?? feature?.name ?? feature?.uuid ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-|-$/gu, '');
+}
+
+function getClassFeatureChoiceValues(storedChoices = {}) {
+  return Object.fromEntries(
+    Object.entries(storedChoices ?? {}).map(([flag, entry]) => [
+      flag,
+      typeof entry === 'object' && entry !== null ? String(entry.value ?? '') : String(entry ?? ''),
+    ]),
+  );
+}
+
+function decoratePlannerClassFeatureChoiceSet(choiceSet, storedChoices = {}) {
+  const selectedValue = String(storedChoices?.[choiceSet.flag]?.value ?? storedChoices?.[choiceSet.flag] ?? '');
+  return {
+    ...choiceSet,
+    options: (choiceSet.options ?? []).map((option) => ({
+      ...option,
+      selected: String(option.value ?? option.uuid ?? '') === selectedValue,
+      slug: option.slug ?? null,
+    })),
+  };
 }
 
 export function annotateFeat(feat) {
@@ -623,6 +687,9 @@ async function buildPlannerSpecialChoiceSets(planner, feat, source, parsedChoice
   const dedicationSubclassChoiceSet = await buildPlannerDedicationSubclassChoiceSet(planner, feat, source);
   if (dedicationSubclassChoiceSet) special.push(dedicationSubclassChoiceSet);
 
+  const advancedMulticlassChoiceSet = await buildAdvancedMulticlassClassFeatChoiceSet(planner, feat, source, parsedChoiceSets);
+  if (advancedMulticlassChoiceSet) special.push(advancedMulticlassChoiceSet);
+
   return special;
 }
 
@@ -661,6 +728,51 @@ async function buildNaturalAmbitionChoiceSet(planner) {
       ? game.i18n.localize('PF2E.SpecificRule.Prompt.LevelOneClassFeat')
       : 'Select a 1st-level class feat.',
     choiceType: 'item',
+    options,
+  };
+}
+
+async function buildAdvancedMulticlassClassFeatChoiceSet(planner, feat, source, parsedChoiceSets = []) {
+  if (hasUsableChoiceSet(parsedChoiceSets, ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG)) return null;
+  if ((source?.system?.rules ?? []).some((rule) => rule?.key === 'GrantItem')) return null;
+
+  const slug = String(feat?.slug ?? source?.system?.slug ?? source?.slug ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? source?.name ?? '').trim().toLowerCase();
+  if (!slug.startsWith('advanced-') && !name.startsWith('advanced ')) return null;
+
+  const classSlug = getPlannerDedicationArchetypeSlug(feat, source);
+  if (!classSlug || !ClassRegistry.has(classSlug)) return null;
+
+  const maxLevel = Math.max(1, Math.floor(Number(planner?.selectedLevel ?? 1) / 2));
+  const feats = await loadCompendiumCategory(planner, 'feats');
+  const options = feats
+    .filter((item) => String(item?.category ?? '').toLowerCase() === 'class')
+    .filter((item) => Number(item?.level ?? 0) <= maxLevel)
+    .filter((item) => (item?.traits ?? []).map((trait) => String(trait).toLowerCase()).includes(classSlug))
+    .filter((item) => !(item?.traits ?? []).map((trait) => String(trait).toLowerCase()).includes('class-archetype'))
+    .map((item) => ({
+      value: item.uuid ?? item.slug,
+      label: item.name,
+      uuid: item.uuid ?? null,
+      img: item.img ?? null,
+      traits: item.traits ?? [],
+      rarity: item.rarity ?? 'common',
+      type: item.type ?? 'feat',
+      category: item.category ?? 'class',
+      level: item.level ?? null,
+    }))
+    .filter((item) => isItemUuid(item.uuid ?? item.value))
+    .sort((a, b) => {
+      const levelCompare = Number(a.level ?? 0) - Number(b.level ?? 0);
+      return levelCompare || a.label.localeCompare(b.label);
+    });
+
+  if (options.length === 0) return null;
+  return {
+    flag: ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG,
+    prompt: `Select a ${ClassRegistry.get(classSlug)?.name ?? classSlug} feat.`,
+    choiceType: 'item',
+    syntheticType: 'advanced-multiclass-class-feat',
     options,
   };
 }

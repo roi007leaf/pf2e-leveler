@@ -233,6 +233,50 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(planner.plan.levels[5].abilityBoosts).toEqual(['str', 'dex', 'con', 'int']);
   });
 
+  it('seeds class feature rule selections into a new plan for higher-level characters', () => {
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 5 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+      items: [
+        {
+          type: 'feat',
+          uuid: 'Actor.test.Item.blessing',
+          sourceId: 'Compendium.pf2e.classfeatures.Item.blessing-of-the-devoted',
+          slug: 'blessing-of-the-devoted',
+          name: 'Blessing of the Devoted',
+          img: 'icons/blessing.webp',
+          flags: {
+            pf2e: {
+              rulesSelections: {
+                blessing: 'blessed-one',
+              },
+            },
+          },
+          system: {
+            category: 'classfeature',
+            level: { value: 3, taken: 3 },
+            location: 'classfeature-3',
+            traits: { value: [] },
+            rules: [],
+          },
+        },
+      ],
+    });
+    actor.class.slug = 'champion';
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.levels[3].classFeatureChoices).toEqual({
+      'blessing-of-the-devoted': {
+        blessing: { value: 'blessed-one' },
+      },
+    });
+  });
+
   it('imports Workbench dual-class feat slots into dual class planner slots', () => {
     global._testSettings = {
       ...(global._testSettings ?? {}),

@@ -12,6 +12,7 @@ import {
 import { checkPrerequisites } from '../prerequisites/prerequisite-checker.js';
 import { parseAllPrerequisiteNodes } from '../prerequisites/parsers.js';
 import { isMythicEnabled } from '../utils/pf2e-api.js';
+import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
 import {
   applyRarityFilter,
@@ -1180,7 +1181,13 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (traits.includes('general')) types.push('general');
     if (traits.includes('skill')) types.push('skill');
     if (ancestryTraits.some((trait) => traits.includes(trait))) types.push('ancestry');
-    if (classSlug && traits.includes(classSlug)) types.push('class');
+    if (this.category === 'custom') {
+      if ((classSlug && traits.includes(classSlug)) || traits.some((trait) => ClassRegistry.has(trait))) {
+        types.push('class');
+      }
+    } else if (classSlug && traits.includes(classSlug)) {
+      types.push('class');
+    }
 
     if (types.length === 0) types.push(this.category === 'custom' ? 'bonus' : 'other');
     return [...new Set(types)];

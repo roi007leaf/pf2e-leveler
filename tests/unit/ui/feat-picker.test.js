@@ -2,8 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
 import * as featCache from '../../../scripts/feats/feat-cache.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
 
 describe('FeatPicker prerequisite enforcement', () => {
+  beforeAll(() => {
+    if (!ClassRegistry.get('fighter')) ClassRegistry.register(FIGHTER);
+  });
+
   function createFeat({ name, prereqText, uuid = 'feat-1', slug = 'feat-1' }) {
     return {
       uuid,
@@ -1121,6 +1127,21 @@ describe('FeatPicker prerequisite enforcement', () => {
       'Battle Medicine',
       'Power Attack',
     ]);
+  });
+
+  test('custom feat picker treats other-class feats as class feats', () => {
+    const fighterFeat = createFeat({
+      name: 'Combat Grab',
+      uuid: 'combat-grab',
+      slug: 'combat-grab',
+    });
+    fighterFeat.system.traits.value = ['fighter'];
+
+    const picker = new FeatPicker(createActor(), 'custom', 4, createBuildState(), jest.fn());
+    picker.allFeats = [fighterFeat];
+    picker.selectedFeatTypes = new Set(['class']);
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Combat Grab']);
   });
 
   test('can filter feats by a min and max level range', () => {

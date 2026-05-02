@@ -19,6 +19,7 @@ const CATEGORY_TO_GROUP = {
 };
 
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);
+const ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG = 'levelerAdvancedClassFeat';
 
 function getFeatGroup(key, level) {
   if (key === 'dualClassFeats') {
@@ -65,7 +66,11 @@ export async function applyFeats(actor, plan, level) {
       const item = await resolveFeat(featEntry.uuid);
       if (!item) continue;
       const sourceId = getItemSourceId(item);
-      if (sourceId && (existingSources.has(sourceId) || pendingSources.has(sourceId))) continue;
+      if (
+        sourceId
+        && !hasSyntheticRepeatableGrantChoice(featEntry)
+        && (existingSources.has(sourceId) || pendingSources.has(sourceId))
+      ) continue;
 
       const featData = prepareForCreation(item, featEntry, group, level);
       candidates.push({ featData, sourceId });
@@ -189,7 +194,24 @@ function prepareForCreation(item, featEntry, group, level) {
     data.flags.pf2e ??= {};
     data.flags.pf2e.rulesSelections = Object.fromEntries(choiceEntries.map(([key, value]) => [key, String(value)]));
   }
+  addSyntheticGrantItemRule(data, featEntry);
   return data;
+}
+
+function hasSyntheticRepeatableGrantChoice(featEntry) {
+  return typeof featEntry?.choices?.[ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG] === 'string'
+    && featEntry.choices[ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG].length > 0;
+}
+
+function addSyntheticGrantItemRule(data, featEntry) {
+  const grantedUuid = featEntry?.choices?.[ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG];
+  if (typeof grantedUuid !== 'string' || grantedUuid.length === 0) return;
+
+  data.system ??= {};
+  data.system.rules ??= [];
+  if (!Array.isArray(data.system.rules)) data.system.rules = [];
+  if (data.system.rules.some((rule) => rule?.key === 'GrantItem' && rule?.uuid === grantedUuid)) return;
+  data.system.rules.push({ key: 'GrantItem', uuid: grantedUuid });
 }
 
 function getActorFeatSources(actor) {

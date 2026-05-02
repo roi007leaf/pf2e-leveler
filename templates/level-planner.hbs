@@ -79,6 +79,31 @@
               {{/if}}
               <div class="class-feature-item__name">{{this.name}}</div>
             </div>
+            {{#each this.choiceSets}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-md);">
+              <i class="fa-solid fa-circle-info"></i>
+              {{this.prompt}}
+            </div>
+            <div class="wizard-item-grid wizard-item-grid--compact" style="margin-top: var(--leveler-spacing-sm);">
+              {{#each this.options}}
+              <div class="wizard-item {{#if this.selected}}wizard-item--taken{{/if}}">
+                {{#if this.img}}
+                <img src="{{this.img}}" alt="" class="wizard-item__img" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>
+                {{/if}}
+                <div class="wizard-item__info">
+                  <span class="wizard-item__name wizard-item__name--static" {{#if this.uuid}}data-action="viewItem" data-uuid="{{this.uuid}}"{{/if}}>{{this.label}}</span>
+                </div>
+                {{#if this.selected}}
+                <span class="tag tag--success tag--tiny"><i class="fa-solid fa-check"></i> {{localize "PF2E_LEVELER.UI.SELECTED"}}</span>
+                {{else}}
+                <button type="button" class="wizard-item__select" data-action="selectPlannedClassFeatureChoice" data-feature-key="{{../../key}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-label="{{this.label}}" data-slug="{{this.slug}}">
+                  {{localize "PF2E_LEVELER.FEAT_PICKER.SELECT"}}
+                </button>
+                {{/if}}
+              </div>
+              {{/each}}
+            </div>
+            {{/each}}
             {{/each}}
           </div>
         </div>

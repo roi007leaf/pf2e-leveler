@@ -87,6 +87,24 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelectorAll('[data-action="selectPlannedClassFeatureChoice"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const levelData = getLevelData(planner.plan, planner.selectedLevel);
+      const featureKey = button.dataset.featureKey;
+      const flag = button.dataset.flag;
+      const value = button.dataset.value;
+      if (!levelData || !featureKey || !flag || !value) return;
+      levelData.classFeatureChoices ??= {};
+      levelData.classFeatureChoices[featureKey] ??= {};
+      levelData.classFeatureChoices[featureKey][flag] = {
+        value,
+        label: button.dataset.label ?? value,
+        slug: button.dataset.slug ?? null,
+      };
+      planner._savePlanAndRender();
+    });
+  });
+
   el.querySelectorAll('[data-action="openPlannedFeatChoicePicker"]').forEach((button) => {
     button.addEventListener('click', () => {
       if (typeof planner._openPlannedFeatChoicePicker !== 'function') return;

@@ -3474,6 +3474,63 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('keeps background skill choices selectable when that skill is already trained elsewhere', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          prf: 'PF2E.SkillPrf',
+          soc: 'PF2E.SkillSoc',
+        },
+      },
+    };
+
+    wizard._getClassTrainedSkills = jest.fn(async () => ['performance']);
+    wizard._getCachedDocument = jest.fn(async () => null);
+
+    try {
+      const choiceSets = await parseChoiceSets(wizard, [
+        {
+          key: 'ChoiceSet',
+          flag: 'skill',
+          prompt: 'Select a skill.',
+          choices: [
+            { value: 'prf', label: 'PF2E.SkillPrf' },
+            { value: 'soc', label: 'PF2E.SkillSoc' },
+          ],
+        },
+        {
+          key: 'GrantItem',
+          uuid: 'Compendium.pf2e.feats-srd.Item.impressive-performance',
+        },
+      ], {}, {
+        uuid: 'background-glory-hound',
+        name: 'Glory Hound',
+        type: 'background',
+        system: {
+          slug: 'glory-hound',
+          rules: [],
+        },
+      });
+
+      const hydrated = await hydrateChoiceSets(wizard, choiceSets, {});
+
+      expect(hydrated[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          value: 'prf',
+          autoTrained: true,
+          autoTrainedSource: 'Class',
+          disabled: false,
+        }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
   it('does not surface manual Assurance when the selected Scholar skill is still one of the authored Scholar skills', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
