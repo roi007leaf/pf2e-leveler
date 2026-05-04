@@ -105,6 +105,136 @@ function getTrackedDualClassSlug(plan) {
   return ClassRegistry.has(dualClassSlug) ? dualClassSlug : null;
 }
 
+function getEffectivePlannedFeats(plan, atLevel) {
+  const removed = getActiveRetrainedFeatOriginals(plan, atLevel);
+  const feats = getAllPlannedFeats(plan, atLevel).filter((feat) => !matchesAnyFeatIdentity(feat, removed));
+
+  for (const retrain of getActiveFeatRetrains(plan, atLevel)) {
+    if (retrain?.replacement) feats.push(retrain.replacement);
+  }
+
+  return feats;
+}
+
+function getEffectiveActorFeats(actor, plan, atLevel) {
+  const removed = getActiveRetrainedFeatOriginals(plan, atLevel);
+  return (actor?.items?.filter?.((item) => item?.type === 'feat') ?? [])
+    .filter((feat) => !matchesAnyFeatIdentity(feat, removed));
+}
+
+function getEffectiveCharacterFeats(actor, plan, atLevel) {
+  return [
+    ...getEffectiveActorFeats(actor, plan, atLevel),
+    ...getEffectivePlannedFeats(plan, atLevel),
+  ];
+}
+
+function getEffectivePlannedFeatsForLevel(plan, level, atLevel = level) {
+  return getEffectivePlannedFeatEntriesForLevel(plan, level, atLevel).map((entry) => entry.feat);
+}
+
+function getEffectivePlannedFeatEntriesForLevel(plan, level, atLevel = level) {
+  const levelData = plan?.levels?.[level];
+  const removed = getActiveRetrainedFeatOriginals(plan, atLevel);
+  const entries = [];
+
+  for (const key of PLAN_FEAT_KEYS) {
+    for (const feat of levelData?.[key] ?? []) {
+      if (!matchesAnyFeatIdentity(feat, removed)) entries.push({ feat, category: key });
+    }
+  }
+
+  if (level <= atLevel) {
+    for (const retrain of levelData?.retrainedFeats ?? []) {
+      if (retrain?.replacement) entries.push({ feat: retrain.replacement, category: retrain.category });
+    }
+  }
+
+  return entries;
+}
+
+function getEffectiveLevelSkillIncreases(plan, level, atLevel = level) {
+  const levelData = plan?.levels?.[level];
+  const removed = getActiveRetrainedSkillIncreaseOriginals(plan, atLevel);
+  const increases = [
+    ...(levelData?.skillIncreases ?? []),
+    ...(levelData?.customSkillIncreases ?? []),
+  ].filter((increase) => !matchesAnySkillIncrease(increase, level, removed));
+
+  if (level <= atLevel) {
+    for (const retrain of levelData?.retrainedSkillIncreases ?? []) {
+      if (retrain?.replacement) increases.push(retrain.replacement);
+    }
+  }
+
+  return increases;
+}
+
+function getActiveFeatRetrains(plan, atLevel) {
+  const retrains = [];
+  for (let level = 1; level <= atLevel; level++) {
+    retrains.push(...(plan?.levels?.[level]?.retrainedFeats ?? []));
+  }
+  return retrains;
+}
+
+function getActiveRetrainedFeatOriginals(plan, atLevel) {
+  return getActiveFeatRetrains(plan, atLevel)
+    .map((retrain) => retrain?.original)
+    .filter(Boolean);
+}
+
+function getActiveRetrainedSkillIncreaseOriginals(plan, atLevel) {
+  const originals = [];
+  for (let level = 1; level <= atLevel; level++) {
+    for (const retrain of plan?.levels?.[level]?.retrainedSkillIncreases ?? []) {
+      if (retrain?.original) originals.push({ ...retrain.original, fromLevel: retrain.fromLevel });
+    }
+  }
+  return originals;
+}
+
+function matchesAnyFeatIdentity(feat, candidates) {
+  return candidates.some((candidate) => matchesFeatIdentity(feat, candidate));
+}
+
+function matchesFeatIdentity(feat, candidate) {
+  if (!feat || !candidate) return false;
+  const featIds = [
+    feat.actorItemId,
+    feat.id,
+    feat._id,
+    feat.uuid,
+    feat.sourceId,
+    feat.flags?.core?.sourceId,
+    feat.slug,
+  ].filter(Boolean);
+  const candidateIds = [
+    candidate.actorItemId,
+    candidate.id,
+    candidate._id,
+    candidate.uuid,
+    candidate.sourceId,
+    candidate.flags?.core?.sourceId,
+    candidate.slug,
+  ].filter(Boolean);
+  return featIds.some((id) => candidateIds.includes(id));
+}
+
+function matchesAnySkillIncrease(increase, level, candidates) {
+  return candidates.some((candidate) => matchesSkillIncrease(increase, level, candidate));
+}
+
+function matchesSkillIncrease(increase, level, candidate) {
+  if (!increase || !candidate) return false;
+  if (Number.isInteger(Number(candidate.fromLevel)) && Number(candidate.fromLevel) !== Number(level)) return false;
+  const skill = String(increase.skill ?? '').trim().toLowerCase();
+  const candidateSkill = String(candidate.skill ?? '').trim().toLowerCase();
+  const toRank = Number(increase.toRank);
+  const candidateRank = Number(candidate.toRank);
+  return !!skill && skill === candidateSkill && Number.isFinite(toRank) && toRank === candidateRank;
+}
+
 function computeTrackedClasses(entries) {
   return entries
     .filter((entry) => entry?.classDef && entry?.slug)
@@ -183,8 +313,7 @@ function computeAncestryTraits(actor, plan, atLevel) {
     addAncestryTraitAliases(traits, mixedAncestrySelection);
   }
 
-  for (const item of getOwnedItems(actor)) {
-    if (item?.type !== 'feat') continue;
+  for (const item of getEffectiveActorFeats(actor, plan, atLevel)) {
     const featSlug = slugify(item?.slug ?? item?.name ?? '');
     if (featSlug !== 'adopted-ancestry') continue;
     const selected =
@@ -194,7 +323,7 @@ function computeAncestryTraits(actor, plan, atLevel) {
     addAncestryTraitAliases(traits, selected);
   }
 
-  for (const feat of getAllPlannedFeats(plan, atLevel)) {
+  for (const feat of getEffectivePlannedFeats(plan, atLevel)) {
     const featSlug = slugify(feat?.slug ?? feat?.name ?? '');
     if (featSlug !== 'adopted-ancestry') continue;
     const selected = feat?.choices?.adoptedAncestry ?? feat?.adoptedAncestry ?? null;
@@ -327,10 +456,7 @@ function computeSpellcastingState(actor, plan, atLevel, classDefs) {
 
 function collectVariableClassTraditions(actor, plan, atLevel, trackedClassDefs) {
   const traditions = new Set();
-  const feats = [
-    ...getOwnedItems(actor).filter((item) => item?.type === 'feat'),
-    ...getAllPlannedFeats(plan, atLevel),
-  ];
+  const feats = getEffectiveCharacterFeats(actor, plan, atLevel);
 
   for (const classDef of trackedClassDefs) {
     const classSlug = String(classDef?.slug ?? '')
@@ -357,7 +483,7 @@ function collectVariableClassTraditions(actor, plan, atLevel, trackedClassDefs) 
 
 function collectPlannedDedicationTraditions(actor, plan, atLevel) {
   const traditions = new Set();
-  const feats = getAllPlannedFeats(plan, atLevel);
+  const feats = getEffectivePlannedFeats(plan, atLevel);
   const actorFeatSlugs = new Set(
     getOwnedItems(actor)
       .filter((item) => item?.type === 'feat')
@@ -500,10 +626,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
 
     if (level === atLevel && !includeCurrentLevelSkillIncrease) continue;
 
-    for (const inc of [
-      ...(levelData.skillIncreases ?? []),
-      ...(levelData.customSkillIncreases ?? []),
-    ]) {
+    for (const inc of getEffectiveLevelSkillIncreases(plan, level, atLevel)) {
       if (inc.skill && inc.toRank > (skills[inc.skill] ?? 0)) {
         skills[inc.skill] = inc.toRank;
       }
@@ -569,24 +692,19 @@ function computeLoreSkills(actor, plan, atLevel) {
       lores[loreSlug] = Math.max(lores[loreSlug] ?? 0, 1);
     }
 
-    for (const key of PLAN_FEAT_KEYS) {
-      for (const feat of levelData[key] ?? []) {
-        for (const rule of getFeatLoreRules(feat)) {
-          const skill = String(rule?.skill ?? '')
-            .trim()
-            .toLowerCase();
-          if (!skill || SKILLS.includes(skill)) continue;
-          const rank = Number(rule?.value ?? 0);
-          if (!Number.isFinite(rank) || rank <= 0) continue;
-          lores[skill] = Math.max(lores[skill] ?? 0, rank);
-        }
+    for (const feat of getEffectivePlannedFeatsForLevel(plan, level, atLevel)) {
+      for (const rule of getFeatLoreRules(feat)) {
+        const skill = String(rule?.skill ?? '')
+          .trim()
+          .toLowerCase();
+        if (!skill || SKILLS.includes(skill)) continue;
+        const rank = Number(rule?.value ?? 0);
+        if (!Number.isFinite(rank) || rank <= 0) continue;
+        lores[skill] = Math.max(lores[skill] ?? 0, rank);
       }
     }
 
-    for (const inc of [
-      ...(levelData.skillIncreases ?? []),
-      ...(levelData.customSkillIncreases ?? []),
-    ]) {
+    for (const inc of getEffectiveLevelSkillIncreases(plan, level, atLevel)) {
       const skill = String(inc?.skill ?? '')
         .trim()
         .toLowerCase();
@@ -639,29 +757,27 @@ export function applyPlannedLevelSkillRankRules(skills, plan, level, atLevel = l
   const levelData = plan?.levels?.[level];
   if (!levelData) return skills;
 
-  for (const key of PLAN_FEAT_KEYS) {
-    for (const feat of levelData[key] ?? []) {
-      for (const rule of getPlannedFeatSkillRules(feat)) {
-        if (!matchesRuleAtLevel(rule, atLevel)) continue;
-        if (!SKILLS.includes(rule.skill)) continue;
-        const currentRank = skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED;
-        const valueSource =
-          currentRank >= PROFICIENCY_RANKS.TRAINED && rule.valueIfAlreadyTrained != null
-            ? rule.valueIfAlreadyTrained
-            : rule.value;
-        const value = evaluateRuleNumericValue(valueSource, atLevel, feat);
-        if (!Number.isFinite(value)) continue;
-        skills[rule.skill] = Math.max(currentRank, value);
-      }
+  for (const feat of getEffectivePlannedFeatsForLevel(plan, level, atLevel)) {
+    for (const rule of getPlannedFeatSkillRules(feat)) {
+      if (!matchesRuleAtLevel(rule, atLevel)) continue;
+      if (!SKILLS.includes(rule.skill)) continue;
+      const currentRank = skills[rule.skill] ?? PROFICIENCY_RANKS.UNTRAINED;
+      const valueSource =
+        currentRank >= PROFICIENCY_RANKS.TRAINED && rule.valueIfAlreadyTrained != null
+          ? rule.valueIfAlreadyTrained
+          : rule.value;
+      const value = evaluateRuleNumericValue(valueSource, atLevel, feat);
+      if (!Number.isFinite(value)) continue;
+      skills[rule.skill] = Math.max(currentRank, value);
+    }
 
-      for (const [flag, selected] of Object.entries(feat?.choices ?? {})) {
-        if (!/^levelerSkillFallback\d+$/i.test(flag)) continue;
-        if (!SKILLS.includes(selected)) continue;
-        skills[selected] = Math.max(
-          skills[selected] ?? PROFICIENCY_RANKS.UNTRAINED,
-          PROFICIENCY_RANKS.TRAINED,
-        );
-      }
+    for (const [flag, selected] of Object.entries(feat?.choices ?? {})) {
+      if (!/^levelerSkillFallback\d+$/i.test(flag)) continue;
+      if (!SKILLS.includes(selected)) continue;
+      skills[selected] = Math.max(
+        skills[selected] ?? PROFICIENCY_RANKS.UNTRAINED,
+        PROFICIENCY_RANKS.TRAINED,
+      );
     }
   }
 
@@ -877,12 +993,12 @@ function normalizeTrackedProficiencyRank(rank) {
 function computeFeats(actor, plan, atLevel) {
   const feats = new Set();
 
-  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  const existingFeats = getEffectiveActorFeats(actor, plan, atLevel);
   for (const feat of existingFeats) {
     for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
 
-  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
@@ -907,10 +1023,9 @@ function computeFeatAliasSources(actor, plan, atLevel) {
     }
   };
 
-  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
-  for (const feat of existingFeats) addSources(feat);
+  for (const feat of getEffectiveActorFeats(actor, plan, atLevel)) addSources(feat);
 
-  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) addSources(feat);
 
   return sources;
@@ -1084,7 +1199,7 @@ function computeClassArchetypeDedications(actor, plan, atLevel) {
     for (const alias of getSelectedClassArchetypeDedicationAliases(feat)) dedications.add(alias);
   }
 
-  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (isClassArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
     for (const alias of getSelectedClassArchetypeDedicationAliases(feat)) dedications.add(alias);
@@ -1096,13 +1211,13 @@ function computeClassArchetypeDedications(actor, plan, atLevel) {
 function computeArchetypeDedications(actor, plan, atLevel) {
   const dedications = new Set();
 
-  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  const existingFeats = getEffectiveActorFeats(actor, plan, atLevel);
   for (const feat of existingFeats) {
     if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
     for (const alias of getSelectedDedicationAliases(feat)) dedications.add(alias);
   }
 
-  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (isArchetypeDedication(feat)) dedications.add(getPrimaryFeatAlias(feat));
     for (const alias of getSelectedDedicationAliases(feat)) dedications.add(alias);
@@ -1114,7 +1229,7 @@ function computeArchetypeDedications(actor, plan, atLevel) {
 function computeClassArchetypeTraits(actor, plan, atLevel) {
   const traits = new Set();
 
-  const existingFeats = actor?.items?.filter?.((i) => i.type === 'feat') ?? [];
+  const existingFeats = getEffectiveActorFeats(actor, plan, atLevel);
   for (const feat of existingFeats) {
     if (!isClassArchetypeDedication(feat)) continue;
     const archetypeTrait = getClassArchetypeTrait(feat);
@@ -1124,7 +1239,7 @@ function computeClassArchetypeTraits(actor, plan, atLevel) {
     for (const trait of getSelectedClassArchetypeTraits(feat)) traits.add(trait);
   }
 
-  const plannedFeats = getAllPlannedFeats(plan, atLevel);
+  const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
     if (!isClassArchetypeDedication(feat)) continue;
     const archetypeTrait = getClassArchetypeTrait(feat);
@@ -1140,8 +1255,7 @@ function computeClassArchetypeTraits(actor, plan, atLevel) {
 function computeArchetypeDedicationProgress(actor, plan, atLevel) {
   const progress = new Map();
   const selectedFeats = [
-    ...(actor?.items?.filter?.((i) => i.type === 'feat') ?? []),
-    ...getAllPlannedFeats(plan, atLevel),
+    ...getEffectiveCharacterFeats(actor, plan, atLevel),
   ];
   const timeline = buildArchetypeFeatTimeline(actor, plan, atLevel);
   const dedications = timeline
@@ -1266,7 +1380,7 @@ function computeArchetypeDedicationProgress(actor, plan, atLevel) {
 }
 
 function buildArchetypeFeatTimeline(actor, plan, atLevel) {
-  const actorFeats = (actor?.items?.filter?.((i) => i.type === 'feat') ?? []).map(
+  const actorFeats = getEffectiveActorFeats(actor, plan, atLevel).map(
     (feat, index) => ({
       feat,
       level: getActorFeatLevel(feat),
@@ -1287,22 +1401,20 @@ function buildArchetypeFeatTimeline(actor, plan, atLevel) {
     'customFeats',
   ];
   for (let level = 1; level <= atLevel; level++) {
-    const levelData = plan?.levels?.[level];
-    if (!levelData) continue;
-    for (const key of featKeys) {
-      for (const feat of levelData[key] ?? []) {
-        if (
-          !isArchetypeDedication(feat) &&
-          key !== 'archetypeFeats' &&
-          !isStoredAdditionalArchetypeFeat(feat) &&
-          !getFeatTraitSlugs(feat).includes('archetype') &&
-          !hasArchetypeDedicationPrerequisite(feat)
-        ) {
-          continue;
-        }
-        plannedFeats.push({ feat, level, order, category: key });
-        order++;
+    for (const { feat, category } of getEffectivePlannedFeatEntriesForLevel(plan, level, atLevel)) {
+      const key = category;
+      if (!featKeys.includes(key)) continue;
+      if (
+        !isArchetypeDedication(feat) &&
+        key !== 'archetypeFeats' &&
+        !isStoredAdditionalArchetypeFeat(feat) &&
+        !getFeatTraitSlugs(feat).includes('archetype') &&
+        !hasArchetypeDedicationPrerequisite(feat)
+      ) {
+        continue;
       }
+      plannedFeats.push({ feat, level, order, category: key });
+      order++;
     }
   }
 

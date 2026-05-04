@@ -4113,4 +4113,141 @@ describe('LevelPlanner bootstrap from existing actor', () => {
       global.fromUuid = originalFromUuid;
     }
   });
+
+  it('builds retraining context for planned feat and skill retrains', async () => {
+    const actor = createMockActor();
+    actor.items = [];
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 8;
+    planner.plan.levels[3].skillIncreases = [{ skill: 'stealth', toRank: 2 }];
+    planner.plan.levels[8].retrainedFeats = [
+      {
+        fromLevel: 2,
+        category: 'classFeats',
+        original: { name: 'Quick Bomber', slug: 'quick-bomber' },
+        replacement: { name: 'Alchemical Familiar', slug: 'alchemical-familiar' },
+      },
+    ];
+    planner.plan.levels[8].retrainedSkillIncreases = [
+      {
+        fromLevel: 3,
+        original: { skill: 'stealth', fromRank: 1, toRank: 2 },
+        replacement: { skill: 'occultism', fromRank: 1, toRank: 2 },
+      },
+    ];
+
+    const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+    expect(context.hasRetraining).toBe(true);
+    expect(context.retrainedFeats).toEqual([
+      expect.objectContaining({
+        index: 0,
+        fromLevel: 2,
+        categoryLabel: 'Class Feat',
+        originalName: 'Quick Bomber',
+        replacementName: 'Alchemical Familiar',
+      }),
+    ]);
+    expect(context.retrainedSkillIncreases).toEqual([
+      expect.objectContaining({
+        index: 0,
+        fromLevel: 3,
+        originalName: 'Stealth',
+        replacementName: 'Occultism',
+        rankName: 'Expert',
+      }),
+    ]);
+    expect(context.skillRetrainSources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromLevel: 3, skill: 'stealth', label: 'Stealth', rankName: 'Expert' }),
+    ]));
+  });
+
+  it('renders retrain source choices as searchable rows instead of a native select', async () => {
+    const actor = createMockActor();
+    actor.items = [];
+    actor.class.slug = 'alchemist';
+    const planner = new LevelPlanner(actor);
+    const prompt = jest.fn(async () => 0);
+    global.foundry.applications.api.DialogV2 = { prompt };
+
+    const source = await planner._promptRetrainSource({
+      title: 'Retrain Feat',
+      name: 'feat',
+      sources: [
+        {
+          fromLevel: 1,
+          category: 'classFeats',
+          original: { name: 'Diverse Lore', img: 'feat.webp' },
+        },
+        {
+          fromLevel: 2,
+          category: 'skillFeats',
+          original: { name: 'Dubious Knowledge', img: 'skill.webp' },
+        },
+      ],
+      getLabel: (entry) => entry.original.name,
+      getMeta: (entry) => formatTestMeta(entry.category),
+      getIcon: (entry) => entry.original.img,
+    });
+
+    expect(source.original.name).toBe('Diverse Lore');
+    const content = prompt.mock.calls[0][0].content;
+    expect(content).toContain('data-retrain-search');
+    expect(content).toContain('data-retrain-level-group');
+    expect(content).toContain('<details');
+    expect(content).toContain('<summary');
+    expect(content).toContain('open');
+    expect(content).toContain('Level 1');
+    expect(content).toContain('Level 2');
+    expect(content).toContain('data-retrain-choice');
+    expect(content).toContain('feat.webp');
+    expect(content).toContain('>Diverse Lore<');
+    expect(content).not.toContain('Level 1: Diverse Lore');
+    expect(content).not.toContain('<select');
+    expect(prompt.mock.calls[0][0].ok.label).toBe('Select');
+  });
+
+  it('renders skill retrain replacement choices as searchable buttons instead of a native select', async () => {
+    const actor = createMockActor();
+    actor.items = [];
+    actor.class.slug = 'alchemist';
+    actor.system.skills.stealth.rank = 2;
+    actor.system.skills.occultism.rank = 1;
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 8;
+    const prompt = jest.fn(async () => 'occultism');
+    global.foundry.applications.api.DialogV2 = { prompt };
+
+    const result = await planner._promptSkillRetrainReplacement({ skill: 'stealth', toRank: 2 });
+
+    expect(result).toBe('occultism');
+    const content = prompt.mock.calls[0][0].content;
+    expect(content).toContain('data-retrain-search');
+    expect(content).toContain('data-retrain-choice');
+    expect(content).toContain('Occultism');
+    expect(content).toContain('retrain-rank-text--trained');
+    expect(content).toContain('retrain-rank-text--expert');
+    expect(content).not.toContain('<select');
+    expect(prompt.mock.calls[0][0].ok.label).toBe('Select');
+
+    const container = document.createElement('div');
+    container.innerHTML = content;
+    document.body.append(container);
+    const search = container.querySelector('[data-retrain-search]');
+    search.value = 'occultism';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    const rows = Array.from(container.querySelectorAll('[data-retrain-choice]'));
+    const occultismRow = rows.find((row) => row.textContent.includes('Occultism'));
+    expect(occultismRow.hidden).toBe(false);
+    expect(rows.some((row) => !row.textContent.includes('Occultism') && row.hidden)).toBe(true);
+    container.remove();
+  });
 });
+
+function formatTestMeta(category) {
+  return category;
+}

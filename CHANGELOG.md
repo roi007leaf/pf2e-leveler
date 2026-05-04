@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.4.0
+
+### Level Planner
+
+- **Retraining is now available in the planner** - Feats and normal skill increases can be retrained from later levels, with source choices grouped by collapsible level sections
+- **Retraining dialogs now use searchable choice rows** - Original and replacement choices no longer rely on long native dropdowns, and skill rank transitions show rank colors
+- **Retrained feats now replace the original actor feat slot when applied** - Applying a feat retrain removes the original feat before creating the replacement so PF2e keeps it in the intended class, skill, ancestry, general, or archetype slot instead of moving it to bonus feats
+
 ## 3.3.10
 
 ### Level Planner

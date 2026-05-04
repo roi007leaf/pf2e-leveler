@@ -16,6 +16,10 @@ import {
   getAllPlannedBoosts,
   addLevelSpell,
   removeLevelSpell,
+  addLevelFeatRetrain,
+  removeLevelFeatRetrain,
+  addLevelSkillRetrain,
+  removeLevelSkillRetrain,
   upsertLevelFeatGrant,
   removeLevelFeatGrantSelection,
 } from '../../../scripts/plan/plan-model.js';
@@ -121,6 +125,46 @@ describe('setLevelSkillIncrease', () => {
     const plan = createPlan('alchemist');
     setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
     expect(plan.levels[3].skillIncreases).toEqual([{ skill: 'athletics', toRank: 2 }]);
+  });
+});
+
+describe('retraining helpers', () => {
+  test('adds and removes feat retrains on the retraining level', () => {
+    const plan = createPlan('alchemist');
+    const retrain = {
+      fromLevel: 2,
+      category: 'classFeats',
+      original: { uuid: 'old', name: 'Old Feat', slug: 'old-feat' },
+      replacement: { uuid: 'new', name: 'New Feat', slug: 'new-feat' },
+    };
+
+    addLevelFeatRetrain(plan, 8, retrain);
+    expect(plan.levels[8].retrainedFeats).toEqual([retrain]);
+
+    removeLevelFeatRetrain(plan, 8, 0);
+    expect(plan.levels[8].retrainedFeats).toEqual([]);
+  });
+
+  test('adds and removes skill retrains on the retraining level', () => {
+    const plan = createPlan('alchemist');
+    const retrain = {
+      fromLevel: 3,
+      original: { skill: 'stealth', fromRank: 1, toRank: 2 },
+      replacement: { skill: 'occultism', fromRank: 1, toRank: 2 },
+    };
+
+    addLevelSkillRetrain(plan, 8, retrain);
+    expect(plan.levels[8].retrainedSkillIncreases).toEqual([retrain]);
+
+    removeLevelSkillRetrain(plan, 8, 0);
+    expect(plan.levels[8].retrainedSkillIncreases).toEqual([]);
+  });
+
+  test('initializes retrain arrays for existing level data', () => {
+    const plan = createPlan('alchemist');
+
+    expect(getLevelData(plan, 2).retrainedFeats).toEqual([]);
+    expect(getLevelData(plan, 2).retrainedSkillIncreases).toEqual([]);
   });
 });
 

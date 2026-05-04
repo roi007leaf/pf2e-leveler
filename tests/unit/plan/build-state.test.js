@@ -20,6 +20,8 @@ import {
 } from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
+  addLevelFeatRetrain,
+  addLevelSkillRetrain,
   setLevelBoosts,
   setLevelFeat,
   setLevelSkillIncrease,
@@ -365,6 +367,45 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.feats.has('quick-bomber')).toBe(true);
     expect(state.feats.has('toughness')).toBe(false);
+  });
+
+  test('applies planned feat retrains only from the retraining level onward', () => {
+    const original = { uuid: 'old', name: 'Quick Bomber', slug: 'quick-bomber' };
+    const replacement = { uuid: 'new', name: 'Alchemical Familiar', slug: 'alchemical-familiar' };
+    setLevelFeat(plan, 2, 'classFeats', original);
+    addLevelFeatRetrain(plan, 8, {
+      fromLevel: 2,
+      category: 'classFeats',
+      original,
+      replacement,
+    });
+
+    const beforeRetrain = computeBuildState(mockActor, plan, 7);
+    const afterRetrain = computeBuildState(mockActor, plan, 8);
+
+    expect(beforeRetrain.feats.has('quick-bomber')).toBe(true);
+    expect(beforeRetrain.feats.has('alchemical-familiar')).toBe(false);
+    expect(afterRetrain.feats.has('quick-bomber')).toBe(false);
+    expect(afterRetrain.feats.has('alchemical-familiar')).toBe(true);
+  });
+
+  test('applies planned skill retrains only from the retraining level onward', () => {
+    mockActor.system.skills.stealth.rank = PROFICIENCY_RANKS.TRAINED;
+    mockActor.system.skills.occultism.rank = PROFICIENCY_RANKS.TRAINED;
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: PROFICIENCY_RANKS.EXPERT });
+    addLevelSkillRetrain(plan, 8, {
+      fromLevel: 3,
+      original: { skill: 'stealth', fromRank: PROFICIENCY_RANKS.TRAINED, toRank: PROFICIENCY_RANKS.EXPERT },
+      replacement: { skill: 'occultism', fromRank: PROFICIENCY_RANKS.TRAINED, toRank: PROFICIENCY_RANKS.EXPERT },
+    });
+
+    const beforeRetrain = computeBuildState(mockActor, plan, 7);
+    const afterRetrain = computeBuildState(mockActor, plan, 8);
+
+    expect(beforeRetrain.skills.stealth).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(beforeRetrain.skills.occultism).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(afterRetrain.skills.stealth).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(afterRetrain.skills.occultism).toBe(PROFICIENCY_RANKS.EXPERT);
   });
 
   test('computes class features for level', () => {

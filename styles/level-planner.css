@@ -462,3 +462,127 @@
 .pf2e-leveler .sequential-btn--finish:hover {
   background: rgba(46, 125, 50, 1);
 }
+
+.retrain-choice-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 360px;
+}
+
+.retrain-choice-search {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--leveler-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--leveler-radius-sm, 4px);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--leveler-text, inherit);
+}
+
+.retrain-choice-list {
+  display: grid;
+  gap: 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.retrain-choice-level-group {
+  display: grid;
+  gap: 6px;
+}
+
+.retrain-choice-level-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 2px;
+  background: var(--leveler-bg, rgba(0, 0, 0, 0.78));
+  color: var(--leveler-text-muted, rgba(255, 255, 255, 0.7));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.retrain-choice-level-heading::marker {
+  color: var(--leveler-accent, currentColor);
+}
+
+.retrain-choice-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--leveler-border, rgba(255, 255, 255, 0.16));
+  border-radius: var(--leveler-radius-sm, 4px);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.retrain-choice-row:hover,
+.retrain-choice-row--selected {
+  border-color: var(--leveler-accent, #9f7aea);
+  background: rgba(159, 122, 234, 0.16);
+}
+
+.retrain-choice-row__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.retrain-choice-row__icon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.retrain-choice-row__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.retrain-choice-row__label {
+  font-weight: 700;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.retrain-choice-row__meta {
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0.75;
+}
+
+.retrain-rank-text {
+  font-weight: 800;
+}
+
+.retrain-rank-text--untrained {
+  color: var(--leveler-rank-untrained, #8a8a8a);
+}
+
+.retrain-rank-text--trained {
+  color: var(--leveler-rank-trained, #3f8fcb);
+}
+
+.retrain-rank-text--expert {
+  color: var(--leveler-rank-expert, #7bbf59);
+}
+
+.retrain-rank-text--master {
+  color: var(--leveler-rank-master, #d9903d);
+}
+
+.retrain-rank-text--legendary {
+  color: var(--leveler-rank-legendary, #c94f7c);
+}

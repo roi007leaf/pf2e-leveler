@@ -109,6 +109,37 @@
         </div>
         {{/if}}
 
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-retweet"></i>
+            Retraining
+          </div>
+          <div class="level-section__body">
+            <div class="feat-slot__note" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="spell-add-btn" data-action="openFeatRetrainPicker" style="padding: 3px 10px;">Retrain Feat</button>
+              <button type="button" class="spell-add-btn" data-action="openSkillRetrainPicker" style="padding: 3px 10px;" {{#unless skillRetrainSources.length}}disabled{{/unless}}>Retrain Skill Increase</button>
+            </div>
+            {{#if hasRetraining}}
+            <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
+              {{#each retrainedFeats}}
+              <div class="wizard-spell-chip">
+                <span>Level {{this.fromLevel}} {{this.categoryLabel}}: {{this.originalName}} → {{this.replacementName}}</span>
+                <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeFeatRetrain" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+              </div>
+              {{/each}}
+              {{#each retrainedSkillIncreases}}
+              <div class="wizard-spell-chip">
+                <span>Level {{this.fromLevel}} Skill Increase: {{this.originalName}} → {{this.replacementName}} ({{this.rankName}})</span>
+                <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSkillRetrain" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+              </div>
+              {{/each}}
+            </div>
+            {{else}}
+            <div class="feat-slot__note" style="margin-top: var(--leveler-spacing-sm);">No retraining planned.</div>
+            {{/if}}
+          </div>
+        </div>
+
         {{#if grantRequirements.length}}
         <div class="level-section">
           <div class="section-header">

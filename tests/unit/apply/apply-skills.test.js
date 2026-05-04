@@ -1,4 +1,5 @@
 import { applySkillIncreases } from '../../../scripts/apply/apply-skills.js';
+import { applySkillRetrains } from '../../../scripts/apply/apply-skill-retrains.js';
 
 describe('applySkillIncreases', () => {
   let mockActor;
@@ -94,6 +95,36 @@ describe('applySkillIncreases', () => {
     });
     expect(result).toEqual([
       { skill: 'stealth', toRank: 1, featChoice: true },
+    ]);
+  });
+
+  test('retraining moves a skill increase to the replacement skill', async () => {
+    mockActor.system = {
+      skills: {
+        stealth: { rank: 2 },
+        occultism: { rank: 1 },
+      },
+    };
+    const plan = {
+      levels: {
+        8: {
+          retrainedSkillIncreases: [{
+            fromLevel: 3,
+            original: { skill: 'stealth', fromRank: 1, toRank: 2 },
+            replacement: { skill: 'occultism', fromRank: 1, toRank: 2 },
+          }],
+        },
+      },
+    };
+
+    const result = await applySkillRetrains(mockActor, plan, 8);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.skills.stealth.rank': 1,
+      'system.skills.occultism.rank': 2,
+    });
+    expect(result).toEqual([
+      { original: { skill: 'stealth', rank: 2 }, replacement: { skill: 'occultism', rank: 2 } },
     ]);
   });
 

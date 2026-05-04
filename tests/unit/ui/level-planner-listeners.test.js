@@ -5,7 +5,7 @@ import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 
 jest.mock('../../../scripts/apply/apply-manager.js', () => ({
-  promptApplyPlan: jest.fn(async () => {}),
+  promptApplyPlan: jest.fn(async () => true),
 }));
 
 import { promptApplyPlan } from '../../../scripts/apply/apply-manager.js';
@@ -96,6 +96,34 @@ describe('Level planner skill increase listeners', () => {
       },
     });
     expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('removes planned feat and skill retrains', () => {
+    document.body.innerHTML = `
+      <button type="button" data-action="removeFeatRetrain" data-index="0"></button>
+      <button type="button" data-action="removeSkillRetrain" data-index="0"></button>
+    `;
+
+    const planner = {
+      plan: {
+        levels: {
+          8: {
+            retrainedFeats: [{ original: { name: 'Old Feat' }, replacement: { name: 'New Feat' } }],
+            retrainedSkillIncreases: [{ original: { skill: 'stealth' }, replacement: { skill: 'occultism' } }],
+          },
+        },
+      },
+      selectedLevel: 8,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="removeFeatRetrain"]').click();
+    document.querySelector('[data-action="removeSkillRetrain"]').click();
+
+    expect(planner.plan.levels[8].retrainedFeats).toEqual([]);
+    expect(planner.plan.levels[8].retrainedSkillIncreases).toEqual([]);
+    expect(planner._savePlanAndRender).toHaveBeenCalledTimes(2);
   });
 
   it('filters intelligence bonus languages by label or slug without rerendering', () => {
@@ -725,5 +753,32 @@ describe('Level planner skill increase listeners', () => {
     await flushAsyncListeners();
 
     expect(promptApplyPlan).toHaveBeenCalledWith(planner.actor, planner.plan, 2, 1);
+  });
+
+  it('wires sequential finish to apply every planned level before ending sequential mode', async () => {
+    document.body.innerHTML = '<button type="button" data-action="sequentialFinish"></button>';
+
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 8 },
+        },
+      },
+    });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.sequentialMode = { active: true, targetLevel: 8, currentLevel: 8 };
+    planner._savePlanAndRender = jest.fn();
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="sequentialFinish"]').click();
+    await flushAsyncListeners();
+
+    expect(promptApplyPlan).toHaveBeenCalledWith(planner.actor, planner.plan, 8, 1);
+    expect(planner.plan.sequentialMode.active).toBe(false);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
   });
 });

@@ -59,6 +59,12 @@ export function validateLevel(plan, classDef, level, options = {}, actor = null)
     if (issue.severity !== 'error') hasWarning = true;
   }
 
+  const retrainIssues = validateRetrains(levelData, level, plan, actor);
+  for (const issue of retrainIssues) {
+    issues.push(issue);
+    if (issue.severity !== 'error') hasWarning = true;
+  }
+
   if (issues.some((i) => i.severity === 'error')) {
     return { status: PLAN_STATUS.INCOMPLETE, issues };
   }
@@ -138,6 +144,105 @@ function humanizeGrantKind(kind) {
   return 'feat';
 }
 
+function validateRetrains(levelData, level, plan, actor) {
+  return [
+    ...validateFeatRetrains(levelData, actor),
+    ...validateSkillRetrains(levelData, level, plan),
+  ];
+}
+
+function validateFeatRetrains(levelData, actor) {
+  const issues = [];
+  for (const retrain of levelData?.retrainedFeats ?? []) {
+    const originalName = retrain?.original?.name ?? 'Original feat';
+    if (!retrain?.replacement?.uuid) {
+      issues.push({
+        severity: 'error',
+        message: `${originalName}: replacement feat not selected`,
+      });
+    }
+    if (retrain?.original && actor && !findActorFeat(actor, retrain.original)) {
+      issues.push({
+        severity: 'warning',
+        message: `${originalName}: original feat can no longer be found`,
+      });
+    }
+  }
+  return issues;
+}
+
+function findActorFeat(actor, original) {
+  const items = actor?.items?.filter?.((item) => item?.type === 'feat') ?? [];
+  return items.find((item) => (
+    (original.actorItemId && [item.id, item._id].includes(original.actorItemId)) ||
+    (original.uuid && item.uuid === original.uuid) ||
+    (original.sourceId && (item.sourceId === original.sourceId || item.flags?.core?.sourceId === original.sourceId)) ||
+    (original.slug && item.slug === original.slug)
+  )) ?? null;
+}
+
+function validateSkillRetrains(levelData, level, plan) {
+  const issues = [];
+  for (const retrain of levelData?.retrainedSkillIncreases ?? []) {
+    const original = retrain?.original;
+    const replacement = retrain?.replacement;
+    const originalLabel = humanizeSkillSlug(original?.skill ?? 'Original skill');
+
+    if (!replacement?.skill) {
+      issues.push({
+        severity: 'error',
+        message: `${originalLabel}: replacement skill not selected`,
+      });
+    }
+
+    if (replacement?.toRank != null && original?.toRank != null && Number(replacement.toRank) > Number(original.toRank)) {
+      issues.push({
+        severity: 'error',
+        message: `${humanizeSkillSlug(replacement.skill)} exceeds retrained rank ${original.toRank}`,
+      });
+    }
+
+    const fromLevel = Number(retrain?.fromLevel);
+    if (!findPlannedSkillIncrease(plan, fromLevel, original)) {
+      issues.push({
+        severity: 'warning',
+        message: `${originalLabel}: original skill increase can no longer be found`,
+      });
+    }
+
+    const maxRank = getMaxSkillRank(Number.isFinite(fromLevel) ? fromLevel : level);
+    if (replacement?.toRank != null && Number(replacement.toRank) > maxRank) {
+      issues.push({
+        severity: 'warning',
+        message: `${humanizeSkillSlug(replacement.skill)} rank ${replacement.toRank} exceeds maximum ${maxRank} at level ${fromLevel}`,
+      });
+    }
+  }
+  return issues;
+}
+
+function findPlannedSkillIncrease(plan, level, original) {
+  if (!Number.isFinite(level) || !original?.skill) return null;
+  const increases = [
+    ...(plan?.levels?.[level]?.skillIncreases ?? []),
+    ...(plan?.levels?.[level]?.customSkillIncreases ?? []),
+  ];
+  const skill = String(original.skill ?? '').trim().toLowerCase();
+  const toRank = Number(original.toRank);
+  return increases.find((increase) => (
+    String(increase?.skill ?? '').trim().toLowerCase() === skill &&
+    Number(increase?.toRank) === toRank
+  )) ?? null;
+}
+
+function humanizeSkillSlug(skill) {
+  return String(skill ?? '')
+    .split(/[-_]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function validateChoice(choice, levelData, level, plan, classDef, options, actor) {
   switch (choice.type) {
     case 'abilityBoosts':
@@ -151,7 +256,7 @@ function validateChoice(choice, levelData, level, plan, classDef, options, actor
     case 'ancestryFeat':
       return validateFeatSlot(levelData.ancestryFeats, 'Ancestry Feat');
     case 'archetypeFeat':
-      return validateFeatSlot(levelData.archetypeFeats, 'Archetype Feat');
+      return validateOptionalFeatSlot(levelData.archetypeFeats, 'Archetype Feat');
     case 'mythicFeat':
       return validateFeatSlot(levelData.mythicFeats, 'Mythic Feat');
     case 'dualClassFeat':
@@ -164,6 +269,11 @@ function validateChoice(choice, levelData, level, plan, classDef, options, actor
     default:
       return null;
   }
+}
+
+function validateOptionalFeatSlot(feats, label) {
+  if (!Array.isArray(feats) || feats.length === 0) return null;
+  return validateFeatSlot(feats, label);
 }
 
 function optionsSkipHistoricalSkillIncrease(options, level) {

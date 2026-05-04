@@ -127,10 +127,71 @@ export async function buildLevelContext(planner, classDef, options) {
     customSpellEntryOptions,
     customSpellGroups,
     customEquipment: (levelData.customEquipment ?? []).map((entry, index) => ({ ...entry, index })),
+    ...buildRetrainingContext(planner, level, levelData),
     ...buildEquipmentContext(planner, level, levelData),
     ...buildABPContext(level, options),
     ...(await planner._buildSpellContext(classDef, level)),
   };
+}
+
+function buildRetrainingContext(planner, level, levelData) {
+  const retrainedFeats = (levelData.retrainedFeats ?? []).map((entry, index) => ({
+    index,
+    fromLevel: entry?.fromLevel ?? null,
+    category: entry?.category ?? null,
+    categoryLabel: formatFeatCategoryLabel(entry?.category),
+    originalName: entry?.original?.name ?? 'Original feat',
+    replacementName: entry?.replacement?.name ?? 'Choose replacement',
+    originalUuid: entry?.original?.uuid ?? entry?.original?.sourceId ?? null,
+    replacementUuid: entry?.replacement?.uuid ?? null,
+  }));
+
+  const retrainedSkillIncreases = (levelData.retrainedSkillIncreases ?? []).map((entry, index) => ({
+    index,
+    fromLevel: entry?.fromLevel ?? null,
+    originalName: localizeSkillSlug(entry?.original?.skill),
+    replacementName: entry?.replacement?.skill ? localizeSkillSlug(entry.replacement.skill) : 'Choose replacement',
+    rankName: titleCase(PROFICIENCY_RANK_NAMES[entry?.replacement?.toRank ?? entry?.original?.toRank] ?? String(entry?.replacement?.toRank ?? entry?.original?.toRank ?? '')),
+  }));
+
+  return {
+    hasRetraining: retrainedFeats.length > 0 || retrainedSkillIncreases.length > 0,
+    retrainedFeats,
+    retrainedSkillIncreases,
+    skillRetrainSources: buildSkillRetrainSources(planner, level),
+  };
+}
+
+function buildSkillRetrainSources(planner, level) {
+  const sources = [];
+  for (let fromLevel = 1; fromLevel < level; fromLevel++) {
+    const levelData = getLevelData(planner.plan, fromLevel);
+    for (const increase of levelData?.skillIncreases ?? []) {
+      const rankName = titleCase(PROFICIENCY_RANK_NAMES[increase?.toRank] ?? String(increase?.toRank ?? ''));
+      sources.push({
+        fromLevel,
+        skill: increase.skill,
+        toRank: increase.toRank,
+        label: localizeSkillSlug(increase.skill),
+        rankName,
+      });
+    }
+  }
+  return sources;
+}
+
+function formatFeatCategoryLabel(category) {
+  const labels = {
+    classFeats: 'Class Feat',
+    skillFeats: 'Skill Feat',
+    generalFeats: 'General Feat',
+    ancestryFeats: 'Ancestry Feat',
+    archetypeFeats: 'Archetype Feat',
+    mythicFeats: 'Mythic Feat',
+    dualClassFeats: 'Dual Class Feat',
+    customFeats: 'Custom Feat',
+  };
+  return labels[category] ?? 'Feat';
 }
 
 function buildEquipmentContext(planner, level, levelData) {

@@ -1,4 +1,14 @@
-import { clearLevelFeat, clearLevelReminders, getLevelData, removeLevelFeatGrantSelection, removeLevelSpell, setLevelSkillIncrease, togglePlanApparition } from '../../plan/plan-model.js';
+import {
+  clearLevelFeat,
+  clearLevelReminders,
+  getLevelData,
+  removeLevelFeatGrantSelection,
+  removeLevelFeatRetrain,
+  removeLevelSkillRetrain,
+  removeLevelSpell,
+  setLevelSkillIncrease,
+  togglePlanApparition,
+} from '../../plan/plan-model.js';
 import { applyActorSkillRankRules, applyPlannedLevelSkillRankRules, computeBuildState } from '../../plan/build-state.js';
 import { SKILLS } from '../../constants.js';
 import { normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
@@ -252,6 +262,14 @@ export function activateLevelPlannerListeners(planner, html) {
     });
   });
 
+  el.querySelector('[data-action="openFeatRetrainPicker"]')?.addEventListener('click', () => {
+    planner._openFeatRetrainPicker?.();
+  });
+
+  el.querySelector('[data-action="openSkillRetrainPicker"]')?.addEventListener('click', () => {
+    planner._openSkillRetrainPicker?.();
+  });
+
   el.querySelectorAll('[data-action="removeFeatGrantSelection"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -259,6 +277,26 @@ export function activateLevelPlannerListeners(planner, html) {
       const uuid = btn.dataset.uuid;
       if (!requirementId || !uuid) return;
       removeLevelFeatGrantSelection(planner.plan, planner.selectedLevel, requirementId, uuid);
+      planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeFeatRetrain"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      removeLevelFeatRetrain(planner.plan, planner.selectedLevel, index);
+      planner._savePlanAndRender();
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeSkillRetrain"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      if (!Number.isInteger(index)) return;
+      removeLevelSkillRetrain(planner.plan, planner.selectedLevel, index);
       planner._savePlanAndRender();
     });
   });

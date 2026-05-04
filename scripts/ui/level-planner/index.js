@@ -1,4 +1,4 @@
-import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES, SKILLS } from '../../constants.js';
+import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
 import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
@@ -14,6 +14,8 @@ import {
   addLevelReminder,
   clearLevelReminders,
   resetLevelData,
+  addLevelFeatRetrain,
+  addLevelSkillRetrain,
   addLevelCustomFeat,
   removeLevelCustomFeat,
   addLevelCustomSkillIncrease,
@@ -104,6 +106,9 @@ const INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS = [
   'intimidation',
   'performance',
 ];
+
+installRetrainChoicePickerListeners();
+
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
   skill: 'skillFeats',
@@ -1697,6 +1702,228 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._savePlanAndRender();
   }
 
+  async _openFeatRetrainPicker() {
+    const sources = this._getFeatRetrainSources();
+    if (sources.length === 0) {
+      ui.notifications?.warn?.('No prior feats available to retrain.');
+      return;
+    }
+
+    const source = await this._promptRetrainSource({
+      title: 'Retrain Feat',
+      name: 'feat',
+      sources,
+      getLabel: (entry) => entry.original.name,
+      getMeta: (entry) => `${formatFeatCategoryLabel(entry.category)} - Level ${entry.fromLevel}`,
+      getIcon: (entry) => entry.original.img,
+    });
+    if (!source) return;
+
+    await this._openFeatRetrainReplacementPicker(source);
+  }
+
+  _getFeatRetrainSources() {
+    const sources = [];
+    for (const item of this.actor.items ?? []) {
+      if (item?.type !== 'feat') continue;
+      const fromLevel = getActorFeatTakenLevel(item);
+      if (!Number.isFinite(fromLevel) || fromLevel >= this.selectedLevel) continue;
+      const category = getActorFeatPlanCategory(item);
+      if (!category) continue;
+      sources.push({
+        fromLevel,
+        category,
+        original: {
+          actorItemId: item.id ?? item._id ?? null,
+          uuid: item.uuid ?? item.sourceId ?? item.flags?.core?.sourceId ?? null,
+          sourceId: item.sourceId ?? item.flags?.core?.sourceId ?? null,
+          name: item.name,
+          slug: item.slug,
+          img: item.img,
+          location: item.system?.location ?? null,
+        },
+      });
+    }
+    return sources.sort((a, b) => a.fromLevel - b.fromLevel || String(a.original.name).localeCompare(String(b.original.name)));
+  }
+
+  async _openFeatRetrainReplacementPicker(source) {
+    const buildState = computeBuildState(this.actor, this.plan, this.selectedLevel);
+    const categoryMap = {
+      classFeats: 'class',
+      dualClassFeats: 'dualClass',
+      skillFeats: 'skill',
+      generalFeats: 'general',
+      ancestryFeats: 'ancestry',
+      archetypeFeats: 'archetype',
+      mythicFeats: 'mythic',
+      customFeats: 'custom',
+    };
+    const preset = await this._buildFeatPickerPreset(source.category, source.fromLevel, buildState);
+    const picker = new FeatPicker(
+      this.actor,
+      categoryMap[source.category] ?? 'class',
+      source.fromLevel,
+      buildState,
+      async (feat) => {
+        const replacement = await this._buildStoredFeatEntry(feat, picker);
+        addLevelFeatRetrain(this.plan, this.selectedLevel, {
+          fromLevel: source.fromLevel,
+          category: source.category,
+          original: source.original,
+          replacement,
+        });
+        await this._savePlanAndRender();
+      },
+      { preset },
+    );
+    picker.render(true);
+  }
+
+  async _buildStoredFeatEntry(feat, picker = null) {
+    const slug = feat.slug ?? feat.uuid ?? null;
+    const skillRules = await extractFeatSkillRules(feat);
+    const aliases = getDedicationAliasesFromDescription(feat);
+    const additionalArchetype = picker?.getAdditionalArchetypeMetadata?.(feat);
+    return {
+      uuid: feat.uuid,
+      name: feat.name,
+      slug,
+      img: feat.img,
+      level: feat.system?.level?.value,
+      traits: [...(feat.system?.traits?.value ?? [])],
+      system: buildStoredFeatSystemData(feat),
+      coreMetadataVersion: FEAT_CORE_METADATA_VERSION,
+      choices: {},
+      aliases,
+      aliasesResolved: true,
+      aliasesVersion: FEAT_ALIASES_VERSION,
+      ...(additionalArchetype ? { additionalArchetype } : {}),
+      spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
+      spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
+      skillRules,
+      skillRulesResolved: true,
+      skillRulesVersion: FEAT_SKILL_RULES_VERSION,
+    };
+  }
+
+  async _openSkillRetrainPicker() {
+    const sources = this._getSkillRetrainSources();
+    if (sources.length === 0) {
+      ui.notifications?.warn?.('No prior skill increases available to retrain.');
+      return;
+    }
+
+    const source = await this._promptRetrainSource({
+      title: 'Retrain Skill Increase',
+      name: 'skillSource',
+      sources,
+      getLabel: (entry) => humanizeSkillSlug(entry.skill),
+      getMeta: (entry) => `Level ${entry.fromLevel} - ${titleCase(PROFICIENCY_RANK_NAMES[entry.toRank] ?? entry.toRank)}`,
+    });
+    if (!source) return;
+
+    const replacementSkill = await this._promptSkillRetrainReplacement(source);
+    if (!replacementSkill) return;
+
+    addLevelSkillRetrain(this.plan, this.selectedLevel, {
+      fromLevel: source.fromLevel,
+      original: {
+        skill: source.skill,
+        fromRank: Math.max(0, Number(source.toRank ?? 1) - 1),
+        toRank: source.toRank,
+      },
+      replacement: {
+        skill: replacementSkill,
+        fromRank: Math.max(0, Number(source.toRank ?? 1) - 1),
+        toRank: source.toRank,
+      },
+    });
+    await this._savePlanAndRender();
+  }
+
+  _getSkillRetrainSources() {
+    const sources = [];
+    for (let fromLevel = 1; fromLevel < this.selectedLevel; fromLevel++) {
+      const levelData = getLevelData(this.plan, fromLevel);
+      for (const increase of levelData?.skillIncreases ?? []) {
+        sources.push({ fromLevel, ...increase });
+      }
+    }
+    return sources;
+  }
+
+  async _promptRetrainSource({ title, name, sources, getLabel, getMeta = null, getIcon = null }) {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return null;
+
+    const result = await dialogClass.prompt({
+      window: { title },
+      content: buildRetrainChoiceContent({
+        name,
+        searchPlaceholder: 'Search original choices',
+        choices: sources.map((entry, index) => ({
+          value: String(index),
+          label: getLabel(entry),
+          meta: normalizeRetrainMeta(getMeta?.(entry) ?? ''),
+          searchMeta: normalizeRetrainMeta(getMeta?.(entry) ?? ''),
+          icon: getIcon?.(entry) ?? null,
+          groupLabel: Number.isFinite(Number(entry.fromLevel)) ? `Level ${entry.fromLevel}` : null,
+        })),
+      }),
+      ok: {
+        label: localizeSelectLabel(),
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return Number(root?.querySelector?.(`input[name="${name}"]`)?.value ?? -1);
+        },
+      },
+    });
+
+    return Number.isInteger(result) && result >= 0 ? sources[result] : null;
+  }
+
+  async _promptSkillRetrainReplacement(source) {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return null;
+    const currentState = computeBuildState(this.actor, this.plan, this.selectedLevel);
+    const choices = SKILLS
+      .filter((skill) => skill !== source.skill && (currentState.skills?.[skill] ?? 0) < source.toRank)
+      .map((skill) => {
+        const fromRank = Number(currentState.skills?.[skill] ?? 0);
+        const toRank = Number(source.toRank ?? 0);
+        const fromRankName = getRankName(fromRank);
+        const toRankName = getRankName(toRank);
+        return {
+          value: skill,
+          label: humanizeSkillSlug(skill),
+          meta: `${titleCase(fromRankName)} -> ${titleCase(toRankName)}`,
+          metaHtml: buildRankTransitionMarkup(fromRankName, toRankName),
+          searchMeta: `${titleCase(fromRankName)} -> ${titleCase(toRankName)}`,
+        };
+      });
+    if (choices.length === 0) {
+      ui.notifications?.warn?.('No eligible replacement skills available.');
+      return null;
+    }
+
+    return dialogClass.prompt({
+      window: { title: 'Choose Replacement Skill' },
+      content: buildRetrainChoiceContent({
+        name: 'skill',
+        searchPlaceholder: 'Search replacement skills',
+        choices,
+      }),
+      ok: {
+        label: localizeSelectLabel(),
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return root?.querySelector?.('input[name="skill"]')?.value ?? null;
+        },
+      },
+    });
+  }
+
   async _openFeatPicker(category, level) {
     if (this._needsFeatCoreMetadataBackfill) {
       this._needsFeatCoreMetadataBackfill = false;
@@ -2133,6 +2360,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _finishSequentialMode() {
+    const seq = this.plan?.sequentialMode;
+    if (seq?.active) {
+      const applied = await promptApplyPlan(this.actor, this.plan, seq.targetLevel, MIN_PLAN_LEVEL - 1);
+      if (!applied) return;
+    }
+
     if (this.plan?.sequentialMode) {
       this.plan.sequentialMode.active = false;
     }
@@ -2608,6 +2841,212 @@ function dedupeSelections(selections) {
     deduped.push(selection);
   }
   return deduped;
+}
+
+function getActorFeatTakenLevel(item) {
+  const taken = Number(item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level);
+  if (Number.isFinite(taken)) return taken;
+  const location = String(item?.system?.location ?? '');
+  const match = location.match(/-(\d+)$/u);
+  return match ? Number(match[1]) : null;
+}
+
+function getActorFeatPlanCategory(item) {
+  const location = String(item?.system?.location ?? '').trim().toLowerCase();
+  const group = location.replace(/-\d+$/u, '');
+  const category = LOCATION_TO_PLAN_CATEGORY[group] ?? null;
+  if (category) return category;
+
+  const categoryValue = String(item?.system?.category?.value ?? item?.system?.category ?? '').toLowerCase();
+  const categoryMap = {
+    class: 'classFeats',
+    skill: 'skillFeats',
+    general: 'generalFeats',
+    ancestry: 'ancestryFeats',
+    archetype: 'archetypeFeats',
+    mythic: 'mythicFeats',
+  };
+  return categoryMap[categoryValue] ?? null;
+}
+
+function formatFeatCategoryLabel(category) {
+  const labels = {
+    classFeats: 'Class Feat',
+    skillFeats: 'Skill Feat',
+    generalFeats: 'General Feat',
+    ancestryFeats: 'Ancestry Feat',
+    archetypeFeats: 'Archetype Feat',
+    mythicFeats: 'Mythic Feat',
+    dualClassFeats: 'Dual Class Feat',
+    customFeats: 'Custom Feat',
+  };
+  return labels[category] ?? 'Feat';
+}
+
+function buildRetrainChoiceContent({ name, searchPlaceholder, choices }) {
+  const rows = buildRetrainChoiceGroups(choices).map((group) => {
+    const groupRows = group.choices.map(({ choice, index }) => buildRetrainChoiceRow(choice, index)).join('');
+    if (!group.label) return groupRows;
+    return `
+      <details class="retrain-choice-level-group" data-retrain-level-group open>
+        <summary class="retrain-choice-level-heading">${escapeHtml(group.label)}</summary>
+        ${groupRows}
+      </details>
+    `;
+  }).join('');
+
+  return `
+    <div class="retrain-choice-picker" data-retrain-picker>
+      <input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(choices[0]?.value ?? '')}">
+      <input
+        type="search"
+        class="retrain-choice-search"
+        data-retrain-search
+        placeholder="${escapeHtml(searchPlaceholder)}"
+      >
+      <div class="retrain-choice-list">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
+function buildRetrainChoiceGroups(choices) {
+  const groups = [];
+  const indexes = new Map();
+  choices.forEach((choice, index) => {
+    const label = choice.groupLabel ?? '';
+    if (!indexes.has(label)) {
+      indexes.set(label, groups.length);
+      groups.push({ label, choices: [] });
+    }
+    groups[indexes.get(label)].choices.push({ choice, index });
+  });
+  return groups;
+}
+
+function installRetrainChoicePickerListeners() {
+  const doc = globalThis.document;
+  if (!doc || globalThis.__pf2eLevelerRetrainChoicePickerListeners) return;
+  globalThis.__pf2eLevelerRetrainChoicePickerListeners = true;
+
+  doc.addEventListener('input', (event) => {
+    const input = event.target?.closest?.('[data-retrain-search]');
+    if (!input) return;
+    filterRetrainChoicePicker(input);
+  });
+
+  doc.addEventListener('click', (event) => {
+    const row = event.target?.closest?.('[data-retrain-choice]');
+    if (!row) return;
+    selectRetrainChoiceRow(row);
+  });
+}
+
+function filterRetrainChoicePicker(input) {
+  const query = String(input.value ?? '').trim().toLowerCase();
+  const root = input.closest('[data-retrain-picker]');
+  if (!root) return;
+
+  root.querySelectorAll('[data-retrain-choice]').forEach((row) => {
+    row.hidden = !!query && !String(row.dataset.retrainSearchText ?? '').includes(query);
+  });
+
+  root.querySelectorAll('[data-retrain-level-group]').forEach((group) => {
+    const hasVisibleRow = Array.from(group.querySelectorAll('[data-retrain-choice]')).some((row) => !row.hidden);
+    group.hidden = !!query && !hasVisibleRow;
+    if (query && hasVisibleRow) group.open = true;
+  });
+}
+
+function selectRetrainChoiceRow(row) {
+  const root = row.closest('[data-retrain-picker]');
+  if (!root) return;
+  const input = root.querySelector('input[type="hidden"]');
+  if (input) input.value = row.dataset.retrainValue ?? '';
+  root.querySelectorAll('[data-retrain-choice]').forEach((choiceRow) => {
+    choiceRow.classList.remove('retrain-choice-row--selected');
+  });
+  row.classList.add('retrain-choice-row--selected');
+}
+
+function buildRetrainChoiceRow(choice, index) {
+  const selected = index === 0;
+  const meta = normalizeRetrainMeta(choice.meta);
+  const metaHtml = choice.metaHtml ? String(choice.metaHtml) : escapeHtml(meta);
+  const searchMeta = normalizeRetrainMeta(choice.searchMeta ?? choice.meta);
+  const searchText = escapeHtml(`${choice.label} ${searchMeta}`.toLowerCase());
+  return `
+      <button
+        type="button"
+        class="retrain-choice-row ${selected ? 'retrain-choice-row--selected' : ''}"
+        data-retrain-choice
+        data-retrain-value="${escapeHtml(choice.value)}"
+        data-retrain-search-text="${searchText}"
+      >
+        ${choice.icon ? `<img class="retrain-choice-row__icon" src="${escapeHtml(choice.icon)}" alt="">` : '<span class="retrain-choice-row__icon retrain-choice-row__icon--fallback"><i class="fa-solid fa-rotate"></i></span>'}
+        <span class="retrain-choice-row__body">
+          <span class="retrain-choice-row__label">${escapeHtml(choice.label)}</span>
+          ${meta ? `<span class="retrain-choice-row__meta">${metaHtml}</span>` : ''}
+        </span>
+      </button>
+    `;
+}
+
+function buildRankTransitionMarkup(fromRankName, toRankName) {
+  return [
+    buildRankTextMarkup(fromRankName),
+    ' -> ',
+    buildRankTextMarkup(toRankName),
+  ].join('');
+}
+
+function buildRankTextMarkup(rankName) {
+  const safeRankName = getRankName(rankName);
+  return `<span class="retrain-rank-text retrain-rank-text--${safeRankName}">${titleCase(safeRankName)}</span>`;
+}
+
+function getRankName(rank) {
+  if (typeof rank === 'string') {
+    const normalized = rank.toLowerCase();
+    return PROFICIENCY_RANK_NAMES.includes(normalized) ? normalized : 'untrained';
+  }
+  const index = Math.max(0, Math.min(PROFICIENCY_RANK_NAMES.length - 1, Number(rank) || 0));
+  return PROFICIENCY_RANK_NAMES[index] ?? 'untrained';
+}
+
+function normalizeRetrainMeta(value) {
+  return String(value ?? '')
+    .replace(/[^\x20-\x7E]+/gu, ' - ')
+    .replace(/\s+-\s+-\s+/gu, ' - ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function localizeSelectLabel() {
+  const key = 'PF2E_LEVELER.FEAT_PICKER.SELECT';
+  return game.i18n?.has?.(key) ? game.i18n.localize(key) : 'Select';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;')
+    .replace(/"/gu, '&quot;')
+    .replace(/'/gu, '&#39;');
+}
+
+function humanizeSkillSlug(skill) {
+  return titleCase(String(skill ?? '').replace(/[-_]/gu, ' '));
+}
+
+function titleCase(value) {
+  return String(value ?? '')
+    .split(/\s+/u)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function normalizeActorBoostEntries(value) {

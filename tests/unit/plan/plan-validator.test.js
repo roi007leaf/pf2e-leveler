@@ -8,6 +8,8 @@ import { validatePlan, validateLevel } from '../../../scripts/plan/plan-validato
 import * as buildState from '../../../scripts/plan/build-state.js';
 import {
   createPlan,
+  addLevelFeatRetrain,
+  addLevelSkillRetrain,
   addLevelSpell,
   setLevelBoosts,
   setLevelFeat,
@@ -41,6 +43,17 @@ describe('validateLevel', () => {
     setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
     const result = validateLevel(plan, ALCHEMIST, 2);
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('empty free archetype slot does not make the level incomplete', () => {
+    const plan = createPlan('alchemist', { freeArchetype: true });
+    setLevelFeat(plan, 2, 'classFeats', { uuid: 'x', name: 'X', slug: 'x' });
+    setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
+
+    const result = validateLevel(plan, ALCHEMIST, 2, { freeArchetype: true });
+
+    expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+    expect(result.issues.some((issue) => issue.message.includes('Archetype Feat'))).toBe(false);
   });
 
   test('incomplete inferred feat grants make the level incomplete', () => {
@@ -111,6 +124,98 @@ describe('validateLevel', () => {
     const result = validateLevel(plan, ALCHEMIST, 2);
 
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('missing feat retrain replacement makes the level incomplete', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general', name: 'General', slug: 'general' });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+    addLevelFeatRetrain(plan, 3, {
+      fromLevel: 2,
+      category: 'classFeats',
+      original: { actorItemId: 'old-id', uuid: 'old', name: 'Old Feat', slug: 'old-feat' },
+      replacement: null,
+    });
+
+    const result = validateLevel(plan, ALCHEMIST, 3, {}, { items: [] });
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'error', message: expect.stringContaining('replacement feat') }),
+    ]));
+  });
+
+  test('missing original actor feat retrain produces a warning', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general', name: 'General', slug: 'general' });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+    addLevelFeatRetrain(plan, 3, {
+      fromLevel: 2,
+      category: 'classFeats',
+      original: { actorItemId: 'old-id', uuid: 'old', name: 'Old Feat', slug: 'old-feat' },
+      replacement: { uuid: 'new', name: 'New Feat', slug: 'new-feat' },
+    });
+
+    const result = validateLevel(plan, ALCHEMIST, 3, {}, { items: [] });
+
+    expect(result.status).toBe(PLAN_STATUS.WARNING);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringContaining('Old Feat') }),
+    ]));
+  });
+
+  test('missing skill retrain replacement makes the level incomplete', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general', name: 'General', slug: 'general' });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+    addLevelSkillRetrain(plan, 3, {
+      fromLevel: 3,
+      original: { skill: 'stealth', fromRank: 1, toRank: 2 },
+      replacement: null,
+    });
+
+    const result = validateLevel(plan, ALCHEMIST, 3);
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'error', message: expect.stringContaining('replacement skill') }),
+    ]));
+  });
+
+  test('missing original skill increase retrain produces a warning', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general', name: 'General', slug: 'general' });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+    addLevelSkillRetrain(plan, 3, {
+      fromLevel: 5,
+      original: { skill: 'acrobatics', fromRank: 1, toRank: 2 },
+      replacement: { skill: 'occultism', fromRank: 1, toRank: 2 },
+    });
+
+    const result = validateLevel(plan, ALCHEMIST, 3);
+
+    expect(result.status).toBe(PLAN_STATUS.WARNING);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringContaining('Acrobatics') }),
+    ]));
+  });
+
+  test('skill retrain replacement cannot exceed the traded-away rank', () => {
+    const plan = createPlan('alchemist');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general', name: 'General', slug: 'general' });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+    addLevelSkillRetrain(plan, 3, {
+      fromLevel: 3,
+      original: { skill: 'stealth', fromRank: 1, toRank: 2 },
+      replacement: { skill: 'occultism', fromRank: 1, toRank: 3 },
+    });
+
+    const result = validateLevel(plan, ALCHEMIST, 3);
+
+    expect(result.status).toBe(PLAN_STATUS.INCOMPLETE);
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'error', message: expect.stringContaining('exceeds retrained rank') }),
+    ]));
   });
 
   test('missing class feat at level 2 is incomplete', () => {

@@ -10,8 +10,16 @@ jest.mock('../../../scripts/apply/apply-skills.js', () => ({
   applySkillIncreases: jest.fn(async () => []),
 }));
 
+jest.mock('../../../scripts/apply/apply-skill-retrains.js', () => ({
+  applySkillRetrains: jest.fn(async () => []),
+}));
+
 jest.mock('../../../scripts/apply/apply-feats.js', () => ({
   applyFeats: jest.fn(async (_actor, _plan, level) => [{ name: `feat-${level}`, uuid: `Compendium.pf2e.feats-srd.Item.feat-${level}` }]),
+}));
+
+jest.mock('../../../scripts/apply/apply-feat-retrains.js', () => ({
+  applyFeatRetrains: jest.fn(async () => []),
 }));
 
 jest.mock('../../../scripts/apply/apply-spells.js', () => ({
@@ -37,6 +45,8 @@ jest.mock('../../../scripts/apply/apply-class-specific.js', () => ({
 import { applyPlan } from '../../../scripts/apply/apply-manager.js';
 import { applyBoosts } from '../../../scripts/apply/apply-boosts.js';
 import { applyFeats } from '../../../scripts/apply/apply-feats.js';
+import { applyFeatRetrains } from '../../../scripts/apply/apply-feat-retrains.js';
+import { applySkillRetrains } from '../../../scripts/apply/apply-skill-retrains.js';
 import { applySpells } from '../../../scripts/apply/apply-spells.js';
 import { applyFeatGrants } from '../../../scripts/apply/apply-feat-grants.js';
 import { applyClassFeatureChoices } from '../../../scripts/apply/apply-class-feature-choices.js';
@@ -94,6 +104,8 @@ describe('applyPlan', () => {
     expect(applyFeats).toHaveBeenNthCalledWith(2, actor, plan, 6);
     expect(applyFeats).toHaveBeenNthCalledWith(3, actor, plan, 7);
     expect(applyFeats).toHaveBeenNthCalledWith(4, actor, plan, 8);
+    expect(applySkillRetrains).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applyFeatRetrains).toHaveBeenNthCalledWith(1, actor, plan, 5);
 
     expect(applySpells).toHaveBeenNthCalledWith(1, actor, plan, 5);
     expect(applyFeatGrants).toHaveBeenNthCalledWith(1, actor, plan, 5);
@@ -108,6 +120,32 @@ describe('applyPlan', () => {
     }));
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('@UUID[Compendium.pf2e.equipment-srd.Item.formula-5]{formula-5}'),
+    }));
+  });
+
+  test('includes retrained feats and skills in the level chat message', async () => {
+    applyFeatRetrains.mockResolvedValueOnce([
+      { original: { name: 'Old Feat' }, replacement: { name: 'New Feat', uuid: 'Compendium.pf2e.feats-srd.Item.new-feat' } },
+    ]);
+    applySkillRetrains.mockResolvedValueOnce([
+      { original: { skill: 'stealth', rank: 2 }, replacement: { skill: 'occultism', rank: 2 } },
+    ]);
+    const actor = {
+      name: 'Alcor',
+      testUserPermission: jest.fn(() => true),
+    };
+    const plan = { levels: { 8: {} } };
+
+    await applyPlan(actor, plan, 8, 7);
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('Retrained Feats'),
+    }));
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('Old Feat -> @UUID[Compendium.pf2e.feats-srd.Item.new-feat]{New Feat}'),
+    }));
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('Stealth -> Occultism (Expert)'),
     }));
   });
 });

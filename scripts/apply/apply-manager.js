@@ -2,7 +2,9 @@ import { getLevelData, getRemindersForLevel } from '../plan/plan-model.js';
 import { applyBoosts } from './apply-boosts.js';
 import { applyLanguages } from './apply-languages.js';
 import { applySkillIncreases } from './apply-skills.js';
+import { applySkillRetrains } from './apply-skill-retrains.js';
 import { applyFeats } from './apply-feats.js';
+import { applyFeatRetrains } from './apply-feat-retrains.js';
 import { applyFeatGrants } from './apply-feat-grants.js';
 import { applyClassFeatureChoices } from './apply-class-feature-choices.js';
 import { applySpells } from './apply-spells.js';
@@ -16,7 +18,7 @@ export async function promptApplyPlan(actor, plan, level, previousLevel = level 
   const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
   if (levelsToApply.length === 0) {
     notify(format('NOTIFICATIONS.NO_PLAN_FOR_LEVEL', { level }), 'warn');
-    return;
+    return false;
   }
 
   const isMultiLevel = levelsToApply.length > 1;
@@ -33,9 +35,9 @@ export async function promptApplyPlan(actor, plan, level, previousLevel = level 
     modal: true,
   });
 
-  if (!confirmed) return;
+  if (!confirmed) return false;
 
-  await applyPlan(actor, plan, level, previousLevel);
+  return applyPlan(actor, plan, level, previousLevel);
 }
 
 export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
@@ -43,7 +45,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
     const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
     if (levelsToApply.length === 0) {
       notify(format('NOTIFICATIONS.NO_PLAN_FOR_LEVEL', { level }), 'warn');
-      return;
+      return false;
     }
 
     info(`Applying plan for ${actor.name} at levels ${levelsToApply.join(', ')}`);
@@ -51,7 +53,9 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
     for (const plannedLevel of levelsToApply) {
       const boosts = await applyBoosts(actor, plan, plannedLevel);
       const languages = await applyLanguages(actor, plan, plannedLevel);
+      const skillRetrains = await applySkillRetrains(actor, plan, plannedLevel);
       const skills = await applySkillIncreases(actor, plan, plannedLevel);
+      const featRetrains = await applyFeatRetrains(actor, plan, plannedLevel);
       const feats = await applyFeats(actor, plan, plannedLevel);
       const featGrants = await applyFeatGrants(actor, plan, plannedLevel);
       const classFeatureChoices = await applyClassFeatureChoices(actor, plan, plannedLevel);
@@ -59,7 +63,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skills, feats, spells, equipment, featGrants, classFeatureChoices });
+      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skillRetrains, skills, featRetrains, feats, spells, equipment, featGrants, classFeatureChoices });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
@@ -68,9 +72,11 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
     }
 
     notify(format('NOTIFICATIONS.APPLIED', { actorName: actor.name, level }));
+    return true;
   } catch (err) {
     logError(`Failed to apply plan: ${err.message}`);
     notify(format('NOTIFICATIONS.APPLY_FAILED', { error: err.message }), 'error');
+    return false;
   }
 }
 
@@ -90,11 +96,25 @@ async function createLevelUpMessage(actor, level, applied) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.FEATS_SELECTED'), feats));
   }
 
+  const featRetrains = applied.featRetrains
+    ?.map((entry) => `${entry.original?.name ?? 'Old Feat'} -> ${formatChatLink(entry.replacement)}`)
+    .filter(Boolean) ?? [];
+  if (featRetrains.length) {
+    sections.push(buildChatSection('Retrained Feats', featRetrains));
+  }
+
   const skillChanges = applied.skills
     .map((s) => `${formatSkillSlug(s.skill)} -> ${RANK_LABELS[s.toRank] ?? s.toRank}${s.intBonus ? ' (INT)' : ''}`)
     .filter(Boolean);
   if (skillChanges.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.SKILL_INCREASE'), skillChanges));
+  }
+
+  const skillRetrains = applied.skillRetrains
+    ?.map((entry) => `${formatSkillSlug(entry.original?.skill)} -> ${formatSkillSlug(entry.replacement?.skill)} (${RANK_LABELS[entry.replacement?.rank] ?? entry.replacement?.rank})`)
+    .filter(Boolean) ?? [];
+  if (skillRetrains.length) {
+    sections.push(buildChatSection('Retrained Skills', skillRetrains));
   }
 
   const languages = applied.languages.map((slug) => localizeLanguageSlug(slug)).filter(Boolean);

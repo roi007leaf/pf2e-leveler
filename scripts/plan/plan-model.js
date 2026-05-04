@@ -250,6 +250,32 @@ export function removeLevelCustomSkillIncrease(plan, level, index) {
   return plan;
 }
 
+export function addLevelFeatRetrain(plan, level, retrainEntry) {
+  const levelData = ensureLevelData(plan, level);
+  levelData.retrainedFeats.push(retrainEntry);
+  return plan;
+}
+
+export function removeLevelFeatRetrain(plan, level, index) {
+  const retrains = plan.levels[level]?.retrainedFeats;
+  if (!Array.isArray(retrains) || !Number.isInteger(index)) return plan;
+  retrains.splice(index, 1);
+  return plan;
+}
+
+export function addLevelSkillRetrain(plan, level, retrainEntry) {
+  const levelData = ensureLevelData(plan, level);
+  levelData.retrainedSkillIncreases.push(retrainEntry);
+  return plan;
+}
+
+export function removeLevelSkillRetrain(plan, level, index) {
+  const retrains = plan.levels[level]?.retrainedSkillIncreases;
+  if (!Array.isArray(retrains) || !Number.isInteger(index)) return plan;
+  retrains.splice(index, 1);
+  return plan;
+}
+
 export function addLevelCustomSpell(plan, level, spellEntry) {
   const levelData = ensureLevelData(plan, level);
   if (!Array.isArray(levelData.customSpells)) levelData.customSpells = [];
@@ -367,6 +393,8 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.customSpellEntries)) levelData.customSpellEntries = [];
   if (!Array.isArray(levelData.customEquipment)) levelData.customEquipment = [];
   if (!Array.isArray(levelData.featGrants)) levelData.featGrants = [];
+  if (!Array.isArray(levelData.retrainedFeats)) levelData.retrainedFeats = [];
+  if (!Array.isArray(levelData.retrainedSkillIncreases)) levelData.retrainedSkillIncreases = [];
   return levelData;
 }
 

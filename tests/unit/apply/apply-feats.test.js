@@ -1,4 +1,5 @@
 import { applyFeats } from '../../../scripts/apply/apply-feats.js';
+import { applyFeatRetrains } from '../../../scripts/apply/apply-feat-retrains.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import * as pf2eApi from '../../../scripts/utils/pf2e-api.js';
 
@@ -83,6 +84,70 @@ describe('applyFeats', () => {
 
     const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
     expect(createdData.system.location).toBe('bonus-2');
+  });
+
+  test('retraining deletes original feat before creating replacement in its slot', async () => {
+    const original = {
+      id: 'old-id',
+      type: 'feat',
+      name: 'Old Feat',
+      slug: 'old-feat',
+      system: { location: 'class-2', level: { taken: 2 } },
+    };
+    mockActor.items = [original];
+    mockActor.deleteEmbeddedDocuments = jest.fn(async () => []);
+    mockActor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc) => ({ ...doc, id: 'new-id' })));
+    global.fromUuid = jest.fn(async () => ({
+      uuid: 'new-uuid',
+      name: 'New Feat',
+      system: { level: { value: 2 }, location: null },
+      toObject: jest.fn(() => ({ name: 'New Feat', system: { level: { value: 2 }, location: null } })),
+    }));
+    const plan = {
+      levels: {
+        8: {
+          retrainedFeats: [{
+            fromLevel: 2,
+            category: 'classFeats',
+            original: { actorItemId: 'old-id', name: 'Old Feat', slug: 'old-feat' },
+            replacement: { uuid: 'new-uuid', name: 'New Feat', slug: 'new-feat' },
+          }],
+        },
+      },
+    };
+
+    const result = await applyFeatRetrains(mockActor, plan, 8);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'New Feat', system: expect.objectContaining({ location: 'class-2', level: { value: 2, taken: 2 } }) }),
+    ]);
+    expect(mockActor.deleteEmbeddedDocuments).toHaveBeenCalledWith('Item', ['old-id']);
+    expect(mockActor.deleteEmbeddedDocuments.mock.invocationCallOrder[0]).toBeLessThan(
+      mockActor.createEmbeddedDocuments.mock.invocationCallOrder[0],
+    );
+    expect(result).toEqual([{ original: { name: 'Old Feat' }, replacement: expect.objectContaining({ name: 'New Feat' }) }]);
+  });
+
+  test('retraining skips missing original feat', async () => {
+    mockActor.deleteEmbeddedDocuments = jest.fn(async () => []);
+    const plan = {
+      levels: {
+        8: {
+          retrainedFeats: [{
+            fromLevel: 2,
+            category: 'classFeats',
+            original: { actorItemId: 'missing', name: 'Missing Feat' },
+            replacement: { uuid: 'new-uuid', name: 'New Feat' },
+          }],
+        },
+      },
+    };
+
+    const result = await applyFeatRetrains(mockActor, plan, 8);
+
+    expect(mockActor.createEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(mockActor.deleteEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 
   test('injects selected advanced multiclass class feat grants when Foundry data has no GrantItem rule', async () => {
