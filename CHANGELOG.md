@@ -8,6 +8,7 @@
 - **Downtime retraining now stays aligned with RAW timing** - Retraining is treated as a current-level downtime activity while the planner still uses the original choice level for replacement legality and future prerequisite state
 - **Retrained feat replacement slots now normalize PF2e location data** - Actor feat locations stored as PF2e value objects are unwrapped before replacement creation, preventing retrained feats from falling back into bonus feat slots
 - **Apply Downtime now disables correctly when empty** - The header action now visibly disables and cannot fire when the selected level has no planned retraining
+- **Living creature prerequisites now use actor traits** - Prerequisites such as Aberrant Soul Dedication's "You are a living creature" now pass unless the actor has the construct or undead trait
 
 ## 3.4.0
 
