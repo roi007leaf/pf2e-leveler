@@ -1,6 +1,7 @@
 import {
   canOpenCreationWizard,
   getCreationButtonTitle,
+  isActorCharacterSheetApplication,
   isSupportedClass,
   normalizePreparationGroupRank,
   shouldRedirectCreationWizardToPlanner,
@@ -92,3 +93,39 @@ describe('creation wizard sheet access', () => {
     expect(ClassRegistry.has('eldamon-trainer')).toBe(true);
   });
 });
+
+describe('character sheet application detection', () => {
+  test('accepts the PF2e character sheet application for the matching actor', () => {
+    const actor = createMockActor({ id: 'abc123' });
+    const app = document.createElement('div');
+    app.id = 'CharacterSheetPF2e-Actor-abc123';
+    app.className = 'app window-app sheet actor character';
+
+    expect(isActorCharacterSheetApplication(asJQuery(app), actor)).toBe(true);
+  });
+
+  test('rejects PF2e HUD windows that render character-sheet content', () => {
+    const actor = createMockActor({ id: 'abc123' });
+    const hud = document.createElement('div');
+    hud.id = 'pf2e-hud-persistent';
+
+    const app = document.createElement('div');
+    app.className = 'app window-app sheet actor character';
+    hud.append(app);
+
+    expect(isActorCharacterSheetApplication(asJQuery(app), actor)).toBe(false);
+  });
+
+  test('rejects PF2e strike attack popouts', () => {
+    const actor = createMockActor({ id: 'abc123' });
+    const app = document.createElement('div');
+    app.id = 'AttackPopout-Actor-abc123-strike-item-longsword';
+    app.className = 'app window-app default sheet actor character attack-popout';
+
+    expect(isActorCharacterSheetApplication(asJQuery(app), actor)).toBe(false);
+  });
+});
+
+function asJQuery(element) {
+  return { 0: element, get: () => element };
+}

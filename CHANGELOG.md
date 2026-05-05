@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.3
+
+### Compatibility
+
+- **PF2e HUD strike popouts no longer show Leveler header buttons** - Character sheet integration now skips PF2e HUD and attack popout windows so the creation and planner buttons only appear on real actor sheets
+
 ## 3.4.2
 
 ### Character Wizard

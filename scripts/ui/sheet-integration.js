@@ -50,6 +50,8 @@ function onRenderCharacterSheet(sheet, html) {
   if (actor.type !== 'character') return;
 
   const appElement = html.closest('.app');
+  if (!isActorCharacterSheetApplication(appElement, actor)) return;
+
   appElement.find('.pf2e-leveler-plan-btn').remove();
   appElement.find('.pf2e-leveler-create-btn').remove();
 
@@ -97,6 +99,38 @@ function getApplicationElementFromEvent(event) {
 function getActorSheetSelectors(actor) {
   const actorId = String(actor?.id ?? '').trim();
   return actorId ? [`#CharacterSheetPF2e-Actor-${cssIdentifierEscape(actorId)}`] : [];
+}
+
+function getActorSheetElementId(actor) {
+  const actorId = String(actor?.id ?? '').trim();
+  return actorId ? `CharacterSheetPF2e-Actor-${actorId}` : '';
+}
+
+function isActorCharacterSheetApplication(appElement, actor) {
+  const element = getJQueryElement(appElement);
+  if (!element || isPF2eHudElement(element) || isPF2eAttackPopoutElement(element)) return false;
+
+  const expectedId = getActorSheetElementId(actor);
+  if (expectedId && element.id === expectedId) return true;
+
+  return element.classList.contains('window-app')
+    && element.classList.contains('sheet')
+    && element.classList.contains('actor')
+    && element.classList.contains('character');
+}
+
+function getJQueryElement(jqueryElement) {
+  return jqueryElement?.[0] ?? jqueryElement?.get?.(0) ?? null;
+}
+
+function isPF2eHudElement(element) {
+  return Boolean(element.closest?.(
+    '[id*="pf2e-hud"], [class*="pf2e-hud"], [id*="pf2e-token-hud"], [class*="pf2e-token-hud"]',
+  ));
+}
+
+function isPF2eAttackPopoutElement(element) {
+  return element.classList.contains('attack-popout') || element.id.startsWith('AttackPopout-');
 }
 
 function cssIdentifierEscape(value) {
@@ -244,4 +278,9 @@ export function normalizePreparationGroupRank(groupId) {
   return null;
 }
 
-export { canOpenCreationWizard, getCreationButtonTitle, shouldRedirectCreationWizardToPlanner };
+export {
+  canOpenCreationWizard,
+  getCreationButtonTitle,
+  isActorCharacterSheetApplication,
+  shouldRedirectCreationWizardToPlanner,
+};
