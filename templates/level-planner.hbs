@@ -57,6 +57,10 @@
             <i class="fa-solid fa-play"></i>
             {{localize "PF2E_LEVELER.UI.APPLY"}}
           </button>
+          <button type="button" class="sidebar-action-btn planner-content__action" data-action="applySelectedRetraining" data-tooltip="Apply Downtime Retraining" aria-disabled="{{#if hasRetraining}}false{{else}}true{{/if}}" {{#unless hasRetraining}}disabled{{/unless}}>
+            <i class="fa-solid fa-rotate"></i>
+            Apply Downtime
+          </button>
           <button type="button" class="sidebar-action-btn sidebar-action-btn--danger planner-content__action" data-action="clearLevel" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR_LEVEL'}}">
             <i class="fa-solid fa-eraser"></i>
             {{localize "PF2E_LEVELER.UI.CLEAR_LEVEL"}}
@@ -112,7 +116,7 @@
         <div class="level-section">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-retweet"></i>
-            Retraining
+            Downtime Retraining
           </div>
           <div class="level-section__body">
             <div class="feat-slot__note" style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -123,13 +127,13 @@
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-md);">
               {{#each retrainedFeats}}
               <div class="wizard-spell-chip">
-                <span>Level {{this.fromLevel}} {{this.categoryLabel}}: {{this.originalName}} → {{this.replacementName}}</span>
+                <span>{{this.downtimeLabel}} - {{this.categoryLabel}} - {{this.sourceLabel}}: {{this.originalName}} -> {{this.replacementName}}</span>
                 <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeFeatRetrain" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}
               {{#each retrainedSkillIncreases}}
               <div class="wizard-spell-chip">
-                <span>Level {{this.fromLevel}} Skill Increase: {{this.originalName}} → {{this.replacementName}} ({{this.rankName}})</span>
+                <span>{{this.downtimeLabel}} - Skill Increase - {{this.sourceLabel}}: {{this.originalName}} -> {{this.replacementName}} ({{this.rankName}})</span>
                 <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSkillRetrain" data-index="{{this.index}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
               </div>
               {{/each}}

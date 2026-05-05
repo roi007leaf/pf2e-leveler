@@ -1149,4 +1149,47 @@ describe('checkPrerequisites', () => {
     expect(result.results).toHaveLength(1);
     expect(result.results[0].met).toBeNull();
   });
+
+  test('meets living creature prerequisite when actor is not construct or undead', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'You are a living creature' }],
+        },
+      },
+    };
+
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      ancestryTraits: new Set(['human', 'humanoid']),
+    });
+
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBe(true);
+  });
+
+  test('fails living creature prerequisite for construct or undead actors', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'You are a living creature' }],
+        },
+      },
+    };
+
+    const constructResult = checkPrerequisites(feat, {
+      ...buildState,
+      ancestryTraits: new Set(['construct']),
+    });
+    const undeadResult = checkPrerequisites(feat, {
+      ...buildState,
+      ancestryTraits: new Set(['undead']),
+    });
+
+    expect(constructResult.met).toBe(false);
+    expect(constructResult.results[0].met).toBe(false);
+    expect(undeadResult.met).toBe(false);
+    expect(undeadResult.results[0].met).toBe(false);
+  });
 });

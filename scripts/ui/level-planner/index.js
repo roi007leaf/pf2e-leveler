@@ -36,7 +36,7 @@ import { buildFeatGrantRequirements, buildPlanFormulaProgressionRequirements } f
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
 import { validateLevel } from '../../plan/plan-validator.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { promptApplyPlan } from '../../apply/apply-manager.js';
+import { promptApplyPlan, promptApplyRetraining } from '../../apply/apply-manager.js';
 import { isFreeArchetypeEnabled, isMythicEnabled, isABPEnabled, isGradualBoostsEnabled, isDualClassEnabled, isAncestralParagonEnabled } from '../../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../../utils/feat-aliases.js';
 import { extractFeatSpellcastingMetadata, FEAT_SPELLCASTING_METADATA_VERSION } from '../../utils/spellcasting-support.js';
@@ -1705,17 +1705,18 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   async _openFeatRetrainPicker() {
     const sources = this._getFeatRetrainSources();
     if (sources.length === 0) {
-      ui.notifications?.warn?.('No prior feats available to retrain.');
+      ui.notifications?.warn?.('No owned feats available to retrain.');
       return;
     }
 
     const source = await this._promptRetrainSource({
-      title: 'Retrain Feat',
+      title: 'Downtime Retraining: Feat',
       name: 'feat',
       sources,
       getLabel: (entry) => entry.original.name,
-      getMeta: (entry) => `${formatFeatCategoryLabel(entry.category)} - Level ${entry.fromLevel}`,
+      getMeta: (entry) => `${formatFeatCategoryLabel(entry.category)} - Original Level ${entry.fromLevel} - 1 week`,
       getIcon: (entry) => entry.original.img,
+      getGroupLabel: (entry) => formatFeatCategoryLabel(entry.category),
     });
     if (!source) return;
 
@@ -1727,7 +1728,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const item of this.actor.items ?? []) {
       if (item?.type !== 'feat') continue;
       const fromLevel = getActorFeatTakenLevel(item);
-      if (!Number.isFinite(fromLevel) || fromLevel >= this.selectedLevel) continue;
+      if (!Number.isFinite(fromLevel) || fromLevel > this.selectedLevel) continue;
       const category = getActorFeatPlanCategory(item);
       if (!category) continue;
       sources.push({
@@ -1740,7 +1741,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           name: item.name,
           slug: item.slug,
           img: item.img,
-          location: item.system?.location ?? null,
+          location: getActorFeatLocation(item) || null,
         },
       });
     }
@@ -1810,16 +1811,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   async _openSkillRetrainPicker() {
     const sources = this._getSkillRetrainSources();
     if (sources.length === 0) {
-      ui.notifications?.warn?.('No prior skill increases available to retrain.');
+      ui.notifications?.warn?.('No skill increases available to retrain.');
       return;
     }
 
     const source = await this._promptRetrainSource({
-      title: 'Retrain Skill Increase',
+      title: 'Downtime Retraining: Skill Increase',
       name: 'skillSource',
       sources,
       getLabel: (entry) => humanizeSkillSlug(entry.skill),
-      getMeta: (entry) => `Level ${entry.fromLevel} - ${titleCase(PROFICIENCY_RANK_NAMES[entry.toRank] ?? entry.toRank)}`,
+      getMeta: (entry) => `${titleCase(PROFICIENCY_RANK_NAMES[entry.toRank] ?? entry.toRank)} - Original Level ${entry.fromLevel} - 1 week`,
+      getGroupLabel: (entry) => titleCase(PROFICIENCY_RANK_NAMES[entry.toRank] ?? entry.toRank),
     });
     if (!source) return;
 
@@ -1853,7 +1855,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return sources;
   }
 
-  async _promptRetrainSource({ title, name, sources, getLabel, getMeta = null, getIcon = null }) {
+  async _promptRetrainSource({ title, name, sources, getLabel, getMeta = null, getIcon = null, getGroupLabel = null }) {
     const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
     if (!dialogClass?.prompt) return null;
 
@@ -1868,7 +1870,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           meta: normalizeRetrainMeta(getMeta?.(entry) ?? ''),
           searchMeta: normalizeRetrainMeta(getMeta?.(entry) ?? ''),
           icon: getIcon?.(entry) ?? null,
-          groupLabel: Number.isFinite(Number(entry.fromLevel)) ? `Level ${entry.fromLevel}` : null,
+          groupLabel: getGroupLabel?.(entry) ?? null,
         })),
       }),
       ok: {
@@ -2377,6 +2379,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     await promptApplyPlan(this.actor, this.plan, this.selectedLevel, this.selectedLevel - 1);
   }
 
+  async _applySelectedRetraining() {
+    if (!this.plan || !Number.isInteger(this.selectedLevel)) return;
+    await promptApplyRetraining(this.actor, this.plan, this.selectedLevel);
+  }
+
   async _openEquipmentSlotPicker(slotIndex, maxLevel) {
     const { ItemPicker } = await import('../item-picker.js');
     const picker = new ItemPicker(
@@ -2846,13 +2853,13 @@ function dedupeSelections(selections) {
 function getActorFeatTakenLevel(item) {
   const taken = Number(item?.system?.level?.taken ?? item?.system?.level?.value ?? item?.level);
   if (Number.isFinite(taken)) return taken;
-  const location = String(item?.system?.location ?? '');
+  const location = getActorFeatLocation(item);
   const match = location.match(/-(\d+)$/u);
   return match ? Number(match[1]) : null;
 }
 
 function getActorFeatPlanCategory(item) {
-  const location = String(item?.system?.location ?? '').trim().toLowerCase();
+  const location = getActorFeatLocation(item).toLowerCase();
   const group = location.replace(/-\d+$/u, '');
   const category = LOCATION_TO_PLAN_CATEGORY[group] ?? null;
   if (category) return category;
@@ -2867,6 +2874,13 @@ function getActorFeatPlanCategory(item) {
     mythic: 'mythicFeats',
   };
   return categoryMap[categoryValue] ?? null;
+}
+
+function getActorFeatLocation(item) {
+  const location = item?.system?.location;
+  if (typeof location === 'string') return location.trim();
+  if (location && typeof location === 'object' && typeof location.value === 'string') return location.value.trim();
+  return '';
 }
 
 function formatFeatCategoryLabel(category) {
@@ -2888,8 +2902,8 @@ function buildRetrainChoiceContent({ name, searchPlaceholder, choices }) {
     const groupRows = group.choices.map(({ choice, index }) => buildRetrainChoiceRow(choice, index)).join('');
     if (!group.label) return groupRows;
     return `
-      <details class="retrain-choice-level-group" data-retrain-level-group open>
-        <summary class="retrain-choice-level-heading">${escapeHtml(group.label)}</summary>
+      <details class="retrain-choice-group" data-retrain-choice-group open>
+        <summary class="retrain-choice-heading">${escapeHtml(group.label)}</summary>
         ${groupRows}
       </details>
     `;
@@ -2952,7 +2966,7 @@ function filterRetrainChoicePicker(input) {
     row.hidden = !!query && !String(row.dataset.retrainSearchText ?? '').includes(query);
   });
 
-  root.querySelectorAll('[data-retrain-level-group]').forEach((group) => {
+          root.querySelectorAll('[data-retrain-choice-group]').forEach((group) => {
     const hasVisibleRow = Array.from(group.querySelectorAll('[data-retrain-choice]')).some((row) => !row.hidden);
     group.hidden = !!query && !hasVisibleRow;
     if (query && hasVisibleRow) group.open = true;

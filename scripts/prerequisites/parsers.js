@@ -111,6 +111,7 @@ const SENSE_PATTERN =
   /^(low-light vision|darkvision|greater darkvision|scent|tremorsense|echolocation)$/i;
 const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
 const AGE_REQUIREMENT_PATTERN = /^(?:at\s+least\s+)?\d+\s+years?\s+old$/i;
+const LIVING_CREATURE_PATTERN = /^(?:you\s+are\s+)?(?:a\s+)?living\s+creature$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -180,6 +181,9 @@ export function parsePrerequisite(text) {
 
   const classHpMatch = tryParseClassHpRequirement(baseText, trimmed);
   if (classHpMatch) return classHpMatch;
+
+  const livingCreatureMatch = tryParseLivingCreatureRequirement(baseText, trimmed);
+  if (livingCreatureMatch) return livingCreatureMatch;
 
   const deityMatch = tryParseDeityRequirement(baseText, trimmed);
   if (deityMatch) return deityMatch;
@@ -409,6 +413,14 @@ function tryParseClassHpRequirement(text, fullText = text) {
     comparator: 'lte',
     maxHp,
     includesConModifier: true,
+    text: fullText,
+  };
+}
+
+function tryParseLivingCreatureRequirement(text, fullText = text) {
+  if (!LIVING_CREATURE_PATTERN.test(text)) return null;
+  return {
+    type: 'livingCreature',
     text: fullText,
   };
 }

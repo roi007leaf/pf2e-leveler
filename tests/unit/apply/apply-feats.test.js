@@ -128,6 +128,42 @@ describe('applyFeats', () => {
     expect(result).toEqual([{ original: { name: 'Old Feat' }, replacement: expect.objectContaining({ name: 'New Feat' }) }]);
   });
 
+  test('retraining unwraps PF2e feat location values before creating replacement', async () => {
+    const original = {
+      id: 'old-id',
+      type: 'feat',
+      name: 'Old Feat',
+      slug: 'old-feat',
+      system: { location: { value: 'class-2' }, level: { taken: 2 } },
+    };
+    mockActor.items = [original];
+    mockActor.deleteEmbeddedDocuments = jest.fn(async () => []);
+    mockActor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc) => ({ ...doc, id: 'new-id' })));
+    global.fromUuid = jest.fn(async () => ({
+      uuid: 'new-uuid',
+      name: 'New Feat',
+      system: { level: { value: 2 }, location: null },
+      toObject: jest.fn(() => ({ name: 'New Feat', system: { level: { value: 2 }, location: null } })),
+    }));
+    const plan = {
+      levels: {
+        8: {
+          retrainedFeats: [{
+            fromLevel: 2,
+            category: 'classFeats',
+            original: { actorItemId: 'old-id', name: 'Old Feat', slug: 'old-feat' },
+            replacement: { uuid: 'new-uuid', name: 'New Feat', slug: 'new-feat' },
+          }],
+        },
+      },
+    };
+
+    await applyFeatRetrains(mockActor, plan, 8);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(createdData.system.location).toBe('class-2');
+  });
+
   test('retraining skips missing original feat', async () => {
     mockActor.deleteEmbeddedDocuments = jest.fn(async () => []);
     const plan = {

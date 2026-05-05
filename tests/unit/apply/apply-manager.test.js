@@ -42,7 +42,7 @@ jest.mock('../../../scripts/apply/apply-class-specific.js', () => ({
   applyClassSpecific: jest.fn(async () => {}),
 }));
 
-import { applyPlan } from '../../../scripts/apply/apply-manager.js';
+import { applyPlan, applyRetraining } from '../../../scripts/apply/apply-manager.js';
 import { applyBoosts } from '../../../scripts/apply/apply-boosts.js';
 import { applyFeats } from '../../../scripts/apply/apply-feats.js';
 import { applyFeatRetrains } from '../../../scripts/apply/apply-feat-retrains.js';
@@ -104,8 +104,8 @@ describe('applyPlan', () => {
     expect(applyFeats).toHaveBeenNthCalledWith(2, actor, plan, 6);
     expect(applyFeats).toHaveBeenNthCalledWith(3, actor, plan, 7);
     expect(applyFeats).toHaveBeenNthCalledWith(4, actor, plan, 8);
-    expect(applySkillRetrains).toHaveBeenNthCalledWith(1, actor, plan, 5);
-    expect(applyFeatRetrains).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applySkillRetrains).not.toHaveBeenCalled();
+    expect(applyFeatRetrains).not.toHaveBeenCalled();
 
     expect(applySpells).toHaveBeenNthCalledWith(1, actor, plan, 5);
     expect(applyFeatGrants).toHaveBeenNthCalledWith(1, actor, plan, 5);
@@ -123,7 +123,7 @@ describe('applyPlan', () => {
     }));
   });
 
-  test('includes retrained feats and skills in the level chat message', async () => {
+  test('applies retraining separately from level-up choices', async () => {
     applyFeatRetrains.mockResolvedValueOnce([
       { original: { name: 'Old Feat' }, replacement: { name: 'New Feat', uuid: 'Compendium.pf2e.feats-srd.Item.new-feat' } },
     ]);
@@ -134,10 +134,25 @@ describe('applyPlan', () => {
       name: 'Alcor',
       testUserPermission: jest.fn(() => true),
     };
-    const plan = { levels: { 8: {} } };
+    const plan = {
+      levels: {
+        8: {
+          retrainedFeats: [{ original: { name: 'Old Feat' }, replacement: { name: 'New Feat' } }],
+          retrainedSkillIncreases: [{ original: { skill: 'stealth' }, replacement: { skill: 'occultism' } }],
+        },
+      },
+    };
 
-    await applyPlan(actor, plan, 8, 7);
+    await applyRetraining(actor, plan, 8);
 
+    expect(applyBoosts).not.toHaveBeenCalled();
+    expect(applyFeats).not.toHaveBeenCalled();
+    expect(applySpells).not.toHaveBeenCalled();
+    expect(applySkillRetrains).toHaveBeenCalledWith(actor, plan, 8);
+    expect(applyFeatRetrains).toHaveBeenCalledWith(actor, plan, 8);
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining('Downtime Retraining'),
+    }));
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('Retrained Feats'),
     }));

@@ -4145,19 +4145,25 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.retrainedFeats).toEqual([
       expect.objectContaining({
         index: 0,
+        activityLevel: 8,
         fromLevel: 2,
         categoryLabel: 'Class Feat',
         originalName: 'Quick Bomber',
         replacementName: 'Alchemical Familiar',
+        downtimeLabel: '1 week',
+        sourceLabel: 'Original Level 2',
       }),
     ]);
     expect(context.retrainedSkillIncreases).toEqual([
       expect.objectContaining({
         index: 0,
+        activityLevel: 8,
         fromLevel: 3,
         originalName: 'Stealth',
         replacementName: 'Occultism',
         rankName: 'Expert',
+        downtimeLabel: '1 week',
+        sourceLabel: 'Original Level 3',
       }),
     ]);
     expect(context.skillRetrainSources).toEqual(expect.arrayContaining([
@@ -4189,19 +4195,22 @@ describe('LevelPlanner bootstrap from existing actor', () => {
         },
       ],
       getLabel: (entry) => entry.original.name,
-      getMeta: (entry) => formatTestMeta(entry.category),
+      getMeta: (entry) => `${formatTestFeatCategoryLabel(entry.category)} - Original Level ${entry.fromLevel}`,
       getIcon: (entry) => entry.original.img,
+      getGroupLabel: (entry) => formatTestFeatCategoryLabel(entry.category),
     });
 
     expect(source.original.name).toBe('Diverse Lore');
     const content = prompt.mock.calls[0][0].content;
     expect(content).toContain('data-retrain-search');
-    expect(content).toContain('data-retrain-level-group');
+    expect(content).toContain('data-retrain-choice-group');
     expect(content).toContain('<details');
     expect(content).toContain('<summary');
     expect(content).toContain('open');
-    expect(content).toContain('Level 1');
-    expect(content).toContain('Level 2');
+    expect(content).toContain('Class Feat');
+    expect(content).toContain('Skill Feat');
+    expect(content).toContain('Original Level 1');
+    expect(content).toContain('Original Level 2');
     expect(content).toContain('data-retrain-choice');
     expect(content).toContain('feat.webp');
     expect(content).toContain('>Diverse Lore<');
@@ -4250,4 +4259,11 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
 function formatTestMeta(category) {
   return category;
+}
+
+function formatTestFeatCategoryLabel(category) {
+  return {
+    classFeats: 'Class Feat',
+    skillFeats: 'Skill Feat',
+  }[category] ?? formatTestMeta(category);
 }

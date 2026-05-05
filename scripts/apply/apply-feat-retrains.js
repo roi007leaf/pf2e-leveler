@@ -25,7 +25,7 @@ export async function applyFeatRetrains(actor, plan, level) {
     if (!originalId) continue;
     const originalName = retrain.original?.name ?? original.name;
     const itemData = foundry.utils.deepClone(replacementDoc.toObject());
-    const location = original.system?.location ?? `${CATEGORY_TO_GROUP[retrain.category] ?? 'bonus'}-${retrain.fromLevel}`;
+    const location = getFeatLocation(original, retrain);
     itemData.system ??= {};
     itemData.system.location = location;
     itemData.system.level = {
@@ -57,6 +57,20 @@ export async function applyFeatRetrains(actor, plan, level) {
   }
 
   return applied;
+}
+
+function getFeatLocation(original, retrain) {
+  const location = normalizeFeatLocation(original?.system?.location ?? retrain?.original?.location);
+  if (location) return location;
+  return `${CATEGORY_TO_GROUP[retrain?.category] ?? 'bonus'}-${retrain?.fromLevel}`;
+}
+
+function normalizeFeatLocation(location) {
+  if (typeof location === 'string') return location.trim();
+  if (location && typeof location === 'object') {
+    return normalizeFeatLocation(location.value);
+  }
+  return '';
 }
 
 function findOriginalFeat(actor, original) {

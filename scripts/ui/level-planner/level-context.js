@@ -137,6 +137,7 @@ export async function buildLevelContext(planner, classDef, options) {
 function buildRetrainingContext(planner, level, levelData) {
   const retrainedFeats = (levelData.retrainedFeats ?? []).map((entry, index) => ({
     index,
+    activityLevel: level,
     fromLevel: entry?.fromLevel ?? null,
     category: entry?.category ?? null,
     categoryLabel: formatFeatCategoryLabel(entry?.category),
@@ -144,14 +145,19 @@ function buildRetrainingContext(planner, level, levelData) {
     replacementName: entry?.replacement?.name ?? 'Choose replacement',
     originalUuid: entry?.original?.uuid ?? entry?.original?.sourceId ?? null,
     replacementUuid: entry?.replacement?.uuid ?? null,
+    downtimeLabel: '1 week',
+    sourceLabel: formatOriginalLevelLabel(entry?.fromLevel),
   }));
 
   const retrainedSkillIncreases = (levelData.retrainedSkillIncreases ?? []).map((entry, index) => ({
     index,
+    activityLevel: level,
     fromLevel: entry?.fromLevel ?? null,
     originalName: localizeSkillSlug(entry?.original?.skill),
     replacementName: entry?.replacement?.skill ? localizeSkillSlug(entry.replacement.skill) : 'Choose replacement',
     rankName: titleCase(PROFICIENCY_RANK_NAMES[entry?.replacement?.toRank ?? entry?.original?.toRank] ?? String(entry?.replacement?.toRank ?? entry?.original?.toRank ?? '')),
+    downtimeLabel: '1 week',
+    sourceLabel: formatOriginalLevelLabel(entry?.fromLevel),
   }));
 
   return {
@@ -160,6 +166,11 @@ function buildRetrainingContext(planner, level, levelData) {
     retrainedSkillIncreases,
     skillRetrainSources: buildSkillRetrainSources(planner, level),
   };
+}
+
+function formatOriginalLevelLabel(level) {
+  const numericLevel = Number(level);
+  return Number.isFinite(numericLevel) ? `Original Level ${numericLevel}` : 'Original Level Unknown';
 }
 
 function buildSkillRetrainSources(planner, level) {

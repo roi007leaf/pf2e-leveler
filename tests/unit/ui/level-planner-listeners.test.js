@@ -6,9 +6,10 @@ import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 
 jest.mock('../../../scripts/apply/apply-manager.js', () => ({
   promptApplyPlan: jest.fn(async () => true),
+  promptApplyRetraining: jest.fn(async () => true),
 }));
 
-import { promptApplyPlan } from '../../../scripts/apply/apply-manager.js';
+import { promptApplyPlan, promptApplyRetraining } from '../../../scripts/apply/apply-manager.js';
 
 async function flushAsyncListeners() {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -753,6 +754,47 @@ describe('Level planner skill increase listeners', () => {
     await flushAsyncListeners();
 
     expect(promptApplyPlan).toHaveBeenCalledWith(planner.actor, planner.plan, 2, 1);
+  });
+
+  it('wires the retraining apply button to the selected planner level', async () => {
+    document.body.innerHTML = '<button type="button" data-action="applySelectedRetraining"></button>';
+
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+        },
+      },
+    });
+    actor.getFlag = jest.fn(() => null);
+    actor.setFlag = jest.fn();
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 2;
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="applySelectedRetraining"]').click();
+    await flushAsyncListeners();
+
+    expect(promptApplyRetraining).toHaveBeenCalledWith(planner.actor, planner.plan, 2);
+  });
+
+  it('does not apply retraining from a disabled retraining button', async () => {
+    document.body.innerHTML = '<button type="button" data-action="applySelectedRetraining" disabled aria-disabled="true"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: createPlan('alchemist'),
+      selectedLevel: 2,
+      _applySelectedRetraining: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="applySelectedRetraining"]').click();
+    await flushAsyncListeners();
+
+    expect(planner._applySelectedRetraining).not.toHaveBeenCalled();
   });
 
   it('wires sequential finish to apply every planned level before ending sequential mode', async () => {

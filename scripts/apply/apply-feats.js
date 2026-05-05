@@ -275,7 +275,7 @@ async function ensureArchetypeFocusEntry(actor, spell, archetypeSlug) {
 }
 
 function getArchetypeFocusSlug(source) {
-  const location = String(source?.system?.location ?? '').toLowerCase();
+  const location = normalizeItemLocation(source?.system?.location).toLowerCase();
   const traits = (source?.system?.traits?.value ?? []).map((trait) => String(trait).trim().toLowerCase()).filter(Boolean);
   if (!location.startsWith('archetype-') && !traits.includes('archetype')) return null;
 
@@ -286,6 +286,12 @@ function getArchetypeFocusSlug(source) {
   const slug = String(source?.slug ?? source?.system?.slug ?? '').trim().toLowerCase();
   if (slug.includes('dragon')) return 'dragon-disciple';
   return null;
+}
+
+function normalizeItemLocation(location) {
+  if (typeof location === 'string') return location.trim();
+  if (location && typeof location === 'object' && typeof location.value === 'string') return location.value.trim();
+  return '';
 }
 
 function humanizeSlug(slug) {

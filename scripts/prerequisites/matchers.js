@@ -178,6 +178,17 @@ export function matchClassHp(parsed, buildState) {
   };
 }
 
+export function matchLivingCreature(parsed, buildState) {
+  const traits = buildState.ancestryTraits instanceof Set
+    ? buildState.ancestryTraits
+    : new Set(buildState.ancestryTraits ?? []);
+  const normalizedTraits = new Set([...traits].map((trait) => normalizeText(trait)));
+  return {
+    met: !normalizedTraits.has('construct') && !normalizedTraits.has('undead'),
+    text: parsed.text,
+  };
+}
+
 export function matchDeityState(parsed, buildState) {
   if (parsed.requiredDeity) {
     const currentDeitySlug = normalizeText(buildState.deity?.slug ?? buildState.deity?.name);

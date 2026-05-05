@@ -410,6 +410,11 @@ export function activateLevelPlannerListeners(planner, html) {
   el.querySelector('[data-action="applySelectedPlan"]')?.addEventListener('click', () => {
     planner._applySelectedPlan();
   });
+
+  el.querySelector('[data-action="applySelectedRetraining"]')?.addEventListener('click', (event) => {
+    if (event.currentTarget.disabled || event.currentTarget.getAttribute('aria-disabled') === 'true') return;
+    planner._applySelectedRetraining();
+  });
 }
 
 function syncSameLevelSkillIncreaseFromFeatChoice(planner, value, { grantsSkillTraining = false } = {}) {

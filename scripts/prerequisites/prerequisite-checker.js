@@ -15,6 +15,7 @@ import {
   matchAncestryFeatAccess,
   matchProficiency,
   matchClassHp,
+  matchLivingCreature,
   matchDeityState,
   matchSpellcastingState,
   matchClassIdentity,
@@ -97,6 +98,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchProficiency(parsed, buildState));
     case 'classHp':
       return wrapLeafResult(matchClassHp(parsed, buildState));
+    case 'livingCreature':
+      return wrapLeafResult(matchLivingCreature(parsed, buildState));
     case 'deityState':
       return wrapLeafResult(matchDeityState(parsed, buildState));
     case 'spellcastingState':

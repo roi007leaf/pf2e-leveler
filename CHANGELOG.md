@@ -1,11 +1,20 @@
 # Changelog
 
+## 3.4.1
+
+### Level Planner
+
+- **Retraining now applies as a separate downtime action** - Level-up application and downtime retraining now use separate buttons and separate chat cards, so retraining is not bundled into normal level-up changes
+- **Downtime retraining now stays aligned with RAW timing** - Retraining is treated as a current-level downtime activity while the planner still uses the original choice level for replacement legality and future prerequisite state
+- **Retrained feat replacement slots now normalize PF2e location data** - Actor feat locations stored as PF2e value objects are unwrapped before replacement creation, preventing retrained feats from falling back into bonus feat slots
+- **Apply Downtime now disables correctly when empty** - The header action now visibly disables and cannot fire when the selected level has no planned retraining
+
 ## 3.4.0
 
 ### Level Planner
 
-- **Retraining is now available in the planner** - Feats and normal skill increases can be retrained from later levels, with source choices grouped by collapsible level sections
-- **Retraining dialogs now use searchable choice rows** - Original and replacement choices no longer rely on long native dropdowns, and skill rank transitions show rank colors
+- **Downtime retraining is now available in the planner** - Feats and normal skill increases can be retrained as current-level downtime activities while still using the original choice level for replacement legality
+- **Retraining dialogs now use searchable choice rows** - Original and replacement choices no longer rely on long native dropdowns, source choices are grouped by feat type or skill rank, and skill rank transitions show rank colors
 - **Retrained feats now replace the original actor feat slot when applied** - Applying a feat retrain removes the original feat before creating the replacement so PF2e keeps it in the intended class, skill, ancestry, general, or archetype slot instead of moving it to bonus feats
 
 ## 3.3.10

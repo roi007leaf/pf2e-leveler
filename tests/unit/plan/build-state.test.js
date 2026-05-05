@@ -371,7 +371,12 @@ describe('computeBuildState', () => {
 
   test('applies planned feat retrains only from the retraining level onward', () => {
     const original = { uuid: 'old', name: 'Quick Bomber', slug: 'quick-bomber' };
-    const replacement = { uuid: 'new', name: 'Alchemical Familiar', slug: 'alchemical-familiar' };
+    const replacement = {
+      uuid: 'new',
+      name: 'Alchemical Familiar',
+      slug: 'alchemical-familiar',
+      choices: { familiarAbility: 'manual-dexterity' },
+    };
     setLevelFeat(plan, 2, 'classFeats', original);
     addLevelFeatRetrain(plan, 8, {
       fromLevel: 2,
@@ -385,8 +390,11 @@ describe('computeBuildState', () => {
 
     expect(beforeRetrain.feats.has('quick-bomber')).toBe(true);
     expect(beforeRetrain.feats.has('alchemical-familiar')).toBe(false);
+    expect(beforeRetrain.feats.has('manual-dexterity')).toBe(false);
     expect(afterRetrain.feats.has('quick-bomber')).toBe(false);
     expect(afterRetrain.feats.has('alchemical-familiar')).toBe(true);
+    expect(afterRetrain.feats.has('manual-dexterity')).toBe(true);
+    expect(afterRetrain.featAliasSources.get('manual-dexterity')?.has('alchemical-familiar')).toBe(true);
   });
 
   test('applies planned skill retrains only from the retraining level onward', () => {
@@ -541,6 +549,14 @@ describe('computeBuildState', () => {
     expect(state.ancestryTraits.has('person')).toBe(true);
     expect(state.ancestryTraits.has('human')).toBe(true);
     expect(state.ancestryTraits.has('beast-folk')).toBe(true);
+  });
+
+  test('includes actor system trait values for creature prerequisite checks', () => {
+    mockActor.system.traits = { value: ['undead'] };
+
+    const state = computeBuildState(mockActor, plan, 1);
+
+    expect(state.ancestryTraits.has('undead')).toBe(true);
   });
 
   test('includes focus-pool in feats when actor has focus pool', () => {

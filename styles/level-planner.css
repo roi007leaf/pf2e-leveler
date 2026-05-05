@@ -138,6 +138,21 @@
   border-color: var(--leveler-accent);
 }
 
+.pf2e-leveler .sidebar-action-btn:disabled,
+.pf2e-leveler .sidebar-action-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  color: var(--leveler-text-muted);
+  border-color: var(--leveler-border);
+  filter: grayscale(0.4);
+}
+
+.pf2e-leveler .sidebar-action-btn:disabled:hover,
+.pf2e-leveler .sidebar-action-btn[aria-disabled="true"]:hover {
+  color: var(--leveler-text-muted);
+  border-color: var(--leveler-border);
+}
+
 .pf2e-leveler .sidebar-action-btn--danger:hover {
   color: var(--leveler-error);
   border-color: var(--leveler-error);
@@ -485,12 +500,14 @@
   overflow: auto;
 }
 
-.retrain-choice-level-group {
+.retrain-choice-level-group,
+.retrain-choice-group {
   display: grid;
   gap: 6px;
 }
 
-.retrain-choice-level-heading {
+.retrain-choice-level-heading,
+.retrain-choice-heading {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -504,7 +521,8 @@
   cursor: pointer;
 }
 
-.retrain-choice-level-heading::marker {
+.retrain-choice-level-heading::marker,
+.retrain-choice-heading::marker {
   color: var(--leveler-accent, currentColor);
 }
 

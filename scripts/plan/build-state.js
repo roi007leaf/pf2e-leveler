@@ -290,6 +290,9 @@ function computeAncestryTraits(actor, plan, atLevel) {
   const traits = new Set();
 
   addAncestryTraitAliases(traits, actor?.system?.details?.ancestry?.trait ?? null);
+  for (const trait of actor?.system?.traits?.value ?? []) {
+    addAncestryTraitAliases(traits, trait);
+  }
   addAncestryItemTraits(traits, actor?.ancestry ?? null);
   addAncestryItemTraits(
     traits,
@@ -1433,9 +1436,16 @@ function isArchetypeTimelineEntry(entry, featTraits = getFeatTraitSlugs(entry?.f
 function getActorFeatLevel(feat) {
   const taken = Number(feat?.system?.level?.taken ?? feat?.system?.level?.value ?? 0);
   if (Number.isFinite(taken)) return taken;
-  const location = String(feat?.system?.location ?? '');
+  const location = getActorFeatLocation(feat);
   const match = location.match(/-(\d+)$/u);
   return match ? Number(match[1]) : 0;
+}
+
+function getActorFeatLocation(feat) {
+  const location = feat?.system?.location;
+  if (typeof location === 'string') return location.trim();
+  if (location && typeof location === 'object' && typeof location.value === 'string') return location.value.trim();
+  return '';
 }
 
 function compareTimelineEntries(a, b) {

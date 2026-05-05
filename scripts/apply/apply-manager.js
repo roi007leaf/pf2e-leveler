@@ -40,6 +40,24 @@ export async function promptApplyPlan(actor, plan, level, previousLevel = level 
   return applyPlan(actor, plan, level, previousLevel);
 }
 
+export async function promptApplyRetraining(actor, plan, level) {
+  const levelData = getLevelData(plan, level);
+  const retrainCount = (levelData?.retrainedFeats?.length ?? 0) + (levelData?.retrainedSkillIncreases?.length ?? 0);
+  if (retrainCount === 0) {
+    notify('No retraining planned for this level.', 'warn');
+    return false;
+  }
+
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    window: { title: 'Apply Downtime Retraining' },
+    content: `<p>Apply downtime retraining for level ${level}?</p>`,
+    modal: true,
+  });
+
+  if (!confirmed) return false;
+  return applyRetraining(actor, plan, level);
+}
+
 export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
   try {
     const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
@@ -53,9 +71,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
     for (const plannedLevel of levelsToApply) {
       const boosts = await applyBoosts(actor, plan, plannedLevel);
       const languages = await applyLanguages(actor, plan, plannedLevel);
-      const skillRetrains = await applySkillRetrains(actor, plan, plannedLevel);
       const skills = await applySkillIncreases(actor, plan, plannedLevel);
-      const featRetrains = await applyFeatRetrains(actor, plan, plannedLevel);
       const feats = await applyFeats(actor, plan, plannedLevel);
       const featGrants = await applyFeatGrants(actor, plan, plannedLevel);
       const classFeatureChoices = await applyClassFeatureChoices(actor, plan, plannedLevel);
@@ -63,7 +79,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skillRetrains, skills, featRetrains, feats, spells, equipment, featGrants, classFeatureChoices });
+      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skillRetrains: [], skills, featRetrains: [], feats, spells, equipment, featGrants, classFeatureChoices });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
@@ -80,12 +96,63 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
   }
 }
 
+export async function applyRetraining(actor, plan, level) {
+  try {
+    const levelData = getLevelData(plan, level);
+    const retrainCount = (levelData?.retrainedFeats?.length ?? 0) + (levelData?.retrainedSkillIncreases?.length ?? 0);
+    if (retrainCount === 0) {
+      notify('No retraining planned for this level.', 'warn');
+      return false;
+    }
+
+    info(`Applying retraining for ${actor.name} at level ${level}`);
+
+    const skillRetrains = await applySkillRetrains(actor, plan, level);
+    const featRetrains = await applyFeatRetrains(actor, plan, level);
+    await createRetrainingMessage(actor, level, { skillRetrains, featRetrains });
+
+    notify(`Applied retraining for ${actor.name}.`);
+    return true;
+  } catch (err) {
+    logError(`Failed to apply retraining: ${err.message}`);
+    notify(`Retraining failed: ${err.message}`, 'error');
+    return false;
+  }
+}
+
 function getPlannedLevelsInRange(plan, startLevel, endLevel) {
   const levels = [];
   for (let level = startLevel; level <= endLevel; level++) {
     if (getLevelData(plan, level)) levels.push(level);
   }
   return levels;
+}
+
+async function createRetrainingMessage(actor, level, applied) {
+  const sections = [];
+
+  const featRetrains = applied.featRetrains
+    ?.map((entry) => `${entry.original?.name ?? 'Old Feat'} -> ${formatChatLink(entry.replacement)}`)
+    .filter(Boolean) ?? [];
+  if (featRetrains.length) sections.push(buildChatSection('Retrained Feats', featRetrains));
+
+  const skillRetrains = applied.skillRetrains
+    ?.map((entry) => `${formatSkillSlug(entry.original?.skill)} -> ${formatSkillSlug(entry.replacement?.skill)} (${RANK_LABELS[entry.replacement?.rank] ?? entry.replacement?.rank})`)
+    .filter(Boolean) ?? [];
+  if (skillRetrains.length) sections.push(buildChatSection('Retrained Skills', skillRetrains));
+
+  const content = buildChatCard({
+    eyebrow: `Level ${level}`,
+    title: 'Downtime Retraining',
+    accent: '#9f7aea',
+    sections,
+  });
+
+  await ChatMessage.create({
+    content,
+    speaker: { alias: actor.name },
+    whisper: getWhisperTargets(actor),
+  });
 }
 
 async function createLevelUpMessage(actor, level, applied) {
