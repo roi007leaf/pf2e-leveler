@@ -318,6 +318,37 @@ describe('checkPrerequisites', () => {
     );
   });
 
+  test('meets class-or-dedication prerequisites from the base class identity', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Guardian or Sentinel Dedication' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      class: { slug: 'guardian', hp: 10 },
+      feats: new Set(),
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('applies trailing dedication suffix across comma-or feat alternatives', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Acrobat, Celebrity, Dandy, or Gladiator Dedication' }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['acrobat-dedication']),
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('meets multi-ancestry feat access prerequisites via adopted ancestry', () => {
     const feat = {
       system: {

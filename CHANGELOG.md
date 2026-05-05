@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.4.2
+
+### Character Wizard
+
+- **Leveler windows now stay above PF2e actor sheets** - Opening the creation wizard or level planner from a character sheet now demotes that sheet and raises the Leveler window after Foundry finishes rendering, preventing the sheet from covering the wizard or planner
+- **Creation apply now resists PF2e sheet re-renders** - The wizard tracks the actor sheet by selector during apply progress updates, so actor updates no longer bring the sheet back over the Leveler progress window
+- **PF2e ChoiceSet dialogs still come to the front during apply** - The focus guard keeps the wizard above the actor sheet while still letting system prompts appear above the wizard when PF2e needs user input
+- **Window focus calls no longer crash before ApplicationV2 publishes an element** - Focus handling now waits for a real application element before calling Foundry position APIs, avoiding `Cannot read properties of undefined (reading 'style')` errors from Foundry/libWrapper wrappers
+- **Creation picker windows now open above the wizard** - Feat and spell pickers launched from creation use the shared focus helper instead of relying on Foundry's default render ordering
+- **Internal fixed skill-rank ChoiceSets are now suppressed** - System helper ChoiceSets that only mirror fixed skill ranks no longer appear as duplicate manual choices in the wizard
+- **Soulforger Dedication no longer creates a synthetic spell prompt** - The wizard skips its synthetic embedded-spell choice prompt so PF2e handles the authored rule behavior without duplicate Leveler input
+
+### Level Planner
+
+- **Level planner windows now stay above PF2e actor sheets** - Opening or re-focusing the planner from a character sheet now uses the same sheet-demotion and Leveler-raise behavior as the creation wizard
+- **Base class prerequisites now validate correctly** - Feats that require the actor's class now check the tracked class slug as well as planned feats and class features
+- **Comma-separated dedication prerequisites now parse shared suffixes** - Requirements such as lists ending with a shared `Dedication` suffix now apply that suffix to each listed prerequisite before matching
+- **Advanced class feat grants now cap level options by the grant level** - Granted feat browsing can limit the level dropdown to the selected level without forcing an invalid max-level filter into picker state
+- **Free Archetype browsing now relaxes trait logic when new dedications are legal** - Once dedication-lock rules allow another dedication, the archetype picker uses OR trait matching so valid dedication choices are not hidden
+- **Conditional lore grants now plan and apply correctly** - Feats such as Gossip Lore can grant a lore skill at one rank or a higher rank based on the actor's existing skill proficiency
+- **Textual skill upgrade parsing handles broader PF2e wording** - Phrases like "if you were already trained in it", "either", "any", or "one of those skills" now resolve as conditional expert upgrades
+
+### Diagnostics
+
+- **Window focus diagnostics are now opt-in** - Setting `localStorage.setItem('pf2e-leveler.debug.windowFocus', '1')` enables structured z-index troubleshooting logs without spamming normal users
+
 ## 3.4.1
 
 ### Level Planner

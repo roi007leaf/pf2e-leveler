@@ -288,6 +288,18 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 2).skills.intimidation).toBe(2);
   });
 
+  test('scales Gossip Lore to expert when Society is legendary', () => {
+    setLevelFeat(plan, 4, 'skillFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.gossip-lore',
+      name: 'Gossip Lore',
+      slug: 'gossip-lore',
+    });
+
+    mockActor.system.skills.society.rank = 4;
+
+    expect(computeBuildState(mockActor, plan, 4).lores['gossip-lore']).toBe(2);
+  });
+
   test('applies Intelligence bonus skill training before same-level skill increases', () => {
     toggleLevelIntBonusSkill(plan, 5, 'athletics');
     setLevelSkillIncrease(plan, 5, { skill: 'athletics', toRank: 2 });

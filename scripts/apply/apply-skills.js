@@ -60,7 +60,7 @@ export async function applySkillIncreases(actor, plan, level) {
 
   for (const rule of featLoreRules) {
     const skill = String(rule?.skill ?? '').trim().toLowerCase();
-    const toRank = evaluateRuleNumericValue(rule?.value ?? 1, level, rule);
+    const toRank = evaluateRuleNumericValue(resolveConditionalLoreRuleValue(rule, actor), level, rule);
     if (!skill || !skill.endsWith('-lore') || !Number.isFinite(toRank) || toRank <= 0) continue;
     loreItemsToCreate.push({ skill, toRank, appliedEntry: { skill, toRank, featChoice: true } });
   }
@@ -103,6 +103,16 @@ export async function applySkillIncreases(actor, plan, level) {
   }
 
   return applied;
+}
+
+function resolveConditionalLoreRuleValue(rule, actor) {
+  const condition = rule?.valueIfSkillRank;
+  const skill = String(condition?.skill ?? '').trim().toLowerCase();
+  const rank = Number(condition?.rank);
+  if (!skill || !Number.isFinite(rank)) return rule?.value ?? 1;
+
+  const currentRank = Number(actor?.system?.skills?.[skill]?.rank ?? 0);
+  return currentRank >= rank ? condition.value : rule?.value ?? 1;
 }
 
 function getPlannedFeatSkillRules(plan, level) {

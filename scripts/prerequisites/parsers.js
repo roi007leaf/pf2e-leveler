@@ -881,7 +881,7 @@ function tryParseFeatAlternativeNode(text) {
   const normalized = String(text ?? '').trim();
   if (!normalized || !/[,;]/.test(normalized) || !new RegExp(`\\b${OR_WORD_PATTERN}\\b`, 'i').test(normalized)) return null;
 
-  const subjects = splitCommaOrList(normalized);
+  const subjects = normalizeFeatAlternativeSubjects(splitCommaOrList(normalized));
   if (subjects.length < 2) return null;
 
   const children = subjects.map((subject) => {
@@ -895,6 +895,16 @@ function tryParseFeatAlternativeNode(text) {
     text: normalized,
     children,
   };
+}
+
+function normalizeFeatAlternativeSubjects(subjects) {
+  const values = (subjects ?? []).map((subject) => String(subject ?? '').trim()).filter(Boolean);
+  const trailingDedication = values.some((subject) => /\bdedication$/iu.test(subject));
+  if (!trailingDedication) return values;
+
+  return values.map((subject) => (
+    /\bdedication$/iu.test(subject) ? subject : `${subject} Dedication`
+  ));
 }
 
 function looksLikeDescriptiveRequirement(text) {

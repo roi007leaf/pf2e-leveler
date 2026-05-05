@@ -610,6 +610,36 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     ]);
   });
 
+  it('extracts trained-or-expert dedication rules with either-skill wording', async () => {
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          deception: 'Deception',
+          society: 'Society',
+        },
+      },
+    };
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.dandy-dedication',
+      system: {
+        description: {
+          value: '<p>You become trained in Deception and Society; if you were already trained in either, you become an expert in it instead.</p>',
+        },
+        rules: [],
+      },
+    };
+
+    const result = await extractFeatSkillRules(feat, async () => null);
+
+    expect(result).toEqual([
+      { skill: 'deception', value: 1, valueIfAlreadyTrained: 2, predicate: null },
+      { skill: 'society', value: 1, valueIfAlreadyTrained: 2, predicate: null },
+    ]);
+  });
+
   it('extracts plain textual trained skill rules from dedication descriptions', async () => {
     global.CONFIG = {
       ...(global.CONFIG ?? {}),

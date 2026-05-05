@@ -178,10 +178,6 @@
   font-weight: 500;
 }
 
-#pf2e-leveler-wizard {
-  z-index: 99;
-}
-
 #pf2e-leveler-wizard .window-content {
   position: relative;
   display: flex;

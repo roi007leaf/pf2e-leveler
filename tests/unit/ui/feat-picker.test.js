@@ -833,6 +833,38 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((entry) => entry.name)).toEqual(['Medic Dedication']);
   });
 
+  test('free archetype default archetype and dedication chips use OR logic', () => {
+    const dedicationFeat = createFeat({
+      name: 'Medic Dedication',
+      uuid: 'medic-dedication',
+      slug: 'medic-dedication',
+    });
+    dedicationFeat.system.traits.value = ['archetype', 'dedication', 'medic'];
+
+    const followupFeat = createFeat({
+      name: 'Treat Condition',
+      uuid: 'treat-condition',
+      slug: 'treat-condition',
+    });
+    followupFeat.system.traits.value = ['archetype', 'medic'];
+
+    const picker = new FeatPicker(createActor(), 'archetype', 4, createBuildState(), jest.fn(), {
+      preset: {
+        selectedFeatTypes: ['archetype'],
+        lockedFeatTypes: ['archetype'],
+        selectedTraits: ['archetype', 'dedication'],
+        lockedTraits: ['archetype'],
+        traitLogic: 'or',
+      },
+    });
+    picker.allFeats = [dedicationFeat, followupFeat];
+
+    expect(picker._applyFilters().map((entry) => entry.name)).toEqual([
+      'Medic Dedication',
+      'Treat Condition',
+    ]);
+  });
+
   test('locked trait chips can still toggle between included and excluded states', () => {
     const picker = new FeatPicker(createActor(), 'custom', 2, createBuildState(), jest.fn(), {
       preset: {
@@ -1437,6 +1469,29 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(context.maxLevel).toBe('1');
     expect(context.minLevelLocked).toBe(true);
     expect(context.maxLevelLocked).toBe(true);
+  });
+
+  test('allowed feat picker can offer level options above authored choice level', async () => {
+    const picker = new FeatPicker(
+      createActor(),
+      'custom',
+      1,
+      createBuildState({ level: 4 }),
+      jest.fn(),
+      {
+        preset: {
+          allowedFeatUuids: ['Compendium.test.feats.Item.allowed'],
+          maxLevel: '',
+          levelOptionCap: 4,
+        },
+      },
+    );
+    picker.allFeats = [];
+
+    const context = await picker._prepareContext();
+
+    expect(context.maxLevel).toBe('');
+    expect(context.levelOptions.map((entry) => entry.value)).toContain('4');
   });
 
   test('uses a custom picker title when provided', () => {

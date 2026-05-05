@@ -5,6 +5,10 @@ import { localize } from '../utils/i18n.js';
 import { ensureLevelerTemplatesLoaded } from './template-preload.js';
 import { LevelPlanner } from './level-planner/index.js';
 import { CharacterWizard } from './character-wizard/index.js';
+import { renderApplicationInFront, scheduleBringApplicationToFront } from './shared/window-focus.js';
+
+const PLANNER_WINDOW_SELECTORS = ['#pf2e-leveler-planner', '.pf2e-leveler.level-planner'];
+const WIZARD_WINDOW_SELECTORS = ['#pf2e-leveler-wizard', '.pf2e-leveler.character-wizard'];
 
 export function registerSheetIntegration() {
   Hooks.on('renderCharacterSheetPF2e', onRenderCharacterSheet);
@@ -59,7 +63,11 @@ function onRenderCharacterSheet(sheet, html) {
         <i class="fas fa-wand-magic-sparkles"></i>
       </a>
     `);
-    createBtn.on('click', () => openWizard(actor));
+    createBtn.on('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openWizard(actor, getApplicationElementFromEvent(event));
+    });
     if (closeBtn.length) closeBtn.before(createBtn);
     else windowHeader.append(createBtn);
   }
@@ -71,33 +79,63 @@ function onRenderCharacterSheet(sheet, html) {
         <i class="fas fa-arrow-up-right-dots"></i>
       </a>
     `);
-    planBtn.on('click', () => openPlanner(actor));
+    planBtn.on('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openPlanner(actor, getApplicationElementFromEvent(event));
+    });
     if (closeBtn.length) closeBtn.before(planBtn);
     else windowHeader.append(planBtn);
   }
 }
 
-async function openPlanner(actor) {
+function getApplicationElementFromEvent(event) {
+  const element = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  return element?.closest('.application, .app, .window-app') ?? null;
+}
+
+function getActorSheetSelectors(actor) {
+  const actorId = String(actor?.id ?? '').trim();
+  return actorId ? [`#CharacterSheetPF2e-Actor-${cssIdentifierEscape(actorId)}`] : [];
+}
+
+function cssIdentifierEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(value);
+  return String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+async function openPlanner(actor, openerElement = null) {
   await ensureLevelerTemplatesLoaded();
+  const lowerSelectors = getActorSheetSelectors(actor);
   const existing = Object.values(ui.windows).find(
     (w) => w instanceof LevelPlanner && w.actor.id === actor.id,
   );
   if (existing) {
-    existing.bringToTop();
+    existing.setFocusAnchor?.(openerElement);
+    scheduleBringApplicationToFront(existing, {
+      lowerElement: openerElement,
+      lowerSelectors,
+      selectors: PLANNER_WINDOW_SELECTORS,
+    });
     return;
   }
-  new LevelPlanner(actor).render(true);
+  renderApplicationInFront(new LevelPlanner(actor).setFocusAnchor(openerElement), true, {
+    lowerElement: openerElement,
+    lowerSelectors,
+    selectors: PLANNER_WINDOW_SELECTORS,
+  });
 }
 
-async function openWizard(actor) {
+async function openWizard(actor, openerElement = null) {
   await ensureLevelerTemplatesLoaded();
+  const lowerSelectors = getActorSheetSelectors(actor);
   if (shouldRedirectCreationWizardToPlanner(actor)) {
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       window: { title: localize('CREATION.HIGHER_LEVEL_REDIRECT_TITLE') },
       content: `<p>${localize('CREATION.HIGHER_LEVEL_REDIRECT_BODY')}</p>`,
       modal: true,
     });
-    if (confirmed) await openPlanner(actor);
+    if (confirmed) await openPlanner(actor, openerElement);
     return;
   }
 
@@ -105,10 +143,19 @@ async function openWizard(actor) {
     (w) => w instanceof CharacterWizard && w.actor.id === actor.id,
   );
   if (existing) {
-    existing.bringToTop();
+    existing.setFocusAnchor?.(openerElement);
+    scheduleBringApplicationToFront(existing, {
+      lowerElement: openerElement,
+      lowerSelectors,
+      selectors: WIZARD_WINDOW_SELECTORS,
+    });
     return;
   }
-  await new CharacterWizard(actor).render(true);
+  renderApplicationInFront(new CharacterWizard(actor).setFocusAnchor(openerElement), true, {
+    lowerElement: openerElement,
+    lowerSelectors,
+    selectors: WIZARD_WINDOW_SELECTORS,
+  });
 }
 
 function onRenderSpellPreparationSheet(app, html) {

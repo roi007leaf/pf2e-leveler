@@ -43,6 +43,7 @@ import { extractFeatSpellcastingMetadata, FEAT_SPELLCASTING_METADATA_VERSION } f
 import { localize } from '../../utils/i18n.js';
 import { FeatPicker } from '../feat-picker.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
+import { scheduleBringApplicationToFront } from '../shared/window-focus.js';
 import { loadFeats } from '../../feats/feat-cache.js';
 import { getCreationData } from '../../creation/creation-store.js';
 import {
@@ -106,8 +107,19 @@ const INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS = [
   'intimidation',
   'performance',
 ];
+const PLANNER_WINDOW_SELECTORS = ['#pf2e-leveler-planner', '.pf2e-leveler.level-planner'];
 
 installRetrainChoicePickerListeners();
+
+function getActorSheetSelectors(actor) {
+  const actorId = String(actor?.id ?? '').trim();
+  return actorId ? [`#CharacterSheetPF2e-Actor-${cssIdentifierEscape(actorId)}`] : [];
+}
+
+function cssIdentifierEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(value);
+  return String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
 
 const LOCATION_TO_PLAN_CATEGORY = {
   class: 'classFeats',
@@ -145,7 +157,8 @@ function extractTextualFeatSkillRules(feat) {
   if (!description) return [];
 
   const rules = [];
-  const conditionalUpgradePattern = /become trained in ([^.;]+?); if you were already trained, you become an expert instead\.?/gi;
+  const conditionalUpgradePattern =
+    /become trained in ([^.;]+?);\s*if you were already trained(?:\s+in\s+(?:it|either|any|one|one of (?:those|these) skills))?,\s*you become an expert(?:\s+in\s+(?:it|that skill|the skill))?\s+instead\.?/gi;
   const genericTrainedPattern = /\b(?:you\s+)?become trained in ([^.;]+?)(?:;|\.|,?\s+and\b|$)/gi;
 
   for (const match of description.matchAll(conditionalUpgradePattern)) {
@@ -370,6 +383,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._compendiumCache = {};
     this._customPlanOpenLevels = new Set();
     this._isImportingPlan = false;
+    this._shouldBringToFrontOnRender = true;
+    this._focusAnchorElement = null;
     this.plan = this._loadOrCreatePlan(actor);
     const actorLevel = actor.system?.details?.level?.value ?? 1;
 
@@ -840,6 +855,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
+  setFocusAnchor(element) {
+    this._focusAnchorElement = element instanceof HTMLElement ? element : null;
+    return this;
+  }
+
   _seedPlanClassFeatureChoicesFromActor(actor, plan) {
     const actorItems = actor?.items?.contents
       ?? (Array.isArray(actor?.items) ? actor.items : []);
@@ -1025,8 +1045,19 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _onRender(_context, _options) {
     const html = this.element;
+    this._scheduleInitialBringToFront();
     this._restorePlannerScroll(html);
     this._activateListeners(html);
+  }
+
+  _scheduleInitialBringToFront() {
+    if (!this._shouldBringToFrontOnRender) return;
+    this._shouldBringToFrontOnRender = false;
+    scheduleBringApplicationToFront(this, {
+      lowerElement: this._focusAnchorElement,
+      lowerSelectors: getActorSheetSelectors(this.actor),
+      selectors: PLANNER_WINDOW_SELECTORS,
+    });
   }
 
   _getVariantOptions() {
@@ -2053,6 +2084,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         preset: {
           allowedFeatUuids: pickerConfig.allowedUuids,
           selectedRarities: ['common', 'uncommon', 'rare', 'unique'],
+          maxLevel: '',
+          levelOptionCap: this.selectedLevel,
         },
         title: pickerConfig.title,
       },
@@ -2204,7 +2237,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           selectedTraits: canChooseDedication ? ['archetype', 'dedication'] : ['archetype'],
           excludedTraits: canChooseDedication ? undefined : ['dedication'],
           lockedTraits: canChooseDedication ? ['archetype'] : ['archetype', 'dedication'],
-          traitLogic: 'and',
+          traitLogic: canChooseDedication ? 'or' : 'and',
           ignoreDedicationLock,
           maxLevel: level,
         };

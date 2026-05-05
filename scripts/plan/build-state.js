@@ -666,6 +666,7 @@ function applyPlannedSkillRankRules(skills, plan, atLevel) {
 
 function computeLoreSkills(actor, plan, atLevel) {
   const lores = {};
+  const skills = computeSkills(actor, plan, atLevel, ClassRegistry.get(plan.classSlug));
 
   for (const item of getOwnedItems(actor)) {
     if (item?.type !== 'lore') continue;
@@ -701,7 +702,7 @@ function computeLoreSkills(actor, plan, atLevel) {
           .trim()
           .toLowerCase();
         if (!skill || SKILLS.includes(skill)) continue;
-        const rank = Number(rule?.value ?? 0);
+        const rank = Number(resolveConditionalLoreRuleValue(rule, skills));
         if (!Number.isFinite(rank) || rank <= 0) continue;
         lores[skill] = Math.max(lores[skill] ?? 0, rank);
       }
@@ -719,6 +720,15 @@ function computeLoreSkills(actor, plan, atLevel) {
   }
 
   return lores;
+}
+
+function resolveConditionalLoreRuleValue(rule, skills) {
+  const condition = rule?.valueIfSkillRank;
+  const skill = String(condition?.skill ?? '').trim().toLowerCase();
+  const rank = Number(condition?.rank);
+  if (!skill || !Number.isFinite(rank)) return rule?.value ?? 0;
+
+  return Number(skills?.[skill] ?? 0) >= rank ? condition.value : rule?.value ?? 0;
 }
 
 function computeLanguages(actor) {

@@ -22,6 +22,15 @@ export function getDerivedFeatSkillRules(feat) {
 
 export function getDerivedFeatLoreRules(feat) {
   const slug = normalizeFeatSlug(feat);
+  if (slug === 'gossip-lore') {
+    return [{
+      skill: 'gossip-lore',
+      value: 1,
+      valueIfSkillRank: { skill: 'society', rank: 4, value: 2 },
+      source: 'gossip-lore',
+    }];
+  }
+
   if (slug !== 'operatic-adventurer') return [];
 
   return [{

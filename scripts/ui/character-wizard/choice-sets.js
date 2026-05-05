@@ -690,6 +690,7 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     const flag = getChoiceSetFlag(rule, index);
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
+    if (isInternalFixedSkillRankChoiceSet(normalizedRule, allRules)) continue;
     const rollOptions = buildChoiceSetRollOptions(wizard, allRules, currentChoices);
     if (!matchesChoiceSetPredicate(normalizedRule.predicate, rollOptions)) continue;
     const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem, rollOptions);
@@ -711,6 +712,24 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     }
   }
   return sets;
+}
+
+function isInternalFixedSkillRankChoiceSet(rule, allRules) {
+  if (!/rank$/iu.test(String(rule?.flag ?? ''))) return false;
+  if (!Array.isArray(rule?.choices) || rule.choices.length < 2) return false;
+
+  const labels = new Set(
+    rule.choices
+      .map((choice) => String(extractChoiceLabel(choice)).trim().toLowerCase())
+      .filter(Boolean),
+  );
+  if (labels.size !== 1) return false;
+  if (!rule.choices.every((choice) => Number.isFinite(Number(extractChoiceValue(choice))))) return false;
+
+  const flag = String(rule.flag);
+  return (allRules ?? []).some((entry) =>
+    entry?.key === 'ActiveEffectLike' &&
+    String(entry?.value ?? '').includes(`rulesSelections.${flag}`));
 }
 
 async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourceItem) {
@@ -773,6 +792,7 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
 
 function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
   if (hasAuthoredSpellChoiceSet(rules)) return [];
+  if (shouldSkipSyntheticEmbeddedSpellChoice(sourceItem)) return [];
 
   const text = normalizeDescriptionText(sourceItem?.system?.description?.value ?? '');
   if (!/\b(?:choose|select|pick)\b/.test(text)) return [];
@@ -794,6 +814,15 @@ function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
       sourceName: sourceItem?.name ?? null,
     },
   }));
+}
+
+function shouldSkipSyntheticEmbeddedSpellChoice(sourceItem) {
+  const slug = String(sourceItem?.slug ?? sourceItem?.system?.slug ?? sourceItem?.name ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug === 'soulforger-dedication';
 }
 
 function hasAuthoredSpellChoiceSet(rules) {

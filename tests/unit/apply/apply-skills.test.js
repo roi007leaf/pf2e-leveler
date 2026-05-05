@@ -171,4 +171,69 @@ describe('applySkillIncreases', () => {
       { skill: 'performance', toRank: 4, featChoice: true },
     ]);
   });
+
+  test('creates Gossip Lore from the planned Gossip Lore feat', async () => {
+    mockActor = {
+      system: { skills: { society: { rank: 1 } } },
+      items: [],
+      update: jest.fn(() => Promise.resolve()),
+      createEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+      updateEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+    };
+
+    const plan = {
+      levels: {
+        4: {
+          skillFeats: [{
+            slug: 'gossip-lore',
+            name: 'Gossip Lore',
+          }],
+        },
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 4);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      name: 'Gossip Lore',
+      type: 'lore',
+      system: {
+        proficient: { value: 1 },
+      },
+    }]);
+    expect(result).toEqual([
+      { skill: 'gossip-lore', toRank: 1, featChoice: true },
+    ]);
+  });
+
+  test('creates expert Gossip Lore when Society is legendary', async () => {
+    mockActor = {
+      system: { skills: { society: { rank: 4 } } },
+      items: [],
+      update: jest.fn(() => Promise.resolve()),
+      createEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+      updateEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+    };
+
+    const plan = {
+      levels: {
+        4: {
+          skillFeats: [{
+            slug: 'gossip-lore',
+            name: 'Gossip Lore',
+          }],
+        },
+      },
+    };
+
+    await applySkillIncreases(mockActor, plan, 4);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      name: 'Gossip Lore',
+      type: 'lore',
+      system: {
+        proficient: { value: 2 },
+      },
+    }]);
+  });
 });

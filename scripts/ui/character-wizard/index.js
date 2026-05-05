@@ -148,6 +148,7 @@ import {
   filterDisallowedForCurrentUser,
   sortByGuidancePriority,
 } from '../../access/content-guidance.js';
+import { renderApplicationInFront, scheduleBringApplicationToFront } from '../shared/window-focus.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
@@ -264,6 +265,17 @@ const HANDLER_STEP_IDS = new Set([
   'thesis',
   'apparitions',
 ]);
+const WIZARD_WINDOW_SELECTORS = ['#pf2e-leveler-wizard', '.pf2e-leveler.character-wizard'];
+
+function getActorSheetSelectors(actor) {
+  const actorId = String(actor?.id ?? '').trim();
+  return actorId ? [`#CharacterSheetPF2e-Actor-${cssIdentifierEscape(actorId)}`] : [];
+}
+
+function cssIdentifierEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(value);
+  return String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
 
 export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(actor) {
@@ -300,6 +312,17 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._cachedRequiredClassBoostSelections = 0;
     this._cachedBoostStepComplete = null;
     this._cachedFeatGrantRequirements = [];
+    this._shouldBringToFrontOnRender = true;
+    this._focusAnchorElement = null;
+  }
+
+  setFocusAnchor(element) {
+    this._focusAnchorElement = element instanceof HTMLElement ? element : null;
+    return this;
+  }
+
+  _renderPickerInFront(picker) {
+    renderApplicationInFront(picker, true);
   }
 
   _sanitizeDisabledDualClassState() {
@@ -648,12 +671,27 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _onRender() {
     const el = this.element;
+    this._scheduleInitialBringToFront();
     this._restoreWizardScroll(el);
     this._activateListeners(el);
     this._applyBrowserFilters(el);
     this._ensureBootstrapped();
     this._syncSpellLayout(el);
     this._syncPublicationTooltips(el);
+  }
+
+  _scheduleInitialBringToFront() {
+    if (!this._shouldBringToFrontOnRender) return;
+    this._shouldBringToFrontOnRender = false;
+    this._scheduleFocusAboveActorSheet();
+  }
+
+  _scheduleFocusAboveActorSheet() {
+    scheduleBringApplicationToFront(this, {
+      lowerElement: this._focusAnchorElement,
+      lowerSelectors: getActorSheetSelectors(this.actor),
+      selectors: WIZARD_WINDOW_SELECTORS,
+    });
   }
 
   _activateListeners(el) {
@@ -1273,7 +1311,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       callbacks[slot],
       { preset: presets[slot] },
     );
-    picker.render(true);
+    this._renderPickerInFront(picker);
   }
 
   async _openFeatChoicePicker(slot, flag) {
@@ -1321,7 +1359,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         title: `${choiceContainer.featName ?? choiceContainer.name ?? 'Feat Choice'} | ${choiceSet.prompt}`,
       },
     );
-    picker.render(true);
+    this._renderPickerInFront(picker);
   }
 
   async _buildCreationFeatBuildState(target = 'class') {
@@ -1578,7 +1616,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         if (changed) this._saveAndRender();
       }, { multiSelect: true });
-      picker.render(true);
+      this._renderPickerInFront(picker);
     });
   }
 
@@ -1646,7 +1684,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           selectedSpells: choiceSet.selectedOption ? [choiceSet.selectedOption] : [],
         },
       );
-      picker.render(true);
+      this._renderPickerInFront(picker);
     });
   }
 
@@ -1673,7 +1711,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         setPermanentItem(this.data, slotIndex, item);
         this._saveAndRender();
       });
-      picker.render(true);
+      this._renderPickerInFront(picker);
     });
   }
 
@@ -1771,7 +1809,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           maxSelect: remaining,
         },
       );
-      picker.render(true);
+      this._renderPickerInFront(picker);
     });
   }
 
@@ -1914,11 +1952,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       this._applyPromptRowsCache = null;
       this._startApplyPromptWatcher();
       this.render(true);
+      this._scheduleFocusAboveActorSheet();
 
       await applyCreation(this.actor, this.data, ({ progress, message }) => {
         this.applyProgress = progress;
         this.applyStatus = message;
         this.render(true);
+        this._scheduleFocusAboveActorSheet();
       });
       await saveCreationData(this.actor, this.data);
       ui.notifications.info(localize('CREATION.CREATION_COMPLETE'));
@@ -1927,7 +1967,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const actorLevel = this.actor.system?.details?.level?.value ?? 1;
       if (actorLevel > 1) {
         const { LevelPlanner } = await import('../level-planner/index.js');
-        new LevelPlanner(this.actor, { sequentialMode: true }).render(true);
+        new LevelPlanner(this.actor, { sequentialMode: true })
+          .setFocusAnchor(this._focusAnchorElement)
+          .render(true);
       }
     } finally {
       this._stopApplyPromptWatcher();
@@ -1942,6 +1984,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._activeSystemPrompt = null;
     this._applyPromptWatcher = setInterval(() => {
       const nextPrompt = this._detectActiveSystemPrompt();
+      this._scheduleFocusAboveActorSheet();
       if ((nextPrompt?.title ?? null) === (this._activeSystemPrompt?.title ?? null)) return;
       this._activeSystemPrompt = nextPrompt;
       nextPrompt?.app?.bringToTop?.();
@@ -3186,7 +3229,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         }),
       },
     );
-    picker.render(true);
+    this._renderPickerInFront(picker);
   }
 
   async _openFeatGrantSpellPicker(requirement) {
@@ -3215,7 +3258,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         },
       },
     );
-    picker.render(true);
+    this._renderPickerInFront(picker);
   }
 
   _getStoredFeatGrantSelections(requirementId) {

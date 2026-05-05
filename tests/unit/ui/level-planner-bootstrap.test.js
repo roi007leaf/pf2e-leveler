@@ -919,7 +919,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.lockedTraits).toEqual(['archetype']);
     expect(preset.excludedTraits).toBeUndefined();
-    expect(preset.traitLogic).toBe('and');
+    expect(preset.traitLogic).toBe('or');
   });
 
   it('seeds applied dedication feats into the free-archetype slot even when the actor location says class', () => {
@@ -3535,7 +3535,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.traitLogic).toBe('and');
+    expect(preset.traitLogic).toBe('or');
   });
 
   it('can ignore the free archetype dedication lock via setting', async () => {
@@ -3579,7 +3579,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.traitLogic).toBe('and');
+    expect(preset.traitLogic).toBe('or');
     expect(preset.ignoreDedicationLock).toBe(true);
   });
 
@@ -3606,7 +3606,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.traitLogic).toBe('and');
+    expect(preset.traitLogic).toBe('or');
     expect(preset.ignoreDedicationLock).toBe(false);
   });
 
@@ -3707,7 +3707,7 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(preset.selectedTraits).toEqual(['archetype', 'dedication']);
     expect(preset.excludedTraits).toBeUndefined();
     expect(preset.lockedTraits).toEqual(['archetype']);
-    expect(preset.traitLogic).toBe('and');
+    expect(preset.traitLogic).toBe('or');
   });
 
   it('shows fallback skill choices for champion dedication when a granted skill already overlaps', async () => {

@@ -88,6 +88,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._requiredFeatLimitation = false;
     this._isLoadingFeats = false;
     this._loadFeatsPromise = null;
+    this._levelOptionCap = null;
     this._applyPreset(this.preset);
   }
 
@@ -1147,9 +1148,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getLevelOptions() {
     const maxLevel =
-      Number.isFinite(Number(this.targetLevel)) && Number(this.targetLevel) > 0
-        ? Number(this.targetLevel)
-        : 20;
+      Number.isFinite(Number(this._levelOptionCap)) && Number(this._levelOptionCap) > 0
+        ? Number(this._levelOptionCap)
+        : Number.isFinite(Number(this.targetLevel)) && Number(this.targetLevel) > 0
+          ? Number(this.targetLevel)
+          : 20;
     return Array.from({ length: maxLevel }, (_unused, index) => {
       const level = index + 1;
       return { value: String(level), label: String(level) };
@@ -1907,6 +1910,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       this._requiredFeatLimitation = preset.requiredFeatLimitation;
     if (preset.minLevel != null) this.minLevel = String(preset.minLevel);
     if (preset.maxLevel != null) this.maxLevel = String(preset.maxLevel);
+    if (preset.levelOptionCap != null) this._levelOptionCap = Number(preset.levelOptionCap);
     if (preset.lockMinLevel === true) this._minLevelLocked = true;
     if (preset.lockMaxLevel === true) this._maxLevelLocked = true;
     if (typeof preset.ignoreDedicationLock === 'boolean')

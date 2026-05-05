@@ -206,6 +206,34 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(hydrated[0].options.map((option) => option.rank)).toEqual([1, 2]);
   });
 
+  it('hides internal fixed-skill rank choice sets from dedication prompts', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.feats-srd.Item.dandy-dedication',
+      name: 'Dandy Dedication',
+      slug: 'dandy-dedication',
+    });
+
+    const sets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'deceptionRank',
+        choices: [
+          { label: 'PF2E.Skill.Deception', value: 2, predicate: [{ gte: ['skill:deception:rank', 1] }] },
+          { label: 'PF2E.Skill.Deception', value: 1, predicate: [{ lte: ['skill:deception:rank', 0] }] },
+        ],
+      },
+      {
+        key: 'ActiveEffectLike',
+        mode: 'upgrade',
+        path: 'system.skills.deception.rank',
+        value: '{item|flags.pf2e.rulesSelections.deceptionRank}',
+      },
+    ], {}, feat);
+
+    expect(sets).toEqual([]);
+  });
+
   it('resolves filter-backed choice sets into selectable options', async () => {
     const wizard = new CharacterWizard(createMockActor());
 
@@ -1965,6 +1993,20 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       'Compendium.pf2e.spells-srd.Item.electric-arc',
       'Compendium.pf2e.spells-srd.Item.heal',
     ]);
+  });
+
+  it('does not synthesize Soulforger Dedication essence spell choices', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.feats-srd.Item.soulforger-dedication',
+      name: 'Soulforger Dedication',
+      slug: 'soulforger-dedication',
+    });
+    feat.system.description.value = '<p>Choose one essence power for the armament: @UUID[Compendium.pf2e.spells-srd.Item.heal] or @UUID[Compendium.pf2e.spells-srd.Item.fireball].</p>';
+
+    const sets = await wizard._parseChoiceSets([], {}, feat);
+
+    expect(sets).toEqual([]);
   });
 
   it('synthesizes spell choices from SF2e embedded spell links', async () => {
