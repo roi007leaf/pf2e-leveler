@@ -237,6 +237,10 @@ export function parsePrerequisiteNode(text) {
   const languageNode = tryParseLanguageNode(normalized);
   if (languageNode) return languageNode;
 
+  const featAlternativesWithTrailingRequirementNode =
+    tryParseFeatAlternativesWithTrailingRequirementNode(normalized);
+  if (featAlternativesWithTrailingRequirementNode) return featAlternativesWithTrailingRequirementNode;
+
   const featAlternativesNode = tryParseFeatAlternativeNode(normalized);
   if (featAlternativesNode) return featAlternativesNode;
 
@@ -895,6 +899,50 @@ function tryParseFeatAlternativeNode(text) {
     text: normalized,
     children,
   };
+}
+
+function tryParseFeatAlternativesWithTrailingRequirementNode(text) {
+  const normalized = String(text ?? '').trim();
+  if (!normalized || !normalized.includes(',')) return null;
+
+  const clauses = splitClauses(normalized, ',');
+  if (clauses.length < 2) return null;
+
+  const trailingNode = parsePrerequisiteNode(clauses[clauses.length - 1]);
+  if (!isNonFeatLeafRequirementNode(trailingNode)) return null;
+
+  const leadingText = clauses.slice(0, -1).join(', ');
+  const alternativeNode =
+    tryParseFeatAlternativeNode(leadingText) ?? tryParseSimpleFeatOrAlternativeNode(leadingText);
+  if (!alternativeNode) return null;
+
+  return {
+    kind: 'all',
+    text: normalized,
+    children: [alternativeNode, trailingNode],
+  };
+}
+
+function tryParseSimpleFeatOrAlternativeNode(text) {
+  const subjects = splitOnOr(text);
+  if (subjects.length < 2) return null;
+
+  const normalizedSubjects = normalizeFeatAlternativeSubjects(subjects);
+  const children = normalizedSubjects.map((subject) => {
+    const parsed = parsePrerequisite(subject);
+    return parsed?.type === 'feat' ? { kind: 'leaf', ...parsed } : null;
+  });
+  if (children.some((child) => !child)) return null;
+
+  return {
+    kind: 'any',
+    text: String(text ?? '').trim(),
+    children,
+  };
+}
+
+function isNonFeatLeafRequirementNode(node) {
+  return node?.kind === 'leaf' && node.type !== 'feat' && node.type !== 'unknown';
 }
 
 function normalizeFeatAlternativeSubjects(subjects) {

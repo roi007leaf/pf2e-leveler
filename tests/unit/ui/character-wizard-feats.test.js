@@ -1550,6 +1550,62 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(buildState.ancestryTraits.has('beast-folk')).toBe(true);
   });
 
+  it('includes heritage items granted by selected feats in the creation feat build state', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-human', slug: 'human', name: 'Human' };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-heritage-grant',
+      name: 'Heritage Grant',
+      slug: 'heritage-grant',
+      grantedItems: [
+        {
+          type: 'heritage',
+          uuid: 'Compendium.pf2e.heritages.Item.aiuvarin',
+          slug: 'aiuvarin',
+          name: 'Aiuvarin',
+          traits: ['aiuvarin'],
+        },
+      ],
+    };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.ancestryTraits.has('human')).toBe(true);
+    expect(buildState.ancestryTraits.has('aiuvarin')).toBe(true);
+    expect(buildState.ancestryTraits.has('elf')).toBe(true);
+  });
+
+  it('keeps granted item metadata when collecting feat grants', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._getCachedDocument = jest.fn(async () => ({
+      system: {
+        rules: [{ key: 'GrantItem', uuid: 'heritage-aiuvarin' }],
+      },
+    }));
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      type: 'heritage',
+      name: 'Aiuvarin',
+      slug: 'aiuvarin',
+      img: 'heritage.png',
+      system: {
+        traits: { value: ['aiuvarin'] },
+        rules: [],
+      },
+    }));
+
+    const grantedItems = await wizard._collectGrantedItems('feat-heritage-grant');
+
+    expect(grantedItems).toEqual([
+      expect.objectContaining({
+        type: 'heritage',
+        slug: 'aiuvarin',
+        traits: ['aiuvarin'],
+      }),
+    ]);
+  });
+
   it('includes selected level-1 ability modifiers in creation feat build state', async () => {
     game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());
@@ -2665,5 +2721,46 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     expect(buildState.classFeatures).toBeInstanceOf(Set);
     expect(buildState.classFeatures.has('precise-strike')).toBe(true);
+  });
+
+  it('includes passive ancestry-granted feats in creation prerequisite build state', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = {
+      uuid: 'Compendium.pf2e.ancestries.Item.vishkanya',
+      name: 'Vishkanya',
+      slug: 'vishkanya',
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getBackgroundTrainedSkills = jest.fn(async () => []);
+    wizard._buildCreationAbilityModifiers = jest.fn(async () => ({}));
+    wizard._collectHeritageGrantedTraits = jest.fn(async () => []);
+    wizard._collectSenses = jest.fn(async () => []);
+    wizard._getCachedDocument = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.ancestries.Item.vishkanya') {
+        return {
+          uuid,
+          name: 'Vishkanya',
+          type: 'ancestry',
+          system: {
+            traits: { value: ['vishkanya'] },
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.envenom' }],
+          },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.envenom') {
+        return {
+          uuid,
+          name: 'Envenom',
+          type: 'feat',
+          slug: 'envenom',
+          system: { slug: 'envenom', rules: [] },
+        };
+      }
+      return null;
+    });
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.feats.has('envenom')).toBe(true);
   });
 });

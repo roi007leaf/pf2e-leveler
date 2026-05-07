@@ -1370,12 +1370,21 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
     const mixedAncestryTraits = await getMixedAncestryFeatTraits(this);
     const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
+    const featGrantedHeritageTraits = collectGrantedHeritageTraitsFromFeats([
+      this.data.ancestryFeat,
+      this.data.ancestryParagonFeat,
+      this.data.classFeat,
+      this.data.dualClassFeat,
+      this.data.skillFeat,
+      ...(this.data.grantedFeatSections ?? []),
+    ]);
     const ancestryTraits = [
       ...new Set([
         ...collectAncestryFeatTraits(this.data.ancestry, this.data.heritage),
         ...adoptedAncestryTraits,
         ...mixedAncestryTraits,
         ...heritageGrantedTraits,
+        ...featGrantedHeritageTraits,
       ]),
     ];
 
@@ -1404,6 +1413,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       subclassType: classSlug ? CREATION_CLASS_SUBCLASS_TYPES[classSlug] ?? null : null,
     };
     const classes = classState.slug ? [classState] : [];
+    const passiveGrantedFeats = await this._collectCreationGrantedFeatEntries([
+      this.data.ancestry,
+      this.data.heritage,
+      this.data.background,
+      this.data.class,
+      this.data.dualClass,
+      subclassEntry,
+      target === 'dualClass' ? this.data.subclass : this.data.dualSubclass,
+    ]);
     const featState = this._buildCreationSelectedFeatState([
       subclassEntry,
       target === 'dualClass' ? this.data.subclass : this.data.dualSubclass,
@@ -1413,6 +1431,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       this.data.dualClassFeat,
       this.data.skillFeat,
       ...(this.data.grantedFeatSections ?? []),
+      ...passiveGrantedFeats,
     ], classState);
 
     const classDef = classSlug ? ClassRegistry.get(classSlug) : null;
@@ -1464,6 +1483,59 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     return { feats, featAliasSources };
+  }
+
+  async _collectCreationGrantedFeatEntries(entries) {
+    const grantedFeats = [];
+    const scanned = new Set();
+    const added = new Set();
+
+    const scan = async (entry) => {
+      if (!entry?.uuid || scanned.has(entry.uuid)) return;
+      scanned.add(entry.uuid);
+
+      let item = null;
+      try {
+        item = await this._getCachedDocument(entry.uuid);
+      } catch {
+        item = null;
+      }
+      if (!item) return;
+      const storedChoices = {
+        ...(entry?.choices ?? {}),
+        ...getGrantedFeatChoiceValues(this.data, entry.uuid),
+      };
+
+      for (const rule of item.system?.rules ?? []) {
+        if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+        if (!evaluatePredicate(rule.predicate, this.actor?.system?.details?.level?.value ?? 1)) continue;
+
+        const grantedUuid = resolveCreationGrantRuleUuid(rule.uuid, storedChoices);
+        if (!grantedUuid) continue;
+        let granted = null;
+        try {
+          granted = await this._getCachedDocument(grantedUuid);
+        } catch {
+          granted = null;
+        }
+        if (!granted) continue;
+
+        const slug = String(granted.slug ?? granted.system?.slug ?? slugify(granted.name ?? '')).trim().toLowerCase();
+        if (slug && !added.has(slug) && String(granted.type ?? '').toLowerCase() === 'feat') {
+          added.add(slug);
+          grantedFeats.push({
+            uuid: granted.uuid ?? grantedUuid,
+            name: granted.name,
+            slug,
+          });
+        }
+
+        await scan({ uuid: granted.uuid ?? grantedUuid, choices: storedChoices });
+      }
+    };
+
+    for (const entry of entries ?? []) await scan(entry);
+    return grantedFeats;
   }
 
   _getCreationSubclassFeatAlias(slug, classState) {
@@ -2791,6 +2863,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       const text = rawText.toLowerCase();
       const clauses = text.match(/\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+([^.!?]+)/gu) ?? [];
       for (const clause of clauses) {
+        if (clauseDescribesSelectedSkillChoice(clause)) continue;
         for (const skill of getActiveSkillSlugs()) {
           const localized = this._localizeSkillSlug(skill).toLowerCase();
           if (clause.includes(localized) || clause.includes(skill.toLowerCase())) {
@@ -3431,7 +3504,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const granted = await fromUuid(rule.uuid).catch(() => null);
         if (!granted || seen.has(granted.uuid)) continue;
         seen.add(granted.uuid);
-        items.push({ uuid: granted.uuid, name: granted.name, img: granted.img });
+        items.push(buildGrantedItemSummary(granted));
         await scan(granted);
       }
     };
@@ -3632,6 +3705,24 @@ function collectAncestryFeatTraits(ancestrySlug, heritageSlug) {
   return [...traits];
 }
 
+function collectGrantedHeritageTraitsFromFeats(feats) {
+  const traits = new Set();
+  for (const feat of feats) {
+    for (const item of feat?.grantedItems ?? []) {
+      if (!isHeritageGrantItem(item)) continue;
+      addAncestryFeatTraitTokens(traits, item);
+    }
+  }
+  return [...traits];
+}
+
+function isHeritageGrantItem(item) {
+  if (!item) return false;
+  if (String(item?.type ?? item?.itemType ?? '').trim().toLowerCase() === 'heritage') return true;
+  const uuid = String(item?.uuid ?? '').trim().toLowerCase();
+  return uuid.includes('.heritages.') || uuid.includes('.heritage.');
+}
+
 function addAncestryFeatTraitTokens(target, value) {
   if (!value) return;
   if (typeof value === 'string') {
@@ -3653,6 +3744,41 @@ function addAncestryFeatTraitAliases(target, value) {
   if (!normalized) return;
   const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
   for (const alias of aliases) target.add(alias);
+}
+
+function buildGrantedItemSummary(item) {
+  return {
+    uuid: item.uuid,
+    name: item.name,
+    img: item.img ?? null,
+    type: item.type ?? null,
+    slug: item.slug ?? item.system?.slug ?? null,
+    traits: getGrantedItemTraits(item),
+  };
+}
+
+function getGrantedItemTraits(item) {
+  const traits = Array.isArray(item?.traits) ? item.traits : item?.system?.traits?.value;
+  if (!Array.isArray(traits)) return [];
+  return traits.map((trait) => String(trait).trim()).filter(Boolean);
+}
+
+function resolveCreationGrantRuleUuid(uuid, choices) {
+  const raw = String(uuid ?? '').trim();
+  if (!raw) return null;
+  if (!raw.includes('{item|flags.')) return raw;
+
+  const resolved = raw.replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g, (_match, flag) => {
+    const value = choices?.[flag];
+    return typeof value === 'string' ? value : '';
+  });
+
+  return resolved.includes('{item|') ? null : resolved;
+}
+
+function clauseDescribesSelectedSkillChoice(clause) {
+  const normalized = String(clause ?? '').toLowerCase();
+  return /\b(?:your\s+choice\s+of|choice\s+of|chosen\s+skill|skill\s+you\s+chose)\b/u.test(normalized);
 }
 
 async function getAdoptedAncestryFeatTraits(wizard) {

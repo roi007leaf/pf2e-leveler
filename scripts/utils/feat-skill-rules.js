@@ -31,6 +31,14 @@ export function getDerivedFeatLoreRules(feat) {
     }];
   }
 
+  if (slug === 'aldori-duelist-dedication') {
+    return [{
+      skill: 'dueling-lore',
+      value: 1,
+      source: 'aldori-duelist-dedication',
+    }];
+  }
+
   if (slug !== 'operatic-adventurer') return [];
 
   return [{

@@ -1150,12 +1150,7 @@ async function collectGrantPreviewEntries({
     const dedupeKey = `${item.uuid ?? item.name}->${granted.uuid}`;
     if (!seenGranted.has(dedupeKey)) {
       seenGranted.add(dedupeKey);
-      grantedItems.push({
-        uuid: granted.uuid,
-        name: granted.name,
-        img: granted.img ?? null,
-        sourceName: item.name,
-      });
+      grantedItems.push(buildGrantedItemPreviewEntry(granted, item.name));
     }
 
     await collectGrantPreviewEntries({
@@ -1170,6 +1165,24 @@ async function collectGrantPreviewEntries({
       preselectedChoiceFlags: new Set(Object.keys(preselectedChoices)),
     });
   }
+}
+
+function buildGrantedItemPreviewEntry(item, sourceName) {
+  return {
+    uuid: item.uuid,
+    name: item.name,
+    img: item.img ?? null,
+    type: item.type ?? null,
+    slug: item.slug ?? item.system?.slug ?? null,
+    traits: getItemTraitValues(item),
+    sourceName,
+  };
+}
+
+function getItemTraitValues(item) {
+  const traits = Array.isArray(item?.traits) ? item.traits : item?.system?.traits?.value;
+  if (!Array.isArray(traits)) return [];
+  return traits.map((trait) => String(trait).trim()).filter(Boolean);
 }
 
 function isPlannerManagedSyntheticGrantChoice(choiceSet) {
@@ -1510,6 +1523,7 @@ function extractExplicitTrainedSkillsFromDescription(html) {
 
   const skills = new Set();
   for (const clause of [...matches, ...orderSkillMatches]) {
+    if (clauseDescribesSelectedSkillChoice(clause)) continue;
     for (const skill of SKILLS) {
       const label = localizeSkillSlug(skill).toLowerCase();
       if (clause.includes(label)) skills.add(skill);
@@ -1517,6 +1531,11 @@ function extractExplicitTrainedSkillsFromDescription(html) {
   }
 
   return [...skills];
+}
+
+function clauseDescribesSelectedSkillChoice(clause) {
+  const normalized = String(clause ?? '').toLowerCase();
+  return /\b(?:your\s+choice\s+of|choice\s+of|chosen\s+skill|skill\s+you\s+chose)\b/u.test(normalized);
 }
 
 function matchesGrantPredicate(rule, planner) {
@@ -1666,7 +1685,13 @@ function syncPlannerChoiceSetSkillRules(feat, choiceSets) {
     const sourceKey = `choice:${String(choiceSet?.flag ?? '').toLowerCase()}`;
     const selectedSkill = normalizePlannerSkillChoice(feat?.choices?.[choiceSet?.flag]);
     if (selectedSkill) {
-      choiceRules.push({ skill: selectedSkill, value: 1, source: sourceKey });
+      const rule = { skill: selectedSkill, value: 1, source: sourceKey };
+      const rawValueIfAlreadyTrained = choiceSet?.valueIfAlreadyTrained;
+      const valueIfAlreadyTrained = rawValueIfAlreadyTrained == null || rawValueIfAlreadyTrained === ''
+        ? null
+        : Number(rawValueIfAlreadyTrained);
+      if (Number.isFinite(valueIfAlreadyTrained)) rule.valueIfAlreadyTrained = valueIfAlreadyTrained;
+      choiceRules.push(rule);
       continue;
     }
     const selectedLore = normalizePlannerLoreChoice(feat?.choices?.[choiceSet?.flag]);

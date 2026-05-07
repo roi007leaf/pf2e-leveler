@@ -533,6 +533,48 @@ describe('computeBuildState', () => {
     expect(state.heritageAliases.has('charhide-goblin')).toBe(true);
   });
 
+  test('includes actor-owned heritage items granted by feats in ancestry traits', () => {
+    mockActor.items = [
+      {
+        type: 'heritage',
+        slug: 'aiuvarin',
+        name: 'Aiuvarin',
+        system: {
+          traits: { value: ['aiuvarin'] },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 1);
+
+    expect(state.ancestryTraits.has('aiuvarin')).toBe(true);
+    expect(state.ancestryTraits.has('elf')).toBe(true);
+    expect(state.heritageAliases.has('aiuvarin')).toBe(true);
+  });
+
+  test('includes planned GrantItem heritage metadata in ancestry traits', () => {
+    setLevelFeat(plan, 1, 'ancestryFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.heritage-grant',
+      name: 'Heritage Grant',
+      slug: 'heritage-grant',
+      grantedItems: [
+        {
+          type: 'heritage',
+          uuid: 'Compendium.pf2e.heritages.Item.aiuvarin',
+          slug: 'aiuvarin',
+          name: 'Aiuvarin',
+          traits: ['aiuvarin'],
+        },
+      ],
+    });
+
+    const state = computeBuildState(mockActor, plan, 2);
+
+    expect(state.ancestryTraits.has('aiuvarin')).toBe(true);
+    expect(state.ancestryTraits.has('elf')).toBe(true);
+    expect(state.heritageAliases.has('aiuvarin')).toBe(true);
+  });
+
   test('includes ancestry name as ancestry trait when ancestry slug is missing', () => {
     mockActor.ancestry = {
       slug: null,

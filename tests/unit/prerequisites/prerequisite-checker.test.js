@@ -349,6 +349,28 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('requires the shared skill after dedication alternatives', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: 'Celebrity Dedication or Dandy Dedication, trained in Deception' }],
+        },
+      },
+    };
+
+    expect(checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['dandy-dedication']),
+      skills: { ...buildState.skills, deception: 1 },
+    }).met).toBe(true);
+
+    expect(checkPrerequisites(feat, {
+      ...buildState,
+      feats: new Set(['celebrity-dedication']),
+      skills: { ...buildState.skills, deception: 0 },
+    }).met).toBe(false);
+  });
+
   test('meets multi-ancestry feat access prerequisites via adopted ancestry', () => {
     const feat = {
       system: {

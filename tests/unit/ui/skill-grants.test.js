@@ -1452,6 +1452,68 @@ describe('CharacterWizard skills step grants', () => {
     ]);
   });
 
+  it('uses the selected Brevic Noble family section for background skill and lore grants', async () => {
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          crafting: 'Crafting',
+          society: 'Society',
+          athletics: 'Athletics',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'background-brevic-noble') {
+        return {
+          uuid,
+          name: 'Brevic Noble',
+          type: 'background',
+          system: {
+            trainedSkills: { value: [], lore: [] },
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'family',
+                prompt: 'Choose your family.',
+                choices: [
+                  { value: 'garess', label: 'Garess' },
+                  { value: 'lebeda', label: 'Lebeda' },
+                  { value: 'lodovka', label: 'Lodovka' },
+                ],
+              },
+            ],
+            description: {
+              value: `
+                <p><strong>Garess:</strong> You're trained in the Crafting skill and the Architecture Lore skill.</p>
+                <p><strong>Lebeda:</strong> You're trained in the Society skill and the Mercantile Lore skill.</p>
+                <p><strong>Lodovka:</strong> You're trained in the Athletics skill and the Fishing Lore skill.</p>
+              `,
+            },
+          },
+        };
+      }
+      return null;
+    });
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
+    wizard.data.background = { uuid: 'background-brevic-noble', name: 'Brevic Noble (Lebeda)' };
+    wizard.data.grantedFeatChoices = {
+      'background-brevic-noble': { family: 'lebeda' },
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+
+    const context = await wizard._getStepContext();
+
+    expect(context.skills.find((entry) => entry.slug === 'society')).toEqual(
+      expect.objectContaining({ autoTrained: true, source: 'Background' }),
+    );
+    expect(context.lores).toEqual([{ name: 'Mercantile Lore', source: 'Background' }]);
+  });
+
   it('builds skill context safely when selected skills are not initialized yet', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data = {

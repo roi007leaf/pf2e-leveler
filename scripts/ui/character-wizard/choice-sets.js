@@ -419,8 +419,17 @@ function isSpellChoiceSet(choiceSet) {
   const filterText = safeSerializeChoiceFilters(choiceSet?.choices?.filter ?? []).toLowerCase();
   if (filterText.includes('item:type:spell')) return true;
 
+  const choices = Array.isArray(choiceSet?.choices) ? choiceSet.choices : [];
+  if (choices.length > 0 && choices.every(isSpellChoiceLikeOption)) return true;
+
   const options = choiceSet?.options ?? [];
-  return options.length > 0 && options.every((option) => String(option?.type ?? '').toLowerCase() === 'spell');
+  return options.length > 0 && options.every(isSpellChoiceLikeOption);
+}
+
+function isSpellChoiceLikeOption(option) {
+  if (String(option?.type ?? '').toLowerCase() === 'spell') return true;
+  const uuid = String(option?.uuid ?? option?.value ?? '');
+  return uuid.includes('.spells');
 }
 
 function isHandlerManagedSelectionItem(wizard, item) {
@@ -691,19 +700,23 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
     if (isInternalFixedSkillRankChoiceSet(normalizedRule, allRules)) continue;
+    if (shouldSkipChoiceSetRule(sourceItem, normalizedRule)) continue;
     const rollOptions = buildChoiceSetRollOptions(wizard, allRules, currentChoices);
     if (!matchesChoiceSetPredicate(normalizedRule.predicate, rollOptions)) continue;
     const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem, rollOptions);
     if (options.length > 0) {
       const prompt = normalizedRule.prompt ? (game.i18n.has(normalizedRule.prompt) ? game.i18n.localize(normalizedRule.prompt) : normalizedRule.prompt) : normalizedRule.flag;
+      const grantsSkillTraining = choiceSetGrantsSkillTraining(sourceItem, normalizedRule);
+      const valueIfAlreadyTrained = inferChoiceSetValueIfAlreadyTrained(sourceItem, normalizedRule);
       const set = {
         flag: normalizedRule.flag,
         prompt,
         options,
       };
       if (shouldAllowAutoTrainedSkillSelection(sourceItem, normalizedRule)) set.allowAutoTrainedSelection = true;
+      if (Number.isFinite(valueIfAlreadyTrained)) set.valueIfAlreadyTrained = valueIfAlreadyTrained;
       if (normalizedRule.leveler?.syntheticType) set.syntheticType = normalizedRule.leveler.syntheticType;
-      if (normalizedRule.leveler?.grantsSkillTraining === true) set.grantsSkillTraining = true;
+      if (grantsSkillTraining) set.grantsSkillTraining = true;
       if (Array.isArray(normalizedRule.leveler?.blockedSkills) && normalizedRule.leveler.blockedSkills.length > 0) {
         set.blockedSkills = [...normalizedRule.leveler.blockedSkills];
       }
@@ -730,6 +743,27 @@ function isInternalFixedSkillRankChoiceSet(rule, allRules) {
   return (allRules ?? []).some((entry) =>
     entry?.key === 'ActiveEffectLike' &&
     String(entry?.value ?? '').includes(`rulesSelections.${flag}`));
+}
+
+function shouldSkipChoiceSetRule(sourceItem, rule) {
+  return sourceIsFixedQiSpellsGrant(sourceItem) && isSpellChoiceSet(rule);
+}
+
+function choiceSetGrantsSkillTraining(sourceItem, rule) {
+  return rule?.leveler?.grantsSkillTraining === true
+    || sourceSkillChoiceGrantsTraining(sourceItem, rule);
+}
+
+function sourceSkillChoiceGrantsTraining(sourceItem, rule) {
+  if (!isSkillChoiceSet(rule)) return false;
+  const description = normalizeDescriptionText(sourceItem?.system?.description?.value ?? '');
+  if (!description) return false;
+  return /\b(?:you\s+)?(?:become|are)\s+trained\s+in\s+(?:your\s+choice\s+of|(?:one|a|an)\s+skill\s+of\s+your\s+choice)\b/u.test(description);
+}
+
+function inferChoiceSetValueIfAlreadyTrained(sourceItem, rule) {
+  if (!isSkillChoiceSet(rule) || !sourceSkillChoiceUpgradesExistingTraining(sourceItem)) return null;
+  return 2;
 }
 
 async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourceItem) {
@@ -817,12 +851,20 @@ function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
 }
 
 function shouldSkipSyntheticEmbeddedSpellChoice(sourceItem) {
-  const slug = String(sourceItem?.slug ?? sourceItem?.system?.slug ?? sourceItem?.name ?? '')
+  const slug = normalizeSourceSlug(sourceItem);
+  return slug === 'soulforger-dedication' || sourceIsFixedQiSpellsGrant(sourceItem);
+}
+
+function sourceIsFixedQiSpellsGrant(sourceItem) {
+  return normalizeSourceSlug(sourceItem) === 'qi-spells';
+}
+
+function normalizeSourceSlug(sourceItem) {
+  return String(sourceItem?.slug ?? sourceItem?.system?.slug ?? sourceItem?.name ?? '')
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return slug === 'soulforger-dedication';
 }
 
 function hasAuthoredSpellChoiceSet(rules) {
@@ -1018,6 +1060,7 @@ function extractExplicitTrainedSkillsFromDescription(html) {
 
   const skills = new Set();
   for (const clause of matches) {
+    if (clauseDescribesSelectedSkillChoice(clause)) continue;
     for (const skill of SKILLS) {
       const raw = globalThis.CONFIG?.PF2E?.skills?.[skill];
       const label = typeof raw === 'string' ? raw : (raw?.label ?? skill);
@@ -1027,6 +1070,11 @@ function extractExplicitTrainedSkillsFromDescription(html) {
   }
 
   return [...skills];
+}
+
+function clauseDescribesSelectedSkillChoice(clause) {
+  const normalized = String(clause ?? '').toLowerCase();
+  return /\b(?:your\s+choice\s+of|choice\s+of|chosen\s+skill|skill\s+you\s+chose)\b/u.test(normalized);
 }
 
 async function resolveAssociatedDeitySkill(wizard, rules, currentChoices = {}) {
@@ -1332,8 +1380,16 @@ function shouldAllowAutoTrainedSkillSelection(sourceItem, rule) {
   const sourceType = String(sourceItem?.type ?? '').toLowerCase();
   if (!isSkillChoiceSet(rule)) return false;
   return (sourceType === 'background' && !sourceGrantsAssurance(sourceItem))
+    || sourceSkillChoiceUpgradesExistingTraining(sourceItem)
     || sourceSlug === 'assurance'
     || sourceName === 'assurance';
+}
+
+function sourceSkillChoiceUpgradesExistingTraining(sourceItem) {
+  const description = normalizeDescriptionText(sourceItem?.system?.description?.value ?? '');
+  if (!description) return false;
+  return /already trained in (?:the skill you chose|that skill|the chosen skill|it),? you become (?:an )?expert/u.test(description)
+    || /already trained in (?:the skill you chose|that skill|the chosen skill|it),? you become trained in it at expert/u.test(description);
 }
 
 function sourceGrantsAssurance(sourceItem) {

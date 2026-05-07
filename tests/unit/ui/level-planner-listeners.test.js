@@ -529,6 +529,42 @@ describe('Level planner skill increase listeners', () => {
     ]);
   });
 
+  it('keeps already-trained upgrade metadata on selected training-granting skill choices', async () => {
+    document.body.innerHTML = '<button type="button" data-action="selectPlannedFeatChoice" data-category="archetypeFeats" data-flag="skill" data-value="diplomacy" data-grants-skill-training="true" data-value-if-already-trained="2"></button>';
+
+    const planner = {
+      actor: createMockActor(),
+      plan: {
+        levels: {
+          2: {
+            archetypeFeats: [
+              {
+                uuid: 'Compendium.pf2e.feats-srd.Item.marshal-dedication',
+                name: 'Marshal Dedication',
+                slug: 'marshal-dedication',
+              },
+            ],
+          },
+        },
+      },
+      selectedLevel: 2,
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectPlannedFeatChoice"]').click();
+    await flushAsyncListeners();
+
+    expect(planner.plan.levels[2].archetypeFeats[0].dynamicSkillRules).toEqual([
+      expect.objectContaining({
+        skill: 'diplomacy',
+        value: 1,
+        valueIfAlreadyTrained: 2,
+        source: 'choice:skill',
+      }),
+    ]);
+  });
+
   it('shows druid dedication replacement skill choices after selecting an order in the planner', async () => {
     const originalConfig = global.CONFIG;
     const originalFromUuid = global.fromUuid;

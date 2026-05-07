@@ -62,7 +62,7 @@ export function computeBuildState(actor, plan, atLevel) {
     classes,
     ancestrySlug: actor?.ancestry?.slug ?? null,
     heritageSlug: actor?.heritage?.slug ?? null,
-    heritageAliases: computeHeritageAliases(actor),
+    heritageAliases: computeHeritageAliases(actor, plan, atLevel),
     ancestryTraits: computeAncestryTraits(actor, plan, atLevel),
     backgroundSlug: actor?.background?.slug ?? null,
     attributes: computeAttributes(actor, plan, atLevel),
@@ -308,6 +308,12 @@ function computeAncestryTraits(actor, plan, atLevel) {
     addAncestryTraitAliases(traits, value);
   }
 
+  for (const heritage of getEffectiveHeritageItems(actor, plan, atLevel)) {
+    addAncestryTraitAliases(traits, heritage?.slug ?? null);
+    addAncestryTraitAliases(traits, heritage?.name ?? null);
+    addAncestryItemTraits(traits, heritage);
+  }
+
   const mixedAncestrySelection =
     actor?.heritage?.flags?.pf2e?.rulesSelections?.[MIXED_ANCESTRY_CHOICE_FLAG] ??
     actor?.heritage?.flags?.['pf2e-leveler']?.mixedAncestrySelection ??
@@ -350,17 +356,38 @@ function computeDeityState(actor) {
   };
 }
 
-function computeHeritageAliases(actor) {
+function computeHeritageAliases(actor, plan, atLevel) {
   const aliases = new Set();
-  const heritage = actor?.heritage ?? null;
-  const heritageDoc = getOwnedItems(actor).find((item) => item?.type === 'heritage') ?? null;
 
-  for (const candidate of [heritage?.slug, heritage?.name, heritageDoc?.slug, heritageDoc?.name]) {
-    const normalized = normalizeEquipmentValue(candidate);
-    if (normalized) aliases.add(slugify(normalized));
+  for (const heritage of getEffectiveHeritageItems(actor, plan, atLevel)) {
+    for (const candidate of [heritage?.slug, heritage?.name]) {
+      const normalized = normalizeEquipmentValue(candidate);
+      if (normalized) aliases.add(slugify(normalized));
+    }
   }
 
   return aliases;
+}
+
+function getEffectiveHeritageItems(actor, plan, atLevel) {
+  const items = [];
+  if (actor?.heritage) items.push(actor.heritage);
+  items.push(...getOwnedItems(actor).filter((item) => isHeritageItemLike(item)));
+
+  for (const feat of getEffectivePlannedFeats(plan, atLevel)) {
+    for (const granted of feat?.grantedItems ?? []) {
+      if (isHeritageItemLike(granted)) items.push(granted);
+    }
+  }
+
+  return items;
+}
+
+function isHeritageItemLike(item) {
+  if (!item) return false;
+  if (String(item?.type ?? item?.itemType ?? '').trim().toLowerCase() === 'heritage') return true;
+  const uuid = String(item?.uuid ?? '').trim().toLowerCase();
+  return uuid.includes('.heritages.') || uuid.includes('.heritage.');
 }
 
 function computeDivineFontState(actor) {

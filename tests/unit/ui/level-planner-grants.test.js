@@ -31,6 +31,8 @@ describe('level planner grant previews', () => {
         return {
           uuid,
           name: 'Granted Feat',
+          type: 'feat',
+          slug: 'granted-feat',
           img: 'icons/svg/mystery-man.svg',
           system: {
             rules: [
@@ -53,8 +55,10 @@ describe('level planner grant previews', () => {
         return {
           uuid,
           name: 'Granted Spell',
+          type: 'spell',
+          slug: 'granted-spell',
           img: 'icons/svg/mystery-man.svg',
-          system: { rules: [] },
+          system: { traits: { value: ['arcane'] }, rules: [] },
         };
       }
 
@@ -69,6 +73,11 @@ describe('level planner grant previews', () => {
     });
 
     expect(preview.grantedItems.map((entry) => entry.name)).toEqual(['Granted Feat', 'Granted Spell']);
+    expect(preview.grantedItems[1]).toEqual(expect.objectContaining({
+      type: 'spell',
+      slug: 'granted-spell',
+      traits: ['arcane'],
+    }));
     expect(preview.grantChoiceSets).toEqual([
       expect.objectContaining({
         flag: 'grantChoice',
@@ -1105,5 +1114,94 @@ describe('level planner grant previews', () => {
     const context = await buildLevelContext(planner, WIZARD, {});
 
     expect(context.classFeat.grantRequirements).toEqual([]);
+  });
+
+  test('Marshal Dedication selected skill upgrades to expert when already trained', async () => {
+    global.CONFIG = {
+      ...(global.CONFIG ?? {}),
+      PF2E: {
+        ...(global.CONFIG?.PF2E ?? {}),
+        skills: {
+          diplomacy: 'Diplomacy',
+          intimidation: 'Intimidation',
+        },
+      },
+    };
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-marshal-dedication') {
+        return {
+          uuid,
+          name: 'Marshal Dedication',
+          slug: 'marshal-dedication',
+          system: {
+            description: {
+              value: '<p>You become trained in your choice of Diplomacy or Intimidation; if you were already trained in the skill you chose, you become an expert in it instead.</p>',
+            },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'skill',
+              prompt: 'Select a skill.',
+              choices: [
+                { value: 'diplomacy', label: 'Diplomacy' },
+                { value: 'intimidation', label: 'Intimidation' },
+              ],
+            }],
+            traits: { value: ['archetype', 'dedication', 'marshal'] },
+          },
+        };
+      }
+      return null;
+    });
+
+    const planner = {
+      actor: createMockActor({
+        items: [],
+        system: {
+          details: { level: { value: 1 } },
+          skills: {
+            diplomacy: { rank: 1 },
+            intimidation: { rank: 0 },
+          },
+        },
+      }),
+      selectedLevel: 2,
+      plan: {
+        classSlug: 'fighter',
+        levels: {
+          2: {
+            archetypeFeats: [{
+              uuid: 'feat-marshal-dedication',
+              name: 'Marshal Dedication',
+              slug: 'marshal-dedication',
+              choices: { skill: 'diplomacy' },
+            }],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {},
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _shouldHideHistoricalSkillIncrease: jest.fn(() => false),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, FIGHTER, {});
+
+    expect(context.archetypeFeatChoiceSets[0].options).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 'diplomacy', disabled: false }),
+    ]));
+    expect(planner.plan.levels[2].archetypeFeats[0].dynamicSkillRules).toEqual([
+      expect.objectContaining({
+        skill: 'diplomacy',
+        value: 1,
+        valueIfAlreadyTrained: 2,
+        source: 'choice:skill',
+      }),
+    ]);
   });
 });

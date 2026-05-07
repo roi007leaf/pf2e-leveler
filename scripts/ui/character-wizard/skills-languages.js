@@ -191,11 +191,25 @@ export async function getBackgroundLores(wizard) {
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
   const source = localizeWithFallback('CREATION.AUTO_TRAINED_BACKGROUND', 'Background');
+  const choiceContext = getSelectedBackgroundChoiceContext(wizard, item);
+  const selectedDescription = extractSelectedBackgroundChoiceDescription(
+    item.system?.description?.value ?? '',
+    choiceContext.labels,
+  );
   const dynamicLore = getDynamicBackgroundLorePlaceholder(wizard, item);
+  const selectedDescriptionLores = selectedDescription
+    ? parseSubclassLores([], selectedDescription)
+    : [];
+  const staticLores = selectedDescriptionLores.length > 0
+    ? []
+    : (item.system?.trainedSkills?.lore ?? []);
+  const descriptionLores = dynamicLore || selectedDescriptionLores.length > 0 || choiceContext.hasChoiceSets
+    ? selectedDescriptionLores
+    : parseSubclassLores([], item.system?.description?.value ?? '');
   const loreNames = [
-    ...(item.system?.trainedSkills?.lore ?? []),
-    ...parseSubclassLores(item.system?.rules ?? [], ''),
-    ...(dynamicLore ? [] : parseSubclassLores([], item.system?.description?.value ?? '')),
+    ...staticLores,
+    ...parseSubclassLores(filterBackgroundGrantRules(item.system?.rules ?? [], choiceContext), ''),
+    ...descriptionLores,
   ];
   if (dynamicLore) loreNames.push(dynamicLore);
 
@@ -339,7 +353,212 @@ export async function getBackgroundTrainedSkills(wizard) {
   if (!wizard.data.background?.uuid) return [];
   const item = await wizard._getCachedDocument(wizard.data.background.uuid);
   if (!item) return [];
-  return item.system?.trainedSkills?.value ?? [];
+  const choiceContext = getSelectedBackgroundChoiceContext(wizard, item);
+  const selectedDescription = extractSelectedBackgroundChoiceDescription(
+    item.system?.description?.value ?? '',
+    choiceContext.labels,
+  );
+  const selectedDescriptionSkills = extractExplicitTrainedSkillsFromText(selectedDescription);
+  const staticSkills = selectedDescriptionSkills.length > 0
+    ? (item.system?.trainedSkills?.value ?? []).filter((skill) =>
+      selectedDescriptionSkills.includes(normalizeSkillSlug(skill)))
+    : (item.system?.trainedSkills?.value ?? []);
+  const skills = new Set(staticSkills.map((skill) => normalizeSkillSlug(skill)).filter(Boolean));
+
+  for (const rule of filterBackgroundGrantRules(item.system?.rules ?? [], choiceContext)) {
+    if (rule?.key !== 'ActiveEffectLike') continue;
+    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+    if (!match || Number(rule?.value) < 1) continue;
+    const skill = normalizeSkillSlug(match[1]);
+    if (SKILLS.includes(skill)) skills.add(skill);
+  }
+
+  for (const skill of selectedDescriptionSkills) skills.add(skill);
+  return [...skills];
+}
+
+function getSelectedBackgroundChoiceContext(wizard, item) {
+  const rules = item?.system?.rules ?? [];
+  const choiceRules = rules.filter((rule) => rule?.key === 'ChoiceSet');
+  const selectedValues = new Set();
+  const labels = [];
+  const storedChoices = {
+    ...(wizard?.data?.background?.choices ?? {}),
+    ...getGrantedFeatChoiceValues(wizard?.data, item?.uuid),
+  };
+
+  const addSelection = (value) => {
+    const text = String(value ?? '').trim();
+    if (!text || text === '[object Object]') return;
+    selectedValues.add(normalizeBackgroundChoiceIdentity(text));
+    labels.push(text);
+  };
+
+  for (const rule of choiceRules) {
+    const flag = getBackgroundChoiceSetFlag(rule);
+    const selected = flag ? storedChoices?.[flag] : null;
+    if (typeof selected !== 'string' || selected.length === 0 || selected === '[object Object]') continue;
+    addSelection(selected);
+
+    const option = findBackgroundChoiceOption(rule?.choices, selected);
+    const label = getBackgroundChoiceOptionLabel(option);
+    if (label) addSelection(label);
+  }
+
+  for (const label of extractParentheticalChoiceLabels(wizard?.data?.background?.name)) {
+    addSelection(label);
+  }
+
+  return {
+    hasChoiceSets: choiceRules.length > 0,
+    selectedValues,
+    labels: [...new Set(labels.filter(Boolean))],
+  };
+}
+
+function filterBackgroundGrantRules(rules, choiceContext) {
+  return (rules ?? []).filter((rule) => {
+    if (rule?.key !== 'ActiveEffectLike') return true;
+    if (!choiceContext?.hasChoiceSets) return true;
+    return matchesBackgroundChoicePredicate(rule?.predicate, choiceContext.selectedValues);
+  });
+}
+
+function matchesBackgroundChoicePredicate(predicate, selectedValues) {
+  if (!predicate) return true;
+  if (typeof predicate === 'string') {
+    if (!(selectedValues instanceof Set) || selectedValues.size === 0) return false;
+    const normalized = normalizeBackgroundChoiceIdentity(predicate);
+    return [...selectedValues].some((value) => normalized === value || normalized.endsWith(value) || normalized.includes(value));
+  }
+  if (Array.isArray(predicate)) {
+    return predicate.every((entry) => matchesBackgroundChoicePredicate(entry, selectedValues));
+  }
+  if (typeof predicate !== 'object') return true;
+  if (Array.isArray(predicate.or)) {
+    return predicate.or.some((entry) => matchesBackgroundChoicePredicate(entry, selectedValues));
+  }
+  if (Array.isArray(predicate.and)) {
+    return predicate.and.every((entry) => matchesBackgroundChoicePredicate(entry, selectedValues));
+  }
+  if ('not' in predicate) return !matchesBackgroundChoicePredicate(predicate.not, selectedValues);
+  if (Array.isArray(predicate.nor)) {
+    return predicate.nor.every((entry) => !matchesBackgroundChoicePredicate(entry, selectedValues));
+  }
+  return true;
+}
+
+function getBackgroundChoiceSetFlag(rule) {
+  if (typeof rule?.flag === 'string' && rule.flag.length > 0) return rule.flag;
+  if (typeof rule?.rollOption === 'string' && rule.rollOption.length > 0) return rule.rollOption;
+  return null;
+}
+
+function findBackgroundChoiceOption(choices, selected) {
+  if (!Array.isArray(choices)) return null;
+  const normalizedSelected = normalizeBackgroundChoiceIdentity(selected);
+  return choices.find((choice) =>
+    getBackgroundChoiceOptionIdentities(choice).some((identity) => identity === normalizedSelected)) ?? null;
+}
+
+function getBackgroundChoiceOptionIdentities(choice) {
+  return [
+    choice?.value,
+    choice?.value?.value,
+    choice?.value?.slug,
+    choice?.value?.label,
+    choice?.value?.name,
+    choice?.slug,
+    choice?.label,
+    choice?.name,
+  ].map(normalizeBackgroundChoiceIdentity).filter(Boolean);
+}
+
+function getBackgroundChoiceOptionLabel(option) {
+  const raw =
+    option?.label ??
+    option?.name ??
+    option?.value?.label ??
+    option?.value?.name ??
+    null;
+  if (!raw) return null;
+  return game.i18n?.has?.(raw) ? game.i18n.localize(raw) : String(raw);
+}
+
+function extractParentheticalChoiceLabels(name) {
+  const matches = String(name ?? '').matchAll(/\(([^()]+)\)/gu);
+  return [...matches].map((match) => match[1].trim()).filter(Boolean);
+}
+
+function extractSelectedBackgroundChoiceDescription(html, labels) {
+  if (!html || (labels?.length ?? 0) === 0) return null;
+  const selected = new Set(labels.map(normalizeBackgroundChoiceIdentity).filter(Boolean));
+  if (selected.size === 0) return null;
+
+  for (const paragraph of descriptionParagraphs(html)) {
+    const headingMatch = paragraph.match(/^([^:]{1,80}):\s*(.+)$/u);
+    if (!headingMatch) continue;
+    const heading = normalizeBackgroundChoiceIdentity(headingMatch[1]);
+    if (selected.has(heading)) return paragraph;
+  }
+
+  const fullText = descriptionParagraphs(html).join(' ');
+  for (const label of labels) {
+    const escaped = escapeRegExp(String(label ?? '').trim());
+    if (!escaped) continue;
+    const sectionMatch = fullText.match(new RegExp(`(?:^|\\s)${escaped}\\s*:\\s*(.+?)(?=\\s+[A-Z][A-Za-z' -]{1,60}:\\s|$)`, 'iu'));
+    if (sectionMatch) return `${label}: ${sectionMatch[1].trim()}`;
+  }
+
+  return null;
+}
+
+function escapeRegExp(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function descriptionParagraphs(html) {
+  return String(html ?? '')
+    .replace(/<\s*br\s*\/?>/giu, '\n')
+    .replace(/<\/\s*p\s*>/giu, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .split(/\n+/u)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function extractExplicitTrainedSkillsFromText(text) {
+  const description = String(text ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\u2019/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!description) return [];
+
+  const clauses = description.match(
+    /\b(?:you(?:\s+are|'re)?\s+)?(?:become|are)?\s*trained\s+in\s+([^.!?]+)/giu,
+  ) ?? [];
+  const skills = new Set();
+  for (const clause of clauses) {
+    for (const skill of getActiveSkillSlugs()) {
+      const label = localizeSkillSlug(skill).toLowerCase();
+      const normalizedClause = clause.toLowerCase();
+      if (normalizedClause.includes(label) || normalizedClause.includes(skill.toLowerCase())) {
+        skills.add(skill);
+      }
+    }
+  }
+  return [...skills];
+}
+
+function normalizeBackgroundChoiceIdentity(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
 }
 
 function localizeSkillSlug(slug) {

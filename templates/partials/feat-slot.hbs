@@ -77,7 +77,7 @@
   {{#if (eq this.choiceType "skill")}}
   <div class="skill-btn-grid" style="margin-top: var(--leveler-spacing-sm);">
     {{#each this.options}}
-    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../choiceCategory}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-grants-skill-training="{{#if ../grantsSkillTraining}}true{{else}}false{{/if}}" {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
+    <button type="button" class="skill-btn {{#if this.selected}}selected{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-action="selectPlannedFeatChoice" data-category="{{../choiceCategory}}" data-flag="{{../flag}}" data-value="{{this.value}}" data-grants-skill-training="{{#if ../grantsSkillTraining}}true{{else}}false{{/if}}" data-value-if-already-trained="{{../valueIfAlreadyTrained}}" {{#if (or this.disabled this.guidanceSelectionBlocked)}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
       <span class="skill-btn__name">{{this.label}}</span>
     </button>
     {{/each}}

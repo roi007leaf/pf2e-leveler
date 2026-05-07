@@ -63,6 +63,7 @@ import {
 import {
   annotateFeat,
   buildABPContext,
+  buildFeatGrantPreview,
   buildLoreSkillIncreaseEntry,
   buildLevelContext,
   extractFeat,
@@ -1817,6 +1818,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const skillRules = await extractFeatSkillRules(feat);
     const aliases = getDedicationAliasesFromDescription(feat);
     const additionalArchetype = picker?.getAdditionalArchetypeMetadata?.(feat);
+    const grantPreview = await buildFeatGrantPreview(this, feat);
     return {
       uuid: feat.uuid,
       name: feat.name,
@@ -1831,6 +1833,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       aliasesResolved: true,
       aliasesVersion: FEAT_ALIASES_VERSION,
       ...(additionalArchetype ? { additionalArchetype } : {}),
+      ...(grantPreview.grantedItems.length > 0 ? { grantedItems: grantPreview.grantedItems } : {}),
       spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
       spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
       skillRules,
@@ -1994,6 +1997,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         const skillRules = await extractFeatSkillRules(feat);
         const aliases = getDedicationAliasesFromDescription(feat);
         const additionalArchetype = picker.getAdditionalArchetypeMetadata(feat);
+        const grantPreview = await buildFeatGrantPreview(this, feat);
         setLevelFeat(this.plan, level, category, {
           uuid: feat.uuid,
           name: feat.name,
@@ -2008,6 +2012,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           aliasesResolved: true,
           aliasesVersion: FEAT_ALIASES_VERSION,
           ...(additionalArchetype ? { additionalArchetype } : {}),
+          ...(grantPreview.grantedItems.length > 0 ? { grantedItems: grantPreview.grantedItems } : {}),
           spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
           spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
           skillRules,
@@ -2143,6 +2148,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
           const skillRules = await extractFeatSkillRules(feat);
           const aliases = getDedicationAliasesFromDescription(feat);
           const additionalArchetype = picker.getAdditionalArchetypeMetadata(feat);
+          const grantPreview = await buildFeatGrantPreview(this, feat);
           addLevelCustomFeat(this.plan, level, {
             uuid: feat.uuid,
             name: feat.name,
@@ -2157,6 +2163,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
             aliasesResolved: true,
             aliasesVersion: FEAT_ALIASES_VERSION,
             ...(additionalArchetype ? { additionalArchetype } : {}),
+            ...(grantPreview.grantedItems.length > 0 ? { grantedItems: grantPreview.grantedItems } : {}),
             spellcastingMetadata: extractFeatSpellcastingMetadata({ ...feat, aliases }),
             spellcastingMetadataVersion: FEAT_SPELLCASTING_VERSION,
             skillRules,

@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.4.4
+
+### Level Planner
+
+- **Qi Spells now grants both fixed qi spells** - Qi Spells no longer asks players to choose between Inner Upheaval and Qi Rush when the feat grants both listed spells
+- **Aldori Duelist Dedication now grants Dueling Lore** - The dedication now contributes its Additional Lore benefit so Dueling Lore is planned and applied
+- **Marshal Dedication now applies its chosen skill correctly** - The Diplomacy or Intimidation choice now grants trained proficiency, or expert proficiency when the actor is already trained
+- **Feat-granted heritages now unlock ancestry feat choices** - Heritage items granted through GrantItem rules now add their traits to later ancestry feat selection
+
 ## 3.4.3
 
 ### Compatibility

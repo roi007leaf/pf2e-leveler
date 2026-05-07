@@ -708,6 +708,19 @@ describe('parsePrerequisiteNode', () => {
     ]);
   });
 
+  test('parses comma-delimited dedication alternatives plus required skill as grouped all-node', () => {
+    const result = parsePrerequisiteNode('Celebrity Dedication or Dandy Dedication, trained in Deception');
+    expect(result.kind).toBe('all');
+    expect(result.children[0]).toEqual(expect.objectContaining({ kind: 'any' }));
+    expect(result.children[0].children).toEqual([
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'celebrity-dedication' }),
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'dandy-dedication' }),
+    ]);
+    expect(result.children[1]).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'skill', skill: 'deception' }),
+    );
+  });
+
   test('parses French trained-in-skill-list wording as any-of-skills node', () => {
     const result = parsePrerequisiteNode(
       'qualifi\u00e9 en Arcanes, Nature, Occultisme ou Religion',

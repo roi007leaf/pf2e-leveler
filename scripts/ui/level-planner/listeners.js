@@ -93,6 +93,10 @@ export function activateLevelPlannerListeners(planner, html) {
       const flag = button.dataset.flag;
       const value = button.dataset.value;
       const grantsSkillTraining = button.dataset.grantsSkillTraining === 'true';
+      const rawValueIfAlreadyTrained = button.dataset.valueIfAlreadyTrained;
+      const valueIfAlreadyTrained = rawValueIfAlreadyTrained == null || rawValueIfAlreadyTrained === ''
+        ? null
+        : Number(rawValueIfAlreadyTrained);
       const index = Number(button.dataset.index);
       const featList = category ? levelData?.[category] : null;
       const feat = Array.isArray(featList)
@@ -100,7 +104,10 @@ export function activateLevelPlannerListeners(planner, html) {
         : null;
       if (!feat || !flag || !value) return;
       feat.choices = { ...(feat.choices ?? {}), [flag]: value };
-      const selectedRules = await syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining });
+      const selectedRules = await syncPlannedFeatChoiceSkillRules(feat, flag, value, {
+        grantsSkillTraining,
+        valueIfAlreadyTrained: Number.isFinite(valueIfAlreadyTrained) ? valueIfAlreadyTrained : null,
+      });
       syncSameLevelSkillIncreaseFromFeatChoice(planner, value, { grantsSkillTraining });
       syncSameLevelSkillIncreaseFromFeatRules(planner, selectedRules);
       planner._savePlanAndRender();
@@ -454,7 +461,10 @@ export function getSelectableSkillRank(planner, slug) {
   return buildState.skills[slug] ?? buildState.lores?.[slug] ?? 0;
 }
 
-export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grantsSkillTraining = false } = {}) {
+export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, {
+  grantsSkillTraining = false,
+  valueIfAlreadyTrained = null,
+} = {}) {
   const sourceKey = `choice:${String(flag ?? '').toLowerCase()}`;
   const preservedRules = Array.isArray(feat?.dynamicSkillRules)
     ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)
@@ -465,12 +475,17 @@ export async function syncPlannedFeatChoiceSkillRules(feat, flag, value, { grant
 
   const selectedSkill = grantsSkillTraining ? normalizeSelectedSkillChoice(value) : null;
   if (selectedSkill) {
+    const rule = { skill: selectedSkill, value: 1, source: sourceKey };
+    const upgradeRank = valueIfAlreadyTrained == null || valueIfAlreadyTrained === ''
+      ? null
+      : Number(valueIfAlreadyTrained);
+    if (Number.isFinite(upgradeRank)) rule.valueIfAlreadyTrained = upgradeRank;
     feat.dynamicSkillRules = [
       ...preservedRules,
-      { skill: selectedSkill, value: 1, source: sourceKey },
+      rule,
     ];
     feat.dynamicLoreRules = preservedLoreRules;
-    return [{ skill: selectedSkill, value: 1, source: sourceKey }];
+    return [rule];
   }
 
   const selectedLore = grantsSkillTraining ? normalizeSelectedLoreChoice(value) : null;

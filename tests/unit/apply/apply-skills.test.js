@@ -206,6 +206,40 @@ describe('applySkillIncreases', () => {
     ]);
   });
 
+  test('creates Dueling Lore from Aldori Duelist Dedication', async () => {
+    mockActor = {
+      system: { skills: {} },
+      items: [],
+      update: jest.fn(() => Promise.resolve()),
+      createEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+      updateEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+    };
+
+    const plan = {
+      levels: {
+        2: {
+          archetypeFeats: [{
+            slug: 'aldori-duelist-dedication',
+            name: 'Aldori Duelist Dedication',
+          }],
+        },
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 2);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      name: 'Dueling Lore',
+      type: 'lore',
+      system: {
+        proficient: { value: 1 },
+      },
+    }]);
+    expect(result).toEqual([
+      { skill: 'dueling-lore', toRank: 1, featChoice: true },
+    ]);
+  });
+
   test('creates expert Gossip Lore when Society is legendary', async () => {
     mockActor = {
       system: { skills: { society: { rank: 4 } } },

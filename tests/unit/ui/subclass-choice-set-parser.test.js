@@ -2009,6 +2009,39 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(sets).toEqual([]);
   });
 
+  it('does not expose Qi Spells as a single spell choice', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.feats-srd.Item.qi-spells',
+      name: 'Qi Spells',
+      slug: 'qi-spells',
+    });
+    feat.system.description.value = '<p>You gain @UUID[Compendium.pf2e.spells-srd.Item.inner-upheaval]{Inner Upheaval}, @UUID[Compendium.pf2e.spells-srd.Item.qi-rush]{Qi Rush}, or another 1st-rank monk qi spell you have access to.</p>';
+    feat.system.rules = [{
+      key: 'ChoiceSet',
+      flag: 'qiSpell',
+      prompt: 'Select a spell.',
+      choices: [
+        {
+          value: 'Compendium.pf2e.spells-srd.Item.inner-upheaval',
+          uuid: 'Compendium.pf2e.spells-srd.Item.inner-upheaval',
+          label: 'Inner Upheaval',
+          type: 'spell',
+        },
+        {
+          value: 'Compendium.pf2e.spells-srd.Item.qi-rush',
+          uuid: 'Compendium.pf2e.spells-srd.Item.qi-rush',
+          label: 'Qi Rush',
+          type: 'spell',
+        },
+      ],
+    }];
+
+    const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
+
+    expect(sets).toEqual([]);
+  });
+
   it('synthesizes spell choices from SF2e embedded spell links', async () => {
     global.game.system.id = 'sf2e';
     const wizard = new CharacterWizard(createMockActor());
@@ -3567,6 +3600,64 @@ describe('CharacterWizard subclass choice-set parsing', () => {
           autoTrainedSource: 'Class',
           disabled: false,
         }),
+      ]));
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('keeps Aldori Duelist skill choices selectable when the chosen skill upgrades instead of replacing', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acrobatics: 'Acrobatics',
+          athletics: 'Athletics',
+          society: 'Society',
+        },
+      },
+    };
+
+    wizard.data.skills = ['acrobatics', 'athletics'];
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getCachedDocument = jest.fn(async () => null);
+
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.aldori-duelist-dedication',
+      name: 'Aldori Duelist Dedication',
+      type: 'feat',
+      system: {
+        description: {
+          value: `
+            <p>You become trained in your choice of Acrobatics or Athletics. If you were already trained in the skill you chose, you become an expert in it instead.</p>
+            <p>You gain the Additional Lore feat for Dueling Lore. If you were already trained in Dueling Lore, you become trained in a Lore skill of your choice.</p>
+          `,
+        },
+        rules: [
+          {
+            key: 'ChoiceSet',
+            flag: 'skill',
+            prompt: 'Select a skill.',
+            choices: [
+              { value: 'acrobatics', label: 'Acrobatics' },
+              { value: 'athletics', label: 'Athletics' },
+            ],
+          },
+        ],
+      },
+    };
+
+    try {
+      const choiceSets = await parseChoiceSets(wizard, feat.system.rules, {}, feat);
+      const hydrated = await hydrateChoiceSets(wizard, choiceSets, {});
+
+      expect(choiceSets.filter((entry) => entry.syntheticType === 'skill-training-fallback')).toEqual([]);
+      expect(hydrated[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'acrobatics', disabled: false }),
+        expect.objectContaining({ value: 'athletics', disabled: false }),
       ]));
     } finally {
       global.CONFIG = originalConfig;
