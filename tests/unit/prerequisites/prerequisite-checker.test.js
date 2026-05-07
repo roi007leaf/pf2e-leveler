@@ -74,6 +74,28 @@ describe('checkPrerequisites', () => {
     expect(result.results.some((entry) => entry.met === true)).toBe(true);
   });
 
+  test('matches feat-style ancestry trait prerequisites from granted heritage traits', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'Unicorn' }] } },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      ancestryTraits: new Set(['unicorn']),
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('matches heritage prerequisites against granted heritage base aliases', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'Pegasus Heritage' }] } },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      heritageAliases: new Set(['pegasus-heritage', 'pegasus']),
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('meets French-only translated skill prerequisites when actor has matching skill', () => {
     const feat = {
       system: {

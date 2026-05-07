@@ -1576,6 +1576,39 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(buildState.ancestryTraits.has('elf')).toBe(true);
   });
 
+  it('includes base heritage aliases from selected feat grants in the creation feat build state', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestry = { uuid: 'ancestry-pony', slug: 'ponykind', name: 'Ponykind' };
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-false-queen',
+      name: 'False Queen',
+      slug: 'false-queen',
+      grantedItems: [
+        {
+          type: 'heritage',
+          uuid: 'Compendium.ponyfinder-foundryvtt-module.ponyfinder-heritages.Item.pegasus',
+          slug: null,
+          name: 'Pegasus Heritage',
+          traits: ['pegasus'],
+        },
+        {
+          type: 'heritage',
+          uuid: 'Compendium.ponyfinder-foundryvtt-module.ponyfinder-heritages.Item.unicorn',
+          slug: null,
+          name: 'Unicorn Heritage',
+          traits: ['unicorn'],
+        },
+      ],
+    };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.heritageAliases.has('pegasus')).toBe(true);
+    expect(buildState.heritageAliases.has('unicorn')).toBe(true);
+    expect(buildState.ancestryTraits.has('unicorn')).toBe(true);
+  });
+
   it('keeps granted item metadata when collecting feat grants', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._getCachedDocument = jest.fn(async () => ({

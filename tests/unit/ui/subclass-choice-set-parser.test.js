@@ -2009,7 +2009,49 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     expect(sets).toEqual([]);
   });
 
-  it('does not expose Qi Spells as a single spell choice', async () => {
+  it('synthesizes Qi Spells as one available 1st-rank monk focus spell choice', async () => {
+    game.packs.set('pf2e.spells-srd', {
+      getDocuments: jest.fn(async () => [
+        createDoc({
+          uuid: 'Compendium.pf2e.spells-srd.Item.inner-upheaval',
+          name: 'Inner Upheaval',
+          type: 'spell',
+          traits: ['concentrate', 'focus', 'monk'],
+          level: 1,
+          rarity: 'uncommon',
+        }),
+        createDoc({
+          uuid: 'Compendium.pf2e.spells-srd.Item.qi-rush',
+          name: 'Qi Rush',
+          type: 'spell',
+          traits: ['concentrate', 'focus', 'monk'],
+          level: 1,
+          rarity: 'uncommon',
+        }),
+        createDoc({
+          uuid: 'Compendium.pf2e.spells-srd.Item.cobra-breath',
+          name: 'Cobra Breath',
+          type: 'spell',
+          traits: ['concentrate', 'focus', 'monk'],
+          level: 1,
+          rarity: 'uncommon',
+        }),
+        createDoc({
+          uuid: 'Compendium.pf2e.spells-srd.Item.wrong-rank',
+          name: 'Wrong Rank',
+          type: 'spell',
+          traits: ['focus', 'monk'],
+          level: 2,
+        }),
+        createDoc({
+          uuid: 'Compendium.pf2e.spells-srd.Item.wrong-class',
+          name: 'Wrong Class',
+          type: 'spell',
+          traits: ['focus', 'cleric'],
+          level: 1,
+        }),
+      ]),
+    });
     const wizard = new CharacterWizard(createMockActor());
     const feat = createDoc({
       uuid: 'Compendium.pf2e.feats-srd.Item.qi-spells',
@@ -2017,29 +2059,21 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       slug: 'qi-spells',
     });
     feat.system.description.value = '<p>You gain @UUID[Compendium.pf2e.spells-srd.Item.inner-upheaval]{Inner Upheaval}, @UUID[Compendium.pf2e.spells-srd.Item.qi-rush]{Qi Rush}, or another 1st-rank monk qi spell you have access to.</p>';
-    feat.system.rules = [{
-      key: 'ChoiceSet',
-      flag: 'qiSpell',
-      prompt: 'Select a spell.',
-      choices: [
-        {
-          value: 'Compendium.pf2e.spells-srd.Item.inner-upheaval',
-          uuid: 'Compendium.pf2e.spells-srd.Item.inner-upheaval',
-          label: 'Inner Upheaval',
-          type: 'spell',
-        },
-        {
-          value: 'Compendium.pf2e.spells-srd.Item.qi-rush',
-          uuid: 'Compendium.pf2e.spells-srd.Item.qi-rush',
-          label: 'Qi Rush',
-          type: 'spell',
-        },
-      ],
-    }];
 
     const sets = await wizard._parseChoiceSets(feat.system.rules, {}, feat);
 
-    expect(sets).toEqual([]);
+    expect(sets).toHaveLength(1);
+    expect(sets[0]).toEqual(expect.objectContaining({
+      flag: 'qiSpell',
+      prompt: 'Select a qi spell.',
+      syntheticType: 'spell-choice',
+    }));
+    expect(sets[0].options.map((option) => option.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.cobra-breath',
+      'Compendium.pf2e.spells-srd.Item.inner-upheaval',
+      'Compendium.pf2e.spells-srd.Item.qi-rush',
+    ]);
+    expect(sets[0].options.every((option) => option.level === 1)).toBe(true);
   });
 
   it('synthesizes spell choices from SF2e embedded spell links', async () => {

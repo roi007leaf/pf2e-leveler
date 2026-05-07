@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.4.5
+
+### Level Planner
+
+- **Qi Spells now asks for one qi spell** - Qi Spells now prompts for Inner Upheaval, Qi Rush, or another available 1st-rank monk focus spell instead of adding both linked examples
+- **Feat-granted heritage prerequisites now match granted heritage names** - Heritage GrantItem rules now add stripped heritage aliases and trait matches, so feats such as Cloud Hidden and Self Defensive Horn Magic become eligible after False Queen grants Pegasus or Unicorn heritage
+
 ## 3.4.4
 
 ### Level Planner

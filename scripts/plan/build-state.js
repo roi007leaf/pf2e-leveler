@@ -361,8 +361,7 @@ function computeHeritageAliases(actor, plan, atLevel) {
 
   for (const heritage of getEffectiveHeritageItems(actor, plan, atLevel)) {
     for (const candidate of [heritage?.slug, heritage?.name]) {
-      const normalized = normalizeEquipmentValue(candidate);
-      if (normalized) aliases.add(slugify(normalized));
+      addHeritageAlias(aliases, candidate);
     }
   }
 
@@ -1903,12 +1902,26 @@ function addAncestryTraitAliases(target, slug) {
   if (!normalized) return;
   const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
   for (const alias of aliases) target.add(alias);
+  if (normalized.endsWith('-heritage')) {
+    const baseAlias = normalized.replace(/-heritage$/u, '');
+    if (baseAlias) target.add(baseAlias);
+  }
 }
 
 function addAncestryItemTraits(target, item) {
   const traits = Array.isArray(item?.traits) ? item.traits : item?.system?.traits?.value;
   if (!Array.isArray(traits)) return;
   for (const trait of traits) addAncestryTraitAliases(target, trait);
+}
+
+function addHeritageAlias(target, value) {
+  const normalized = slugify(normalizeEquipmentValue(value) ?? '');
+  if (!normalized) return;
+  target.add(normalized);
+  if (normalized.endsWith('-heritage')) {
+    const baseAlias = normalized.replace(/-heritage$/u, '');
+    if (baseAlias) target.add(baseAlias);
+  }
 }
 
 function collectDeityDomains(value) {

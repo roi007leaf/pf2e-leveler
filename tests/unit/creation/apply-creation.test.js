@@ -788,6 +788,148 @@ describe('applyCreation granted item choices', () => {
   });
 });
 
+describe('applyCreation Qi spell choices', () => {
+  it('applies only the selected Qi Spells focus spell', async () => {
+    game.settings.get = jest.fn(() => false);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    const actor = createMockActor({
+      name: 'Qi Monk',
+      items: [],
+      system: {
+        resources: { focus: { max: 0, value: 0 } },
+        skills: {},
+        details: {
+          languages: { value: [] },
+          level: { value: 1 },
+        },
+      },
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    actor.update = jest.fn(async (updates) => {
+      if (updates['system.resources.focus.max'] != null) {
+        actor.system.resources.focus.max = updates['system.resources.focus.max'];
+      }
+      if (updates['system.resources.focus.value'] != null) {
+        actor.system.resources.focus.value = updates['system.resources.focus.value'];
+      }
+    });
+    let createdCount = 0;
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const created = docs.map((doc) => ({
+        ...doc,
+        id: doc.type === 'spellcastingEntry' ? 'focus-entry-id' : `created-${++createdCount}`,
+      }));
+      actor.items.push(...created);
+      return created;
+    });
+
+    const qiDescription = '<p>You gain @UUID[Compendium.pf2e.spells-srd.Item.inner-upheaval]{Inner Upheaval}, @UUID[Compendium.pf2e.spells-srd.Item.qi-rush]{Qi Rush}, or another 1st-rank monk qi spell you have access to.</p>';
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'class-monk') {
+        return {
+          uuid,
+          name: 'Monk',
+          toObject: () => ({
+            name: 'Monk',
+            type: 'class',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [], description: { value: '' } },
+          }),
+        };
+      }
+      if (uuid === 'feat-qi-spells') {
+        return {
+          uuid,
+          name: 'Qi Spells',
+          toObject: () => ({
+            name: 'Qi Spells',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              level: { value: 1 },
+              location: null,
+              rules: [],
+              description: { value: qiDescription },
+            },
+          }),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.inner-upheaval') {
+        return {
+          uuid,
+          name: 'Inner Upheaval',
+          toObject: () => ({
+            name: 'Inner Upheaval',
+            type: 'spell',
+            flags: { core: { sourceId: uuid } },
+            system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          }),
+          system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.qi-rush') {
+        return {
+          uuid,
+          name: 'Qi Rush',
+          toObject: () => ({
+            name: 'Qi Rush',
+            type: 'spell',
+            flags: { core: { sourceId: uuid } },
+            system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          }),
+          system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+        };
+      }
+      return null;
+    });
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-monk', name: 'Monk', slug: 'monk' },
+      subclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: {
+        uuid: 'feat-qi-spells',
+        name: 'Qi Spells',
+        choiceSets: [{
+          flag: 'qiSpell',
+          prompt: 'Select a qi spell.',
+          syntheticType: 'spell-choice',
+          options: [{
+            value: 'Compendium.pf2e.spells-srd.Item.qi-rush',
+            uuid: 'Compendium.pf2e.spells-srd.Item.qi-rush',
+            label: 'Qi Rush',
+            type: 'spell',
+          }],
+        }],
+        choices: { qiSpell: 'Compendium.pf2e.spells-srd.Item.qi-rush' },
+      },
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [],
+      permanentItems: [],
+      equipment: [],
+    });
+
+    const createdSpellNames = actor.items
+      .filter((item) => item.type === 'spell')
+      .map((item) => item.name);
+    expect(createdSpellNames).toEqual(['Qi Rush']);
+    expect(actor.system.resources.focus).toEqual({ max: 1, value: 1 });
+  });
+});
+
 describe('getAdditionalSelectedSkills', () => {
   it('collects selected synthetic feat skill-training choices', () => {
     const skills = getAdditionalSelectedSkills({

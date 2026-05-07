@@ -86,15 +86,24 @@ export function matchLevel(parsed, buildState) {
 }
 
 export function matchFeat(parsed, buildState) {
+  const slug = normalizeText(parsed.slug);
   const classSlugs = new Set(
     getTrackedClasses(buildState)
       .map((entry) => normalizeText(entry?.slug))
       .filter(Boolean),
   );
+  const ancestryTraits = buildState.ancestryTraits instanceof Set
+    ? buildState.ancestryTraits
+    : new Set(buildState.ancestryTraits ?? []);
+  const heritageAliases = buildState.heritageAliases instanceof Set
+    ? buildState.heritageAliases
+    : new Set(buildState.heritageAliases ?? []);
   const met =
     !!buildState.feats?.has(parsed.slug) ||
     !!buildState.classFeatures?.has(parsed.slug) ||
-    classSlugs.has(normalizeText(parsed.slug));
+    classSlugs.has(slug) ||
+    ancestryTraits.has(slug) ||
+    heritageAliases.has(slug);
   if (!met) return { met, text: parsed.text };
 
   const aliasSources = buildState.featAliasSources?.get?.(parsed.slug);

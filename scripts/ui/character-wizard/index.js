@@ -1370,14 +1370,16 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
     const mixedAncestryTraits = await getMixedAncestryFeatTraits(this);
     const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
-    const featGrantedHeritageTraits = collectGrantedHeritageTraitsFromFeats([
+    const featEntries = [
       this.data.ancestryFeat,
       this.data.ancestryParagonFeat,
       this.data.classFeat,
       this.data.dualClassFeat,
       this.data.skillFeat,
       ...(this.data.grantedFeatSections ?? []),
-    ]);
+    ];
+    const featGrantedHeritageTraits = collectGrantedHeritageTraitsFromFeats(featEntries);
+    const heritageAliases = collectHeritageAliasesForCreation(this.data.heritage, featEntries);
     const ancestryTraits = [
       ...new Set([
         ...collectAncestryFeatTraits(this.data.ancestry, this.data.heritage),
@@ -1449,6 +1451,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       feats: featState.feats,
       featAliasSources: featState.featAliasSources,
       ancestryTraits: new Set(ancestryTraits),
+      heritageAliases: new Set(heritageAliases),
       senses,
       attributes,
       skills: skillsMap,
@@ -3716,6 +3719,18 @@ function collectGrantedHeritageTraitsFromFeats(feats) {
   return [...traits];
 }
 
+function collectHeritageAliasesForCreation(selectedHeritage, feats) {
+  const aliases = new Set();
+  addHeritageAliasTokens(aliases, selectedHeritage);
+  for (const feat of feats) {
+    for (const item of feat?.grantedItems ?? []) {
+      if (!isHeritageGrantItem(item)) continue;
+      addHeritageAliasTokens(aliases, item);
+    }
+  }
+  return [...aliases];
+}
+
 function isHeritageGrantItem(item) {
   if (!item) return false;
   if (String(item?.type ?? item?.itemType ?? '').trim().toLowerCase() === 'heritage') return true;
@@ -3739,11 +3754,37 @@ function addAncestryFeatTraitTokens(target, value) {
   }
 }
 
+function addHeritageAliasTokens(target, value) {
+  if (!value) return;
+  if (typeof value === 'string') {
+    addHeritageAlias(target, value);
+    return;
+  }
+
+  for (const candidate of [value.slug ?? null, value.name ?? null]) {
+    addHeritageAlias(target, candidate);
+  }
+}
+
 function addAncestryFeatTraitAliases(target, value) {
   const normalized = slugify(String(value ?? '').toLowerCase());
   if (!normalized) return;
   const aliases = ANCESTRY_TRAIT_ALIASES[normalized] ?? [normalized];
   for (const alias of aliases) target.add(alias);
+  if (normalized.endsWith('-heritage')) {
+    const baseAlias = normalized.replace(/-heritage$/u, '');
+    if (baseAlias) target.add(baseAlias);
+  }
+}
+
+function addHeritageAlias(target, value) {
+  const normalized = slugify(String(value ?? '').toLowerCase());
+  if (!normalized) return;
+  target.add(normalized);
+  if (normalized.endsWith('-heritage')) {
+    const baseAlias = normalized.replace(/-heritage$/u, '');
+    if (baseAlias) target.add(baseAlias);
+  }
 }
 
 function buildGrantedItemSummary(item) {

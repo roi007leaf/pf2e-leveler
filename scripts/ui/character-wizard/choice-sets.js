@@ -700,7 +700,6 @@ export async function parseChoiceSets(wizard, rules, currentChoices = {}, source
     if (!flag) continue;
     const normalizedRule = { ...rule, flag };
     if (isInternalFixedSkillRankChoiceSet(normalizedRule, allRules)) continue;
-    if (shouldSkipChoiceSetRule(sourceItem, normalizedRule)) continue;
     const rollOptions = buildChoiceSetRollOptions(wizard, allRules, currentChoices);
     if (!matchesChoiceSetPredicate(normalizedRule.predicate, rollOptions)) continue;
     const options = await resolveChoiceSetOptions(wizard, normalizedRule, currentChoices, sourceItem, rollOptions);
@@ -745,10 +744,6 @@ function isInternalFixedSkillRankChoiceSet(rule, allRules) {
     String(entry?.value ?? '').includes(`rulesSelections.${flag}`));
 }
 
-function shouldSkipChoiceSetRule(sourceItem, rule) {
-  return sourceIsFixedQiSpellsGrant(sourceItem) && isSpellChoiceSet(rule);
-}
-
 function choiceSetGrantsSkillTraining(sourceItem, rule) {
   return rule?.leveler?.grantsSkillTraining === true
     || sourceSkillChoiceGrantsTraining(sourceItem, rule);
@@ -788,6 +783,7 @@ async function buildSyntheticChoiceSetRules(wizard, rules, currentChoices, sourc
   }
 
   syntheticRules.push(
+    ...buildSyntheticQiSpellChoiceRules(sourceItem, rules),
     ...buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules),
   );
 
@@ -850,12 +846,42 @@ function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
   }));
 }
 
-function shouldSkipSyntheticEmbeddedSpellChoice(sourceItem) {
-  const slug = normalizeSourceSlug(sourceItem);
-  return slug === 'soulforger-dedication' || sourceIsFixedQiSpellsGrant(sourceItem);
+function buildSyntheticQiSpellChoiceRules(sourceItem, rules) {
+  if (!sourceIsQiSpellsGrant(sourceItem)) return [];
+  if (hasAuthoredQiSpellChoiceSet(rules)) return [];
+
+  return [{
+    key: 'ChoiceSet',
+    flag: 'qiSpell',
+    prompt: 'Select a qi spell.',
+    choices: {
+      itemType: 'spell',
+      filter: [
+        'item:type:spell',
+        'item:level:1',
+        'item:trait:focus',
+        'item:trait:monk',
+      ],
+    },
+    leveler: {
+      syntheticType: 'spell-choice',
+      sourceName: sourceItem?.name ?? null,
+    },
+  }];
 }
 
-function sourceIsFixedQiSpellsGrant(sourceItem) {
+function hasAuthoredQiSpellChoiceSet(rules) {
+  return (rules ?? []).some((rule) =>
+    rule?.key === 'ChoiceSet'
+    && (String(rule?.flag ?? '') === 'qiSpell' || isSpellChoiceSet(rule)));
+}
+
+function shouldSkipSyntheticEmbeddedSpellChoice(sourceItem) {
+  const slug = normalizeSourceSlug(sourceItem);
+  return slug === 'soulforger-dedication';
+}
+
+function sourceIsQiSpellsGrant(sourceItem) {
   return normalizeSourceSlug(sourceItem) === 'qi-spells';
 }
 
@@ -1170,6 +1196,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
       img: item.img ?? null,
       traits: item.traits ?? [],
       rarity: item.rarity ?? 'common',
+      ...(item.type === 'spell' ? { level: item.level ?? null } : {}),
       type: item.type ?? null,
       category: item.category ?? null,
       range: item.range ?? null,

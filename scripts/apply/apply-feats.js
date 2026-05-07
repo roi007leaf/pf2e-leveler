@@ -115,22 +115,23 @@ async function applyGrantItemSpellsFromFeats(actor, plan, featDatas) {
   const innateSpells = [];
 
   for (const featData of featDatas) {
+    for (const uuid of getSelectedSpellChoiceUuids(featData)) {
+      const spell = await fromUuid(uuid).catch(() => null);
+      if (spell) addFeatGrantedSpell(spell, featData, focusSpells, innateSpells);
+    }
+
     const rules = featData.system?.rules ?? [];
     for (const rule of rules) {
       if (rule.key !== 'GrantItem' || typeof rule.uuid !== 'string') continue;
       if (!isCompendiumUuidInCategory(rule.uuid, 'spells')) continue;
       const spell = await fromUuid(rule.uuid).catch(() => null);
       if (!spell) continue;
-      if (isFocusLikeSpell(spell) && !focusSpells.some((entry) => entry.spell.uuid === spell.uuid)) {
-        focusSpells.push({ spell, source: featData });
-      } else if (!isFocusLikeSpell(spell) && !innateSpells.some((s) => s.uuid === spell.uuid)) {
-        innateSpells.push(spell);
-      }
+      addFeatGrantedSpell(spell, featData, focusSpells, innateSpells);
     }
 
     // Also scan description for spell UUID references
     const html = featData.system?.description?.value ?? '';
-    if (html) {
+    if (html && !hasEmbeddedSpellChoiceDescription(html)) {
       const descUuids = extractCompendiumUuidsByCategory(html, 'spells');
       for (const uuid of descUuids) {
         if (focusSpells.some((entry) => entry.spell.uuid === uuid)) continue;
@@ -142,6 +143,38 @@ async function applyGrantItemSpellsFromFeats(actor, plan, featDatas) {
 
   await applyInnateSpellsFromFeats(actor, innateSpells);
   await applyFocusSpells(actor, plan, focusSpells);
+}
+
+function getSelectedSpellChoiceUuids(featData) {
+  return Object.values(featData?.flags?.pf2e?.rulesSelections ?? {})
+    .filter((value) => typeof value === 'string' && isCompendiumUuidInCategory(value, 'spells'));
+}
+
+function addFeatGrantedSpell(spell, source, focusSpells, innateSpells) {
+  if (isFocusLikeSpell(spell)) {
+    if (!focusSpells.some((entry) => entry.spell.uuid === spell.uuid)) {
+      focusSpells.push({ spell, source });
+    }
+    return;
+  }
+
+  if (!innateSpells.some((entry) => entry.uuid === spell.uuid)) {
+    innateSpells.push(spell);
+  }
+}
+
+function hasEmbeddedSpellChoiceDescription(html) {
+  const text = String(html ?? '')
+    .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gu, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!text) return false;
+
+  return (/\b(?:choose|select|pick)\b/.test(text)
+      && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text)))
+    || /\bor another\b.{0,120}\b(?:cantrip|spell|focus spell|innate spell)\b/u.test(text);
 }
 
 async function applyInnateSpellsFromFeats(actor, innateSpells) {

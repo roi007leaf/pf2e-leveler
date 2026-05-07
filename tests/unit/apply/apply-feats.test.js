@@ -803,6 +803,97 @@ describe('applyFeats', () => {
     }
   });
 
+  test('adds only the selected Qi Spells focus spell', async () => {
+    mockActor.system.resources.focus = { max: 0, value: 0 };
+    mockActor.createEmbeddedDocuments = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: 'Qi Spells' }])
+      .mockResolvedValueOnce([{
+        id: 'focus-entry-id',
+        type: 'spellcastingEntry',
+        system: { prepared: { value: 'focus' } },
+      }])
+      .mockResolvedValueOnce([{ name: 'Qi Rush' }]);
+
+    const qiDescription = '<p>You gain @UUID[Compendium.pf2e.spells-srd.Item.inner-upheaval]{Inner Upheaval}, @UUID[Compendium.pf2e.spells-srd.Item.qi-rush]{Qi Rush}, or another 1st-rank monk qi spell you have access to.</p>';
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-qi-spells') {
+        return {
+          uuid,
+          name: 'Qi Spells',
+          system: {
+            level: { value: 1 },
+            location: null,
+            rules: [],
+            description: { value: qiDescription },
+          },
+          toObject: jest.fn(() => ({
+            name: 'Qi Spells',
+            system: {
+              level: { value: 1 },
+              location: null,
+              rules: [],
+              description: { value: qiDescription },
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.inner-upheaval') {
+        return {
+          uuid,
+          name: 'Inner Upheaval',
+          system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          toObject: jest.fn(() => ({
+            name: 'Inner Upheaval',
+            system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.spells-srd.Item.qi-rush') {
+        return {
+          uuid,
+          name: 'Qi Rush',
+          system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          toObject: jest.fn(() => ({
+            name: 'Qi Rush',
+            system: { traits: { value: ['focus', 'monk'], traditions: [] } },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      classSlug: 'monk',
+      levels: {
+        1: {
+          classFeats: [{
+            uuid: 'feat-qi-spells',
+            name: 'Qi Spells',
+            slug: 'qi-spells',
+            choices: { qiSpell: 'Compendium.pf2e.spells-srd.Item.qi-rush' },
+          }],
+        },
+      },
+    }, 1);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledTimes(3);
+    expect(mockActor.createEmbeddedDocuments.mock.calls[2][1]).toEqual([
+      expect.objectContaining({
+        name: 'Qi Rush',
+        system: expect.objectContaining({
+          location: { value: 'focus-entry-id' },
+        }),
+      }),
+    ]);
+    expect(mockActor.createEmbeddedDocuments.mock.calls.flatMap((call) =>
+      call[1].map((item) => item.name))).not.toContain('Inner Upheaval');
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.resources.focus.max': 1,
+      'system.resources.focus.value': 1,
+    });
+  });
+
   test('does not turn Halo description light text into a focus cantrip', async () => {
     mockActor.createEmbeddedDocuments = jest
       .fn()

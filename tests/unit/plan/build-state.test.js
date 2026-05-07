@@ -575,6 +575,37 @@ describe('computeBuildState', () => {
     expect(state.heritageAliases.has('aiuvarin')).toBe(true);
   });
 
+  test('adds stripped heritage-name aliases for planned granted heritages', () => {
+    setLevelFeat(plan, 1, 'ancestryFeats', {
+      uuid: 'Compendium.test.feats.Item.false-queen',
+      name: 'False Queen',
+      slug: 'false-queen',
+      grantedItems: [
+        {
+          type: 'heritage',
+          uuid: 'Compendium.ponyfinder-foundryvtt-module.ponyfinder-heritages.Item.pegasus',
+          slug: null,
+          name: 'Pegasus Heritage',
+          traits: ['pegasus'],
+        },
+        {
+          type: 'heritage',
+          uuid: 'Compendium.ponyfinder-foundryvtt-module.ponyfinder-heritages.Item.unicorn',
+          slug: null,
+          name: 'Unicorn Heritage',
+          traits: ['unicorn'],
+        },
+      ],
+    });
+
+    const state = computeBuildState(mockActor, plan, 2);
+
+    expect(state.heritageAliases.has('pegasus')).toBe(true);
+    expect(state.heritageAliases.has('unicorn')).toBe(true);
+    expect(state.ancestryTraits.has('pegasus')).toBe(true);
+    expect(state.ancestryTraits.has('unicorn')).toBe(true);
+  });
+
   test('includes ancestry name as ancestry trait when ancestry slug is missing', () => {
     mockActor.ancestry = {
       slug: null,

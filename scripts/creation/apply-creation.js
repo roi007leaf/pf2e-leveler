@@ -744,13 +744,16 @@ function resolveGrantRuleUuid(uuid, choices) {
 
 function hasEmbeddedSpellChoiceDescription(html) {
   const text = String(html ?? '')
+    .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gu, '$1')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
-  return /\b(?:choose|select|pick)\b/.test(text)
-    && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text))
-    && extractCompendiumUuidsByCategory(html, 'spells').length > 0;
+  if (extractCompendiumUuidsByCategory(html, 'spells').length === 0) return false;
+
+  return (/\b(?:choose|select|pick)\b/.test(text)
+      && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text)))
+    || /\bor another\b.{0,120}\b(?:cantrip|spell|focus spell|innate spell)\b/u.test(text);
 }
 
 function hasDirectSpellGrantDescription(html) {
