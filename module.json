@@ -34,6 +34,12 @@
       "name": "Français",
       "path": "lang/fr.json",
       "flags": {}
+    },
+    {
+      "lang": "cn",
+      "name": "简体中文",
+      "path": "lang/cn.json",
+      "flags": {}
     }
   ],
   "flags": {
