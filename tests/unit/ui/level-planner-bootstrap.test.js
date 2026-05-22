@@ -2108,6 +2108,174 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.generalFeatAdoptedAncestryOptions).toHaveLength(2);
   });
 
+  it('uses Cultural Adaptability ancestry choices to filter the granted ancestry feat', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+    actor.ancestry.slug = 'halfling';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 5;
+    planner.plan.levels[5].ancestryFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.cultural-adaptability',
+      slug: 'cultural-adaptability',
+      name: 'Cultural Adaptability',
+      level: 5,
+      choices: {
+        ancestry: 'dwarf',
+      },
+    }];
+    planner._compendiumCache['pf2e.ancestries'] = [
+      {
+        uuid: 'Compendium.pf2e.ancestries.Item.dwarf',
+        name: 'Dwarf',
+        type: 'ancestry',
+        slug: 'dwarf',
+        rarity: 'common',
+      },
+      {
+        uuid: 'Compendium.pf2e.ancestries.Item.halfling',
+        name: 'Halfling',
+        type: 'ancestry',
+        slug: 'halfling',
+        rarity: 'common',
+      },
+    ];
+    planner._compendiumCache['pf2e.feats-srd'] = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.dwarven-lore',
+        name: 'Dwarven Lore',
+        type: 'feat',
+        slug: 'dwarven-lore',
+        traits: ['dwarf'],
+        category: 'ancestry',
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.elven-lore',
+        name: 'Elven Lore',
+        type: 'feat',
+        slug: 'elven-lore',
+        traits: ['elf'],
+        category: 'ancestry',
+        rarity: 'common',
+        level: 1,
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.cultural-adaptability') {
+        return {
+          uuid,
+          slug: 'cultural-adaptability',
+          name: 'Cultural Adaptability',
+          img: 'cultural.png',
+          system: {
+            description: { value: '' },
+            level: { value: 5 },
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+              },
+              {
+                adjustName: false,
+                choices: {
+                  filter: [
+                    'item:level:1',
+                    'item:trait:{actor|system.details.ancestry.adopted}',
+                  ],
+                },
+                flag: 'feat',
+                key: 'ChoiceSet',
+                prompt: 'PF2E.SpecificRule.Prompt.LevelOneAncestryFeat',
+              },
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.feat}',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.adopted-ancestry') {
+        return {
+          uuid,
+          slug: 'adopted-ancestry',
+          name: 'Adopted Ancestry',
+          type: 'feat',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                choices: {
+                  filter: [{ not: 'item:slug:{actor|system.details.ancestry.trait}' }],
+                  itemType: 'ancestry',
+                  slugsAsValues: true,
+                },
+                flag: 'ancestry',
+                key: 'ChoiceSet',
+                prompt: 'PF2E.SpecificRule.AdoptedAncestry.Prompt',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.dwarven-lore') {
+        return {
+          uuid,
+          slug: 'dwarven-lore',
+          name: 'Dwarven Lore',
+          type: 'feat',
+          img: 'dwarven-lore.png',
+          system: {
+            level: { value: 1 },
+            traits: { value: ['dwarf'], rarity: 'common' },
+            rules: [],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+
+      expect(context.ancestryFeat.grantChoiceSets).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          flag: 'ancestry',
+          options: expect.arrayContaining([
+            expect.objectContaining({ value: 'dwarf', label: 'Dwarf', selected: true }),
+          ]),
+        }),
+      ]));
+      expect(context.ancestryFeatChoiceSets).toEqual([
+        expect.objectContaining({
+          flag: 'feat',
+          choicePicker: expect.objectContaining({
+            kind: 'feat',
+            category: 'ancestry',
+            allowedUuids: ['Compendium.pf2e.feats-srd.Item.dwarven-lore'],
+          }),
+          options: [
+            expect.objectContaining({
+              value: 'Compendium.pf2e.feats-srd.Item.dwarven-lore',
+              label: 'Dwarven Lore',
+            }),
+          ],
+        }),
+      ]);
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('shows a deity selector under planner feats that require a deity choice', async () => {
     const originalFromUuid = global.fromUuid;
     const actor = createMockActor({ items: [] });

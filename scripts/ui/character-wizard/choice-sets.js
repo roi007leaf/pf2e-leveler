@@ -5,7 +5,7 @@ import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 import { slugify } from '../../utils/pf2e-api.js';
 import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
-import { extractCompendiumUuidsByCategory } from '../../system-support/profiles.js';
+import { getEmbeddedSpellChoiceContexts } from '../../utils/spell-description.js';
 import { buildSkillContext } from './skills-languages.js';
 import { parseCurriculum } from './loaders.js';
 
@@ -848,11 +848,11 @@ function buildSyntheticEmbeddedSpellChoiceRules(sourceItem, rules) {
   if (hasAuthoredSpellChoiceSet(rules)) return [];
   if (shouldSkipSyntheticEmbeddedSpellChoice(sourceItem)) return [];
 
-  const text = normalizeDescriptionText(sourceItem?.system?.description?.value ?? '');
-  if (!/\b(?:choose|select|pick)\b/.test(text)) return [];
-  if (!/\bspell(?:book|s)?\b|\brepertoire\b/.test(text)) return [];
+  const choiceContexts = getEmbeddedSpellChoiceContexts(sourceItem?.system?.description?.value ?? '');
+  if (choiceContexts.length === 0) return [];
 
-  const spellUuids = extractCompendiumUuidsByCategory(sourceItem?.system?.description?.value ?? '', 'spells');
+  const text = choiceContexts.map((context) => context.text).join(' ');
+  const spellUuids = [...new Set(choiceContexts.flatMap((context) => context.uuids))];
   if (spellUuids.length < 2) return [];
 
   const count = inferChoiceCount(text, { defaultCount: /\bone of (?:the )?following\b/.test(text) ? 1 : null });
@@ -1186,7 +1186,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
     return resolveConfigChoiceOptions(rule.choices.config);
   }
 
-  const resolvedFilter = resolveChoiceSetFilterPlaceholders(rule.choices.filter ?? [], wizard);
+  const resolvedFilter = resolveChoiceSetFilterPlaceholders(rule.choices.filter ?? [], wizard, currentChoices);
   const candidates = await loadChoiceSetCandidates(wizard, {
     ...rule.choices,
     filter: resolvedFilter,
@@ -2196,26 +2196,31 @@ function loadOwnedChoiceSetCandidates(wizard, choiceConfig) {
     .map((item) => normalizeChoiceCandidate(item));
 }
 
-function resolveChoiceSetFilterPlaceholders(filter, wizard) {
-  if (typeof filter === 'string') return resolveChoiceSetPlaceholderString(filter, wizard);
-  if (Array.isArray(filter)) return filter.map((entry) => resolveChoiceSetFilterPlaceholders(entry, wizard));
+function resolveChoiceSetFilterPlaceholders(filter, wizard, currentChoices = {}) {
+  if (typeof filter === 'string') return resolveChoiceSetPlaceholderString(filter, wizard, currentChoices);
+  if (Array.isArray(filter)) return filter.map((entry) => resolveChoiceSetFilterPlaceholders(entry, wizard, currentChoices));
   if (!filter || typeof filter !== 'object') return filter;
 
   return Object.fromEntries(
-    Object.entries(filter).map(([key, value]) => [key, resolveChoiceSetFilterPlaceholders(value, wizard)]),
+    Object.entries(filter).map(([key, value]) => [key, resolveChoiceSetFilterPlaceholders(value, wizard, currentChoices)]),
   );
 }
 
-function resolveChoiceSetPlaceholderString(value, wizard) {
+function resolveChoiceSetPlaceholderString(value, wizard, currentChoices = {}) {
   return String(value).replace(/\{actor\|([^}]+)\}/g, (_match, path) => {
-    const resolved = resolveActorChoiceSetPath(wizard, path);
+    const resolved = resolveActorChoiceSetPath(wizard, path, currentChoices);
     return resolved == null ? '' : String(normalizeChoiceSetPathValue(resolved));
   });
 }
 
-function resolveActorChoiceSetPath(wizard, path) {
+function resolveActorChoiceSetPath(wizard, path, currentChoices = {}) {
   const normalizedPath = String(path ?? '').trim();
   if (!normalizedPath) return null;
+
+  if (normalizedPath === 'system.details.ancestry.adopted') {
+    const plannedAdoptedAncestry = resolvePlannedAdoptedAncestryChoice(currentChoices);
+    if (plannedAdoptedAncestry) return plannedAdoptedAncestry;
+  }
 
   const actorValue = foundry?.utils?.getProperty?.(wizard?.actor, normalizedPath);
   if (isResolvedChoiceSetPathValue(actorValue)) return actorValue;
@@ -2233,6 +2238,16 @@ function resolveActorChoiceSetPath(wizard, path) {
     return wizard?.data?.ancestry?.slug ?? wizard?.actor?.ancestry?.slug ?? null;
   }
 
+  return null;
+}
+
+function resolvePlannedAdoptedAncestryChoice(currentChoices = {}) {
+  for (const flag of ['ancestry', 'adoptedAncestry']) {
+    const value = currentChoices?.[flag];
+    if (typeof value === 'string' && value.trim().length > 0 && value !== '[object Object]') {
+      return value.trim();
+    }
+  }
   return null;
 }
 

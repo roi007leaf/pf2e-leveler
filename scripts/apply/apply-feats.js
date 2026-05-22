@@ -6,6 +6,7 @@ import {
   extractCompendiumUuidsByCategory,
   isCompendiumUuidInCategory,
 } from '../system-support/profiles.js';
+import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
 
 const CATEGORY_TO_GROUP = {
   classFeats: 'class',
@@ -163,20 +164,6 @@ function addFeatGrantedSpell(spell, source, focusSpells, innateSpells) {
   }
 }
 
-function hasEmbeddedSpellChoiceDescription(html) {
-  const text = String(html ?? '')
-    .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gu, '$1')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-  if (!text) return false;
-
-  return (/\b(?:choose|select|pick)\b/.test(text)
-      && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text)))
-    || /\bor another\b.{0,120}\b(?:cantrip|spell|focus spell|innate spell)\b/u.test(text);
-}
-
 async function applyInnateSpellsFromFeats(actor, innateSpells) {
   if (innateSpells.length === 0) return;
 
@@ -254,8 +241,41 @@ function prepareForCreation(item, featEntry, group, level) {
     data.flags.pf2e ??= {};
     data.flags.pf2e.rulesSelections = Object.fromEntries(choiceEntries.map(([key, value]) => [key, String(value)]));
   }
+  preselectGrantedAdoptedAncestry(data, featEntry);
   addSyntheticGrantItemRule(data, featEntry);
   return data;
+}
+
+function preselectGrantedAdoptedAncestry(data, featEntry) {
+  const selectedAncestry = getSelectedAdoptedAncestry(featEntry);
+  if (!selectedAncestry) return;
+
+  for (const rule of data?.system?.rules ?? []) {
+    if (rule?.key !== 'GrantItem' || !isAdoptedAncestryGrantUuid(rule?.uuid)) continue;
+    rule.preselectChoices = {
+      ...(rule.preselectChoices ?? {}),
+      ancestry: selectedAncestry,
+    };
+  }
+}
+
+function getSelectedAdoptedAncestry(featEntry) {
+  for (const flag of ['ancestry', 'adoptedAncestry']) {
+    const value = featEntry?.choices?.[flag];
+    if (typeof value === 'string' && value.trim().length > 0 && value !== '[object Object]') {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function isAdoptedAncestryGrantUuid(uuid) {
+  const normalized = String(uuid ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '');
+  return normalized.endsWith('item-adopted-ancestry') || normalized.endsWith('item-ihn8gkhsdpg9trte');
 }
 
 async function ensureFocusEntryForFeatSpell(actor, plan, spell, source, fallback) {

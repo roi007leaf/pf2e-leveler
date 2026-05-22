@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.4.14
+
+### Level Planner
+
+- **Cultural Adaptability now completes its nested feat choices** - Complex ancestry feats that grant Adopted Ancestry now use the selected ancestry to populate the follow-up 1st-level ancestry feat picker and apply the granted ancestry selection correctly
+- **Example spell links no longer become bogus spell choices** - Items such as Basic Undead Benefits now ignore descriptive spell references like Stabilize and Phantasmal Killer instead of turning unrelated text into a spell picker
+
 ## 3.4.13
 
 ### Character Wizard

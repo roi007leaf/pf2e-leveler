@@ -13,6 +13,7 @@ import { getInitialDomainSpell } from '../data/domain-spells.js';
 import { buildFeatGrantRequirements, getAutomaticFeatGrantEntries, mergeFeatGrantEntries } from '../plan/feat-grants.js';
 import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 import { extractCompendiumUuidsByCategory, isCompendiumUuidInCategory } from '../system-support/profiles.js';
+import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -730,18 +731,6 @@ function resolveGrantRuleUuid(uuid, choices) {
   });
 
   return resolved.includes('{item|') ? null : resolved;
-}
-
-function hasEmbeddedSpellChoiceDescription(html) {
-  const text = String(html ?? '')
-    .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/gu, '$1')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-  if (extractCompendiumUuidsByCategory(html, 'spells').length === 0) return false;
-
-  return (/\b(?:choose|select|pick)\b/.test(text) && (/\bspell(?:book|s)?\b/.test(text) || /\brepertoire\b/.test(text))) || /\bor another\b.{0,120}\b(?:cantrip|spell|focus spell|innate spell)\b/u.test(text);
 }
 
 function hasDirectSpellGrantDescription(html) {

@@ -243,6 +243,128 @@ describe('applyFeats', () => {
     ]);
   });
 
+  test('preselects Adopted Ancestry grants from complex ancestry feat choices', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.cultural-adaptability') {
+        return {
+          uuid,
+          name: 'Cultural Adaptability',
+          img: 'icon.png',
+          system: {
+            level: { value: 5 },
+            location: null,
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.Adopted Ancestry',
+              },
+              {
+                key: 'ChoiceSet',
+                flag: 'feat',
+                prompt: 'PF2E.SpecificRule.Prompt.LevelOneAncestryFeat',
+                choices: {
+                  filter: [
+                    'item:level:1',
+                    'item:trait:{actor|system.details.ancestry.adopted}',
+                  ],
+                },
+              },
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.feat}',
+              },
+            ],
+          },
+          toObject: jest.fn(() => ({
+            name: 'Cultural Adaptability',
+            img: 'icon.png',
+            system: {
+              level: { value: 5 },
+              location: null,
+              rules: [
+                {
+                  key: 'GrantItem',
+                  uuid: 'Compendium.pf2e.feats-srd.Item.Adopted Ancestry',
+                },
+                {
+                  key: 'ChoiceSet',
+                  flag: 'feat',
+                  prompt: 'PF2E.SpecificRule.Prompt.LevelOneAncestryFeat',
+                  choices: {
+                    filter: [
+                      'item:level:1',
+                      'item:trait:{actor|system.details.ancestry.adopted}',
+                    ],
+                  },
+                },
+                {
+                  key: 'GrantItem',
+                  uuid: '{item|flags.system.rulesSelections.feat}',
+                },
+              ],
+            },
+          })),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.Adopted Ancestry') {
+        return {
+          uuid,
+          name: 'Adopted Ancestry',
+          flags: { core: { sourceId: uuid } },
+          system: { rules: [] },
+          toObject: jest.fn(() => ({
+            name: 'Adopted Ancestry',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [] },
+          })),
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.dwarven-lore') {
+        return {
+          uuid,
+          name: 'Dwarven Lore',
+          flags: { core: { sourceId: uuid } },
+          system: { rules: [] },
+          toObject: jest.fn(() => ({
+            name: 'Dwarven Lore',
+            flags: { core: { sourceId: uuid } },
+            system: { rules: [] },
+          })),
+        };
+      }
+
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      levels: {
+        5: {
+          ancestryFeats: [{
+            uuid: 'Compendium.pf2e.feats-srd.Item.cultural-adaptability',
+            name: 'Cultural Adaptability',
+            slug: 'cultural-adaptability',
+            choices: {
+              ancestry: 'dwarf',
+              feat: 'Compendium.pf2e.feats-srd.Item.dwarven-lore',
+            },
+          }],
+        },
+      },
+    }, 5);
+
+    const createdData = mockActor.createEmbeddedDocuments.mock.calls[0][1][0];
+    const adoptedGrant = createdData.system.rules.find((rule) =>
+      rule?.key === 'GrantItem'
+      && String(rule?.uuid ?? '').includes('Adopted Ancestry'));
+    expect(createdData.flags.pf2e.rulesSelections).toEqual({
+      ancestry: 'dwarf',
+      feat: 'Compendium.pf2e.feats-srd.Item.dwarven-lore',
+    });
+    expect(adoptedGrant.preselectChoices).toEqual({ ancestry: 'dwarf' });
+  });
+
   test('routes dual class feats to the Workbench dual-class campaign feat section when present', async () => {
     jest.spyOn(pf2eApi, 'getCampaignFeatSectionIds').mockReturnValue(['xdy_dualclass']);
 

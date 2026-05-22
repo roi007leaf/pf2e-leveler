@@ -1995,6 +1995,26 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('does not synthesize spell choices from Basic Undead Benefits example spell links', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const feat = createDoc({
+      uuid: 'Compendium.pf2e.ancestryfeatures.Item.basic-undead-benefits',
+      name: 'Basic Undead Benefits',
+      type: 'feat',
+      slug: 'basic-undead-benefits',
+    });
+    feat.system.description.value = [
+      '<p><strong>Void Survival:</strong> Many methods of bringing someone back from dying, such as @UUID[Compendium.pf2e.spells-srd.Item.Stabilize], do not benefit you.</p>',
+      '<p><strong>Immunity to Death Effects:</strong> For example, you can still take mental damage and become frightened by a @UUID[Compendium.pf2e.spells-srd.Item.Phantasmal Killer], you just do not instantly die from it.</p>',
+      '<p><strong>Disease and Poison Protection:</strong> You gain a +1 circumstance bonus to saving throws against disease and poison.</p>',
+      '<p>Many undead choose to rest when the sun is at its highest.</p>',
+    ].join('');
+
+    const sets = await wizard._parseChoiceSets([], {}, feat);
+
+    expect(sets).toEqual([]);
+  });
+
   it('does not synthesize Soulforger Dedication essence spell choices', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const feat = createDoc({
