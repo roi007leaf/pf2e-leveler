@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.22
+
+### Level Planner
+
+- **Level Planner now shows a loading state during navigation** - A loading overlay with a progress message is displayed while planner data is being fetched, preventing interaction with stale content and giving users clear visual feedback during level transitions
+
 ## 3.4.21
 
 ### Level Planner
