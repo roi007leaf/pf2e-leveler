@@ -1172,6 +1172,66 @@ describe('computeBuildState', () => {
     expect(state.lores['underworld-lore']).toBe(1);
   });
 
+  test('trains lore skills granted by backgrounds at level 1', () => {
+    const actor = createMockActor();
+    actor.background = {
+      type: 'background',
+      name: 'Tinker',
+      system: {
+        trainedSkills: {
+          value: ['crafting'],
+          lore: ['Engineering Lore'],
+        },
+      },
+    };
+    actor.items = [actor.background];
+
+    const state = computeBuildState(actor, plan, 1);
+
+    expect(state.lores['engineering-lore']).toBe(PROFICIENCY_RANKS.TRAINED);
+  });
+
+  test('applies skills lore and feat aliases from planned granted backgrounds without ability boosts', () => {
+    const actor = createMockActor();
+    const plan = createPlan('alchemist');
+    plan.levels[5].ancestryFeats = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.free-heart',
+        slug: 'free-heart',
+        name: 'Free Heart',
+        grantedItems: [
+          {
+            uuid: 'Compendium.pf2e.backgrounds.Item.street-urchin',
+            type: 'background',
+            name: 'Street Urchin',
+            system: {
+              boosts: {
+                0: { value: ['dex'] },
+              },
+              trainedSkills: {
+                value: ['thievery'],
+                lore: ['Underworld Lore'],
+              },
+              items: {
+                pickpocket: {
+                  uuid: 'Compendium.pf2e.feats-srd.Item.pickpocket',
+                  name: 'Pickpocket',
+                },
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    const state = computeBuildState(actor, plan, 5);
+
+    expect(state.skills.thievery).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.lores['underworld-lore']).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(state.feats.has('pickpocket')).toBe(true);
+    expect(state.attributes.dex).toBe(0);
+  });
+
   test('collects known languages with Ancient Osiriani normalized to Osiriani', () => {
     mockActor.system.details.languages = {
       value: ['common', 'osiriani', 'sphinx'],

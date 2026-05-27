@@ -64,6 +64,43 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     ]);
   });
 
+  it('shows Intelligence bonus selections for imported historical boosts before current level', () => {
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 8 },
+          xp: { value: 0, max: 1000 },
+        },
+        abilities: {
+          int: { mod: 4 },
+        },
+        build: {
+          attributes: {
+            boosts: {
+              5: ['str', 'dex', 'con', 'int'],
+            },
+          },
+        },
+      },
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = {
+      ...createPlan('alchemist'),
+      importedFromActor: {
+        actorLevel: 8,
+        hideHistoricalSkillIncreases: true,
+      },
+    };
+    setLevelBoosts(planner.plan, 5, ['str', 'dex', 'con', 'int']);
+
+    expect(planner._buildIntelligenceBenefitContext(5)).toEqual({
+      count: 1,
+      gainsSingle: true,
+    });
+  });
+
   it('renders an add-Lore control for Intelligence bonus skill selections', () => {
     const template = readFileSync('templates/level-planner.hbs', 'utf8');
     const skillSection = template.slice(

@@ -1,6 +1,6 @@
 import { ATTRIBUTES, MIN_PLAN_LEVEL, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
 import { getGradualBoostGroupLevels } from '../../classes/progression.js';
-import { computeBuildState, computeSkillPickerState, getAutomaticInitialSkillTrainingEntries, getImportedInitialSkillLimit, getImportedInitialSkillTraining, getInitialSkillSourceItems, isImportedHistoricalSkillLevel } from '../../plan/build-state.js';
+import { computeBuildState, computeSkillPickerState, getAutomaticInitialLoreTraining, getAutomaticInitialSkillTrainingEntries, getImportedInitialSkillLimit, getImportedInitialSkillTraining, getInitialSkillSourceItems, getIntelligenceBenefitCount, isImportedHistoricalSkillLevel } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
@@ -275,11 +275,7 @@ function getUsedBoostsInSet(planner, level, gradualBoosts) {
 }
 
 export function buildIntelligenceBenefitContext(planner, level) {
-  const before = computeBuildState(planner.actor, planner.plan, level - 1);
-  const after = computeBuildState(planner.actor, planner.plan, level);
-  const beforeInt = before.attributes.int ?? 0;
-  const afterInt = after.attributes.int ?? 0;
-  const gained = Math.max(0, afterInt - beforeInt);
+  const gained = getIntelligenceBenefitCount(planner.actor, planner.plan, level);
 
   if (gained <= 0) return null;
 
@@ -765,8 +761,11 @@ function extractGrantedSkillsFromRules(rules) {
 
 function buildHistoricalLoreRanks(planner, upToLevel) {
   const lores = {};
+  for (const slug of getAutomaticInitialLoreTraining(planner.actor, planner.plan, ClassRegistry.get(planner.plan?.classSlug))) {
+    lores[slug] = 1;
+  }
   for (const slug of collectActorLoreSlugs(planner.actor)) {
-    lores[slug] = 0;
+    lores[slug] ??= 0;
   }
 
   for (let level = 1; level <= upToLevel; level++) {

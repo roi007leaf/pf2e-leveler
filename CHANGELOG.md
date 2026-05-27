@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.26
+
+### Level Planner
+
+- **Imported background edge cases now apply during historical planning** - Background lore starts trained in historical skill views, imported past Intelligence boosts still prompt for bonus skills and languages, and granted second backgrounds such as Free Heart apply their skills, lore, and feat aliases without adding extra ability boosts
+
 ## 3.4.25
 
 ### Level Planner

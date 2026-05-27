@@ -281,29 +281,17 @@ recommend splitting it along real responsibility boundaries.
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-leveler] recent context, 2026-05-27 11:21am GMT+3
+# [pf2e-leveler] recent context, 2026-05-27 12:55pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,563t read) | 274,187t work | 94% savings
+Stats: 50 obs (17,759t read) | 267,066t work | 93% savings
 
 ### May 3, 2026
 S120 Feat retraining implementation for pf2e-leveler — Task 2 complete (validator + apply), Task 3 (planner UI) in progress (May 3 at 1:42 PM)
 ### May 27, 2026
-6175 8:19a 🟣 Added tests for subclass-granted skill duplicate detection in imported skill dialog
-6176 " 🔵 All 3 duplicate-skill dialog tests pass without production code changes
-6177 8:20a ✅ Full test suite and lint pass after adding subclass skill duplicate tests
-6178 " 🟣 Subclass duplicate-skill test coverage added; full suite green at 1441 tests
-6179 " 🔵 Broader staged changes reveal prior production code edit in context.js alongside test work
-6180 " 🔵 context.js extractInitialSkillChoiceSets skips native background skill rules explicitly
-6181 " 🔵 isNativeBackgroundSkillChoiceRule detects background skill prompts by item type + rule prompt string
-6182 8:21a 🟣 Added test for background ChoiceSet skill prompt shown when no prior selection exists
-6183 " 🔴 isNativeBackgroundSkillChoiceRule now requires a stored selection before suppressing background skill prompts
-6184 " 🟣 Complete unstaged diff: context.js bugfix + 177 new test lines covering all skill conflict scenarios
-6185 " 🟣 Full suite green at 1443 tests after context.js bugfix and 3 new skill conflict test scenarios
-6186 8:22a 🔵 Full change set breakdown: staged vs unstaged across all three modified files
 6187 8:25a 🔵 Bug Identified in Sheet Integration Background Selection Flow
 6188 " 🔵 Version Mismatch Between package.json and module.json
 6189 " 🔵 Active Work on level-planner/context.js and Associated Tests
@@ -342,6 +330,18 @@ S120 Feat retraining implementation for pf2e-leveler — Task 2 complete (valida
 6391 " 🔵 package-lock.json still at 3.4.21 after version bump to 3.4.25
 6392 " ✅ package-lock.json synced to 3.4.25, all version files now consistent
 6393 11:19a 🔵 Key functions and tests for skill/boost planning in build-state.js
+6394 11:22a 🔵 pf2e-leveler recent release history: 3.4.19 through 3.4.23
+6395 " ✅ CHANGELOG restructured to restore separate 3.4.24 entry after incorrect version rename
+6489 12:40p 🔴 TDD: Failing tests added for background lore skills and granted background build state
+6490 " 🔵 Three failing tests confirm root causes for background lore and historical INT boost bugs
+6491 12:42p 🔴 Added background lore training extraction functions to build-state.js
+6492 " 🔴 build-state.js wired with background lore, granted background skills, and historical INT benefit count
+6493 12:43p 🔴 Added planned granted background skill/lore extraction helpers and dedupeStrings utility
+6494 " 🔴 context.js updated: buildIntelligenceBenefitContext and buildHistoricalLoreRanks fixed
+6495 12:44p 🔴 plan-validator.js updated and all 130 tests pass
+6496 " ✅ CHANGELOG.md updated with imported background edge cases fix entry
+6497 " 🔴 Full test suite passes: 1448 tests green across 86 suites
+6498 " 🔴 pf2e-leveler background edge cases fix: final diff summary
 
-Access 274k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 267k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

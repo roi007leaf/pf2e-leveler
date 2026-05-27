@@ -857,6 +857,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
     if (!levelData) continue;
 
     if (includePlannedFeatRules) applyPlannedLevelSkillRankRules(skills, plan, level, atLevel);
+    applyInitialSkillTraining(skills, getPlannedGrantedBackgroundSkillTrainingForLevel(plan, level, atLevel));
 
     for (const rawSkill of levelData.intBonusSkills ?? []) {
       const skill = normalizeSkillSlug(rawSkill);
@@ -877,6 +878,22 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
   }
 
   return skills;
+}
+
+export function getIntelligenceBenefitCount(actor, plan, level) {
+  const levelData = plan?.levels?.[level];
+  if (!levelData?.abilityBoosts?.includes('int')) return 0;
+
+  const actorLevel = Number(plan?.importedFromActor?.actorLevel ?? actor?.system?.details?.level?.value ?? 0);
+  if (plan?.importedFromActor?.hideHistoricalSkillIncreases === true && Number.isFinite(actorLevel) && level < actorLevel) {
+    return getHistoricalIntelligenceBenefitCount(actor, plan, level);
+  }
+
+  const before = computeBuildState(actor, plan, level - 1);
+  const after = computeBuildState(actor, plan, level);
+  const beforeInt = before.attributes.int ?? 0;
+  const afterInt = after.attributes.int ?? 0;
+  return Math.max(0, afterInt - beforeInt);
 }
 
 export function isImportedHistoricalSkillLevel(plan, level) {
@@ -938,6 +955,12 @@ export function getInitialSkillSourceItems(actor, plan = null, classDef = null) 
   return getAutomaticInitialSkillItems(actor, classSlugs, plan);
 }
 
+export function getAutomaticInitialLoreTraining(actor, plan = null, classDef = null) {
+  const classDefs = Array.isArray(classDef) ? classDef.filter(Boolean) : [classDef].filter(Boolean);
+  const classSlugs = getTrackedClassSlugs(actor, plan, classDefs);
+  return dedupeStrings(getAutomaticInitialSkillItems(actor, classSlugs, plan).flatMap((item) => extractLoreTrainingFromItem(item, actor)));
+}
+
 function getTrackedClassSlugs(actor, plan, classDefs) {
   const slugs = new Set([
     actor?.class?.slug,
@@ -993,6 +1016,49 @@ function isGrantedByInitialAncestryOrHeritage(item, actor) {
 
 function isBackgroundItem(item) {
   return String(item?.type ?? item?.itemType ?? '').trim().toLowerCase() === 'background';
+}
+
+function getPlannedGrantedBackgroundItemsForLevel(plan, level, atLevel = level) {
+  return getEffectivePlannedFeatsForLevel(plan, level, atLevel).flatMap((feat) => getGrantedBackgroundItems(feat));
+}
+
+function getEffectivePlannedGrantedBackgroundItems(plan, atLevel) {
+  const backgrounds = [];
+  for (const feat of getEffectivePlannedFeats(plan, atLevel)) {
+    backgrounds.push(...getGrantedBackgroundItems(feat));
+  }
+  return backgrounds;
+}
+
+function getGrantedBackgroundItems(source) {
+  return (Array.isArray(source?.grantedItems) ? source.grantedItems : []).filter(isBackgroundItem);
+}
+
+function getPlannedGrantedBackgroundSkillTrainingForLevel(plan, level, atLevel) {
+  return dedupeStrings(
+    getPlannedGrantedBackgroundItemsForLevel(plan, level, atLevel)
+      .flatMap((item) => getSkillTrainingFromItem(item)),
+  );
+}
+
+function getPlannedGrantedBackgroundLoreTrainingForLevel(plan, level, atLevel, actor = null) {
+  return dedupeStrings(
+    getPlannedGrantedBackgroundItemsForLevel(plan, level, atLevel)
+      .flatMap((item) => extractLoreTrainingFromItem(item, actor)),
+  );
+}
+
+function getSkillTrainingFromItem(item) {
+  const skills = new Map();
+  const sourceLabel = getSourceLabel(item, 'Automatic');
+  addInitialSkillList(skills, item?.system?.trainedSkills?.value, sourceLabel);
+  addInitialSkillRuleTraining(skills, item, sourceLabel);
+  addExplicitDescriptionTraining(skills, item?.system?.description?.value ?? item?.description ?? '', sourceLabel);
+  return [...skills.keys()];
+}
+
+function dedupeStrings(values) {
+  return [...new Set((values ?? []).map((value) => String(value ?? '').trim()).filter(Boolean))];
 }
 
 function isInitialSubclassItem(item, classSlugs) {
@@ -1070,6 +1136,52 @@ function addInitialSkillEntry(target, rawSkill, sourceLabel) {
   });
 }
 
+function extractLoreTrainingFromItem(item, actor = null) {
+  const entries = Array.isArray(item?.system?.trainedSkills?.lore) ? item.system.trainedSkills.lore : [];
+  const actorLoreSlugs = new Set(getActorLoreSlugs(actor));
+  const lores = [];
+
+  for (const entry of entries) {
+    const options = splitLoreTrainingOptions(entry);
+    if (options.length === 0) continue;
+    if (options.length === 1) {
+      lores.push(normalizeLoreSlug(options[0]));
+      continue;
+    }
+
+    const matching = options
+      .map((option) => normalizeLoreSlug(option))
+      .find((slug) => actorLoreSlugs.has(slug));
+    if (matching) lores.push(matching);
+  }
+
+  return dedupeStrings(lores);
+}
+
+function splitLoreTrainingOptions(value) {
+  return String(value ?? '')
+    .split(/\s+or\s+|,/iu)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function normalizeLoreSlug(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/gu, ' ');
+  if (!normalized) return '';
+  const withLore = /\blore\b/u.test(normalized) ? normalized : `${normalized} lore`;
+  return slugify(withLore);
+}
+
+function getActorLoreSlugs(actor) {
+  return getOwnedItems(actor)
+    .filter((item) => item?.type === 'lore')
+    .map((item) => normalizeLoreSlug(item?.slug ?? item?.name ?? ''))
+    .filter(Boolean);
+}
+
 function getSourceLabel(source, fallback) {
   const name = String(source?.name ?? '').trim();
   return name || fallback;
@@ -1104,6 +1216,34 @@ function getLevelOneIntModifier(actor) {
   }
 
   return Math.trunc(intMod);
+}
+
+function getHistoricalIntelligenceBenefitCount(actor, plan, level) {
+  let afterRaw = getActorAbilityModifier(actor, 'int');
+  const boostEntries = {
+    ...(actor?.system?.build?.attributes?.boosts ?? {}),
+    ...getAllPlannedBoosts(plan, MAX_LEVEL),
+  };
+
+  const levels = Object.keys(boostEntries)
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry) && entry >= level)
+    .sort((a, b) => b - a);
+
+  for (const boostLevel of levels) {
+    if (!normalizeAbilityBoostList(boostEntries[boostLevel]).includes('int')) continue;
+    afterRaw = reverseApplyAbilityBoost(afterRaw);
+  }
+
+  const beforeRaw = afterRaw;
+  const rawAfterLevel = applyAbilityBoostValue(beforeRaw);
+  return Math.max(0, Math.trunc(rawAfterLevel) - Math.trunc(beforeRaw));
+}
+
+function applyAbilityBoostValue(value) {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return 0;
+  return numeric >= 4 ? numeric + 0.5 : numeric + 1;
 }
 
 function normalizeAbilityBoostList(value) {
@@ -1196,7 +1336,7 @@ function computeLoreSkills(actor, plan, atLevel) {
   for (const item of getOwnedItems(actor)) {
     if (item?.type !== 'lore') continue;
 
-    const slug = slugify(item?.slug ?? item?.name ?? '');
+    const slug = normalizeLoreSlug(item?.slug ?? item?.name ?? '');
     if (!slug) continue;
 
     const rank = Number(item?.system?.proficient?.value ?? item?.system?.proficiency?.value ?? item?.system?.rank ?? 1);
@@ -1205,9 +1345,17 @@ function computeLoreSkills(actor, plan, atLevel) {
     lores[slug] = Math.max(lores[slug] ?? 0, rank);
   }
 
+  for (const lore of getAutomaticInitialLoreTraining(actor, plan, ClassRegistry.get(plan.classSlug))) {
+    lores[lore] = Math.max(lores[lore] ?? 0, PROFICIENCY_RANKS.TRAINED);
+  }
+
   for (let level = 1; level <= atLevel; level++) {
     const levelData = plan.levels?.[level];
     if (!levelData) continue;
+    for (const lore of getPlannedGrantedBackgroundLoreTrainingForLevel(plan, level, atLevel, actor)) {
+      lores[lore] = Math.max(lores[lore] ?? 0, PROFICIENCY_RANKS.TRAINED);
+    }
+
     for (const skill of levelData.intBonusSkills ?? []) {
       const loreSlug = String(skill ?? '')
         .trim()
@@ -1475,10 +1623,26 @@ function computeFeats(actor, plan, atLevel) {
   for (const feat of plannedFeats) {
     for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
+  for (const background of getEffectivePlannedGrantedBackgroundItems(plan, atLevel)) {
+    for (const feat of getBackgroundGrantedFeatureEntries(background)) {
+      for (const alias of getFeatAliases(feat)) feats.add(alias);
+    }
+  }
 
   if (actor?.system?.resources?.focus?.max > 0) feats.add('focus-pool');
 
   return feats;
+}
+
+function getBackgroundGrantedFeatureEntries(background) {
+  return Object.values(background?.system?.items ?? {})
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      uuid: item.uuid ?? null,
+      slug: item.slug ?? null,
+      name: item.name ?? null,
+      type: 'feat',
+    }));
 }
 
 function computeFeatAliasSources(actor, plan, atLevel) {

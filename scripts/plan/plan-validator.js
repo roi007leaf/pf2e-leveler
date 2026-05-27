@@ -2,7 +2,7 @@ import { INITIAL_SKILL_RETRAIN_SOURCE_TYPE, PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEV
 import { ClassRegistry } from '../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels } from '../classes/progression.js';
 import { resolveSubclassSpells } from '../data/subclass-spells.js';
-import { computeBuildState } from './build-state.js';
+import { getIntelligenceBenefitCount } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
 import { getFeatGrantCompletion } from './feat-grants.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
@@ -326,11 +326,7 @@ function findDuplicateGradualBoost(level, plan) {
 
 function getIntBenefitCount(levelData, level, plan, actor) {
   if (!levelData?.abilityBoosts?.includes('int')) return 0;
-  const before = computeBuildState(actor, plan, level - 1);
-  const after = computeBuildState(actor, plan, level);
-  const beforeInt = before.attributes.int ?? 0;
-  const afterInt = after.attributes.int ?? 0;
-  return Math.max(0, afterInt - beforeInt);
+  return getIntelligenceBenefitCount(actor, plan, level);
 }
 
 function validateFeatSlot(feats, label) {
