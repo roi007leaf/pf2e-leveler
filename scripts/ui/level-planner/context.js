@@ -537,15 +537,55 @@ export async function buildInitialSkillChoiceSetsAndFallbacks(planner) {
   const fallbacks = [];
   const activeSkillSlugs = getActiveSkillSlugs();
 
+  // Track skills encountered from previous items to detect duplicates between background/subclass
+  const encounteredSkills = new Set(automaticSkills);
+  let fallbackIndex = 0;
+
   for (const item of sourceItems) {
     const itemRules = item?.system?.rules ?? [];
     const sourceName = item?.name ?? 'Background';
+    const itemUuid = item?.uuid ?? null;
 
     const itemChoiceSets = await extractInitialSkillChoiceSets(item, itemRules, storedChoices, activeSkillSlugs, sourceName);
     choiceSets.push(...itemChoiceSets);
 
-    const itemFallbacks = await extractInitialSkillFallbacks(item, itemRules, storedChoices, automaticSkills, activeSkillSlugs, sourceName);
+    // Check for fallbacks from explicit fallback text in item description
+    const itemFallbacks = await extractInitialSkillFallbacks(item, itemRules, storedChoices, automaticSkills, activeSkillSlugs, sourceName, fallbackIndex);
     fallbacks.push(...itemFallbacks);
+    fallbackIndex += itemFallbacks.length;
+
+    // Check for duplicate skills granted by this item that were already encountered from previous items
+    const grantedSkills = extractGrantedSkillsFromRules(itemRules);
+    for (const skill of grantedSkills) {
+      // If this skill was already granted by a previous item (not this one), create a fallback
+      if (encounteredSkills.has(skill) && !automaticSkills.has(skill)) {
+        const flag = `duplicateSkillFallback_${itemUuid}_${skill}`;
+        const selectedValue = storedChoices?.[flag] ?? null;
+        const availableSkills = activeSkillSlugs.filter((slug) =>
+          !encounteredSkills.has(slug) && slug !== skill);
+
+        if (availableSkills.length > 0) {
+          fallbacks.push({
+            flag,
+            prompt: `Select a replacement skill (${localizeSkillSlug(skill)} already granted)`,
+            sourceName,
+            sourceUuid: itemUuid,
+            originalSkill: skill,
+            options: availableSkills.map((slug) => ({
+              value: slug,
+              label: localizeSkillSlug(slug),
+              selected: selectedValue === slug,
+            })),
+            selectedValue,
+            grantsSkillTraining: true,
+            isFallback: true,
+            isDuplicate: true,
+          });
+        }
+      }
+      // Add to encountered set for subsequent items
+      encounteredSkills.add(skill);
+    }
   }
 
   return { choiceSets, fallbacks };
@@ -553,6 +593,7 @@ export async function buildInitialSkillChoiceSetsAndFallbacks(planner) {
 
 async function extractInitialSkillChoiceSets(item, rules, storedChoices, activeSkillSlugs, sourceName) {
   const choiceSets = [];
+  const itemUuid = item?.uuid ?? null;
 
   for (const rule of rules) {
     if (rule?.key !== 'ChoiceSet') continue;
@@ -560,14 +601,15 @@ async function extractInitialSkillChoiceSets(item, rules, storedChoices, activeS
     const options = await resolveChoiceSetSkillOptions(rule, activeSkillSlugs);
     if (options.length === 0) continue;
 
-    const flag = rule?.flag ?? rule?.rollOption ?? `skillChoice${choiceSets.length + 1}`;
+    // Use rule flag if available, otherwise generate unique flag using item UUID
+    const flag = rule?.flag ?? rule?.rollOption ?? `skillChoice_${itemUuid}_${choiceSets.length}`;
     const selectedValue = storedChoices?.[flag] ?? null;
 
     choiceSets.push({
       flag,
       prompt: rule?.prompt ?? 'Select a skill',
       sourceName,
-      sourceUuid: item?.uuid ?? null,
+      sourceUuid: itemUuid,
       options: options.map((slug) => ({
         value: slug,
         label: localizeSkillSlug(slug),
@@ -605,14 +647,17 @@ async function resolveChoiceSetSkillOptions(rule, activeSkillSlugs) {
   return [];
 }
 
-async function extractInitialSkillFallbacks(item, rules, storedChoices, automaticSkills, activeSkillSlugs, sourceName) {
-  const description = String(item?.system?.description?.value ?? '')
+async function extractInitialSkillFallbacks(item, rules, storedChoices, automaticSkills, activeSkillSlugs, sourceName, _startIndex = 0) {
+  const description = String(item?.system?.description?.value ?? '');
+  if (!description) return [];
+
+  const cleanDescription = description
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
 
-  if (!hasSkillFallbackText(description)) return [];
+  if (!hasSkillFallbackText(cleanDescription)) return [];
 
   const grantedSkills = extractGrantedSkillsFromRules(rules);
   if (grantedSkills.length === 0) return [];
@@ -621,9 +666,11 @@ async function extractInitialSkillFallbacks(item, rules, storedChoices, automati
   if (overlaps.length === 0) return [];
 
   const fallbacks = [];
+  const itemUuid = item?.uuid ?? null;
+
   for (let i = 0; i < overlaps.length; i++) {
     const originalSkill = overlaps[i];
-    const flag = `skillFallback${i + 1}`;
+    const flag = `skillFallback_${itemUuid}_${originalSkill}`;
     const selectedValue = storedChoices?.[flag] ?? null;
 
     const availableSkills = activeSkillSlugs.filter((slug) =>
@@ -635,7 +682,7 @@ async function extractInitialSkillFallbacks(item, rules, storedChoices, automati
       flag,
       prompt: `Select a replacement skill (${localizeSkillSlug(originalSkill)} already trained)`,
       sourceName,
-      sourceUuid: item?.uuid ?? null,
+      sourceUuid: itemUuid,
       originalSkill,
       options: availableSkills.map((slug) => ({
         value: slug,
