@@ -285,6 +285,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._compendiumCache = {};
     this._customPlanOpenLevels = new Set();
     this._isImportingPlan = false;
+    this._levelNavigationToken = 0;
     this._shouldBringToFrontOnRender = true;
     this._focusAnchorElement = null;
     this.plan = this._loadOrCreatePlan(actor);
@@ -1227,6 +1228,56 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _activateListeners(html) {
     activateLevelPlannerListeners(this, html);
+  }
+
+  async _selectLevel(level) {
+    const nextLevel = Number(level);
+    if (!Number.isInteger(nextLevel) || nextLevel < MIN_PLAN_LEVEL || nextLevel > MAX_LEVEL) return;
+    if (nextLevel === this.selectedLevel) return;
+
+    const token = ++this._levelNavigationToken;
+    const showedLoading = this._showLevelNavigationLoading(nextLevel);
+    if (showedLoading) await waitForPlannerLoadingPaint();
+    if (token !== this._levelNavigationToken) return;
+
+    this.selectedLevel = nextLevel;
+    try {
+      await this.render(true);
+    } finally {
+      if (token === this._levelNavigationToken) this._clearLevelNavigationLoading();
+    }
+  }
+
+  _showLevelNavigationLoading(level) {
+    const root = getPlannerRootElement(this.element);
+    if (!root) return false;
+
+    root.classList.add('level-planner--loading');
+    root.setAttribute('aria-busy', 'true');
+    updatePendingSidebarLevel(root, level);
+
+    const content = root.querySelector('.planner-content') ?? root;
+    let overlay = root.querySelector('[data-level-planner-loading]');
+    if (!overlay) {
+      overlay = buildLevelNavigationOverlay();
+      content.append(overlay);
+    }
+
+    const title = overlay.querySelector('[data-level-planner-loading-title]');
+    if (title) title.textContent = formatLevelLoadingTitle(level);
+    const text = overlay.querySelector('[data-level-planner-loading-text]');
+    if (text) text.textContent = localizeLevelLoadingText();
+
+    return true;
+  }
+
+  _clearLevelNavigationLoading() {
+    const root = getPlannerRootElement(this.element);
+    if (!root) return;
+    root.classList.remove('level-planner--loading');
+    root.removeAttribute('aria-busy');
+    root.querySelector('[data-level-planner-loading]')?.remove();
+    root.querySelectorAll('.sidebar-level--loading').forEach((row) => row.classList.remove('sidebar-level--loading'));
   }
 
   _exportPlan() {
@@ -3242,4 +3293,66 @@ function levelHasSelections(levelData) {
   }
 
   return false;
+}
+
+function getPlannerRootElement(elementLike) {
+  const element = elementLike?.[0] ?? elementLike?.get?.(0) ?? elementLike;
+  if (!element?.querySelector) return null;
+  if (element.matches?.('.pf2e-leveler.level-planner')) return element;
+  return element.querySelector('.pf2e-leveler.level-planner');
+}
+
+function updatePendingSidebarLevel(root, level) {
+  root.querySelectorAll('[data-action="selectLevel"]').forEach((row) => {
+    const isPending = Number(row.dataset.level) === Number(level);
+    row.classList.toggle('active', isPending);
+    row.classList.toggle('sidebar-level--loading', isPending);
+  });
+}
+
+function buildLevelNavigationOverlay() {
+  const overlay = document.createElement('div');
+  overlay.className = 'level-planner-loading compendium-manager__loading';
+  overlay.dataset.levelPlannerLoading = 'true';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-live', 'polite');
+
+  const card = document.createElement('div');
+  card.className = 'wizard-loading__card compendium-manager__loadingCard';
+  overlay.append(card);
+
+  const spinner = document.createElement('div');
+  spinner.className = 'wizard-loading__spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  card.append(spinner);
+
+  const title = document.createElement('div');
+  title.className = 'wizard-loading__title';
+  title.dataset.levelPlannerLoadingTitle = 'true';
+  card.append(title);
+
+  const text = document.createElement('div');
+  text.className = 'wizard-loading__text';
+  text.dataset.levelPlannerLoadingText = 'true';
+  card.append(text);
+
+  return overlay;
+}
+
+function formatLevelLoadingTitle(level) {
+  return game.i18n?.format?.('PF2E_LEVELER.UI.LEVEL', { level }) ?? `Level ${level}`;
+}
+
+function localizeLevelLoadingText() {
+  return game.i18n?.localize?.('PF2E_LEVELER.UI.LOADING_LEVEL_DATA') ?? 'Loading level data...';
+}
+
+function waitForPlannerLoadingPaint() {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => setTimeout(resolve, 0));
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
 }

@@ -133,6 +133,51 @@ function getElement(elementLike) {
   return elementLike?.[0] ?? elementLike?.get?.(0) ?? null;
 }
 
+function showLevelerLaunchOverlay({ title, text } = {}) {
+  const doc = globalThis.document;
+  if (!doc?.body) return () => {};
+
+  doc.querySelector('[data-pf2e-leveler-launch-overlay="planner"]')?.remove();
+
+  const overlay = doc.createElement('div');
+  overlay.className = 'pf2e-leveler-launch-overlay';
+  overlay.dataset.pf2eLevelerLaunchOverlay = 'planner';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-live', 'polite');
+
+  const card = doc.createElement('div');
+  card.className = 'pf2e-leveler-launch-overlay__card';
+  overlay.append(card);
+
+  const spinner = doc.createElement('div');
+  spinner.className = 'pf2e-leveler-launch-overlay__spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  card.append(spinner);
+
+  const titleElement = doc.createElement('div');
+  titleElement.className = 'pf2e-leveler-launch-overlay__title';
+  titleElement.textContent = String(title ?? '');
+  card.append(titleElement);
+
+  const textElement = doc.createElement('div');
+  textElement.className = 'pf2e-leveler-launch-overlay__text';
+  textElement.textContent = String(text ?? '');
+  card.append(textElement);
+
+  doc.body.append(overlay);
+  return () => overlay.remove();
+}
+
+function waitForLaunchOverlayPaint() {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => setTimeout(resolve, 0));
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
 function isPF2eHudElement(element) {
   return Boolean(
     element.matches?.('[class*="pf2e-hud"], [class*="pf2e-token-hud"]')
@@ -150,7 +195,6 @@ function cssIdentifierEscape(value) {
 }
 
 async function openPlanner(actor, openerElement = null) {
-  await ensureLevelerTemplatesLoaded();
   const lowerSelectors = getActorSheetSelectors(actor);
   const existing = Object.values(ui.windows).find(
     (w) => w instanceof LevelPlanner && w.actor.id === actor.id,
@@ -164,11 +208,24 @@ async function openPlanner(actor, openerElement = null) {
     });
     return;
   }
-  renderApplicationInFront(new LevelPlanner(actor).setFocusAnchor(openerElement), true, {
-    lowerElement: openerElement,
-    lowerSelectors,
-    selectors: PLANNER_WINDOW_SELECTORS,
+
+  const dismissLaunchOverlay = showLevelerLaunchOverlay({
+    title: localize('UI.OPEN_PLANNER'),
+    text: localize('UI.LOADING_PLANNER_DATA'),
   });
+  try {
+    await waitForLaunchOverlayPaint();
+    await ensureLevelerTemplatesLoaded();
+    const renderResult = renderApplicationInFront(new LevelPlanner(actor).setFocusAnchor(openerElement), true, {
+      lowerElement: openerElement,
+      lowerSelectors,
+      selectors: PLANNER_WINDOW_SELECTORS,
+    });
+    if (typeof renderResult?.then === 'function') await renderResult;
+    else await waitForLaunchOverlayPaint();
+  } finally {
+    dismissLaunchOverlay();
+  }
 }
 
 async function openWizard(actor, openerElement = null) {

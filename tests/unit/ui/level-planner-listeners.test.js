@@ -21,6 +21,21 @@ describe('Level planner skill increase listeners', () => {
     ClassRegistry.register(ALCHEMIST);
   });
 
+  it('routes sidebar level clicks through the planner loading transition', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectLevel" data-level="5"></button>';
+    const planner = {
+      selectedLevel: 8,
+      _selectLevel: jest.fn(),
+      render: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectLevel"]').click();
+
+    expect(planner._selectLevel).toHaveBeenCalledWith(5);
+    expect(planner.render).not.toHaveBeenCalled();
+  });
+
   it('uses same-level actor-owned skill rank rules when selecting a skill increase', () => {
     document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="society"></button>';
 

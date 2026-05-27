@@ -222,6 +222,45 @@ describe('character sheet render integration', () => {
       restoreJQuery();
     }
   });
+
+  test('shows a launch overlay immediately when opening a new planner', async () => {
+    const restoreJQuery = useDomJQuery();
+    try {
+      const actor = createMockActor({ id: 'abc123' });
+      const app = document.createElement('section');
+      app.id = 'CharacterSheetPF2e-Actor-abc123';
+      app.className = 'application sheet actor character';
+
+      const header = document.createElement('header');
+      header.className = 'window-header';
+      const closeButton = document.createElement('button');
+      closeButton.className = 'close header-control';
+      header.append(closeButton);
+
+      const content = document.createElement('div');
+      content.className = 'sheet-content';
+      app.append(header, content);
+      document.body.append(app);
+
+      registerSheetIntegration();
+      const renderHandler = Hooks.on.mock.calls.find(
+        ([hook]) => hook === 'renderCharacterSheetPF2e',
+      )[1];
+      renderHandler({ actor }, content);
+
+      header.querySelector('.pf2e-leveler-plan-btn').click();
+
+      const overlay = document.querySelector('[data-pf2e-leveler-launch-overlay="planner"]');
+      expect(overlay).not.toBeNull();
+      expect(overlay.textContent).toContain('PF2E_LEVELER.UI.OPEN_PLANNER');
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      document.querySelector('[data-pf2e-leveler-launch-overlay="planner"]')?.remove();
+      restoreJQuery();
+    }
+  });
 });
 
 function asJQuery(element) {

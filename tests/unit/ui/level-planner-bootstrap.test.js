@@ -621,6 +621,62 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(context.isImportingPlan).toBe(true);
   });
 
+  it('shows a level loading overlay before rendering a slow selected level', async () => {
+    const originalRequestAnimationFrame = global.requestAnimationFrame;
+    global.requestAnimationFrame = (callback) => {
+      callback();
+      return 1;
+    };
+
+    try {
+      const actor = createMockActor({
+        class: { slug: 'alchemist' },
+        system: {
+          details: { level: { value: 8 }, xp: { value: 0, max: 1000 } },
+        },
+        items: [],
+      });
+      const planner = new LevelPlanner(actor);
+      planner.selectedLevel = 8;
+      planner.render = jest.fn(async () => {});
+
+      const root = document.createElement('div');
+      root.className = 'pf2e-leveler level-planner';
+      root.innerHTML = `
+        <aside class="planner-sidebar">
+          <div class="sidebar-level active" data-action="selectLevel" data-level="8">
+            <span class="sidebar-level__num">8</span>
+            <i class="sidebar-level__status"></i>
+          </div>
+          <div class="sidebar-level" data-action="selectLevel" data-level="5">
+            <span class="sidebar-level__num">5</span>
+            <i class="sidebar-level__status"></i>
+          </div>
+        </aside>
+        <main class="planner-content">
+          <h2>Level 8</h2>
+        </main>
+      `;
+      planner.element = root;
+
+      const selection = planner._selectLevel(5);
+
+      expect(root.getAttribute('aria-busy')).toBe('true');
+      expect(root.querySelector('[data-level-planner-loading]')).not.toBeNull();
+      expect(root.querySelector('[data-level="5"]').classList.contains('active')).toBe(true);
+      expect(root.querySelector('[data-level="5"]').classList.contains('sidebar-level--loading')).toBe(true);
+
+      await selection;
+
+      expect(planner.selectedLevel).toBe(5);
+      expect(planner.render).toHaveBeenCalledWith(true);
+      expect(root.querySelector('[data-level-planner-loading]')).toBeNull();
+      expect(root.hasAttribute('aria-busy')).toBe(false);
+    } finally {
+      global.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
   it('limits investigator odd-level skill feats to mental skills plus methodology skill', async () => {
     const actor = createMockActor({
       class: { slug: 'investigator' },

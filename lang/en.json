@@ -18,6 +18,8 @@
       "IMPORT": "Import Plan",
       "IMPORTING_PLAN_TITLE": "Importing Plan",
       "IMPORTING_PLAN_HINT": "PF2E Leveler is loading and validating your saved planner data.",
+      "LOADING_PLANNER_DATA": "PF2E Leveler is loading planner data.",
+      "LOADING_LEVEL_DATA": "Loading level data...",
       "CONFIRM_CLEAR": "Are you sure you want to clear this plan? All selections will be lost.",
       "CONFIRM_CLEAR_LEVEL": "Are you sure you want to clear level {level}? All selections on this level will be lost.",
       "SELECT_CLASS": "Select Class",

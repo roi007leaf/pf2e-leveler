@@ -23,6 +23,10 @@ export function activateLevelPlannerListeners(planner, html) {
     btn.addEventListener('click', (e) => {
       if (e.currentTarget.classList.contains('locked')) return;
       const level = Number(e.currentTarget.dataset.level);
+      if (typeof planner._selectLevel === 'function') {
+        void planner._selectLevel(level);
+        return;
+      }
       planner.selectedLevel = level;
       planner.render(true);
     });
