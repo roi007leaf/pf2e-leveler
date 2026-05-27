@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.23
+
+### Level Planner
+
+- **Starting skills dialog now handles skill choice sets and duplicate grants** - Background and subclass items with ChoiceSet rules that grant skills now display their choices in the Starting Skills dialog. When a skill would be granted multiple times (e.g., by both background and subclass, or when a granted skill overlaps with a class skill), the system automatically detects the duplicate and offers a fallback skill selection to ensure the player receives the correct number of trained skills
+
 ## 3.4.22
 
 ### Level Planner
