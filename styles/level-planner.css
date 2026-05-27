@@ -791,6 +791,83 @@
   }
 }
 
+/* Initial Skill Choice Sets and Fallbacks */
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-sets {
+  margin-bottom: var(--leveler-spacing-lg, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--leveler-spacing-md, 12px);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-group {
+  background: var(--leveler-bg-secondary, #f5f5f5);
+  border-radius: var(--leveler-border-radius, 6px);
+  padding: var(--leveler-spacing-md, 12px);
+  border: 1px solid var(--leveler-border-color, #ddd);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--leveler-spacing-sm, 8px);
+  font-weight: 600;
+  font-size: var(--font-size-13, 13px);
+  color: var(--color-text-dark-primary, #333);
+  margin-bottom: var(--leveler-spacing-sm, 8px);
+  padding-bottom: var(--leveler-spacing-sm, 8px);
+  border-bottom: 1px solid var(--leveler-border-color, #ddd);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-group__header i {
+  color: var(--leveler-accent-color, #6366f1);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set {
+  display: flex;
+  flex-direction: column;
+  gap: var(--leveler-spacing-xs, 4px);
+  padding: var(--leveler-spacing-sm, 8px) 0;
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set + .imported-initial-skill-choice-set {
+  border-top: 1px solid var(--leveler-border-light, #eee);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set__label {
+  display: flex;
+  align-items: center;
+  gap: var(--leveler-spacing-xs, 4px);
+  font-size: var(--font-size-12, 12px);
+  color: var(--color-text-dark-secondary, #666);
+  font-weight: 500;
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set__label i {
+  width: 14px;
+  text-align: center;
+  color: var(--leveler-rank-trained, #3f8fcb);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set__label i.fa-repeat {
+  color: var(--leveler-warning-color, #f59e0b);
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set__select {
+  width: 100%;
+  padding: var(--leveler-spacing-sm, 8px);
+  border: 1px solid var(--leveler-border-color, #ddd);
+  border-radius: var(--leveler-border-radius, 6px);
+  background: var(--leveler-bg-primary, #fff);
+  font-size: var(--font-size-13, 13px);
+  cursor: pointer;
+}
+
+.pf2e-leveler.imported-initial-skills-dialog .imported-initial-skill-choice-set__select:focus {
+  outline: none;
+  border-color: var(--leveler-accent-color, #6366f1);
+  box-shadow: 0 0 0 2px var(--leveler-focus-ring, rgba(99, 102, 241, 0.2));
+}
+
 .retrain-rank-text {
   font-weight: 800;
 }

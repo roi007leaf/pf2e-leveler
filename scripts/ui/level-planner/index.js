@@ -21,7 +21,7 @@ import { scheduleBringApplicationToFront } from '../shared/window-focus.js';
 import { loadFeats } from '../../feats/feat-cache.js';
 import { getCreationData } from '../../creation/creation-store.js';
 import { doesFeatMatchRequiredSecondLevelClassFeat, getRequiredSecondLevelClassFeatForActor } from '../../classes/class-archetype-requirements.js';
-import { buildAttributeContext, buildImportedInitialSkillContext, buildImportedInitialSkillSummary, buildIntBonusLanguageContext, buildIntBonusSkillContext, buildIntelligenceBenefitContext, buildSkillContext, getAvailableLanguages, getPlannedLanguagesBeforeLevel, localizeLanguageLabel } from './context.js';
+import { buildAttributeContext, buildImportedInitialSkillContext, buildImportedInitialSkillSummary, buildInitialSkillChoiceSetsAndFallbacks, buildIntBonusLanguageContext, buildIntBonusSkillContext, buildIntelligenceBenefitContext, buildSkillContext, getAvailableLanguages, getPlannedLanguagesBeforeLevel, localizeLanguageLabel } from './context.js';
 import { annotateFeat, buildABPContext, buildFeatGrantPreview, buildLoreSkillIncreaseEntry, buildLevelContext, buildSkillRetrainSources, extractFeat, getClassFeaturesForLevel } from './level-context.js';
 import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules, syncSameLevelSkillIncreaseFromFeatRules } from './listeners.js';
 import { buildSpellContext, buildCustomSpellEntryOptions, buildSpellSlotDisplay, detectNewSpellRank, findFeatLevel, getDedicationSelectionLimitsForPlanner, getActorSpellCounts, getFocusSpellsForLevel, getGrantedSpellsForLevel, getHighestRank, getSubclassSlug, ordinalRank, resolveSpellTradition, shouldExcludeOwnedSpellIdentityForPlanner } from './spells.js';
@@ -1878,12 +1878,16 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!dialogClass?.prompt) return;
 
     const summary = buildImportedInitialSkillSummary(this);
+    const { choiceSets, fallbacks } = await buildInitialSkillChoiceSetsAndFallbacks(this);
+
     const result = await dialogClass.prompt({
       window: { title: 'Starting Skill Training' },
       content: buildImportedInitialSkillDialogContent({
         choices: buildImportedInitialSkillContext(this),
         count: summary.importedInitialSkillCount,
         limit: summary.importedInitialSkillLimit,
+        choiceSets,
+        fallbacks,
       }),
       ok: {
         label: localizeSelectLabel(),
@@ -1895,10 +1899,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     });
 
     const automaticInitialSkills = getAutomaticInitialSkillTraining(this.actor, this.plan, ClassRegistry.get(this.plan?.classSlug));
-    const initialSkills = normalizeImportedInitialSkillSelection(result, summary.importedInitialSkillLimit, automaticInitialSkills);
+    const { skills: initialSkills, choiceSelections } = normalizeImportedInitialSkillSelection(result, summary.importedInitialSkillLimit, automaticInitialSkills);
     if (!initialSkills) return;
 
     imported.initialSkills = initialSkills;
+    imported.initialSkillChoices = choiceSelections ?? {};
     delete imported.initialSkillsOpen;
     await this._savePlanAndRender();
   }
@@ -2988,7 +2993,7 @@ function buildRetrainChoiceContent({ name, searchPlaceholder, choices }) {
   `;
 }
 
-function buildImportedInitialSkillDialogContent({ choices, count, limit }) {
+function buildImportedInitialSkillDialogContent({ choices, count, limit, choiceSets = [], fallbacks = [] }) {
   const rows = choices.map((choice) => {
     const selected = choice.selected === true;
     const disabled = choice.disabled === true;
@@ -3022,8 +3027,11 @@ function buildImportedInitialSkillDialogContent({ choices, count, limit }) {
     `;
   }).join('');
 
+  const choiceSetSections = buildInitialSkillChoiceSetSections([...choiceSets, ...fallbacks]);
+
   return `
     <div class="pf2e-leveler imported-initial-skills-dialog" data-imported-initial-skills data-imported-initial-skill-limit="${escapeHtml(limit)}">
+      ${choiceSetSections}
       <div class="imported-initial-skills-dialog__header">
         <div class="imported-initial-skills-dialog__title">
           <i class="section-header__icon fa-solid fa-graduation-cap"></i>
@@ -3040,23 +3048,96 @@ function buildImportedInitialSkillDialogContent({ choices, count, limit }) {
   `;
 }
 
+function buildInitialSkillChoiceSetSections(choiceSets) {
+  if (!choiceSets || choiceSets.length === 0) return '';
+
+  const groups = new Map();
+  for (const choiceSet of choiceSets) {
+    const key = choiceSet.sourceName ?? 'Other';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(choiceSet);
+  }
+
+  const sections = [];
+  for (const [sourceName, sets] of groups) {
+    const setHtml = sets.map((choiceSet) => {
+      const optionsHtml = choiceSet.options.map((option) => `
+        <option value="${escapeHtml(option.value)}" ${option.selected ? 'selected' : ''}>${escapeHtml(option.label)}</option>
+      `).join('');
+
+      return `
+        <div class="imported-initial-skill-choice-set" data-initial-skill-choice-set>
+          <label class="imported-initial-skill-choice-set__label">
+            ${choiceSet.isFallback ? '<i class="fa-solid fa-repeat" title="Skill replacement"></i>' : '<i class="fa-solid fa-list-check"></i>'}
+            ${escapeHtml(choiceSet.prompt)}
+          </label>
+          <select name="initialSkillChoice_${escapeHtml(choiceSet.flag)}" class="imported-initial-skill-choice-set__select" data-initial-skill-choice-flag="${escapeHtml(choiceSet.flag)}">
+            <option value="">-- Select --</option>
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }).join('');
+
+    sections.push(`
+      <div class="imported-initial-skill-choice-group">
+        <div class="imported-initial-skill-choice-group__header">
+          <i class="fa-solid fa-shuffle"></i>
+          ${escapeHtml(sourceName)} - Skill Choices
+        </div>
+        ${setHtml}
+      </div>
+    `);
+  }
+
+  return sections.length > 0 ? `<div class="imported-initial-skill-choice-sets">${sections.join('')}</div>` : '';
+}
+
 function readImportedInitialSkillDialogSelection(root) {
-  return Array.from(root?.querySelectorAll?.('input[name="importedInitialSkills"]:checked') ?? [])
+  const skills = Array.from(root?.querySelectorAll?.('input[name="importedInitialSkills"]:checked') ?? [])
     .map((input) => input.value);
+
+  const choiceSelections = {};
+  const choiceInputs = root?.querySelectorAll?.('[data-initial-skill-choice-flag]') ?? [];
+  for (const input of choiceInputs) {
+    const flag = input.dataset.initialSkillChoiceFlag;
+    const value = input.value;
+    if (flag && value) {
+      choiceSelections[flag] = value;
+    }
+  }
+
+  return { skills, choiceSelections };
 }
 
 function normalizeImportedInitialSkillSelection(value, limit, excludedSkills = []) {
-  if (!Array.isArray(value)) return null;
+  if (!value) return { skills: null, choiceSelections: {} };
+
+  // Support both array format (legacy/test) and object format (new)
+  const rawSkills = Array.isArray(value) ? value : value.skills;
+  const choiceSelections = Array.isArray(value) ? {} : (value.choiceSelections ?? {});
+  if (!Array.isArray(rawSkills)) return { skills: null, choiceSelections };
+
   const excluded = new Set(excludedSkills.map((skill) => normalizeSkillSlug(skill)).filter((skill) => isActiveSkillSlug(skill)));
   const selected = new Set();
-  for (const rawSkill of value) {
+
+  for (const rawSkill of rawSkills) {
     const skill = normalizeSkillSlug(rawSkill);
     if (excluded.has(skill)) continue;
     if (isActiveSkillSlug(skill)) selected.add(skill);
   }
-  const result = [...selected].sort((a, b) => a.localeCompare(b));
+
+  for (const choiceValue of Object.values(choiceSelections)) {
+    const skill = normalizeSkillSlug(choiceValue);
+    if (isActiveSkillSlug(skill)) selected.add(skill);
+  }
+
+  const skills = [...selected].sort((a, b) => a.localeCompare(b));
   const max = Number(limit);
-  return max > 0 ? result.slice(0, max) : result;
+  return {
+    skills: max > 0 ? skills.slice(0, max) : skills,
+    choiceSelections,
+  };
 }
 
 function buildRetrainChoiceGroups(choices) {

@@ -913,6 +913,12 @@ export function getAutomaticInitialSkillTrainingEntries(actor, plan = null, clas
   return [...skills.values()].sort((a, b) => a.skill.localeCompare(b.skill));
 }
 
+export function getInitialSkillSourceItems(actor, plan = null, classDef = null) {
+  const classDefs = Array.isArray(classDef) ? classDef.filter(Boolean) : [classDef].filter(Boolean);
+  const classSlugs = getTrackedClassSlugs(actor, plan, classDefs);
+  return getAutomaticInitialSkillItems(actor, classSlugs);
+}
+
 function getTrackedClassSlugs(actor, plan, classDefs) {
   const slugs = new Set([
     actor?.class?.slug,

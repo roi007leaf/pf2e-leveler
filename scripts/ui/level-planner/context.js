@@ -1,6 +1,6 @@
-import { ATTRIBUTES, MIN_PLAN_LEVEL, PROFICIENCY_RANK_NAMES } from '../../constants.js';
+import { ATTRIBUTES, MIN_PLAN_LEVEL, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
 import { getGradualBoostGroupLevels } from '../../classes/progression.js';
-import { computeBuildState, computeSkillPickerState, getAutomaticInitialSkillTrainingEntries, getImportedInitialSkillLimit, getImportedInitialSkillTraining, isImportedHistoricalSkillLevel } from '../../plan/build-state.js';
+import { computeBuildState, computeSkillPickerState, getAutomaticInitialSkillTrainingEntries, getImportedInitialSkillLimit, getImportedInitialSkillTraining, getInitialSkillSourceItems, isImportedHistoricalSkillLevel } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
@@ -525,6 +525,157 @@ function getAutomaticInitialSkillMap(planner) {
     getAutomaticInitialSkillTrainingEntries(planner.actor, planner.plan, classDef)
       .map((entry) => [entry.skill, entry]),
   );
+}
+
+export async function buildInitialSkillChoiceSetsAndFallbacks(planner) {
+  const classDef = ClassRegistry.get(planner.plan?.classSlug);
+  const sourceItems = getInitialSkillSourceItems(planner.actor, planner.plan, classDef);
+  const automaticSkills = getAutomaticInitialSkillSet(planner);
+  const storedChoices = planner.plan?.importedFromActor?.initialSkillChoices ?? {};
+
+  const choiceSets = [];
+  const fallbacks = [];
+  const activeSkillSlugs = getActiveSkillSlugs();
+
+  for (const item of sourceItems) {
+    const itemRules = item?.system?.rules ?? [];
+    const sourceName = item?.name ?? 'Background';
+
+    const itemChoiceSets = await extractInitialSkillChoiceSets(item, itemRules, storedChoices, activeSkillSlugs, sourceName);
+    choiceSets.push(...itemChoiceSets);
+
+    const itemFallbacks = await extractInitialSkillFallbacks(item, itemRules, storedChoices, automaticSkills, activeSkillSlugs, sourceName);
+    fallbacks.push(...itemFallbacks);
+  }
+
+  return { choiceSets, fallbacks };
+}
+
+async function extractInitialSkillChoiceSets(item, rules, storedChoices, activeSkillSlugs, sourceName) {
+  const choiceSets = [];
+
+  for (const rule of rules) {
+    if (rule?.key !== 'ChoiceSet') continue;
+
+    const options = await resolveChoiceSetSkillOptions(rule, activeSkillSlugs);
+    if (options.length === 0) continue;
+
+    const flag = rule?.flag ?? rule?.rollOption ?? `skillChoice${choiceSets.length + 1}`;
+    const selectedValue = storedChoices?.[flag] ?? null;
+
+    choiceSets.push({
+      flag,
+      prompt: rule?.prompt ?? 'Select a skill',
+      sourceName,
+      sourceUuid: item?.uuid ?? null,
+      options: options.map((slug) => ({
+        value: slug,
+        label: localizeSkillSlug(slug),
+        selected: selectedValue === slug,
+      })),
+      selectedValue,
+      grantsSkillTraining: true,
+    });
+  }
+
+  return choiceSets;
+}
+
+async function resolveChoiceSetSkillOptions(rule, activeSkillSlugs) {
+  const choices = rule?.choices;
+  if (!choices) return [];
+
+  if (choices?.config === 'skills') {
+    return activeSkillSlugs;
+  }
+
+  if (Array.isArray(choices)) {
+    const skillOptions = [];
+    for (const choice of choices) {
+      const slug = normalizeSkillSlug(choice?.value ?? choice?.slug ?? choice?.label ?? choice);
+      if (SKILLS.includes(slug) || activeSkillSlugs.includes(slug)) {
+        skillOptions.push(slug);
+      }
+    }
+    if (skillOptions.length === choices.length && skillOptions.length > 0) {
+      return skillOptions;
+    }
+  }
+
+  return [];
+}
+
+async function extractInitialSkillFallbacks(item, rules, storedChoices, automaticSkills, activeSkillSlugs, sourceName) {
+  const description = String(item?.system?.description?.value ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!hasSkillFallbackText(description)) return [];
+
+  const grantedSkills = extractGrantedSkillsFromRules(rules);
+  if (grantedSkills.length === 0) return [];
+
+  const overlaps = grantedSkills.filter((skill) => automaticSkills.has(skill));
+  if (overlaps.length === 0) return [];
+
+  const fallbacks = [];
+  for (let i = 0; i < overlaps.length; i++) {
+    const originalSkill = overlaps[i];
+    const flag = `skillFallback${i + 1}`;
+    const selectedValue = storedChoices?.[flag] ?? null;
+
+    const availableSkills = activeSkillSlugs.filter((slug) =>
+      !automaticSkills.has(slug) && !grantedSkills.includes(slug));
+
+    if (availableSkills.length === 0) continue;
+
+    fallbacks.push({
+      flag,
+      prompt: `Select a replacement skill (${localizeSkillSlug(originalSkill)} already trained)`,
+      sourceName,
+      sourceUuid: item?.uuid ?? null,
+      originalSkill,
+      options: availableSkills.map((slug) => ({
+        value: slug,
+        label: localizeSkillSlug(slug),
+        selected: selectedValue === slug,
+      })),
+      selectedValue,
+      grantsSkillTraining: true,
+      isFallback: true,
+    });
+  }
+
+  return fallbacks;
+}
+
+function hasSkillFallbackText(description) {
+  if (!description) return false;
+  if (description.includes('skill of your choice') && description.includes('already trained')) return true;
+
+  return [
+    /if you would automatically become trained in [^.]+?,?\s+you instead become trained in a skill of your choice\.?/,
+    /if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice\.?/,
+    /for each of (?:these|those) skills in which you were already trained,?\s+you instead become trained in a skill of your choice\.?/,
+    /if you were already trained in both,?\s+you become trained in a skill of your choice\.?/,
+  ].some((pattern) => pattern.test(description));
+}
+
+function extractGrantedSkillsFromRules(rules) {
+  const skills = [];
+  for (const rule of rules ?? []) {
+    if (rule?.key !== 'ActiveEffectLike') continue;
+    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+    if (!match) continue;
+    if (Number(rule?.value) < 1) continue;
+    const skill = normalizeSkillSlug(match[1]);
+    if (SKILLS.includes(skill) && !skills.includes(skill)) {
+      skills.push(skill);
+    }
+  }
+  return skills;
 }
 
 function buildHistoricalLoreRanks(planner, upToLevel) {
