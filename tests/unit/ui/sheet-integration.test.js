@@ -31,9 +31,22 @@ describe('creation wizard sheet access', () => {
     ClassRegistry.clear();
   });
 
-  test('allows opening the creation wizard for any character', () => {
+  test('allows opening the creation wizard for creation-stage characters', () => {
     expect(canOpenCreationWizard(createMockActor())).toBe(true);
+    expect(canOpenCreationWizard(createMockActor({
+      ancestry: null,
+      class: { slug: 'wizard' },
+      system: { details: { level: { value: 5 } } },
+    }))).toBe(true);
     expect(canOpenCreationWizard({ type: 'npc' })).toBe(false);
+  });
+
+  test('hides the creation wizard entry point once a leveled character should use the planner', () => {
+    expect(canOpenCreationWizard(createMockActor({
+      ancestry: { slug: 'human' },
+      class: { slug: 'wizard' },
+      system: { details: { level: { value: 5 } } },
+    }))).toBe(false);
   });
 
   test('uses an edit label after a class exists', () => {
@@ -218,6 +231,43 @@ describe('character sheet render integration', () => {
       expect(planButton).toBeInstanceOf(HTMLAnchorElement);
       expect(createButton.getAttribute('role')).toBe('button');
       expect(planButton.getAttribute('role')).toBe('button');
+    } finally {
+      restoreJQuery();
+    }
+  });
+
+  test('does not add the creation button for leveled characters that redirect to the planner', () => {
+    const restoreJQuery = useDomJQuery();
+    try {
+      const actor = createMockActor({
+        id: 'abc123',
+        ancestry: { slug: 'human' },
+        class: { slug: 'wizard' },
+        system: { details: { level: { value: 5 } } },
+      });
+      const app = document.createElement('section');
+      app.id = 'CharacterSheetPF2e-Actor-abc123';
+      app.className = 'application sheet actor character';
+
+      const header = document.createElement('header');
+      header.className = 'window-header';
+      const closeButton = document.createElement('button');
+      closeButton.className = 'close header-control';
+      header.append(closeButton);
+
+      const content = document.createElement('div');
+      content.className = 'sheet-content';
+      app.append(header, content);
+      document.body.append(app);
+
+      registerSheetIntegration();
+      const renderHandler = Hooks.on.mock.calls.find(
+        ([hook]) => hook === 'renderCharacterSheetPF2e',
+      )[1];
+      renderHandler({ actor }, content);
+
+      expect(header.querySelector('.pf2e-leveler-create-btn')).toBeNull();
+      expect(header.querySelector('.pf2e-leveler-plan-btn')).not.toBeNull();
     } finally {
       restoreJQuery();
     }

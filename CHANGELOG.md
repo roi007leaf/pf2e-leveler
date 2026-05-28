@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.34
+
+### Character Sheets
+
+- **Leveled characters now show only one Leveler launch button** - The Edit Character Creation wand no longer appears on characters above level 1 that already have ancestry and class selections, avoiding duplicate planner entry points and the extra redirect prompt
+
 ## 3.4.33
 
 ### Level Planner

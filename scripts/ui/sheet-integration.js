@@ -30,7 +30,7 @@ function isWithoutClass(actor) {
 }
 
 function canOpenCreationWizard(actor) {
-  return actor?.type === 'character';
+  return actor?.type === 'character' && !shouldRedirectCreationWizardToPlanner(actor);
 }
 
 function shouldRedirectCreationWizardToPlanner(actor) {
