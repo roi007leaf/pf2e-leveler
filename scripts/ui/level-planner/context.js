@@ -19,7 +19,7 @@ export function buildAttributeContext(planner, levelData, choices) {
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   const displayedRawAttributes = alreadyAppliedLevel
     ? buildAppliedLevelAttributeBaseline(planner, actorLevel, planner.selectedLevel)
-    : (buildState.rawAttributes ?? {});
+    : (buildFutureLevelAttributeBaseline(planner, actorLevel, planner.selectedLevel) ?? buildState.rawAttributes ?? {});
 
   return ATTRIBUTES.map((key) => {
     const rawMod = displayedRawAttributes[key] ?? buildState.rawAttributes?.[key] ?? buildState.attributes[key] ?? 0;
@@ -42,6 +42,7 @@ export function buildAttributeContext(planner, levelData, choices) {
       selected,
       applied: selected && alreadyAppliedLevel,
       partial: isPartial,
+      pendingPartial: hasPendingPartial,
       completesPartial: isPartial && hasPendingPartial,
       partialLabel,
       cost: 1,
@@ -50,8 +51,47 @@ export function buildAttributeContext(planner, levelData, choices) {
   });
 }
 
+function buildFutureLevelAttributeBaseline(planner, actorLevel, selectedLevel = planner.selectedLevel) {
+  if (!Number.isFinite(actorLevel) || selectedLevel <= actorLevel) return null;
+
+  const raw = buildReconstructedCurrentRawAttributes(planner, actorLevel);
+  if (!raw) return null;
+
+  for (let level = actorLevel + 1; level < selectedLevel; level++) {
+    for (const boost of getAppliedBoostsForLevel(planner, level)) {
+      if (!ATTRIBUTES.includes(boost)) continue;
+      raw[boost] = applyAbilityBoost(raw[boost] ?? 0);
+    }
+  }
+
+  return raw;
+}
+
+function buildReconstructedCurrentRawAttributes(planner, actorLevel) {
+  const raw = buildKnownInitialAttributeBaseline(planner);
+  if (!raw) return null;
+
+  for (let level = MIN_PLAN_LEVEL; level <= actorLevel; level++) {
+    for (const boost of getAppliedBoostsForLevel(planner, level)) {
+      if (!ATTRIBUTES.includes(boost)) continue;
+      raw[boost] = applyAbilityBoost(raw[boost] ?? 0);
+    }
+  }
+
+  for (const attr of ATTRIBUTES) {
+    const actorMod = getActorAbilityModifier(planner.actor, attr);
+    if (!Number.isFinite(actorMod)) continue;
+    if (Math.trunc(raw[attr] ?? 0) !== Math.trunc(actorMod)) {
+      raw[attr] = actorMod;
+    }
+  }
+
+  return raw;
+}
+
 function buildAppliedLevelAttributeBaseline(planner, actorLevel, selectedLevel = planner.selectedLevel) {
-  const raw = Object.fromEntries(ATTRIBUTES.map((key) => [key, getActorAbilityModifier(planner.actor, key)]));
+  const raw = buildReconstructedCurrentRawAttributes(planner, actorLevel)
+    ?? Object.fromEntries(ATTRIBUTES.map((key) => [key, getActorAbilityModifier(planner.actor, key)]));
   const knownBeforeLevelCache = new Map();
 
   for (let level = actorLevel; level >= selectedLevel; level--) {
@@ -88,6 +128,7 @@ function getKnownAttributeBaselineBeforeLevel(planner, level, cache) {
 function buildKnownInitialAttributeBaseline(planner) {
   const actor = planner.actor;
   const creationData = getCreationData(actor) ?? {};
+  const actorBuildBoosts = actor?.system?.build?.attributes?.boosts ?? {};
   const raw = Object.fromEntries(ATTRIBUTES.map((key) => [key, 0]));
   let hasEvidence = false;
 
@@ -100,17 +141,27 @@ function buildKnownInitialAttributeBaseline(planner) {
   };
 
   const ancestryChoiceBoosts = normalizeAbilityBoostList(creationData.boosts?.ancestry);
+  const actorAncestryBoosts = normalizeAbilityBoostList(actorBuildBoosts.ancestry);
   if (creationData.alternateAncestryBoosts === true) {
-    applyBoosts(ancestryChoiceBoosts.length ? ancestryChoiceBoosts : getSelectedBoostValues(actor?.ancestry?.system?.boosts));
+    applyBoosts(ancestryChoiceBoosts.length ? ancestryChoiceBoosts : actorAncestryBoosts.length ? actorAncestryBoosts : getSelectedBoostValues(actor?.ancestry?.system?.boosts));
   } else {
-    applyBoosts(getFixedBoostValues(actor?.ancestry?.system?.boosts));
-    applyBoosts(ancestryChoiceBoosts.length ? ancestryChoiceBoosts : getSelectedBoostValues(actor?.ancestry?.system?.boosts));
+    if (actorAncestryBoosts.length) {
+      applyBoosts(actorAncestryBoosts);
+    } else {
+      applyBoosts(getFixedBoostValues(actor?.ancestry?.system?.boosts));
+      applyBoosts(ancestryChoiceBoosts.length ? ancestryChoiceBoosts : getSelectedBoostValues(actor?.ancestry?.system?.boosts));
+    }
     applyBoosts(getFixedBoostValues(actor?.ancestry?.system?.flaws), -1);
   }
 
   const backgroundChoiceBoosts = normalizeAbilityBoostList(creationData.boosts?.background);
-  applyBoosts(getFixedBoostValues(actor?.background?.system?.boosts));
-  applyBoosts(backgroundChoiceBoosts.length ? backgroundChoiceBoosts : getSelectedBoostValues(actor?.background?.system?.boosts));
+  const actorBackgroundBoosts = normalizeAbilityBoostList(actorBuildBoosts.background);
+  if (actorBackgroundBoosts.length) {
+    applyBoosts(actorBackgroundBoosts);
+  } else {
+    applyBoosts(getFixedBoostValues(actor?.background?.system?.boosts));
+    applyBoosts(backgroundChoiceBoosts.length ? backgroundChoiceBoosts : getSelectedBoostValues(actor?.background?.system?.boosts));
+  }
 
   const classBoosts = getInitialClassBoosts(planner, creationData);
   applyBoosts(classBoosts);
@@ -125,6 +176,9 @@ function buildKnownInitialAttributeBaseline(planner) {
 function getInitialClassBoosts(planner, creationData) {
   const creationClassBoosts = normalizeAbilityBoostList(creationData.boosts?.class);
   if (creationClassBoosts.length > 0) return creationClassBoosts;
+
+  const actorClassBoosts = normalizeAbilityBoostList(planner.actor?.system?.build?.attributes?.boosts?.class);
+  if (actorClassBoosts.length > 0) return actorClassBoosts;
 
   const keyAbility = planner.actor?.class?.system?.keyAbility ?? {};
   const selected = normalizeAbilityBoostKey(keyAbility.selected);
@@ -160,10 +214,24 @@ function getSelectedBoostValues(boostObj) {
 }
 
 function getAppliedBoostsForLevel(planner, level) {
+  const gradualActorBoost = getGradualActorBoostForLevel(planner, level);
+  if (gradualActorBoost) return [gradualActorBoost];
+
   const actorBoosts = planner.actor?.system?.build?.attributes?.boosts?.[level];
   const normalizedActorBoosts = normalizeActorBoostEntries(actorBoosts);
   if (normalizedActorBoosts.length > 0) return normalizedActorBoosts;
   return (planner.plan?.levels?.[level]?.abilityBoosts ?? []).map((entry) => normalizeAbilityBoostKey(entry)).filter(Boolean);
+}
+
+function getGradualActorBoostForLevel(planner, level) {
+  if (planner._getVariantOptions?.().gradualBoosts !== true) return null;
+  const groupLevels = getGradualBoostGroupLevels(level);
+  const index = groupLevels.indexOf(level);
+  if (index < 0) return null;
+
+  const bucketLevel = groupLevels.at(-1);
+  const bucketBoosts = normalizeActorBoostEntries(planner.actor?.system?.build?.attributes?.boosts?.[bucketLevel]);
+  return bucketBoosts[index] ?? null;
 }
 
 function reverseApplyAbilityBoost(rawModifier, knownBeforeBoost = null) {

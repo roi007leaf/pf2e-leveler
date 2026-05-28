@@ -8,7 +8,7 @@ import {
   getFeatGrantCompletion,
   getFeatGrantSelections,
 } from '../../plan/feat-grants.js';
-import { computeBuildState, getAutomaticInitialSkillTraining, getImportedInitialSkillTraining } from '../../plan/build-state.js';
+import { computeBuildState, computeSkillPickerState, getAutomaticInitialSkillTraining, getImportedInitialSkillTraining } from '../../plan/build-state.js';
 import { isCantripExpansionFeat } from '../../plan/spellbook-feats.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities, loadTaggedClassFeatures } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, normalizePf2eCompendiumUuid, parseChoiceSets } from '../character-wizard/choice-sets.js';
@@ -30,6 +30,7 @@ const MANUAL_SPELL_FEATS = new Set([
 ]);
 
 const ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG = 'levelerAdvancedClassFeat';
+const FREE_HEART_BACKGROUND_CHOICE_FLAG = 'levelerFreeHeartBackground';
 
 export async function buildLevelContext(planner, classDef, options) {
   if (!planner.plan || !classDef) return {};
@@ -884,12 +885,241 @@ async function buildPlannerSpecialChoiceSets(planner, feat, source, parsedChoice
   const advancedMulticlassChoiceSet = await buildAdvancedMulticlassClassFeatChoiceSet(planner, feat, source, parsedChoiceSets);
   if (advancedMulticlassChoiceSet) special.push(advancedMulticlassChoiceSet);
 
+  const freeHeartBackgroundChoiceSets = await buildFreeHeartBackgroundChoiceSets(planner, feat, source, parsedChoiceSets);
+  special.push(...freeHeartBackgroundChoiceSets);
+
   return special;
 }
 
 function hasUsableChoiceSet(choiceSets, flag) {
   return (choiceSets ?? []).some((choiceSet) =>
     choiceSet?.flag === flag && (choiceSet?.options ?? []).length > 0);
+}
+
+async function buildFreeHeartBackgroundChoiceSets(planner, feat, source, parsedChoiceSets = []) {
+  const slug = String(feat?.slug ?? source?.system?.slug ?? source?.slug ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? source?.name ?? '').trim().toLowerCase();
+  if (slug !== 'free-heart' && name !== 'free heart') return [];
+
+  const backgrounds = await loadCompendiumCategory(planner, 'backgrounds');
+  const options = backgrounds
+    .filter((item) => String(item?.type ?? '').toLowerCase() === 'background')
+    .filter((item) => String(item?.rarity ?? 'common').toLowerCase() === 'common')
+    .map((item) => ({
+      value: item.uuid,
+      uuid: item.uuid,
+      label: item.name,
+      img: item.img ?? null,
+      slug: item.slug ?? null,
+      traits: item.traits ?? [],
+      rarity: item.rarity ?? 'common',
+      type: 'background',
+      category: 'background',
+      level: item.level ?? 0,
+    }))
+    .filter((item) => isItemUuid(item.uuid))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  if (options.length === 0) return [];
+
+  const choiceSets = [];
+  if (!hasUsableChoiceSet(parsedChoiceSets, FREE_HEART_BACKGROUND_CHOICE_FLAG)) {
+    choiceSets.push({
+      flag: FREE_HEART_BACKGROUND_CHOICE_FLAG,
+      prompt: 'Select a common background.',
+      choiceType: 'item',
+      syntheticType: 'free-heart-background-choice',
+      options,
+    });
+  }
+
+  const selectedBackground = await resolveSelectedFreeHeartBackground(feat);
+  if (!selectedBackground) return choiceSets;
+
+  const fixedSkillRules = await syncFreeHeartBackgroundSkillRules(feat, selectedBackground);
+  syncFreeHeartBackgroundLoreRules(feat, selectedBackground);
+  const wizard = createPlannerChoiceWizard(planner);
+  const backgroundChoiceSets = await parseChoiceSets(wizard, selectedBackground.system?.rules ?? [], feat?.choices ?? {}, selectedBackground);
+  choiceSets.push(...backgroundChoiceSets.map((choiceSet) => ({
+    ...choiceSet,
+    sourceName: selectedBackground.name,
+    ...((choiceSet?.options ?? []).every((option) => isActiveSkillSlug(option?.value))
+      ? { grantsSkillTraining: true }
+      : {}),
+  })));
+
+  const fallbackChoiceSets = buildFreeHeartBackgroundSkillFallbackChoiceSets(planner, feat, selectedBackground, fixedSkillRules);
+  if (fallbackChoiceSets.length > 0) {
+    removeFreeHeartBackgroundOverlappedSkillRules(feat, fallbackChoiceSets.map((choiceSet) => choiceSet.replacedSkill));
+    choiceSets.push(...fallbackChoiceSets);
+  }
+  return choiceSets;
+}
+
+async function resolveSelectedFreeHeartBackground(feat) {
+  const uuid = feat?.choices?.[FREE_HEART_BACKGROUND_CHOICE_FLAG];
+  if (!isItemUuid(uuid) || !String(uuid).includes('.backgrounds.')) return null;
+  return fromUuid(uuid).catch(() => null);
+}
+
+async function syncFreeHeartBackgroundSkillRules(feat, background) {
+  if (!feat || !background) return [];
+  const sourceKey = `choice:${FREE_HEART_BACKGROUND_CHOICE_FLAG.toLowerCase()}`;
+  const preservedRules = Array.isArray(feat.dynamicSkillRules)
+    ? feat.dynamicSkillRules.filter((rule) => rule?.source !== sourceKey)
+    : [];
+  const rules = await extractFeatSkillRules(background).catch(() => []);
+  feat.dynamicSkillRules = [
+    ...preservedRules,
+    ...rules.map((rule) => ({
+      ...rule,
+      source: sourceKey,
+    })),
+  ];
+  return rules;
+}
+
+function buildFreeHeartBackgroundSkillFallbackChoiceSets(planner, feat, background, fixedSkillRules) {
+  const grantedSkills = [...new Set((fixedSkillRules ?? [])
+    .map((rule) => normalizeSkillSlug(rule?.skill))
+    .filter((skill) => isActiveSkillSlug(skill)))];
+  if (grantedSkills.length === 0) return [];
+
+  const priorSkills = getFreeHeartBackgroundPriorSkillRanks(planner, background);
+  const overlaps = grantedSkills.filter((skill) => (priorSkills?.[skill] ?? 0) >= 1);
+  if (overlaps.length === 0) return [];
+
+  return overlaps.map((skill, index) => {
+    const flag = `levelerFreeHeartBackgroundSkillFallback${index + 1}`;
+    return {
+      flag,
+      prompt: 'Select a skill.',
+      choiceType: 'skill',
+      syntheticType: 'free-heart-background-skill-fallback',
+      grantsSkillTraining: true,
+      replacedSkill: skill,
+      sourceName: background?.name ?? null,
+      options: buildPlannerSkillFallbackOptions(
+        planner,
+        feat,
+        flag,
+        grantedSkills,
+        /^levelerFreeHeartBackgroundSkillFallback\d+$/i,
+      ),
+    };
+  });
+}
+
+function removeFreeHeartBackgroundOverlappedSkillRules(feat, skills) {
+  const sourceKey = `choice:${FREE_HEART_BACKGROUND_CHOICE_FLAG.toLowerCase()}`;
+  const blockedSkills = new Set((skills ?? []).map((skill) => normalizeSkillSlug(skill)));
+  feat.dynamicSkillRules = (feat.dynamicSkillRules ?? []).filter((rule) =>
+    rule?.source !== sourceKey || !blockedSkills.has(normalizeSkillSlug(rule?.skill)));
+}
+
+function syncFreeHeartBackgroundLoreRules(feat, background) {
+  if (!feat || !background) return [];
+  const sourceKey = `choice:${FREE_HEART_BACKGROUND_CHOICE_FLAG.toLowerCase()}`;
+  const preservedRules = Array.isArray(feat.dynamicLoreRules)
+    ? feat.dynamicLoreRules.filter((rule) => rule?.source !== sourceKey)
+    : [];
+  const rules = extractFreeHeartBackgroundLoreRules(background);
+  feat.dynamicLoreRules = [
+    ...preservedRules,
+    ...rules.map((rule) => ({
+      ...rule,
+      source: sourceKey,
+    })),
+  ];
+  return rules;
+}
+
+function extractFreeHeartBackgroundLoreRules(background) {
+  const lores = new Set();
+
+  for (const rawLore of background?.system?.trainedSkills?.lore ?? []) {
+    for (const option of splitLoreTrainingOptions(rawLore)) {
+      const slug = slugifyLoreSkillName(option);
+      if (slug) lores.add(slug);
+    }
+  }
+
+  for (const rule of background?.system?.rules ?? []) {
+    if (rule?.key !== 'ActiveEffectLike') continue;
+    if (Number(rule?.value ?? 0) < 1) continue;
+    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+    if (!match) continue;
+    const skill = normalizeSkillSlug(match[1]);
+    if (!skill || isActiveSkillSlug(skill)) continue;
+    lores.add(slugifyLoreSkillName(skill));
+  }
+
+  return [...lores].map((skill) => ({ skill, value: 1 }));
+}
+
+function splitLoreTrainingOptions(value) {
+  return String(value ?? '')
+    .split(/\s+or\s+|,/iu)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function getFreeHeartBackgroundPriorSkillRanks(planner, background) {
+  const actorLevel = Number(planner?.plan?.importedFromActor?.actorLevel ?? planner?.actor?.system?.details?.level?.value ?? 0);
+  const selectedLevel = Number(planner?.selectedLevel ?? 1);
+  const isImportedHistoricalLevel = planner?.plan?.importedFromActor?.hideHistoricalSkillIncreases === true
+    && Number.isFinite(actorLevel)
+    && Number.isFinite(selectedLevel)
+    && selectedLevel <= actorLevel;
+  if (!isImportedHistoricalLevel) {
+    return computeBuildState(planner.actor, planner.plan, selectedLevel - 1).skills ?? {};
+  }
+
+  const creationData = getCreationData(planner.actor);
+  const initialSkillTraining = new Set(getImportedInitialSkillTraining(planner.plan));
+  for (const rawSkill of creationData?.skills ?? []) {
+    const skill = normalizeSkillSlug(rawSkill);
+    if (isActiveSkillSlug(skill)) initialSkillTraining.add(skill);
+  }
+
+  return computeSkillPickerState(
+    withoutSelectedBackgroundItem(planner.actor, background),
+    planner.plan,
+    selectedLevel - 1,
+    ClassRegistry.get(planner.plan?.classSlug),
+    {
+      includeActorSkillRanks: false,
+      includePlannedFeatRules: true,
+      includeCurrentLevelSkillIncrease: true,
+      initialSkillTraining: [...initialSkillTraining],
+    },
+  );
+}
+
+function withoutSelectedBackgroundItem(actor, background) {
+  const backgroundUuid = String(background?.uuid ?? '');
+  const backgroundSlug = String(background?.slug ?? background?.system?.slug ?? '').trim().toLowerCase();
+  const items = getActorItems(actor).filter((item) => !isSameBackgroundItem(item, backgroundUuid, backgroundSlug));
+  return {
+    ...actor,
+    background: isSameBackgroundItem(actor?.background, backgroundUuid, backgroundSlug) ? null : actor?.background,
+    items,
+  };
+}
+
+function getActorItems(actor) {
+  if (!actor?.items) return [];
+  if (Array.isArray(actor.items)) return actor.items;
+  if (Array.isArray(actor.items.contents)) return actor.items.contents;
+  if (typeof actor.items.filter === 'function') return actor.items.filter(() => true);
+  return Array.from(actor.items);
+}
+
+function isSameBackgroundItem(item, uuid, slug) {
+  if (!item || String(item?.type ?? item?.itemType ?? '').trim().toLowerCase() !== 'background') return false;
+  const itemUuid = String(item?.uuid ?? item?.sourceId ?? item?.flags?.core?.sourceId ?? '');
+  if (uuid && itemUuid === uuid) return true;
+  const itemSlug = String(item?.slug ?? item?.system?.slug ?? '').trim().toLowerCase();
+  return !!slug && itemSlug === slug;
 }
 
 async function buildNaturalAmbitionChoiceSet(planner) {
@@ -1668,12 +1898,12 @@ async function buildPlannerSkillFallbackChoiceSets(planner, feat, source) {
   });
 }
 
-function buildPlannerSkillFallbackOptions(planner, feat, flag, blockedSkills) {
+function buildPlannerSkillFallbackOptions(planner, feat, flag, blockedSkills, fallbackFlagPattern = /^levelerSkillFallback\d+$/i) {
   const selected = normalizeSkillSlug(feat?.choices?.[flag]);
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
   const selectedElsewhere = new Set(
     Object.entries(feat?.choices ?? {})
-      .filter(([entryFlag, value]) => /^levelerSkillFallback\d+$/i.test(entryFlag) && entryFlag !== flag && typeof value === 'string')
+      .filter(([entryFlag, value]) => fallbackFlagPattern.test(entryFlag) && entryFlag !== flag && typeof value === 'string')
       .map(([, value]) => normalizeSkillSlug(value)),
   );
   const blocked = new Set(blockedSkills.map((skill) => normalizeSkillSlug(skill)));

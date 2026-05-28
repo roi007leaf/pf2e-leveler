@@ -607,6 +607,353 @@ describe('level planner grant previews', () => {
     ]));
   });
 
+  test('builds a browsable Free Heart background choice from prose-only PF2e data', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-free-heart') {
+        return {
+          uuid,
+          name: 'Free Heart',
+          slug: 'free-heart',
+          system: {
+            slug: 'free-heart',
+            description: {
+              value: '<p>Choose a common background that relates to a passion you have pursued.</p>',
+            },
+            traits: { value: ['elf'] },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const planner = {
+      actor: createMockActor({ items: [] }),
+      selectedLevel: 13,
+      plan: {
+        classSlug: 'fighter',
+        levels: {
+          13: {
+            ancestryFeats: [{
+              uuid: 'feat-free-heart',
+              name: 'Free Heart',
+              slug: 'free-heart',
+              choices: {},
+            }],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-backgrounds': [
+          { uuid: 'Compendium.pf2e.backgrounds.Item.artist', name: 'Artist', type: 'background', rarity: 'common', traits: ['general'], slug: 'artist' },
+          { uuid: 'Compendium.pf2e.backgrounds.Item.noble', name: 'Noble', type: 'background', rarity: 'uncommon', traits: ['general'], slug: 'noble' },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, FIGHTER, {});
+
+    expect(context.ancestryFeatChoiceSets).toEqual([
+      expect.objectContaining({
+        flag: 'levelerFreeHeartBackground',
+        syntheticType: 'free-heart-background-choice',
+        choicePicker: expect.objectContaining({
+          kind: 'item',
+          allowedUuids: ['Compendium.pf2e.backgrounds.Item.artist'],
+        }),
+        options: [
+          expect.objectContaining({
+            value: 'Compendium.pf2e.backgrounds.Item.artist',
+            label: 'Artist',
+            type: 'background',
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  test('exposes selected Free Heart background skill choices and fixed training', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-free-heart') {
+        return {
+          uuid,
+          name: 'Free Heart',
+          slug: 'free-heart',
+          system: { slug: 'free-heart', traits: { value: ['elf'] }, rules: [] },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.backgrounds.Item.wanderer') {
+        return {
+          uuid,
+          name: 'Wanderer',
+          type: 'background',
+          system: {
+            trainedSkills: { value: ['survival'] },
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'backgroundSkill',
+              prompt: 'PF2E.SpecificRule.Prompt.Skill',
+              choices: [
+                { value: 'athletics', label: 'Athletics' },
+                { value: 'nature', label: 'Nature' },
+              ],
+            }],
+          },
+        };
+      }
+      return null;
+    });
+
+    const ancestryFeat = {
+      uuid: 'feat-free-heart',
+      name: 'Free Heart',
+      slug: 'free-heart',
+      choices: {
+        levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.wanderer',
+      },
+    };
+    const planner = {
+      actor: createMockActor({ items: [] }),
+      selectedLevel: 13,
+      plan: {
+        classSlug: 'fighter',
+        levels: {
+          13: {
+            ancestryFeats: [ancestryFeat],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-backgrounds': [
+          { uuid: 'Compendium.pf2e.backgrounds.Item.wanderer', name: 'Wanderer', type: 'background', rarity: 'common', traits: [], slug: 'wanderer' },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, FIGHTER, {});
+
+    expect(context.ancestryFeatChoiceSets).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        flag: 'backgroundSkill',
+        sourceName: 'Wanderer',
+        grantsSkillTraining: true,
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'athletics' }),
+          expect.objectContaining({ value: 'nature' }),
+        ]),
+      }),
+    ]));
+    expect(ancestryFeat.dynamicSkillRules).toEqual([
+      expect.objectContaining({
+        skill: 'survival',
+        value: 1,
+        source: 'choice:levelerfreeheartbackground',
+      }),
+    ]);
+  });
+
+  test('prompts for an untrained skill when selected Free Heart background grants an already trained skill', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-free-heart') {
+        return {
+          uuid,
+          name: 'Free Heart',
+          slug: 'free-heart',
+          system: { slug: 'free-heart', traits: { value: ['elf'] }, rules: [] },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.backgrounds.Item.wanderer') {
+        return {
+          uuid,
+          name: 'Wanderer',
+          type: 'background',
+          system: {
+            trainedSkills: { value: ['survival'] },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.system.skills.survival.rank = 1;
+
+    const ancestryFeat = {
+      uuid: 'feat-free-heart',
+      name: 'Free Heart',
+      slug: 'free-heart',
+      choices: {
+        levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.wanderer',
+        levelerFreeHeartBackgroundSkillFallback1: 'arcana',
+      },
+    };
+    const planner = {
+      actor,
+      selectedLevel: 13,
+      plan: {
+        classSlug: 'fighter',
+        importedFromActor: {
+          actorLevel: 13,
+          hideHistoricalSkillIncreases: true,
+          initialSkills: ['survival'],
+        },
+        levels: {
+          13: {
+            ancestryFeats: [ancestryFeat],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-backgrounds': [
+          { uuid: 'Compendium.pf2e.backgrounds.Item.wanderer', name: 'Wanderer', type: 'background', rarity: 'common', traits: [], slug: 'wanderer' },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, FIGHTER, {});
+
+    expect(context.ancestryFeatChoiceSets).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        flag: 'levelerFreeHeartBackgroundSkillFallback1',
+        sourceName: 'Wanderer',
+        grantsSkillTraining: true,
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'arcana', selected: true }),
+        ]),
+      }),
+    ]));
+    expect(context.ancestryFeatChoiceSets
+      .find((choiceSet) => choiceSet.flag === 'levelerFreeHeartBackgroundSkillFallback1').options)
+      .not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'survival' }),
+      ]));
+    expect(ancestryFeat.dynamicSkillRules).toEqual([
+      expect.objectContaining({
+        skill: 'arcana',
+        value: 1,
+        source: 'choice:levelerfreeheartbackgroundskillfallback1',
+      }),
+    ]);
+  });
+
+  test('does not prompt for a Free Heart fallback when the selected background is the only source of the skill', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-free-heart') {
+        return {
+          uuid,
+          name: 'Free Heart',
+          slug: 'free-heart',
+          system: { slug: 'free-heart', traits: { value: ['elf'] }, rules: [] },
+        };
+      }
+      if (uuid === 'Compendium.pf2e.backgrounds.Item.abadars-avenger') {
+        return {
+          uuid,
+          name: "Abadar's Avenger",
+          type: 'background',
+          system: {
+            trainedSkills: { value: ['society'], lore: ['Abadar Lore'] },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+
+    const actor = createMockActor({ items: [] });
+    actor.background = {
+      uuid: 'Compendium.pf2e.backgrounds.Item.abadars-avenger',
+      name: "Abadar's Avenger",
+      type: 'background',
+      system: { trainedSkills: { value: ['society'], lore: ['Abadar Lore'] }, rules: [] },
+    };
+    actor.system.skills.society.rank = 1;
+
+    const ancestryFeat = {
+      uuid: 'feat-free-heart',
+      name: 'Free Heart',
+      slug: 'free-heart',
+      choices: {
+        levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.abadars-avenger',
+      },
+    };
+    const planner = {
+      actor,
+      selectedLevel: 13,
+      plan: {
+        classSlug: 'fighter',
+        importedFromActor: {
+          actorLevel: 13,
+          hideHistoricalSkillIncreases: true,
+          initialSkills: [],
+        },
+        levels: {
+          13: {
+            ancestryFeats: [ancestryFeat],
+            featGrants: [],
+          },
+        },
+      },
+      _compendiumCache: {
+        'category-backgrounds': [
+          { uuid: 'Compendium.pf2e.backgrounds.Item.abadars-avenger', name: "Abadar's Avenger", type: 'background', rarity: 'common', traits: [], slug: 'abadars-avenger' },
+        ],
+      },
+      _buildAttributeContext: jest.fn(() => ({})),
+      _buildIntelligenceBenefitContext: jest.fn(() => ({})),
+      _buildIntBonusSkillContext: jest.fn(() => []),
+      _buildIntBonusLanguageContext: jest.fn(() => []),
+      _buildSkillContext: jest.fn(() => []),
+      _buildSpellContext: jest.fn(async () => ({ showSpells: false })),
+      _isCustomPlanOpen: jest.fn(() => false),
+    };
+
+    const context = await buildLevelContext(planner, FIGHTER, {});
+
+    expect(context.ancestryFeatChoiceSets).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ flag: 'levelerFreeHeartBackgroundSkillFallback1' }),
+    ]));
+    expect(ancestryFeat.dynamicSkillRules).toEqual([
+      expect.objectContaining({
+        skill: 'society',
+        value: 1,
+        source: 'choice:levelerfreeheartbackground',
+      }),
+    ]);
+    expect(ancestryFeat.dynamicLoreRules).toEqual([
+      expect.objectContaining({
+        skill: 'abadar-lore',
+        value: 1,
+        source: 'choice:levelerfreeheartbackground',
+      }),
+    ]);
+  });
+
   test('renders class feature choice sets from level feature rules', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'feature-blessing-of-the-devoted') {

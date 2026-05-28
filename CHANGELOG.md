@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.4.28
+
+### Level Planner
+
+- **Gradual ability boosts now import one boost per level** - Existing high-level actors and older saved plans using PF2e's `5/10/15/20` gradual boost buckets are split into the correct per-level planner rows, preventing level 5 and similar rows from showing `4/1`
+- **Gradual partial boosts now complete in later boost sets** - Future gradual boosts now reconstruct prior bucketed boosts in the same per-level order, so a level 10 boost can finish a level 5 partial boost instead of showing another pending partial
+- **Partial ability boost labels now show pending progress** - Ability modifiers with a stored half-step now display as `+4(partial)` before selection, including already-applied gradual levels, and `+4(partial) -> +5` when the next boost completes them
+- **Free Heart background grants now apply their selected skills and lore** - Background fallback skill choices only appear when the fixed background skill was already trained, and selected background lore is applied when missing
+- **Applied feat summaries now include selected item choices** - Chat output for feats with item selections, such as Free Heart background choices, now shows the selected item label alongside the applied feat
+
 ## 3.4.27
 
 ### Level Planner

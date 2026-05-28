@@ -331,6 +331,43 @@ describe('applySkillIncreases', () => {
     ]);
   });
 
+  test('creates lore granted by a selected Free Heart background', async () => {
+    mockActor = {
+      system: { skills: {} },
+      items: [],
+      update: jest.fn(() => Promise.resolve()),
+      createEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+      updateEmbeddedDocuments: jest.fn(() => Promise.resolve([])),
+    };
+
+    const plan = {
+      levels: {
+        13: {
+          ancestryFeats: [{
+            slug: 'free-heart',
+            name: 'Free Heart',
+            dynamicLoreRules: [
+              { skill: 'abadar-lore', value: 1, source: 'choice:levelerfreeheartbackground' },
+            ],
+          }],
+        },
+      },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 13);
+
+    expect(mockActor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      name: 'Abadar Lore',
+      type: 'lore',
+      system: {
+        proficient: { value: 1 },
+      },
+    }]);
+    expect(result).toEqual([
+      { skill: 'abadar-lore', toRank: 1, featChoice: true },
+    ]);
+  });
+
   test('creates expert Gossip Lore when Society is legendary', async () => {
     mockActor = {
       system: { skills: { society: { rank: 4 } } },

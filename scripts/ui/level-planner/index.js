@@ -65,6 +65,10 @@ const LOCATION_TO_PLAN_CATEGORY = {
 
 function extractDirectFeatSkillRules(feat) {
   const result = [];
+  for (const skill of feat?.system?.trainedSkills?.value ?? []) {
+    result.push({ skill, value: 1, predicate: null });
+  }
+
   for (const rule of feat.system?.rules ?? []) {
     if (rule.key !== 'ActiveEffectLike') continue;
     const path = rule.path;
@@ -390,6 +394,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
 
+    if (options.gradualBoosts && migrateGradualBoostBuckets(plan)) {
+      changed = true;
+    }
+
     if (this._shouldClearImportedFromActor(plan, actorLevel)) {
       delete plan.importedFromActor;
       changed = true;
@@ -667,12 +675,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _seedPlanFromActor(actor, plan, options) {
-    this._seedPlanBoostsFromActor(actor, plan);
+    this._seedPlanBoostsFromActor(actor, plan, options);
     this._seedPlanFeatsFromActor(actor, plan, options);
     this._seedPlanClassFeatureChoicesFromActor(actor, plan);
   }
 
-  _seedPlanBoostsFromActor(actor, plan) {
+  _seedPlanBoostsFromActor(actor, plan, options = this._getVariantOptions()) {
     const actorBoosts = actor?.system?.build?.attributes?.boosts ?? {};
 
     for (const [levelKey, boosts] of Object.entries(actorBoosts)) {
@@ -683,7 +691,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       if (normalizedBoosts.length === 0) continue;
 
       const normalized = [...new Set(normalizedBoosts.filter((boost) => ['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(normalizeAbilityBoostKey(boost))))];
-      if (normalized.length > 0) setLevelBoosts(plan, level, normalized);
+      if (normalized.length === 0) continue;
+      if (options.gradualBoosts && seedGradualBoostGroup(plan, level, normalized)) continue;
+      setLevelBoosts(plan, level, normalized);
     }
   }
 
@@ -695,6 +705,17 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const [levelKey, boosts] of Object.entries(actorBoosts)) {
       const level = Number(levelKey);
       if (!Number.isInteger(level) || level < MIN_PLAN_LEVEL || level > MAX_LEVEL) continue;
+
+      const normalizedBoosts = normalizeActorBoostEntries(boosts);
+      if (normalizedBoosts.length === 0) continue;
+
+      const normalized = [...new Set(normalizedBoosts.filter((boost) => ['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(normalizeAbilityBoostKey(boost))))];
+      if (normalized.length === 0) continue;
+      if (options.gradualBoosts && backfillGradualBoostGroup(plan, level, normalized)) {
+        changed = true;
+        continue;
+      }
+
       if (classDef) {
         const boostChoice = getChoicesForLevel(classDef, level, options).find((choice) => choice.type === 'abilityBoosts');
         if (options.gradualBoosts && boostChoice?.count === 1) continue;
@@ -702,12 +723,6 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
 
       const plannedBoosts = plan?.levels?.[level]?.abilityBoosts;
       if (!Array.isArray(plannedBoosts) || plannedBoosts.length > 0) continue;
-
-      const normalizedBoosts = normalizeActorBoostEntries(boosts);
-      if (normalizedBoosts.length === 0) continue;
-
-      const normalized = [...new Set(normalizedBoosts.filter((boost) => ['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(normalizeAbilityBoostKey(boost))))];
-      if (normalized.length === 0) continue;
 
       setLevelBoosts(plan, level, normalized);
       changed = true;
@@ -3312,6 +3327,63 @@ function titleCase(value) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function seedGradualBoostGroup(plan, level, boosts) {
+  const groupLevels = getGradualBoostGroupLevels(level);
+  if (groupLevels.length === 0 || boosts.length === 0) return false;
+
+  let changed = false;
+  for (const [index, groupLevel] of groupLevels.entries()) {
+    const boost = boosts[index];
+    if (!boost || !Array.isArray(plan?.levels?.[groupLevel]?.abilityBoosts)) continue;
+    setLevelBoosts(plan, groupLevel, [boost]);
+    changed = true;
+  }
+  return changed;
+}
+
+function migrateGradualBoostBuckets(plan) {
+  let changed = false;
+  for (const bucketLevel of [5, 10, 15, 20]) {
+    const groupLevels = getGradualBoostGroupLevels(bucketLevel);
+    const bucketBoosts = plan?.levels?.[bucketLevel]?.abilityBoosts;
+    if (groupLevels.length === 0 || !Array.isArray(bucketBoosts) || bucketBoosts.length <= 1) continue;
+
+    for (const [index, groupLevel] of groupLevels.entries()) {
+      const plannedBoosts = plan?.levels?.[groupLevel]?.abilityBoosts;
+      if (!Array.isArray(plannedBoosts)) continue;
+
+      const boost = bucketBoosts[index];
+      const nextBoosts = boost ? [boost] : [];
+      if (plannedBoosts.length > 0 && groupLevel !== bucketLevel) continue;
+      if (arraysEqual(plannedBoosts, nextBoosts)) continue;
+
+      setLevelBoosts(plan, groupLevel, nextBoosts);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function arraysEqual(left, right) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
+function backfillGradualBoostGroup(plan, level, boosts) {
+  const groupLevels = getGradualBoostGroupLevels(level);
+  if (groupLevels.length === 0 || boosts.length <= 1) return false;
+
+  let changed = false;
+  for (const [index, groupLevel] of groupLevels.entries()) {
+    const boost = boosts[index];
+    const plannedBoosts = plan?.levels?.[groupLevel]?.abilityBoosts;
+    if (!boost || !Array.isArray(plannedBoosts) || plannedBoosts.length > 0) continue;
+    setLevelBoosts(plan, groupLevel, [boost]);
+    changed = true;
+  }
+  return changed;
 }
 
 function normalizeActorBoostEntries(value) {

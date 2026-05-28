@@ -154,6 +154,44 @@ describe('applyPlan', () => {
     }));
   });
 
+  test('shows selected item choices for applied feats in the chat summary', async () => {
+    applyFeats.mockResolvedValueOnce([{
+      name: 'Free Heart',
+      uuid: 'Compendium.pf2e.feats-srd.Item.free-heart',
+    }]);
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.backgrounds.Item.abadars-avenger') {
+        return { name: "Abadar's Avenger", uuid };
+      }
+      return null;
+    });
+
+    const actor = {
+      name: 'Alcor',
+      testUserPermission: jest.fn(() => true),
+    };
+    const plan = {
+      levels: {
+        13: {
+          ancestryFeats: [{
+            uuid: 'Compendium.pf2e.feats-srd.Item.free-heart',
+            name: 'Free Heart',
+            slug: 'free-heart',
+            choices: {
+              levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.abadars-avenger',
+            },
+          }],
+        },
+      },
+    };
+
+    await applyPlan(actor, plan, 13, 12);
+
+    expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
+      content: expect.stringContaining("Abadar's Avenger"),
+    }));
+  });
+
   test('applies retraining separately from level-up choices', async () => {
     applyFeatRetrains.mockResolvedValueOnce([
       { original: { name: 'Old Feat' }, replacement: { name: 'New Feat', uuid: 'Compendium.pf2e.feats-srd.Item.new-feat' } },

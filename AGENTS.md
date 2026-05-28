@@ -281,67 +281,70 @@ recommend splitting it along real responsibility boundaries.
 <claude-mem-context>
 # Memory Context
 
-# [pf2e-leveler] recent context, 2026-05-27 12:55pm GMT+3
+# [pf2e-leveler] recent context, 2026-05-28 8:37am GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,759t read) | 267,066t work | 93% savings
+Stats: 50 obs (16,349t read) | 246,180t work | 93% savings
 
 ### May 3, 2026
+S834 Free Heart Background: Prompt for untrained skill replacement when background grants an already-trained skill (May 3 at 1:42 PM)
 S120 Feat retraining implementation for pf2e-leveler — Task 2 complete (validator + apply), Task 3 (planner UI) in progress (May 3 at 1:42 PM)
-### May 27, 2026
-6187 8:25a 🔵 Bug Identified in Sheet Integration Background Selection Flow
-6188 " 🔵 Version Mismatch Between package.json and module.json
-6189 " 🔵 Active Work on level-planner/context.js and Associated Tests
-6190 " 🔴 Fixed: Starting Skill Training Duplicates Background Skill Prompts — Release 3.4.24
-6191 8:26a ✅ 3.4.24 Changes Verified: All 88 Level Planner Bootstrap Tests Pass
-6338 10:39a 🔵 pf2e-leveler v3.4.21 Investigation Session Started — Skill/Fallback Focus
-6339 " 🔵 pf2e-leveler Skill Computation Pipeline Architecture in build-state.js
-6340 10:40a 🔵 ensure.js Builds Dynamic Class Definitions from FoundryVTT Actor Data
-6341 " 🔵 Imported Initial Skill Dialog Architecture: ChoiceSets, Fallbacks, and Duplicate Detection
-6342 10:41a 🟣 TDD Red Phase: Two New Failing Tests Added to build-state.test.js
-6343 10:42a 🟣 TDD Red Phase: Three New Failing Tests Covering Duplicate Skill Grant Edge Cases
-6344 " 🔵 Three Confirmed Bugs Found via Red Test Runs
-6345 10:43a 🔴 Three Production Bug Fixes Applied to build-state.js
-6346 " 🔴 isPlannedBoostReflectedOnActor and extractSkillGrantsFromRules Added to build-state.js
-6347 " 🔴 isPlannedBoostReflectedOnActor Simplified: Fractional Modifier Check for Level-5 Pending Partial Boosts
-6348 10:44a 🔴 All Three New Tests Pass — Green Phase Confirmed
-6349 " 🔴 Full Test Suite Green: 1445/1445 Tests Pass After build-state.js Fixes
-6350 " 🔵 Version Discrepancy: module.json at 3.4.24, package.json at 3.4.21 Before New Release
-6353 10:59a 🔵 pf2e-leveler Investigator Class Definition and Skill System Structure
-6355 " 🔵 Initial Skill Import Pipeline Function Map in build-state.js
-6357 11:00a 🔵 getImportedInitialSkillLimit Formula and Investigator Minimum Floor
-6358 " 🔵 Level-1 Dedication Skill Duplicate Fallback in Imported Starting Skill Dialog
-6360 " 🔴 Investigator trainedSkills Moved to Class Definition; Ancestry-Granted Skill Feats Now Detected
-6361 " 🟣 getActorClassItem Helper Added to build-state.js
-6363 11:01a 🔴 Tests Updated to Reflect Ancient Elf Heritage Grant Detection and Correct Investigator additional:4
-6364 " 🔵 Fix Ships as v3.4.24; getImportedInitialSkillLimit Called from context.js
-6365 " 🔵 Test Failure: INVESTIGATOR Not Registered in level-planner-bootstrap.test.js beforeAll
-6366 " 🔴 INVESTIGATOR Registered in level-planner-bootstrap.test.js to Fix Failing Test
-6367 " 🔴 All 185 Tests Pass After Investigator Skill Import Fixes
-6369 11:02a 🔴 Full Test Suite Passes After Investigator Skill Import Fix — 1445/1445 Green
-6370 " ✅ ESLint Passes Clean After v3.4.24 Changes
-6387 11:18a ✅ CHANGELOG patch version increment requested
-6388 " 🔵 Version mismatch between package.json and module.json in pf2e-leveler
-6389 " 🟣 pf2e-leveler 3.4.24: Investigator and background skill edge case fixes
-6390 " ✅ pf2e-leveler bumped to version 3.4.25 across all version files
-6391 " 🔵 package-lock.json still at 3.4.21 after version bump to 3.4.25
-6392 " ✅ package-lock.json synced to 3.4.25, all version files now consistent
-6393 11:19a 🔵 Key functions and tests for skill/boost planning in build-state.js
-6394 11:22a 🔵 pf2e-leveler recent release history: 3.4.19 through 3.4.23
-6395 " ✅ CHANGELOG restructured to restore separate 3.4.24 entry after incorrect version rename
-6489 12:40p 🔴 TDD: Failing tests added for background lore skills and granted background build state
-6490 " 🔵 Three failing tests confirm root causes for background lore and historical INT boost bugs
-6491 12:42p 🔴 Added background lore training extraction functions to build-state.js
-6492 " 🔴 build-state.js wired with background lore, granted background skills, and historical INT benefit count
-6493 12:43p 🔴 Added planned granted background skill/lore extraction helpers and dedupeStrings utility
-6494 " 🔴 context.js updated: buildIntelligenceBenefitContext and buildHistoricalLoreRanks fixed
-6495 12:44p 🔴 plan-validator.js updated and all 130 tests pass
-6496 " ✅ CHANGELOG.md updated with imported background edge cases fix entry
-6497 " 🔴 Full test suite passes: 1448 tests green across 86 suites
-6498 " 🔴 pf2e-leveler background edge cases fix: final diff summary
+### May 28, 2026
+S835 Free Heart Background: Prompt for untrained skill replacement when background grants an already-trained skill (May 28 at 7:52 AM)
+S836 Free Heart Background: Prompt for untrained skill replacement when background grants an already-trained skill (May 28 at 7:57 AM)
+6722 8:17a 🔴 Added getGradualActorBoostForLevel to Reconstruct Per-Level Display From Group Bucket
+6723 " ✅ Full Suite Green: 1462 Tests, 86 Suites, Lint Clean After Gradual Boost Display Fix
+6724 8:18a 🔵 Potential Double-Counting Bug: getGradualActorBoostForLevel May Double-Apply Group Boosts in Baseline Reconstruction
+6725 " 🔵 Double-Counting Masked by buildReconstructedCurrentRawAttributes Correction Step
+6726 8:19a 🔵 New Partial Boost Test Fails: buildKnownInitialAttributeBaseline Returns null Without Ancestry/Background Setup
+6727 8:20a 🟣 buildKnownInitialAttributeBaseline Enhanced to Read PF2e Stored Build Boosts
+6728 " 🔴 Apply Manager Persists Choice Selections via flags.pf2e.rulesSelections When Applying Feats
+6729 " 🔵 createLevelUpMessage Includes Skill Grants From Lore Rules in 'Skill Increase' Section
+6730 8:21a 🟣 New Test for Free Heart Background Choice Summary in Chat Message - TDD Red Phase
+6731 " 🔵 Confirmed Red: Chat Message Shows Feat UUID Link But Not Choice Label
+6732 8:22a 🟣 buildAppliedFeatChatEntries Added to Resolve Item Choice Labels in Chat Message
+6733 " 🔴 Chat Message Format Mismatch: Implementation Produces Parenthetical Format Not Colon Format
+6734 " 🔴 Test Expectation Relaxed to Match Actual Parenthetical Format
+6735 " 🟣 Apply Manager Chat Message Now Shows Free Heart Background Choice Labels
+6736 " ✅ All Apply-Related Tests Pass After Chat Message Enhancement
+6737 " ✅ ESLint Clean After Apply Manager Chat Message Enhancement
+6738 " ✅ Full Suite Green: 1464 Tests Across 86 Suites After Complete Session's Work
+6739 8:23a 🔵 boostCount and selectedBoostCount Correctly Scale for Gradual Boost Levels
+6740 " 🔵 _migratePlan Initializes abilityBoosts Arrays for All Gradual Boost Levels Before Backfill Runs
+6741 8:24a 🔵 Gradual Boost Architecture Summary: Complete Implementation Map
+6742 8:25a 🔵 Asymmetric Guard Conditions: seedGradualBoostGroup vs backfillGradualBoostGroup
+6743 " 🔵 New Test Exposes _migratePlan Doesn't Split Plan-Level Boost Buckets for Gradual Mode
+6744 " 🟣 migrateGradualBoostBuckets Added to _migratePlan for Variant-Switch Migration
+6745 8:26a 🔵 Test _buildLevelContext() Not Awaited — Context Returns Promise Not Object
+6746 " 🔴 Test Fixed: Made Async and Added Required classDef Argument to _buildLevelContext
+6747 " 🔵 buildLevelContext Fails With Non-Iterable actor.items in Test Mock
+6748 " 🟣 migrateGradualBoostBuckets Verified: Test Now Passes
+6749 " ✅ Gradual Boost Migration Tests All Passing: 37 Intelligence + 92 Bootstrap
+6750 8:27a ✅ ESLint Clean After migrateGradualBoostBuckets and arraysEqual Additions
+6751 " ✅ Full Suite Green: 1465 Tests Across 86 Suites After Complete Session
+6752 " 🔵 Final Code Review: migrateGradualBoostBuckets Logic Confirmed Correct
+6753 8:28a 🔵 context.js Final Architecture: Complete Gradual Boost Display Pipeline
+6754 " 🔵 Comprehensive Intelligence Test Suite Coverage Confirmed for Attribute Display
+6755 " 🔵 createMockActor Pattern in Intelligence Tests: Two Approaches for Abilities Setup
+6756 8:29a 🔵 createMockActor Sets items as Non-Iterable Mock Object — for...of Fails
+6757 " 🟣 New Test: Gradual Boost Partial Display Preserved When Previewing Next Gradual Set
+6758 8:30a 🔴 Fixed getAppliedBoostsForLevel Order: Gradual Lookup Must Run Before Direct Bucket Lookup
+6760 " ✅ pf2e-leveler Bumped to Version 3.4.28 With 4-Item CHANGELOG
+6761 8:31a ✅ Version 3.4.28 Confirmed Across All Files, Lint Clean, Tests Running
+6762 " ✅ pf2e-leveler 3.4.28 Fully Verified and Ready to Commit
+6763 8:32a ✅ Session Complete: pf2e-leveler 3.4.28 Ready for Commit
+6764 " 🔵 Partial Boost UI Pipeline Confirmed: template → CSS → i18n All Consistent
+6765 8:33a 🟣 Added pendingPartial Field and UI Display for Unselected Partial Boost Buttons
+6766 " 🟣 pendingPartial UI Applied Across All Three Template Files
+6767 " 🟣 pendingPartial Template Test and Existing Test Updates Pass
+6768 " ✅ CHANGELOG 3.4.28 Updated With Fifth Item for Partial Boost Label Display
+6769 " ✅ pf2e-leveler 3.4.28 CHANGELOG Finalized With 5 User-Facing Items
+6770 8:34a ✅ intelligence.test.js 39/39 and Lint Clean After pendingPartial Addition
+6771 " ✅ pf2e-leveler 3.4.28 Final: 1467 Tests, 86 Suites, Lint Clean — Ready to Commit
+6772 " ✅ Final Code Review Confirmed: pendingPartial Field and Template Display Correct
 
-Access 267k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 246k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

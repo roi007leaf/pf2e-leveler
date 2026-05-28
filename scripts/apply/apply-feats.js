@@ -21,6 +21,7 @@ const CATEGORY_TO_GROUP = {
 
 const FEAT_KEYS = Object.keys(CATEGORY_TO_GROUP);
 const ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG = 'levelerAdvancedClassFeat';
+const FREE_HEART_BACKGROUND_CHOICE_FLAG = 'levelerFreeHeartBackground';
 
 function getFeatGroup(key, level) {
   if (key === 'dualClassFeats') {
@@ -76,6 +77,20 @@ export async function applyFeats(actor, plan, level) {
       const featData = prepareForCreation(item, featEntry, group, level);
       candidates.push({ featData, sourceId });
       if (sourceId) pendingSources.add(sourceId);
+
+      for (const grantedFeatData of await resolveFreeHeartBackgroundGrantedFeatDatas(featEntry, level)) {
+        const grantedSourceId = getItemSourceId(grantedFeatData);
+        if (
+          grantedSourceId
+          && !existingSources.has(grantedSourceId)
+          && !pendingSources.has(grantedSourceId)
+        ) {
+          candidates.push({ featData: grantedFeatData, sourceId: grantedSourceId });
+          pendingSources.add(grantedSourceId);
+        } else if (!grantedSourceId) {
+          candidates.push({ featData: grantedFeatData, sourceId: null });
+        }
+      }
     }
   }
 
@@ -400,6 +415,48 @@ function addSyntheticGrantItemRule(data, featEntry) {
   if (!Array.isArray(data.system.rules)) data.system.rules = [];
   if (data.system.rules.some((rule) => rule?.key === 'GrantItem' && rule?.uuid === grantedUuid)) return;
   data.system.rules.push({ key: 'GrantItem', uuid: grantedUuid });
+}
+
+function isFreeHeartFeat(data, featEntry) {
+  const slug = String(featEntry?.slug ?? data?.slug ?? data?.system?.slug ?? '').trim().toLowerCase();
+  const name = String(featEntry?.name ?? data?.name ?? '').trim().toLowerCase();
+  return slug === 'free-heart' || name === 'free heart';
+}
+
+function isBackgroundUuid(uuid) {
+  return typeof uuid === 'string' && /\.backgrounds\.Item\./i.test(uuid);
+}
+
+async function resolveFreeHeartBackgroundGrantedFeatDatas(featEntry, level) {
+  if (!isFreeHeartFeat(null, featEntry)) return [];
+
+  const backgroundUuid = featEntry?.choices?.[FREE_HEART_BACKGROUND_CHOICE_FLAG];
+  if (!isBackgroundUuid(backgroundUuid)) return [];
+
+  const background = await fromUuid(backgroundUuid).catch(() => null);
+  if (!background) return [];
+
+  const featDatas = [];
+  const seen = new Set();
+  for (const rule of background.system?.rules ?? []) {
+    if (rule?.key !== 'GrantItem' || typeof rule?.uuid !== 'string') continue;
+    const uuid = resolveGrantRuleUuid(rule.uuid, featEntry?.choices ?? {});
+    if (!uuid || seen.has(uuid) || !isCompendiumUuidInCategory(uuid, 'feats')) continue;
+    seen.add(uuid);
+
+    const item = await resolveFeat(uuid);
+    if (!item) continue;
+    featDatas.push(prepareBackgroundGrantedFeatForCreation(item, level));
+  }
+  return featDatas;
+}
+
+function prepareBackgroundGrantedFeatForCreation(item, level) {
+  const data = foundry.utils.deepClone(item.toObject());
+  data.system ??= {};
+  data.system.location = `bonus-${level}`;
+  data.system.level = { ...data.system.level, taken: level };
+  return data;
 }
 
 function getActorFeatSources(actor) {

@@ -111,6 +111,13 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(skillSection).toContain('data-action="addIntBonusLoreSkill"');
   });
 
+  it('renders pending partial ability modifiers in boost labels', () => {
+    const template = readFileSync('templates/level-planner.hbs', 'utf8');
+
+    expect(template).toContain('+{{this.mod}}(partial) → +{{this.newMod}}');
+    expect(template).toContain('+{{this.mod}}{{#if this.pendingPartial}}(partial){{/if}}');
+  });
+
   it('includes language rarity and GM guidance in planner intelligence language choices', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';
@@ -387,12 +394,14 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       mod: 4,
       newMod: 5,
       partial: true,
+      pendingPartial: true,
       completesPartial: true,
     }));
     expect(level10.find((entry) => entry.key === 'con')).toEqual(expect.objectContaining({
       mod: 4,
       newMod: 4,
       partial: true,
+      pendingPartial: false,
       completesPartial: false,
     }));
 
@@ -402,12 +411,215 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       mod: 5,
       newMod: 5,
       partial: true,
+      pendingPartial: false,
       completesPartial: false,
     }));
     expect(level15.find((entry) => entry.key === 'con')).toEqual(expect.objectContaining({
       mod: 4,
       newMod: 5,
       partial: true,
+      pendingPartial: true,
+      completesPartial: true,
+    }));
+  });
+
+  it('reconstructs hidden level 5 partial boosts from level 1 boost history when previewing level 10', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.class.system.keyAbility = { selected: 'dex', value: ['dex'] };
+    actor.system.details.level.value = 8;
+    actor.ancestry = {
+      system: {
+        boosts: {
+          0: { value: ['dex'] },
+          1: { value: ['con'] },
+        },
+        flaws: {},
+      },
+    };
+    actor.background = {
+      system: {
+        boosts: {
+          0: { value: ['dex'] },
+          1: { value: ['con'] },
+        },
+      },
+    };
+    actor.system.build.attributes.boosts[1] = ['dex', 'con', 'cha', 'wis'];
+    actor.system.build.attributes.boosts[5] = ['dex', 'con', 'int', 'cha'];
+    actor.system.abilities.dex.mod = 4;
+    actor.system.abilities.con.mod = 4;
+    actor.system.abilities.int.mod = 1;
+    actor.system.abilities.wis.mod = 1;
+    actor.system.abilities.cha.mod = 2;
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 4, base: 4 },
+      con: { mod: 4, base: 4 },
+      int: { mod: 1, base: 1 },
+      wis: { mod: 1, base: 1 },
+      cha: { mod: 2, base: 2 },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    setLevelBoosts(planner.plan, 10, ['dex', 'con', 'int', 'cha']);
+    planner.selectedLevel = 10;
+
+    const choices = [{ type: 'abilityBoosts', count: 4 }];
+    const context = planner._buildAttributeContext(planner.plan.levels[10], choices);
+
+    expect(context.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({
+      mod: 4,
+      newMod: 5,
+      partial: true,
+      completesPartial: true,
+    }));
+  });
+
+  it('uses PF2e stored creation boost buckets when previewing future partial boosts', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.level.value = 8;
+    actor.system.build.attributes.boosts = {
+      ancestry: ['dex', 'con'],
+      background: ['dex', 'con'],
+      class: 'dex',
+      1: ['dex', 'con', 'cha', 'wis'],
+      5: ['dex', 'con', 'int', 'cha'],
+      10: [],
+      15: [],
+      20: [],
+    };
+    actor.system.abilities.dex.mod = 4;
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 4, base: 4 },
+      con: { mod: 4, base: 4 },
+      int: { mod: 1, base: 1 },
+      wis: { mod: 1, base: 1 },
+      cha: { mod: 2, base: 2 },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    setLevelBoosts(planner.plan, 10, ['dex', 'con', 'int', 'cha']);
+    planner.selectedLevel = 10;
+
+    const choices = [{ type: 'abilityBoosts', count: 4 }];
+    const context = planner._buildAttributeContext(planner.plan.levels[10], choices);
+
+    expect(context.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({
+      mod: 4,
+      newMod: 5,
+      partial: true,
+      completesPartial: true,
+    }));
+  });
+
+  it('preserves hidden gradual partial boosts when previewing the next gradual set', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.level.value = 8;
+    actor.system.build.attributes.boosts = {
+      ancestry: ['dex', 'con'],
+      background: ['dex', 'con'],
+      class: 'dex',
+      1: ['dex', 'con', 'cha', 'wis'],
+      5: ['dex', 'con', 'int', 'cha'],
+      10: [],
+      15: [],
+      20: [],
+    };
+    actor.system.abilities.dex.mod = 4;
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 4, base: 4 },
+      con: { mod: 4, base: 4 },
+      int: { mod: 1, base: 1 },
+      wis: { mod: 1, base: 1 },
+      cha: { mod: 2, base: 2 },
+    };
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    setLevelBoosts(planner.plan, 10, ['dex']);
+    planner.selectedLevel = 10;
+
+    const choices = [{ type: 'abilityBoosts', count: 1 }];
+    const context = planner._buildAttributeContext(planner.plan.levels[10], choices);
+
+    expect(context.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({
+      mod: 4,
+      newMod: 5,
+      partial: true,
+      completesPartial: true,
+    }));
+  });
+
+  it('shows hidden gradual partial boosts on already-applied later gradual levels', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.level.value = 8;
+    actor.system.build.attributes.boosts = {
+      ancestry: ['dex', 'con'],
+      background: ['dex', 'con'],
+      class: 'dex',
+      1: ['dex', 'con', 'cha', 'wis'],
+      5: ['dex', 'con', 'int', 'cha'],
+      10: [],
+      15: [],
+      20: [],
+    };
+    actor.system.abilities.dex.mod = 4;
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 4, base: 4 },
+      con: { mod: 4, base: 4 },
+      int: { mod: 1, base: 1 },
+      wis: { mod: 1, base: 1 },
+      cha: { mod: 2, base: 2 },
+    };
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 7;
+
+    const choices = [{ type: 'abilityBoosts', count: 1 }];
+    const context = planner._buildAttributeContext(planner.plan.levels[7], choices);
+
+    expect(context.find((entry) => entry.key === 'dex')).toEqual(expect.objectContaining({
+      mod: 4,
+      selected: false,
+      pendingPartial: true,
       completesPartial: true,
     }));
   });
@@ -969,6 +1181,39 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(planner._needsSkillRulesBackfill).toBe(true);
   });
 
+  it('migrates saved gradual boost buckets into one boost per planner level', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => {
+          if (scope === 'pf2e' && key === 'gradualBoostsVariant') return true;
+          if (scope === 'pf2e' && key === 'freeArchetypeVariant') return false;
+          if (scope === 'pf2e' && key === 'automaticBonusVariant') return 'noABP';
+          if (scope === 'pf2e' && key === 'mythic') return 'disabled';
+          if (scope === 'pf2e' && key === 'dualClassVariant') return false;
+          if (scope === 'pf2e-leveler' && key === 'ancestralParagon') return false;
+          return false;
+        }),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    planner.selectedLevel = 5;
+    setLevelBoosts(planner.plan, 5, ['dex', 'con', 'int', 'cha']);
+
+    planner._migratePlan(planner.plan, 'alchemist');
+
+    expect(planner.plan.levels[2].abilityBoosts).toEqual(['dex']);
+    expect(planner.plan.levels[3].abilityBoosts).toEqual(['con']);
+    expect(planner.plan.levels[4].abilityBoosts).toEqual(['int']);
+    expect(planner.plan.levels[5].abilityBoosts).toEqual(['cha']);
+
+    expect(planner.plan.levels[5].abilityBoosts).toHaveLength(1);
+  });
+
   it('disables attributes already used in the same gradual boost set', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';
@@ -1078,13 +1323,12 @@ describe('LevelPlanner intelligence boost planner choices', () => {
           attributes: {
             boosts: {
               1: [],
-              2: ['dex'],
-              5: [],
+              5: ['dex'],
               10: [],
               15: [],
               20: [],
             },
-            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            allowedBoosts: { 1: 4, 5: 1, 10: 0, 15: 0, 20: 0 },
             flaws: { ancestry: [] },
           },
         },
@@ -1144,13 +1388,12 @@ describe('LevelPlanner intelligence boost planner choices', () => {
           attributes: {
             boosts: {
               1: [],
-              2: ['dex'],
-              5: [],
+              5: ['dex'],
               10: [],
               15: [],
               20: [],
             },
-            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            allowedBoosts: { 1: 4, 5: 1, 10: 0, 15: 0, 20: 0 },
             flaws: { ancestry: [] },
           },
         },
@@ -1207,13 +1450,12 @@ describe('LevelPlanner intelligence boost planner choices', () => {
           attributes: {
             boosts: {
               1: [],
-              2: { wisdom: true },
-              5: [],
+              5: { wisdom: true },
               10: [],
               15: [],
               20: [],
             },
-            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            allowedBoosts: { 1: 4, 5: 1, 10: 0, 15: 0, 20: 0 },
             flaws: { ancestry: [] },
           },
         },
@@ -1273,13 +1515,12 @@ describe('LevelPlanner intelligence boost planner choices', () => {
           attributes: {
             boosts: {
               1: [],
-              2: ['dex'],
-              5: [],
+              5: ['dex'],
               10: [],
               15: [],
               20: [],
             },
-            allowedBoosts: { 2: 1, 5: 4, 10: 4, 15: 4, 20: 4 },
+            allowedBoosts: { 1: 4, 5: 1, 10: 0, 15: 0, 20: 0 },
             flaws: { ancestry: [] },
           },
         },

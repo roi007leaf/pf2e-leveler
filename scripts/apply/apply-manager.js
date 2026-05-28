@@ -13,6 +13,7 @@ import { info, error as logError, notify } from '../utils/logger.js';
 import { format } from '../utils/i18n.js';
 
 const RANK_LABELS = ['Untrained', 'Trained', 'Expert', 'Master', 'Legendary'];
+const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 
 export async function promptApplyPlan(actor, plan, level, previousLevel = level - 1) {
   const levelsToApply = getPlannedLevelsInRange(plan, previousLevel + 1, level);
@@ -79,7 +80,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plannedLevel, { boosts, languages, skillRetrains: [], skills, featRetrains: [], feats, spells, equipment, featGrants, classFeatureChoices });
+      await createLevelUpMessage(actor, plan, plannedLevel, { boosts, languages, skillRetrains: [], skills, featRetrains: [], feats, spells, equipment, featGrants, classFeatureChoices });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
@@ -155,10 +156,10 @@ async function createRetrainingMessage(actor, level, applied) {
   });
 }
 
-async function createLevelUpMessage(actor, level, applied) {
+async function createLevelUpMessage(actor, plan, level, applied) {
   const sections = [];
 
-  const feats = applied.feats.map((f) => formatChatLink(f)).filter(Boolean);
+  const feats = await buildAppliedFeatChatEntries(applied.feats, plan, level);
   if (feats.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.FEATS_SELECTED'), feats));
   }
@@ -232,6 +233,93 @@ async function createLevelUpMessage(actor, level, applied) {
     speaker: { alias: actor.name },
     whisper: getWhisperTargets(actor),
   });
+}
+
+async function buildAppliedFeatChatEntries(feats, plan, level) {
+  const plannedFeats = getPlannedFeatEntriesForChat(plan, level);
+  const entries = [];
+
+  for (const feat of feats ?? []) {
+    const plannedFeat = findMatchingPlannedFeatForChat(feat, plannedFeats);
+    const choiceLabels = plannedFeat ? await getSelectedItemChoiceLabels(plannedFeat) : [];
+    const link = formatChatLink(feat);
+    if (choiceLabels.length === 0) {
+      if (link) entries.push(link);
+      continue;
+    }
+
+    const name = getEntryName(feat);
+    const detail = `${name}: ${choiceLabels.join(', ')}`;
+    if (link && link !== name) {
+      entries.push(`${link} (${choiceLabels.join(', ')})`);
+    } else {
+      entries.push(detail);
+    }
+  }
+
+  return entries.filter(Boolean);
+}
+
+function getPlannedFeatEntriesForChat(plan, level) {
+  const levelData = plan?.levels?.[level] ?? null;
+  if (!levelData) return [];
+  return FEAT_KEYS.flatMap((key) => levelData[key] ?? []);
+}
+
+function findMatchingPlannedFeatForChat(appliedFeat, plannedFeats) {
+  const appliedUuid = String(appliedFeat?.uuid ?? appliedFeat?.sourceId ?? appliedFeat?.flags?.core?.sourceId ?? '');
+  const appliedName = String(appliedFeat?.name ?? '').trim().toLowerCase();
+  const appliedSlug = String(appliedFeat?.slug ?? appliedFeat?.system?.slug ?? '').trim().toLowerCase();
+
+  return plannedFeats.find((feat) => {
+    const featUuid = String(feat?.uuid ?? feat?.sourceId ?? '').trim();
+    if (appliedUuid && featUuid && appliedUuid === featUuid) return true;
+    const featName = String(feat?.name ?? '').trim().toLowerCase();
+    if (appliedName && featName && appliedName === featName) return true;
+    const featSlug = String(feat?.slug ?? '').trim().toLowerCase();
+    return !!appliedSlug && !!featSlug && appliedSlug === featSlug;
+  }) ?? null;
+}
+
+async function getSelectedItemChoiceLabels(feat) {
+  const labels = [];
+  for (const [flag, value] of Object.entries(feat?.choices ?? {})) {
+    if (typeof value !== 'string' || !value || value === '[object Object]') continue;
+    const matchingOption = findChoiceOptionForValue(feat, flag, value);
+    const isItemChoice = String(value).startsWith('Compendium.')
+      || String(matchingOption?.uuid ?? matchingOption?.value ?? '').startsWith('Compendium.')
+      || matchingOption?.type != null
+      || matchingOption?.category != null;
+    if (!isItemChoice) continue;
+
+    const label = matchingOption?.label ?? matchingOption?.name ?? await resolveChoiceLabelFromUuid(value);
+    if (label) labels.push(label);
+  }
+  return [...new Set(labels)];
+}
+
+function findChoiceOptionForValue(feat, flag, value) {
+  const choiceSets = [
+    ...(Array.isArray(feat?.choiceSets) ? feat.choiceSets : []),
+    ...(Array.isArray(feat?.grantChoiceSets) ? feat.grantChoiceSets : []),
+  ];
+  const choiceSet = choiceSets.find((entry) => String(entry?.flag ?? '') === String(flag));
+  return (choiceSet?.options ?? []).find((option) => {
+    const candidates = [option?.value, option?.uuid, option?.slug, option?.label, option?.name]
+      .map((candidate) => String(candidate ?? '').trim())
+      .filter(Boolean);
+    return candidates.includes(value);
+  }) ?? null;
+}
+
+async function resolveChoiceLabelFromUuid(value) {
+  if (!String(value).startsWith('Compendium.') || typeof fromUuid !== 'function') return null;
+  const item = await fromUuid(value).catch(() => null);
+  return item?.name ?? null;
+}
+
+function getEntryName(entry) {
+  return String(entry?.name ?? entry?.uuid ?? entry?.sourceId ?? '').trim();
 }
 
 function getWhisperTargets(actor) {

@@ -197,7 +197,7 @@
                 {{#if this.selected}}
                   {{#if this.partial}}
                     {{#if this.completesPartial}}
-                    <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
+                    <span class="boost-btn__change">+{{this.mod}}(partial) → +{{this.newMod}}</span>
                     {{else}}
                     <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}(partial)</span>
                     {{/if}}
@@ -205,7 +205,7 @@
                   <span class="boost-btn__change">+{{this.mod}} → +{{this.newMod}}</span>
                   {{/if}}
                 {{else}}
-                  <span class="boost-btn__mod">+{{this.mod}}</span>
+                  <span class="boost-btn__mod">+{{this.mod}}{{#if this.pendingPartial}}(partial){{/if}}</span>
                 {{/if}}
                 {{#if this.partialLabel}}
                 <i class="fa-solid fa-circle-info boost-btn__partial-info" data-tooltip="{{this.partialLabel}}" aria-hidden="true"></i>

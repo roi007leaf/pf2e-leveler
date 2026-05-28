@@ -1068,6 +1068,84 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     expect(planner.plan.levels[5].abilityBoosts).toEqual(['str', 'con', 'int', 'cha']);
   });
 
+  it('splits imported gradual boost group rows across their per-level planner slots', () => {
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      pf2e: {
+        ...(global._testSettings?.pf2e ?? {}),
+        gradualBoostsVariant: true,
+      },
+    };
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 8 },
+          xp: { value: 0, max: 1000 },
+        },
+        build: {
+          attributes: {
+            boosts: {
+              1: [],
+              5: ['dex', 'con', 'int', 'cha'],
+              10: [],
+              15: [],
+              20: [],
+            },
+            allowedBoosts: { 1: 4, 5: 4, 10: 2, 15: 0, 20: 0 },
+            flaws: { ancestry: [] },
+          },
+        },
+      },
+      items: [],
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.levels[2].abilityBoosts).toEqual(['dex']);
+    expect(planner.plan.levels[3].abilityBoosts).toEqual(['con']);
+    expect(planner.plan.levels[4].abilityBoosts).toEqual(['int']);
+    expect(planner.plan.levels[5].abilityBoosts).toEqual(['cha']);
+  });
+
+  it('imports the first gradual boost bucket entry at the first level in the group', () => {
+    global._testSettings = {
+      ...(global._testSettings ?? {}),
+      pf2e: {
+        ...(global._testSettings?.pf2e ?? {}),
+        gradualBoostsVariant: true,
+      },
+    };
+    const actor = createMockActor({
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+        build: {
+          attributes: {
+            boosts: {
+              1: [],
+              5: ['dex'],
+              10: [],
+              15: [],
+              20: [],
+            },
+            allowedBoosts: { 1: 4, 5: 1, 10: 0, 15: 0, 20: 0 },
+            flaws: { ancestry: [] },
+          },
+        },
+      },
+      items: [],
+    });
+    actor.class.slug = 'alchemist';
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.plan.levels[2].abilityBoosts).toEqual(['dex']);
+    expect(planner.plan.levels[5].abilityBoosts).toEqual([]);
+  });
+
   it('normalizes long-form ability names when seeding boosts from actor data', () => {
     const actor = createMockActor({
       system: {

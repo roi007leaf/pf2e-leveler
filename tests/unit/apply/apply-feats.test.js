@@ -243,6 +243,87 @@ describe('applyFeats', () => {
     ]);
   });
 
+  test('applies selected Free Heart background contents without creating the background item', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-free-heart') {
+        return {
+          uuid,
+          name: 'Free Heart',
+          img: 'icon.png',
+          system: { slug: 'free-heart', level: { value: 1 }, location: null, rules: [] },
+          toObject: jest.fn(() => ({
+            name: 'Free Heart',
+            system: { slug: 'free-heart', level: { value: 1 }, location: null, rules: [] },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.backgrounds.Item.artist') {
+        return {
+          uuid,
+          name: 'Artist',
+          flags: { core: { sourceId: uuid } },
+          type: 'background',
+          system: {
+            level: { value: 0 },
+            trainedSkills: { value: ['crafting'] },
+            rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.specialty-crafting' }],
+          },
+          toObject: jest.fn(() => ({
+            name: 'Artist',
+            type: 'background',
+            flags: { core: { sourceId: uuid } },
+            system: {
+              level: { value: 0 },
+              trainedSkills: { value: ['crafting'] },
+              rules: [{ key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.specialty-crafting' }],
+            },
+          })),
+        };
+      }
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.specialty-crafting') {
+        return {
+          uuid,
+          name: 'Specialty Crafting',
+          type: 'feat',
+          flags: { core: { sourceId: uuid } },
+          system: { level: { value: 1 }, location: null },
+          toObject: jest.fn(() => ({
+            name: 'Specialty Crafting',
+            type: 'feat',
+            flags: { core: { sourceId: uuid } },
+            system: { level: { value: 1 }, location: null },
+          })),
+        };
+      }
+      return null;
+    });
+
+    await applyFeats(mockActor, {
+      levels: {
+        13: {
+          ancestryFeats: [{
+            uuid: 'feat-free-heart',
+            name: 'Free Heart',
+            slug: 'free-heart',
+            choices: { levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.artist' },
+          }],
+        },
+      },
+    }, 13);
+
+    const created = mockActor.createEmbeddedDocuments.mock.calls[0][1];
+    expect(created.map((item) => item.name)).toEqual(['Free Heart', 'Specialty Crafting']);
+    expect(created).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Artist' }),
+    ]));
+    expect(created[0].system.location).toBe('ancestry-13');
+    expect(created[0].flags.pf2e.rulesSelections).toEqual({
+      levelerFreeHeartBackground: 'Compendium.pf2e.backgrounds.Item.artist',
+    });
+    expect(created[0].system.rules).toEqual([]);
+    expect(created[1].system.location).toBe('bonus-13');
+  });
+
   test('preselects Adopted Ancestry grants from complex ancestry feat choices', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'Compendium.pf2e.feats-srd.Item.cultural-adaptability') {
