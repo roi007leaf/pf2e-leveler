@@ -1582,7 +1582,14 @@ async function collectGrantPreviewEntries({
     const dedicationChoiceSets = parsedChoiceSets.length === 0
       ? await buildPlannerGrantDedicationChoiceSetFallbacks(planner, item, storedChoices)
       : [];
-    const choiceSets = dedupePlannerChoiceSets([...parsedChoiceSets, ...fallbackChoiceSets, ...dedicationChoiceSets])
+    const authoredOrFallbackChoiceSets = [...parsedChoiceSets, ...dedicationChoiceSets];
+    const specialChoiceSets = await buildPlannerSpecialChoiceSets(
+      planner,
+      buildGrantPreviewFeatState(item, storedChoices),
+      item,
+      authoredOrFallbackChoiceSets,
+    );
+    const choiceSets = dedupePlannerChoiceSets([...parsedChoiceSets, ...fallbackChoiceSets, ...dedicationChoiceSets, ...specialChoiceSets])
       .filter((choiceSet) => !isPlannerChoiceSetSatisfied(choiceSet, storedChoices, preselectedChoiceFlags));
     for (const choiceSet of choiceSets) {
       if (grantChoiceSets.some((entry) => getChoiceSetSignature(entry) === getChoiceSetSignature(choiceSet))) continue;
@@ -1626,6 +1633,18 @@ async function collectGrantPreviewEntries({
       preselectedChoiceFlags: new Set(Object.keys(preselectedChoices)),
     });
   }
+}
+
+function buildGrantPreviewFeatState(item, choices = {}) {
+  return {
+    uuid: item?.uuid ?? null,
+    slug: item?.slug ?? item?.system?.slug ?? null,
+    name: item?.name ?? null,
+    img: item?.img ?? null,
+    traits: getItemTraitValues(item),
+    system: item?.system ?? null,
+    choices: { ...(choices ?? {}) },
+  };
 }
 
 function buildGrantedItemPreviewEntry(item, sourceName) {

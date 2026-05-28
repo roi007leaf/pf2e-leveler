@@ -3068,6 +3068,176 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
+  it('surfaces Natural Ambition class-feat choices when selected through Cultural Adaptability', async () => {
+    const originalFromUuid = global.fromUuid;
+
+    const actor = createMockActor({ items: [] });
+    actor.class.slug = 'alchemist';
+    actor.ancestry.slug = 'halfling';
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.selectedLevel = 5;
+    planner.plan.levels[5].ancestryFeats = [{
+      uuid: 'Compendium.pf2e.feats-srd.Item.cultural-adaptability',
+      slug: 'cultural-adaptability',
+      name: 'Cultural Adaptability',
+      level: 5,
+      choices: {
+        ancestry: 'human',
+        feat: 'Compendium.pf2e.feats-srd.Item.natural-ambition',
+      },
+    }];
+    planner._compendiumCache['pf2e.ancestries'] = [
+      {
+        uuid: 'Compendium.pf2e.ancestries.Item.human',
+        name: 'Human',
+        type: 'ancestry',
+        slug: 'human',
+        rarity: 'common',
+      },
+    ];
+    planner._compendiumCache['pf2e.feats-srd'] = [
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.natural-ambition',
+        name: 'Natural Ambition',
+        type: 'feat',
+        slug: 'natural-ambition',
+        traits: ['human'],
+        category: 'ancestry',
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.alchemical-familiar',
+        name: 'Alchemical Familiar',
+        type: 'feat',
+        slug: 'alchemical-familiar',
+        traits: ['alchemist'],
+        category: 'class',
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.quick-bomber',
+        name: 'Quick Bomber',
+        type: 'feat',
+        slug: 'quick-bomber',
+        traits: ['alchemist'],
+        category: 'class',
+        rarity: 'common',
+        level: 1,
+      },
+      {
+        uuid: 'Compendium.pf2e.feats-srd.Item.reactive-shield',
+        name: 'Reactive Shield',
+        type: 'feat',
+        slug: 'reactive-shield',
+        traits: ['fighter'],
+        category: 'class',
+        rarity: 'common',
+        level: 1,
+      },
+    ];
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.cultural-adaptability') {
+        return {
+          uuid,
+          slug: 'cultural-adaptability',
+          name: 'Cultural Adaptability',
+          img: 'cultural.png',
+          system: {
+            description: { value: '' },
+            level: { value: 5 },
+            rules: [
+              {
+                key: 'GrantItem',
+                uuid: 'Compendium.pf2e.feats-srd.Item.adopted-ancestry',
+              },
+              {
+                adjustName: false,
+                choices: {
+                  filter: [
+                    'item:level:1',
+                    'item:trait:{actor|system.details.ancestry.adopted}',
+                  ],
+                },
+                flag: 'feat',
+                key: 'ChoiceSet',
+                prompt: 'PF2E.SpecificRule.Prompt.LevelOneAncestryFeat',
+              },
+              {
+                key: 'GrantItem',
+                uuid: '{item|flags.system.rulesSelections.feat}',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.adopted-ancestry') {
+        return {
+          uuid,
+          slug: 'adopted-ancestry',
+          name: 'Adopted Ancestry',
+          type: 'feat',
+          system: {
+            description: { value: '' },
+            rules: [
+              {
+                choices: {
+                  filter: [{ not: 'item:slug:{actor|system.details.ancestry.trait}' }],
+                  itemType: 'ancestry',
+                  slugsAsValues: true,
+                },
+                flag: 'ancestry',
+                key: 'ChoiceSet',
+                prompt: 'PF2E.SpecificRule.AdoptedAncestry.Prompt',
+              },
+            ],
+          },
+        };
+      }
+
+      if (uuid === 'Compendium.pf2e.feats-srd.Item.natural-ambition') {
+        return {
+          uuid,
+          slug: 'natural-ambition',
+          name: 'Natural Ambition',
+          type: 'feat',
+          img: 'natural-ambition.png',
+          system: {
+            description: { value: '' },
+            rules: [],
+          },
+        };
+      }
+
+      return null;
+    });
+
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      const naturalAmbitionSet = context.ancestryFeat.grantChoiceSets.find((choiceSet) => choiceSet.flag === 'naturalAmbition');
+
+      expect(naturalAmbitionSet.choicePicker).toEqual(expect.objectContaining({
+        kind: 'feat',
+        category: 'class',
+        allowedUuids: [
+          'Compendium.pf2e.feats-srd.Item.alchemical-familiar',
+          'Compendium.pf2e.feats-srd.Item.quick-bomber',
+        ],
+      }));
+      expect(naturalAmbitionSet.options.map((option) => option.label)).toEqual([
+        'Alchemical Familiar',
+        'Quick Bomber',
+      ]);
+    } finally {
+      global.fromUuid = originalFromUuid;
+    }
+  });
+
   it('opens non-feat planned item choices with ItemPicker and stores the choice-set value', async () => {
     const actor = createMockActor({ items: [] });
     const planner = new LevelPlanner(actor);

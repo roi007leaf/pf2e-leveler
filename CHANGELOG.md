@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.35
+
+### Level Planner
+
+- **Cultural Adaptability now carries Natural Ambition's class feat choice** - Selecting Natural Ambition through Cultural Adaptability now surfaces the nested 1st-level class feat picker, including planner fallback options when PF2e rule data does not provide usable class feat choices
+
 ## 3.4.34
 
 ### Character Sheets
