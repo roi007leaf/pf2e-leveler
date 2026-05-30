@@ -1645,6 +1645,9 @@ function computeFeats(actor, plan, atLevel) {
   for (const feat of existingFeats) {
     for (const alias of getFeatAliases(feat)) feats.add(alias);
   }
+  for (const action of getOwnedActionItems(actor)) {
+    for (const alias of getFeatAliases(action)) feats.add(alias);
+  }
 
   const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) {
@@ -1688,11 +1691,16 @@ function computeFeatAliasSources(actor, plan, atLevel) {
   };
 
   for (const feat of getEffectiveActorFeats(actor, plan, atLevel)) addSources(feat);
+  for (const action of getOwnedActionItems(actor)) addSources(action);
 
   const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) addSources(feat);
 
   return sources;
+}
+
+function getOwnedActionItems(actor) {
+  return getOwnedItems(actor).filter((item) => String(item?.type ?? '').trim().toLowerCase() === 'action');
 }
 
 function computeSenses(actor) {

@@ -384,6 +384,25 @@ describe('computeBuildState', () => {
     expect(state.feats.has('efficient-alchemy')).toBe(true);
   });
 
+  test('collects owned action aliases for feat prerequisite checks', () => {
+    mockActor.ancestry = { slug: 'vishkanya', name: 'Vishkanya' };
+    mockActor.items = [
+      {
+        type: 'action',
+        slug: 'envenom',
+        name: 'Envenom',
+        system: {
+          category: { value: 'ancestry' },
+          level: { value: 1 },
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 1);
+
+    expect(state.feats.has('envenom')).toBe(true);
+  });
+
   test('collects planned feat choice aliases for prerequisite checks', () => {
     plan.levels[2].classFeats = [
       {

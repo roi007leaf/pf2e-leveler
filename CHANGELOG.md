@@ -5,6 +5,7 @@
 ### Level Planner
 
 - **Free Heart background skill choices now widen without relying on prose text** - Martial Disciple-style background skill choices now offer untrained replacement skills when every authored option is already trained, even if PF2e rule data does not expose the fallback sentence
+- **Owned actions now satisfy feat prerequisites** - Vishkanya characters with Envenom on their sheet now satisfy later ancestry feat prerequisites such as Lesser Enhance Venom
 
 ## 3.4.36
 
