@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.39
+
+### Level Planner
+
+- **Current partial Intelligence boosts no longer ask for bonus picks** - Imported characters whose current historical Intelligence boost only records pending partial progress no longer get prompted for bonus trained skills or languages
+
 ## 3.4.38
 
 ### Level Planner

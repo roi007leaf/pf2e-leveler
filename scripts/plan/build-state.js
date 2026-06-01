@@ -1,4 +1,4 @@
-import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, INITIAL_SKILL_RETRAIN_SOURCE_TYPE, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MAX_LEVEL, PROFICIENCY_RANKS, SUBCLASS_TAGS } from '../constants.js';
+import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, INITIAL_SKILL_RETRAIN_SOURCE_TYPE, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MAX_LEVEL, MIN_PLAN_LEVEL, PROFICIENCY_RANKS, SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { SUBCLASS_SPELLS } from '../data/subclass-spells.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
@@ -1246,6 +1246,13 @@ function getLevelOneIntModifier(actor) {
 }
 
 function getHistoricalIntelligenceBenefitCount(actor, plan, level) {
+  const actorLevel = Number(plan?.importedFromActor?.actorLevel ?? actor?.system?.details?.level?.value ?? level);
+  const knownBeforeRaw = getVerifiedHistoricalRawIntBeforeLevel(actor, plan, level, actorLevel);
+  if (Number.isFinite(knownBeforeRaw)) {
+    const knownAfterRaw = applyAbilityBoostValue(knownBeforeRaw);
+    return Math.max(0, Math.trunc(knownAfterRaw) - Math.trunc(knownBeforeRaw));
+  }
+
   let afterRaw = getActorAbilityModifier(actor, 'int');
   const boostEntries = {
     ...(actor?.system?.build?.attributes?.boosts ?? {}),
@@ -1258,7 +1265,7 @@ function getHistoricalIntelligenceBenefitCount(actor, plan, level) {
     .sort((a, b) => b - a);
 
   for (const boostLevel of levels) {
-    if (!normalizeAbilityBoostList(boostEntries[boostLevel]).includes('int')) continue;
+    if (!normalizeStoredBoostBucket(boostEntries[boostLevel]).includes('int')) continue;
     afterRaw = reverseApplyAbilityBoost(afterRaw);
   }
 
@@ -1267,10 +1274,160 @@ function getHistoricalIntelligenceBenefitCount(actor, plan, level) {
   return Math.max(0, Math.trunc(rawAfterLevel) - Math.trunc(beforeRaw));
 }
 
+function getVerifiedHistoricalRawIntBeforeLevel(actor, plan, targetLevel, actorLevel) {
+  const maxLevel = Number.isFinite(actorLevel) ? Math.max(targetLevel, actorLevel) : targetLevel;
+  const initialRaw = getKnownInitialIntModifier(actor, plan);
+  if (!Number.isFinite(initialRaw)) return null;
+
+  const boostEntries = {
+    ...(actor?.system?.build?.attributes?.boosts ?? {}),
+    ...getAllPlannedBoosts(plan, MAX_LEVEL),
+  };
+  let raw = initialRaw;
+  let beforeTarget = null;
+
+  for (let level = MIN_PLAN_LEVEL; level <= maxLevel; level++) {
+    if (level === targetLevel) beforeTarget = raw;
+    if (!normalizeStoredBoostBucket(boostEntries[level]).includes('int')) continue;
+    raw = applyAbilityBoostValue(raw);
+  }
+
+  if (!Number.isFinite(beforeTarget)) return null;
+  return rawMatchesActorInt(raw, actor) ? beforeTarget : null;
+}
+
+function rawMatchesActorInt(raw, actor) {
+  const actorInt = getActorAbilityModifier(actor, 'int');
+  if (!Number.isFinite(raw) || !Number.isFinite(actorInt)) return false;
+  return Math.trunc(raw) === Math.trunc(actorInt);
+}
+
+function getKnownInitialIntModifier(actor, plan) {
+  const actorBuildBoosts = actor?.system?.build?.attributes?.boosts ?? {};
+  let raw = 0;
+  let hasEvidence = false;
+
+  const applyBoosts = (boosts, delta = 1) => {
+    if (!normalizeStoredBoostBucket(boosts).includes('int')) return;
+    raw += delta;
+    hasEvidence = true;
+  };
+
+  const actorAncestryBoosts = normalizeStoredBoostBucket(actorBuildBoosts.ancestry);
+  if (actorAncestryBoosts.length > 0) {
+    applyBoosts(actorAncestryBoosts);
+  } else {
+    applyBoosts(getFixedBoostValues(actor?.ancestry?.system?.boosts));
+    applyBoosts(getSelectedBoostValues(actor?.ancestry?.system?.boosts));
+  }
+  applyBoosts(getFixedBoostValues(actor?.ancestry?.system?.flaws), -1);
+
+  const actorBackgroundBoosts = normalizeStoredBoostBucket(actorBuildBoosts.background);
+  if (actorBackgroundBoosts.length > 0) {
+    applyBoosts(actorBackgroundBoosts);
+  } else {
+    applyBoosts(getFixedBoostValues(actor?.background?.system?.boosts));
+    applyBoosts(getSelectedBoostValues(actor?.background?.system?.boosts));
+  }
+
+  applyBoosts(getInitialClassBoosts(actor, plan));
+  applyBoosts(actorBuildBoosts[1]);
+
+  return hasEvidence ? raw : null;
+}
+
+function getInitialClassBoosts(actor, plan) {
+  const actorBuildBoosts = actor?.system?.build?.attributes?.boosts ?? {};
+  const actorClassBoosts = normalizeStoredBoostBucket(actorBuildBoosts.class);
+  if (actorClassBoosts.length > 0) return actorClassBoosts;
+
+  const keyAbility = actor?.class?.system?.keyAbility ?? {};
+  const selected = normalizeAbilityBoostKey(keyAbility.selected);
+  if (ATTRIBUTES.includes(selected)) return [selected];
+
+  const systemValues = normalizeStoredBoostBucket(keyAbility.value ?? keyAbility);
+  if (systemValues.length === 1) return systemValues;
+
+  const classValues = normalizeStoredBoostBucket(ClassRegistry.get(plan?.classSlug)?.keyAbility);
+  return classValues.length === 1 ? classValues : [];
+}
+
+function getFixedBoostValues(boostObj) {
+  if (!boostObj || typeof boostObj !== 'object') return [];
+
+  const boosts = [];
+  for (const entry of Object.values(boostObj)) {
+    const values = normalizeStoredBoostBucket(entry?.value);
+    if (values.length === 1) boosts.push(values[0]);
+  }
+  return boosts;
+}
+
+function getSelectedBoostValues(boostObj) {
+  if (!boostObj || typeof boostObj !== 'object') return [];
+
+  const boosts = [];
+  for (const entry of Object.values(boostObj)) {
+    boosts.push(...normalizeStoredBoostBucket(entry?.selected));
+  }
+  return boosts;
+}
+
 function applyAbilityBoostValue(value) {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) return 0;
   return numeric >= 4 ? numeric + 0.5 : numeric + 1;
+}
+
+function normalizeStoredBoostBucket(value) {
+  if (typeof value === 'string') {
+    return [normalizeAbilityBoostKey(value)].filter((entry) => ATTRIBUTES.includes(entry));
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeAbilityBoostKey(entry)).filter((entry) => ATTRIBUTES.includes(entry));
+  }
+  if (!value || typeof value !== 'object') return [];
+
+  const flattened = [];
+  const directKeys = Object.entries(value)
+    .filter(([key, entry]) => ATTRIBUTES.includes(normalizeAbilityBoostKey(key)) && (
+      entry === true
+      || entry === 1
+      || entry === 'true'
+      || entry === 'selected'
+    ))
+    .map(([key]) => key);
+  flattened.push(...directKeys);
+
+  for (const entry of Object.values(value)) {
+    if (typeof entry === 'string') {
+      flattened.push(entry);
+      continue;
+    }
+    if (Array.isArray(entry)) {
+      flattened.push(...entry);
+      continue;
+    }
+    if (!entry || typeof entry !== 'object') continue;
+    if (typeof entry.selected === 'string') {
+      flattened.push(entry.selected);
+      continue;
+    }
+    if (Array.isArray(entry.selected)) {
+      flattened.push(...entry.selected);
+      continue;
+    }
+    if (typeof entry.value === 'string') flattened.push(entry.value);
+    if (Array.isArray(entry.value)) flattened.push(...entry.value);
+    for (const [key, nested] of Object.entries(entry)) {
+      if (!ATTRIBUTES.includes(normalizeAbilityBoostKey(key))) continue;
+      if (nested === true || nested === 1 || nested === 'true' || nested === 'selected') {
+        flattened.push(key);
+      }
+    }
+  }
+
+  return flattened.map((entry) => normalizeAbilityBoostKey(entry)).filter((entry) => ATTRIBUTES.includes(entry));
 }
 
 function normalizeAbilityBoostList(value) {

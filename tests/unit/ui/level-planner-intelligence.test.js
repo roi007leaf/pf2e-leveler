@@ -822,6 +822,63 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5)).toBeNull();
   });
 
+  it('does not ask for Intelligence bonus choices when the current historical boost is only a pending partial', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.class.system.keyAbility = { selected: 'int', value: ['int'] };
+    actor.ancestry = {
+      system: {
+        boosts: {
+          0: { value: ['int'] },
+        },
+        flaws: {},
+      },
+    };
+    actor.background = {
+      system: {
+        boosts: {
+          0: { value: ['int'] },
+        },
+      },
+    };
+    actor.system.details.level.value = 8;
+    actor.system.abilities.int.mod = 4;
+    actor.system.build.attributes.boosts[1] = ['int'];
+    actor.system.build.attributes.boosts[5] = ['int'];
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 0, base: 0 },
+      con: { mod: 0, base: 0 },
+      int: { mod: 4, base: 4 },
+      wis: { mod: 0, base: 0 },
+      cha: { mod: 0, base: 0 },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist');
+    planner.plan.importedFromActor = {
+      actorLevel: 8,
+      hideHistoricalSkillIncreases: true,
+      initialSkills: ['arcana'],
+    };
+    setLevelBoosts(planner.plan, 5, ['int']);
+    planner.selectedLevel = 5;
+
+    const choices = [{ type: 'abilityBoosts', count: 4 }];
+    const intelligence = planner._buildAttributeContext(planner.plan.levels[5], choices)
+      .find((entry) => entry.key === 'int');
+
+    expect(intelligence).toEqual(expect.objectContaining({
+      mod: 4,
+      newMod: 4,
+      partial: true,
+      selected: true,
+    }));
+    expect(planner._buildIntelligenceBenefitContext(5)).toBeNull();
+    expect(planner._buildIntBonusSkillContext(planner.plan.levels[5], 5)).toBeNull();
+    expect(planner._buildIntBonusLanguageContext(planner.plan.levels[5], 5)).toBeNull();
+  });
+
   it('replaces single-slot Intelligence bonus selections when clicking a different option', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';
