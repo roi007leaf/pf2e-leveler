@@ -4,13 +4,13 @@
 
 ### Character Creation
 
-- **Draconic sorcerer bloodlines now follow their exemplar tradition** - Draconic exemplar choices now drive the spellcasting tradition, sorcerous gift spells, and spell picker tradition instead of defaulting every dragon to arcane
-- **Sanctified feats now read the character's holy or unholy state** - Feats that require holy or unholy sanctification now validate against the actor's sanctification data instead of failing as unknown
+- **Draconic exemplar support for sorcerers** - Leveler prompts for the Draconic Exemplar choice and uses it to set the sorcerer's spellcasting tradition, sorcerous gift spells, and spell picker tradition
+- **Sanctification-aware feat prerequisites** - Holy and unholy feat requirements are supported in prerequisite checks using the character's sanctification data
 
 ### Content Guidance
 
-- **Class archetype suggestions now include dedication-based filtering** - The Class Archetypes guidance tab defaults to dedication feats, can switch to all archetype class feats, and enforces guidance in archetype and free archetype feat picks
-- **Exclusive archetype guidance now keeps that archetype's follow-up feats** - Marking a dedication such as Acrobat Dedication exclusive now keeps Acrobat feats selectable while filtering unrelated archetype feats for players
+- **Class Archetypes guidance tab** - Suggested Character Options includes a Class Archetypes tab with a default Dedications view and an All Feats mode for archetype, multiclass, dedication, and class-archetype feats
+- **Exclusive guidance mode** - Exclusive markings can be combined with suggestions to turn a guidance tab into a focused allowlist; archetype dedication exclusives keep same-family follow-up feats selectable while filtering unrelated archetypes
 
 ## 3.4.44
 
