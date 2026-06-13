@@ -77,6 +77,48 @@ export const SUBCLASS_SPELLS = {
     choiceFlag: 'dragonBloodline',
     choiceSpellKey: 'tradition',
     choiceSpellOptions: ['arcane', 'divine', 'occult', 'primal'],
+    choices: {
+      adamantine: { 2: 'Compendium.pf2e.spells-srd.Item.1xbFBQDRs0hT5xZ9', 5: 'Compendium.pf2e.spells-srd.Item.oXeEbcUdgJGWHGEJ', 8: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu' },
+      barrage: { 2: 'Compendium.pf2e.spells-srd.Item.mrDi3v933gsmnw25', 5: 'Compendium.pf2e.spells-srd.Item.tpLTLbJUrYcMWGld', 8: 'Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7' },
+      bog: { 2: 'Compendium.pf2e.spells-srd.Item.XFtO4BBI22Uox2QP', 5: 'Compendium.pf2e.spells-srd.Item.BlfOg9Ceymgjstjm', 8: 'Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv' },
+      brine: { 2: 'Compendium.pf2e.spells-srd.Item.MZGkMsPBztFN0pUO', 5: 'Compendium.pf2e.spells-srd.Item.BlfOg9Ceymgjstjm', 8: 'Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv' },
+      cinder: { 2: 'Compendium.pf2e.spells-srd.Item.2ZdHjnpEQJuqOYSG', 5: 'Compendium.pf2e.spells-srd.Item.p6ebe2PliRkGbmiV', 8: 'Compendium.pf2e.spells-srd.Item.0AZOIMRvZtePuGOw' },
+      cloud: { 2: 'Compendium.pf2e.spells-srd.Item.Fr58LDSrbndgld9n', 5: 'Compendium.pf2e.spells-srd.Item.xxWhyl81w3ckslAU', 8: 'Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR' },
+      conspirator: { 2: 'Compendium.pf2e.spells-srd.Item.Mkbq9xlAUxHUHyR2', 5: 'Compendium.pf2e.spells-srd.Item.BilnTGuXrof9Dt9D', 8: 'Compendium.pf2e.spells-srd.Item.y2cQYLr5mljDSu1G' },
+      coral: { 2: 'Compendium.pf2e.spells-srd.Item.MZGkMsPBztFN0pUO', 5: 'Compendium.pf2e.spells-srd.Item.zfn5RqAdF63neqpP', 8: 'Compendium.pf2e.spells-srd.Item.0fjz8qc9NfkmWmJZ' },
+      crystal: { 2: 'Compendium.pf2e.spells-srd.Item.aXoh6OQAL57lgh0a', 5: 'Compendium.pf2e.spells-srd.Item.kOa055FIrO9Smnya', 8: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu' },
+      delight: { 2: 'Compendium.pf2e.spells-srd.Item.tlSE7Ly8vi1Dgddv', 5: 'Compendium.pf2e.spells-srd.Item.Hnc7eGi7vyZenAIm', 8: 'Compendium.pf2e.spells-srd.Item.4MOew29Z1oCX8O28' },
+      despair: { 2: 'Compendium.pf2e.spells-srd.Item.Mkbq9xlAUxHUHyR2', 5: 'Compendium.pf2e.spells-srd.Item.GaRQlC9Yw1BGKHfN', 8: 'Compendium.pf2e.spells-srd.Item.qlxM7Ik3uUeUIOcv' },
+      diabolic: { 2: 'Compendium.pf2e.spells-srd.Item.TaaMEYdZXQXF0Sks', 5: 'Compendium.pf2e.spells-srd.Item.A16eFTRh82xIjMu8', 8: 'Compendium.pf2e.spells-srd.Item.qlxM7Ik3uUeUIOcv' },
+      empyreal: { 2: 'Compendium.pf2e.spells-srd.Item.d7Lwx6KAs47MtF0q', 5: 'Compendium.pf2e.spells-srd.Item.Hnc7eGi7vyZenAIm', 8: 'Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL' },
+      executor: { 2: 'Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE', 5: 'Compendium.pf2e.spells-srd.Item.A16eFTRh82xIjMu8', 8: 'Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL' },
+      forest: { 2: 'Compendium.pf2e.spells-srd.Item.yhz9fF69uwRhnHix', 5: 'Compendium.pf2e.spells-srd.Item.F1qxaqsEItmBura2', 8: 'Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR' },
+      fortune: { 2: 'Compendium.pf2e.spells-srd.Item.XXqE1eY3w3z6xJCB', 5: 'Compendium.pf2e.spells-srd.Item.Ek5XI0aEdZhBgm21', 8: 'Compendium.pf2e.spells-srd.Item.Jvyy6oVIQsD34MHB' },
+      horned: { 2: 'Compendium.pf2e.spells-srd.Item.dileJ0Yxqg76LMvu', 5: 'Compendium.pf2e.spells-srd.Item.MlpbeZ61Euhl0d60', 8: 'Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv' },
+      magma: { 2: 'Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE', 5: 'Compendium.pf2e.spells-srd.Item.MlpbeZ61Euhl0d60', 8: 'Compendium.pf2e.spells-srd.Item.0AZOIMRvZtePuGOw' },
+      mirage: { 2: 'Compendium.pf2e.spells-srd.Item.jwK43yKsHTkJQvQ9', 5: 'Compendium.pf2e.spells-srd.Item.U58aQWJ47VrI36yP', 8: 'Compendium.pf2e.spells-srd.Item.wfleiawxsfhpRRwf' },
+      mocking: { 2: 'Compendium.pf2e.spells-srd.Item.tlSE7Ly8vi1Dgddv', 5: 'Compendium.pf2e.spells-srd.Item.TCk2MDwf5L5OYjFC', 8: 'Compendium.pf2e.spells-srd.Item.Jvyy6oVIQsD34MHB' },
+      oath: { 2: 'Compendium.pf2e.spells-srd.Item.SUKaxVZW2TlM8lu0', 5: 'Compendium.pf2e.spells-srd.Item.SwUiVavHKMWG7t5K', 8: 'Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL' },
+      omen: { 2: 'Compendium.pf2e.spells-srd.Item.HTou8cG05yuSkesj', 5: 'Compendium.pf2e.spells-srd.Item.GaRQlC9Yw1BGKHfN', 8: 'Compendium.pf2e.spells-srd.Item.C2w3YfBKjIRS07DP' },
+      phase: { 2: 'Compendium.pf2e.spells-srd.Item.3JG1t3T4mWn6vTke', 5: 'Compendium.pf2e.spells-srd.Item.bay4AfSu2iIozNNW', 8: 'Compendium.pf2e.spells-srd.Item.wfleiawxsfhpRRwf' },
+      requiem: { 2: 'Compendium.pf2e.spells-srd.Item.jwK43yKsHTkJQvQ9', 5: 'Compendium.pf2e.spells-srd.Item.bay4AfSu2iIozNNW', 8: 'Compendium.pf2e.spells-srd.Item.Ht35SDf9PDStJfoC' },
+      resurrection: { 2: 'Compendium.pf2e.spells-srd.Item.3ehSrqTAm7IPqbIZ', 5: 'Compendium.pf2e.spells-srd.Item.hghGRzOSzEl4UXdS', 8: 'Compendium.pf2e.spells-srd.Item.4MOew29Z1oCX8O28' },
+      rime: { 2: 'Compendium.pf2e.spells-srd.Item.1xbFBQDRs0hT5xZ9', 5: 'Compendium.pf2e.spells-srd.Item.xxWhyl81w3ckslAU', 8: 'Compendium.pf2e.spells-srd.Item.C2GYCH3TtUFqPfdX' },
+      rune: { 2: 'Compendium.pf2e.spells-srd.Item.eIQ86FOXK34HiNLs', 5: 'Compendium.pf2e.spells-srd.Item.PERUlvKPtF7dMzN4', 8: 'Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7' },
+      sage: { 2: 'Compendium.pf2e.spells-srd.Item.vTQvfYu2llKQedmY', 5: 'Compendium.pf2e.spells-srd.Item.Ek5XI0aEdZhBgm21', 8: 'Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7' },
+      sea: { 2: 'Compendium.pf2e.spells-srd.Item.MZGkMsPBztFN0pUO', 5: 'Compendium.pf2e.spells-srd.Item.z2mfh3oPnfYqXflY', 8: 'Compendium.pf2e.spells-srd.Item.M0jQlpQYUr0pp2Sv' },
+      sky: { 2: 'Compendium.pf2e.spells-srd.Item.41TZEjhO6D1nWw2X', 5: 'Compendium.pf2e.spells-srd.Item.JyT346VmGtRLsDnV', 8: 'Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL' },
+      sovereign: { 2: 'Compendium.pf2e.spells-srd.Item.EfFMLVbmkBWmzoLF', 5: 'Compendium.pf2e.spells-srd.Item.SwUiVavHKMWG7t5K', 8: 'Compendium.pf2e.spells-srd.Item.rwCh2qTYPA44KEoK' },
+      stormcrown: { 2: 'Compendium.pf2e.spells-srd.Item.fZPCv2VHuM2yPbC8', 5: 'Compendium.pf2e.spells-srd.Item.JyT346VmGtRLsDnV', 8: 'Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR' },
+      time: { 2: 'Compendium.pf2e.spells-srd.Item.mLAYvbafVKfBgEhz', 5: 'Compendium.pf2e.spells-srd.Item.bay4AfSu2iIozNNW', 8: 'Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7' },
+      umbral: { 2: 'Compendium.pf2e.spells-srd.Item.dxOF7d5kAWusLKWF', 5: 'Compendium.pf2e.spells-srd.Item.IqJ9URobmJ9L9UBG', 8: 'Compendium.pf2e.spells-srd.Item.wfleiawxsfhpRRwf' },
+      underworld: { 2: 'Compendium.pf2e.spells-srd.Item.Fr58LDSrbndgld9n', 5: 'Compendium.pf2e.spells-srd.Item.MlpbeZ61Euhl0d60', 8: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu' },
+      vizier: { 2: 'Compendium.pf2e.spells-srd.Item.9HpwDN4MYQJnW0LG', 5: 'Compendium.pf2e.spells-srd.Item.GP3wewkQXEPrLxYj', 8: 'Compendium.pf2e.spells-srd.Item.C2w3YfBKjIRS07DP' },
+      vorpal: { 2: 'Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE', 5: 'Compendium.pf2e.spells-srd.Item.oXeEbcUdgJGWHGEJ', 8: 'Compendium.pf2e.spells-srd.Item.89Hj5QuqvcwVXcqj' },
+      wailing: { 2: 'Compendium.pf2e.spells-srd.Item.wzLkNU3AAqOSKFPR', 5: 'Compendium.pf2e.spells-srd.Item.I7oklLZy4aTHIdc3', 8: 'Compendium.pf2e.spells-srd.Item.Ht35SDf9PDStJfoC' },
+      whisper: { 2: 'Compendium.pf2e.spells-srd.Item.2qGqa33E4GPUCbMV', 5: 'Compendium.pf2e.spells-srd.Item.Ek5XI0aEdZhBgm21', 8: 'Compendium.pf2e.spells-srd.Item.rwCh2qTYPA44KEoK' },
+      wish: { 2: 'Compendium.pf2e.spells-srd.Item.L0GoJpHxSD0wRY5k', 5: 'Compendium.pf2e.spells-srd.Item.U58aQWJ47VrI36yP', 8: 'Compendium.pf2e.spells-srd.Item.uEyfLoFQsRKBRIcB' },
+    },
     choiceOptions: [{ "damageType": "force", "skill": "arcana", "slug": "arcane", "tradition": "arcane" }, { "damageType": "spirit", "skill": "religion", "slug": "divine", "tradition": "divine" }, { "damageType": "mental", "skill": "occultism", "slug": "occult", "tradition": "occult" }, { "damageType": "fire", "skill": "nature", "slug": "primal", "tradition": "primal" }, { "damageType": "bludgeoning", "skill": "nature", "slug": "adamantine", "tradition": "primal" }, { "damageType": "force", "skill": "arcana", "slug": "barrage", "tradition": "arcane" }, { "damageType": "fire", "skill": "nature", "slug": "bog", "tradition": "primal" }, { "damageType": "fire", "skill": "nature", "slug": "brine", "tradition": "primal" }, { "damageType": "fire", "skill": "nature", "slug": "cinder", "tradition": "primal" }, { "damageType": "fire", "skill": "nature", "slug": "cloud", "tradition": "primal" }, { "damageType": "poison", "skill": "occultism", "slug": "conspirator", "tradition": "occult" }, { "damageType": "fire", "skill": "nature", "slug": "coral", "tradition": "primal" }, { "damageType": "fire", "skill": "nature", "slug": "crystal", "tradition": "primal" }, { "damageType": "spirit", "skill": "religion", "slug": "delight", "tradition": "divine" }, { "damageType": "mental", "skill": "occultism", "slug": "despair", "tradition": "occult" }, { "damageType": "fire", "skill": "religion", "slug": "diabolic", "tradition": "divine" }, { "damageType": "spirit", "skill": "religion", "slug": "empyreal", "tradition": "divine" }, { "damageType": "spirit", "skill": "religion", "slug": "executor", "tradition": "divine" }, { "damageType": "fire", "skill": "nature", "slug": "forest", "tradition": "primal" }, { "damageType": "force", "skill": "arcana", "slug": "fortune", "tradition": "arcane" }, { "damageType": "poison", "skill": "nature", "slug": "horned", "tradition": "primal" }, { "damageType": "fire", "skill": "nature", "slug": "magma", "tradition": "primal" }, { "damageType": "mental", "skill": "arcana", "slug": "mirage", "tradition": "arcane" }, { "damageType": "mental", "skill": "occultism", "slug": "mocking", "tradition": "occult" }, { "damageType": "spirit", "skill": "religion", "slug": "oath", "tradition": "divine" }, { "damageType": "mental", "skill": "occultism", "slug": "omen", "tradition": "occult" }, { "damageType": "force", "skill": "arcana", "slug": "phase", "tradition": "arcane" }, { "damageType": "spirit", "skill": "religion", "slug": "requiem", "tradition": "divine" }, { "damageType": "spirit", "skill": "religion", "slug": "resurrection", "tradition": "divine" }, { "damageType": "fire", "skill": "nature", "slug": "rime", "tradition": "primal" }, { "damageType": "force", "skill": "arcana", "slug": "rune", "tradition": "arcane" }, { "damageType": "spirit", "skill": "occultism", "slug": "sage", "tradition": "occult" }, { "damageType": "force", "skill": "arcana", "slug": "sea", "tradition": "arcane" }, { "damageType": "spirit", "skill": "religion", "slug": "sky", "tradition": "divine" }, { "damageType": "electricity", "skill": "arcana", "slug": "sky", "tradition": "arcane" }, { "damageType": "mental", "skill": "occultism", "slug": "sovereign", "tradition": "occult" }, { "damageType": "fire", "skill": "nature", "slug": "stormcrown", "tradition": "primal" }, { "damageType": "force", "skill": "arcana", "slug": "time", "tradition": "arcane" }, { "damageType": "mental", "skill": "occultism", "slug": "umbral", "tradition": "occult" }, { "damageType": "force", "skill": "arcana", "slug": "underworld", "tradition": "arcane" }, { "damageType": "mental", "skill": "occultism", "slug": "vizier", "tradition": "occult" }, { "damageType": "force", "skill": "arcana", "slug": "vorpal", "tradition": "arcane" }, { "damageType": "force", "skill": "arcana", "slug": "wailing", "tradition": "arcane" }, { "damageType": "mental", "skill": "occultism", "slug": "whisper", "tradition": "occult" }, { "damageType": "force", "skill": "arcana", "slug": "wish", "tradition": "arcane" }, { "damageType": "acid", "skill": "arcana", "slug": "black", "tradition": "arcane" }, { "damageType": "electricity", "skill": "arcana", "slug": "blue", "tradition": "arcane" }, { "damageType": "fire", "skill": "arcana", "slug": "brass", "tradition": "arcane" }, { "damageType": "electricity", "skill": "arcana", "slug": "bronze", "tradition": "arcane" }, { "damageType": "acid", "skill": "arcana", "slug": "copper", "tradition": "arcane" }, { "damageType": "fire", "skill": "arcana", "slug": "gold", "tradition": "arcane" }, { "damageType": "poison", "skill": "arcana", "slug": "green", "tradition": "arcane" }, { "damageType": "fire", "skill": "arcana", "slug": "red", "tradition": "arcane" }, { "damageType": "cold", "skill": "arcana", "slug": "silver", "tradition": "arcane" }, { "damageType": "cold", "skill": "arcana", "slug": "white", "tradition": "arcane" }],
   },
   // sorcerer — Bloodline: Elemental
@@ -491,12 +533,8 @@ export const SUBCLASS_SPELLS = {
  */
 function resolveRankSpell(rankKey, data, choices) {
   // 1. Check explicit choices map first (manually verified, always correct)
-  if (data.choices && data.choiceFlag) {
-    const choiceValue = choices[data.choiceFlag];
-    if (choiceValue && data.choices[choiceValue]?.[rankKey]) {
-      return data.choices[choiceValue][rankKey];
-    }
-  }
+  const explicitChoiceSpell = resolveExplicitChoiceSpell(rankKey, data, choices);
+  if (explicitChoiceSpell) return explicitChoiceSpell;
 
   // 2. Check shared grantedSpells
   const spells = data.grantedSpells?.[rankKey];
@@ -522,10 +560,33 @@ function resolveRankSpell(rankKey, data, choices) {
   return null;
 }
 
+function resolveExplicitChoiceSpell(rankKey, data, choices) {
+  if (!data.choices || !data.choiceFlag) return null;
+  const choiceValue = choices[data.choiceFlag];
+  if (!choiceValue) return null;
+
+  const keys = new Set(
+    [
+      normalizeChoiceIdentity(choiceValue),
+      ...getChoiceIdentityCandidates(choiceValue).map(normalizeChoiceIdentity),
+    ].filter(Boolean),
+  );
+  const option = findChoiceOption(data.choiceOptions ?? [], choiceValue);
+  for (const identity of getChoiceOptionIdentities(option)) {
+    keys.add(identity);
+  }
+
+  for (const key of keys) {
+    const spell = data.choices[key]?.[rankKey];
+    if (spell) return spell;
+  }
+  return null;
+}
+
 function resolveGroupedChoiceIndex(data, option, choiceValue) {
   if (!Array.isArray(data.choiceSpellOptions) || data.choiceSpellOptions.length === 0) return -1;
   const key = data.choiceSpellKey
-    ? option?.[data.choiceSpellKey]
+    ? option?.[data.choiceSpellKey] ?? getNestedChoiceProperty(choiceValue, data.choiceSpellKey)
     : typeof option === 'string'
       ? option
       : choiceValue;
@@ -547,7 +608,7 @@ function getChoiceOptionIdentities(entry) {
   if (typeof entry === 'string') {
     values.push(entry);
   } else if (entry && typeof entry === 'object') {
-    values.push(entry.slug, entry.value, entry.label, entry.name, entry.uuid);
+    values.push(...getChoiceIdentityCandidates(entry));
     if (entry.slug) {
       values.push(`${entry.slug}-dragon`, `${entry.slug} dragon`);
     }
@@ -555,8 +616,31 @@ function getChoiceOptionIdentities(entry) {
   return values.map(normalizeChoiceIdentity).filter(Boolean);
 }
 
+function getChoiceIdentityCandidates(value) {
+  if (!value || typeof value !== 'object') return [value];
+  const rawValue = value.value;
+  return [
+    value.slug,
+    typeof rawValue === 'object' ? rawValue?.slug : rawValue,
+    value.label,
+    value.name,
+    value.uuid,
+    typeof rawValue === 'object' ? rawValue?.label : null,
+    typeof rawValue === 'object' ? rawValue?.name : null,
+    typeof rawValue === 'object' ? rawValue?.uuid : null,
+  ];
+}
+
+function getNestedChoiceProperty(value, key) {
+  if (!value || typeof value !== 'object' || !key) return null;
+  return value[key] ?? (typeof value.value === 'object' ? value.value?.[key] : null);
+}
+
 function normalizeChoiceIdentity(value) {
-  return String(value ?? '')
+  const identityValue = value && typeof value === 'object'
+    ? getChoiceIdentityCandidates(value).find((candidate) => candidate !== null && candidate !== undefined && String(candidate).trim().length > 0)
+    : value;
+  return String(identityValue ?? '')
     .trim()
     .replace(/^pf2e\.dragontype\./iu, '')
     .replace(/([a-z0-9])([A-Z])/gu, '$1-$2')
@@ -590,7 +674,7 @@ export function resolveSubclassChoiceTradition(subclassOrSlug, choices = null) {
   };
   const selected = rawChoices?.[data.choiceFlag];
   const option = findChoiceOption(data.choiceOptions, selected);
-  return normalizeSpellTradition(option?.tradition);
+  return normalizeSpellTradition(getNestedChoiceProperty(selected, 'tradition')) ?? normalizeSpellTradition(option?.tradition);
 }
 
 export function resolveSpellcastingTradition(baseTradition, subclass, fallback = 'arcane') {

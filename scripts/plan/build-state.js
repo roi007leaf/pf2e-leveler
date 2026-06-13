@@ -1,6 +1,6 @@
 import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, INITIAL_SKILL_RETRAIN_SOURCE_TYPE, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MAX_LEVEL, MIN_PLAN_LEVEL, PROFICIENCY_RANKS, SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { SUBCLASS_SPELLS } from '../data/subclass-spells.js';
+import { resolveSubclassChoiceTradition } from '../data/subclass-spells.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
 import { isDualClassEnabled, slugify } from '../utils/pf2e-api.js';
 import { getDedicationAliasesFromDescription } from '../utils/feat-aliases.js';
@@ -2667,29 +2667,12 @@ function inferFeatSpellcastingTradition(feat) {
   if (sf2eTradition) return sf2eTradition;
 
   const slug = getPrimaryFeatAlias(feat);
-  const subclassData = SUBCLASS_SPELLS[slug] ?? null;
-  if (!subclassData?.choiceFlag || !Array.isArray(subclassData.choiceOptions)) return null;
-
   const choices = {
     ...(feat?.choices ?? {}),
     ...(feat?.flags?.pf2e?.rulesSelections ?? {}),
     ...(feat?.flags?.system?.rulesSelections ?? {}),
   };
-  const selected = String(choices[subclassData.choiceFlag] ?? '')
-    .trim()
-    .toLowerCase();
-  if (!selected) return null;
-
-  const option = subclassData.choiceOptions.find((entry) => {
-    const slugValue = typeof entry === 'string' ? entry : entry?.slug;
-    return (
-      String(slugValue ?? '')
-        .trim()
-        .toLowerCase() === selected
-    );
-  });
-
-  return normalizeSpellTradition(option?.tradition ?? null);
+  return resolveSubclassChoiceTradition(slug, choices);
 }
 
 function getSelectedDedicationAliases(feat) {

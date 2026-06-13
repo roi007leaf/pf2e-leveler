@@ -1,4 +1,4 @@
-import { resolveSubclassSpells } from '../../../scripts/data/subclass-spells.js';
+import { resolveSpellcastingTradition, resolveSubclassSpells } from '../../../scripts/data/subclass-spells.js';
 
 describe('resolveSubclassSpells', () => {
   test('resolves Genie bloodline variable spells by explicit genie type', () => {
@@ -21,12 +21,47 @@ describe('resolveSubclassSpells', () => {
 
   test('resolves Draconic bloodline grants by selected exemplar tradition', () => {
     expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'forest' }, 2)).toEqual(
-      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.1xbFBQDRs0hT5xZ9' }),
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.yhz9fF69uwRhnHix' }),
     );
     expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'forest' }, 5)).toEqual(
-      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.xxWhyl81w3ckslAU' }),
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.F1qxaqsEItmBura2' }),
     );
     expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'forest' }, 8)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.wi405lBjPcbF1DeR' }),
+    );
+  });
+
+  test('uses journal-specific Draconic exemplar gifts before broad tradition fallback', () => {
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'adamantine' }, 5)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.oXeEbcUdgJGWHGEJ' }),
+    );
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'barrage' }, 2)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.mrDi3v933gsmnw25' }),
+    );
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: 'primal' }, 5)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.xxWhyl81w3ckslAU' }),
+    );
+  });
+
+  test('resolves Draconic bloodline grants and tradition from raw PF2e choice object', () => {
+    const primalDragonChoice = {
+      damageType: 'fire',
+      skill: 'nature',
+      slug: 'primal',
+      tradition: 'primal',
+    };
+
+    expect(resolveSpellcastingTradition('bloodline', {
+      slug: 'bloodline-draconic',
+      choices: { dragonBloodline: primalDragonChoice },
+    })).toBe('primal');
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: primalDragonChoice }, 2)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.1xbFBQDRs0hT5xZ9' }),
+    );
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: primalDragonChoice }, 5)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.xxWhyl81w3ckslAU' }),
+    );
+    expect(resolveSubclassSpells('bloodline-draconic', { dragonBloodline: primalDragonChoice }, 8)).toEqual(
       expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu' }),
     );
   });

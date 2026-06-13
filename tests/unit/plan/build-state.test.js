@@ -2064,6 +2064,42 @@ describe('computeBuildState', () => {
     expect(state.spellcasting.traditions.has('arcane')).toBe(true);
   });
 
+  test('infers variable bloodline tradition from raw PF2e dragon choice objects', () => {
+    const actor = createMockActor();
+    actor.items = {
+      filter: jest.fn((predicate) => {
+        const items = [
+          {
+            type: 'feat',
+            slug: 'bloodline-draconic',
+            flags: {
+              pf2e: {
+                rulesSelections: {
+                  dragonBloodline: {
+                    damageType: 'fire',
+                    skill: 'nature',
+                    slug: 'primal',
+                    tradition: 'primal',
+                  },
+                },
+              },
+            },
+            system: {
+              traits: {
+                otherTags: ['sorcerer-bloodline'],
+              },
+            },
+          },
+        ];
+        return items.filter(predicate);
+      }),
+    };
+
+    const state = computeBuildState(actor, createPlan('sorcerer'), 4);
+    expect(state.spellcasting.traditions.has('primal')).toBe(true);
+    expect(state.spellcasting.traditions.has('arcane')).toBe(false);
+  });
+
   test('infers Mystic spell tradition from the active connection item', () => {
     const actor = createMockActor();
     actor.items = {

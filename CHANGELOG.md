@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.5.2
+
+### Character Creation
+
+- **Draconic sorcerer exemplar choices now read PF2e object values** - Leveler uses the selected dragon ChoiceSet object's tradition instead of falling back to arcane, so Primal and other non-arcane Draconic choices set spellcasting and spell picker tradition correctly
+- **Draconic sorcerous gift spells now match the PF2e journal table** - Specific Draconic Exemplars now use the `Draconic Sorcerer Bloodlines` journal gift spells for ranks 2, 5, and 8 before falling back to broad Arcane, Divine, Occult, or Primal defaults
+
 ## 3.5.1
 
 ### Content Guidance
