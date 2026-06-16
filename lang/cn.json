@@ -67,7 +67,9 @@
             "PUBLICATIONS": "出版物",
             "SEARCH_PUBLICATIONS": "搜索出版物...",
             "PLANNED_ENTRY": "已规划列表",
-            "SEQUENTIAL_PROGRESS": "正在规划{current}~{target}级"
+            "SEQUENTIAL_PROGRESS": "正在规划{current}~{target}级",
+            "LOADING_PLANNER_DATA": "PF2e升级规划器正在加载规划数据。",
+            "LOADING_LEVEL_DATA": "加载规划数据中…"
         },
         "SECTIONS": {
             "CLASS_FEATURES": "职业特性",
@@ -144,7 +146,7 @@
             "TAKEN": "已选",
             "ELIGIBLE_ONLY": "仅显示符合条件项",
             "HIDE_UNMET": "隐藏未满足先决条件的专长",
-            "ARCHETYPE_UNLOCK_HINT": "从{level}级起可通过入门选择。"
+            "ARCHETYPE_UNLOCK_HINT": "通过入门专长可在{level}级起选择。"
         },
         "SETTINGS": {
             "COMPENDIUM_CATEGORIES": {
@@ -152,7 +154,6 @@
                 "HERITAGES": "传承",
                 "BACKGROUNDS": "背景",
                 "CLASSES": "职业",
-                "CLASS_ARCHETYPES": "职业变体",
                 "FEATS": "专长",
                 "CLASS_FEATURES": "职业特性",
                 "SPELLS": "法术",
@@ -160,7 +161,8 @@
                 "DEITIES": "神祇",
                 "EQUIPMENT": "物品与装备",
                 "SKILLS": "技能",
-                "LANGUAGES": "语言"
+                "LANGUAGES": "语言",
+                "CLASS_ARCHETYPES": "职业变体"
             },
             "HIDE_UNCOMMON": {
                 "NAME": "隐藏罕见专长",
@@ -239,52 +241,52 @@
                 "ALPHA_DESC": "字母顺序（Z-A）"
             },
             "CONTENT_GUIDANCE": {
-                "ALLOWED": "允许",
                 "RECOMMENDED": "推荐",
                 "NOT_RECOMMENDED": "不推荐",
                 "DISALLOWED": "禁用",
                 "DEFAULT": "默认",
-                "DEFAULT_POLICY": "未标记项目",
-                "DEFAULT_ALLOWED": "允许",
-                "DEFAULT_DISALLOWED": "禁用",
-                "CLASS_ARCHETYPE_VIEW": "View",
-                "CLASS_ARCHETYPE_DEDICATIONS": "Dedications",
-                "CLASS_ARCHETYPE_ALL_FEATS": "All Feats",
-                "BADGE_ALLOWED": "允许",
                 "BADGE_SUGGESTED": "推荐",
-                "BADGE_EXCLUSIVE": "专属",
-                "BADGE_FREE_ARCHETYPE_EXCLUSIVE": "FA 专属",
-                "BADGE_EXCLUSIVE_REQUIRED": "不在专属列表中",
                 "BADGE_NOT_RECOMMENDED": "不推荐",
                 "BADGE_DISALLOWED": "禁用",
-                "BULK_ALLOWED": "允许",
                 "BULK_RECOMMENDED": "推荐",
                 "BULK_NOT_RECOMMENDED": "不推荐",
                 "BULK_DISALLOWED": "禁用",
-                "BULK_EXCLUSIVE": "专属",
-                "BULK_CLEAR_EXCLUSIVE": "清除专属",
-                "BULK_FREE_ARCHETYPE_EXCLUSIVE": "FA 专属",
-                "BULK_CLEAR_FREE_ARCHETYPE_EXCLUSIVE": "清除 FA 专属",
                 "BULK_DEFAULT": "清空",
                 "SEARCH": "搜索资源…",
-                "NAME": "推荐的角色选项",
-                "LABEL": "配置推荐选项",
-                "HINT": "将角色选项标记为对玩家“推荐”、“不推荐”或“禁止”。推荐选项会带有星形徽记并排在最前面。不推荐选项会保留警告徽记但不会被阻止。禁止选项可以被隐藏，或者对玩家显示为不可选。",
+                "NAME": "推荐角色资源",
+                "LABEL": "配置推荐资源",
+                "HINT": "对玩家将角色资源标记为“可用”、“推荐”、“不推荐”、“专用”、“免费变体专用”或“禁用”。推荐项目会带有星形徽记并排在最前面。专用项目将玩家资源选择限制在该标签页的专用列表。免费变体专用项目仅允许免费变体选择。禁用项目可以被隐藏，或者对玩家显示为不可选。",
                 "SAVED": "资源指引已保存。",
-                "INTRO": "将物品标记为推荐、不推荐或禁止。推荐的物品会获得星形徽记并在选择器中排在最前面。不推荐的物品依然可用，但会显示警告徽记。禁止的物品可以被隐藏，或者对非GM用户显示为不可选。",
+                "INTRO": "将资源标记为“可用”、“推荐”、“不推荐”、“专用”、“免费变体专用”或“禁用”。推荐资源会获得星形徽记并在选择器中排在最前面。专用资源将玩家资源选择限制在该标签页的专用列表。免费变体专用资源仅允许免费变体选择。禁用资源可以被隐藏，或者对对非GM用户显示为不可选。",
                 "PLAYER_DISALLOWED_MODE": {
                     "NAME": "玩家禁用资源",
-                    "HINT": "选择非GM用户对被禁止资源的处理方式：是完全隐藏，还是保持可见但不可选。",
+                    "HINT": "选择非GM用户对被禁用资源的处理方式：是完全隐藏，还是保持可见但不可选。",
                     "HIDDEN": "对玩家隐藏",
                     "UNSELECTABLE": "显示为不可选"
                 },
                 "GM_OVERRIDE_ALLOWED": "由于你是GM，所以允许访问",
                 "BADGE_INHERITED": "继承",
                 "BULK_RARITY": "稀有度批量操作",
-                "CLEAR_ALL": "清空标记",
+                "CLEAR_ALL": "清空标签页",
                 "COUNT": "已标记{count}项",
                 "SOURCES": "来源",
-                "MATCHED_COUNT": "{count}个物品"
+                "MATCHED_COUNT": "{count}个资源",
+                "ALLOWED": "可用",
+                "DEFAULT_ALLOWED": "可用",
+                "DEFAULT_DISALLOWED": "禁用",
+                "CLASS_ARCHETYPE_VIEW": "查看",
+                "CLASS_ARCHETYPE_DEDICATIONS": "入门专长",
+                "BADGE_ALLOWED": "可用",
+                "BULK_ALLOWED": "可用",
+                "CLASS_ARCHETYPE_ALL_FEATS": "全部专长",
+                "BADGE_EXCLUSIVE": "专用",
+                "BADGE_FREE_ARCHETYPE_EXCLUSIVE": "免费变体专用",
+                "BULK_EXCLUSIVE": "专用",
+                "BULK_CLEAR_EXCLUSIVE": "清空专用",
+                "BULK_FREE_ARCHETYPE_EXCLUSIVE": "免费变体专用",
+                "BULK_CLEAR_FREE_ARCHETYPE_EXCLUSIVE": "清空免费变体专用",
+                "DEFAULT_POLICY": "未标记项目",
+                "BADGE_EXCLUSIVE_REQUIRED": "不在专用列表中"
             },
             "STARTING_WEALTH": {
                 "DISABLED": "禁用",
@@ -299,7 +301,7 @@
                 "HINT": "允许玩家在未完成所有创建角色引导步骤时应用角色创建。"
             },
             "ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT": {
-                "NAME": "强制使用子职业入门要求",
+                "NAME": "强制使用子职业入门专长要求",
                 "HINT": "启用后，诸如“你必须选择XX入门专长作为你的2级职业专长”的子职业或职业变体文本会将2级职业专长选择器和验证功能限制为仅包含该入门专长。"
             },
             "PLAYER_COMPENDIUM_ACCESS": {
@@ -682,7 +684,13 @@
             "CATEGORY": "类别",
             "ALREADY_TAKEN": "这个配方已经选择过了",
             "TAKEN": "已选",
-            "SHOWING_PARTIAL": "显示前200项，共"
+            "SHOWING_PARTIAL": "显示前200项，共",
+            "SORT": "排序",
+            "SORT_DEFAULT": "默认",
+            "SORT_LEVEL_ASC": "等级（从低到高）",
+            "SORT_LEVEL_DESC": "等级（从高到低）",
+            "SORT_ALPHA_ASC": "字母顺序（A-Z）",
+            "SORT_ALPHA_DESC": "字母顺序（Z-A）"
         },
         "STARTING_WEALTH": {
             "PERMANENT_ITEMS": "永久物品",
