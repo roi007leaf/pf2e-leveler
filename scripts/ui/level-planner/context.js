@@ -4,7 +4,7 @@ import { computeBuildState, computeSkillPickerState, getAutomaticInitialLoreTrai
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
-import { getLanguageRarityMap, getLanguageMap, humanizeSkillLikeLabel, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
+import { getLanguageRarityMap, getLanguageMap, getUnavailableLanguageSlugs, humanizeSkillLikeLabel, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
 import { getActiveSkillConfigEntry, getActiveSkillSlugs, isActiveSkillSlug, normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { getCreationData } from '../../creation/creation-store.js';
 
@@ -462,8 +462,10 @@ export function getPlannedLanguagesBeforeLevel(planner, level) {
 export function getAvailableLanguages() {
   const langMap = getLanguageMap();
   const rarityMap = getLanguageRarityMap();
+  const unavailable = getUnavailableLanguageSlugs();
 
   return Object.entries(langMap)
+    .filter(([slug]) => !unavailable.has(slug))
     .map(([slug, label]) => ({
       slug,
       label,

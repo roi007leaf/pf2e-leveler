@@ -30,6 +30,7 @@ export async function buildLanguageContext(wizard) {
 
   const langMap = getLanguageMap();
   const rarityMap = getLanguageRarityMap();
+  const unavailable = getUnavailableLanguageSlugs();
 
   const granted = grantedSlugs.map((slug) => ({
     slug,
@@ -42,7 +43,7 @@ export async function buildLanguageContext(wizard) {
 
   const allLanguageSlugs = Object.keys(langMap);
   const choosable = allLanguageSlugs
-    .filter((slug) => !grantedSlugs.includes(slug) && slug !== 'CommonLanguage')
+    .filter((slug) => !grantedSlugs.includes(slug) && slug !== 'CommonLanguage' && !unavailable.has(slug))
     .map((slug) => ({
       slug,
       label: langMap[slug],
@@ -151,6 +152,13 @@ export function getLanguageMap() {
     if (Object.keys(map).length > 0) return map;
   }
   return {};
+}
+
+export function getUnavailableLanguageSlugs() {
+  const unavailable = getCampaignLanguages()?.unavailable;
+  if (unavailable instanceof Set) return unavailable;
+  if (Array.isArray(unavailable)) return new Set(unavailable);
+  return new Set();
 }
 
 export function getLanguageRarityMap() {

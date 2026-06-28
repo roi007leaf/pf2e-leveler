@@ -10,6 +10,14 @@
 
 - **General feat selections now include skill feats** - Grants that let you choose a general feat (such as General Training) now offer skill feats too, since skill feats are a subtype of general feats
 
+### Content Guidance
+
+- **Suggested badge in the spell picker now reads correctly** - The recommended-spell badge showed a raw localization key instead of the "Suggested" label, and now matches the feat and item pickers
+
+### Languages
+
+- **Languages marked unavailable in Manage Homebrew Elements are now hidden** - Character creation and the level planner no longer offer languages a GM has set to unavailable in PF2e's homebrew settings
+
 ## 3.5.6
 
 ### Level Planner
