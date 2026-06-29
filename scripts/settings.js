@@ -174,6 +174,21 @@ export function registerSettings() {
     default: false,
   });
 
+  game.settings.register(MODULE_ID, 'publicationFilterVisibility', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.PUBLICATION_FILTER_VISIBILITY.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.PUBLICATION_FILTER_VISIBILITY.HINT'),
+    scope: 'world',
+    config: true,
+    type: String,
+    default: 'show',
+    choices: {
+      show: game.i18n.localize('PF2E_LEVELER.SETTINGS.PUBLICATION_FILTER_VISIBILITY.SHOW'),
+      hide: game.i18n.localize('PF2E_LEVELER.SETTINGS.PUBLICATION_FILTER_VISIBILITY.HIDE'),
+      'hide-non-gm': game.i18n.localize('PF2E_LEVELER.SETTINGS.PUBLICATION_FILTER_VISIBILITY.HIDE_NON_GM'),
+    },
+    onChange: () => refreshOpenLevelerWindows(),
+  });
+
   game.settings.register(MODULE_ID, 'startingWealthMode', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.STARTING_WEALTH.MODE_HINT'),

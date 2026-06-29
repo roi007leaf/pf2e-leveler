@@ -690,6 +690,13 @@
         "COUNT": "{count} marked",
         "SOURCES": "Sources",
         "MATCHED_COUNT": "{count} items"
+      },
+      "PUBLICATION_FILTER_VISIBILITY": {
+        "NAME": "Disallowed sources in filters",
+        "HINT": "Controls whether sources you have marked Disallowed in Content Guidance still appear in the publication filter lists. Items from disallowed sources are filtered out regardless; this only affects the filter list itself.",
+        "SHOW": "Show in filter lists",
+        "HIDE": "Hide from filter lists",
+        "HIDE_NON_GM": "Hide for players only"
       }
     }
   }
