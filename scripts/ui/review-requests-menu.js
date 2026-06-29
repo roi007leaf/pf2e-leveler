@@ -1,5 +1,5 @@
 import { MODULE_ID } from '../constants.js';
-import { getReviewRequests, setReviewRequestStatus, REVIEW_REQUEST_STATUS } from '../access/review-requests.js';
+import { getReviewRequests, importOrphanedReviewRequests, setReviewRequestStatus, REVIEW_REQUEST_STATUS } from '../access/review-requests.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -22,6 +22,7 @@ export class ReviewRequestsMenu extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   async _prepareContext() {
+    await importOrphanedReviewRequests();
     const raw = getReviewRequests();
 
     const requests = raw
