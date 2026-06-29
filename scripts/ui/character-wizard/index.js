@@ -24,7 +24,7 @@ import { activateCharacterWizardListeners } from './listeners.js';
 import { buildSpellContext, getSanitizedCurriculumSelections, limitCurriculumSelections, resolveFocusSpells, resolveGrantedSpells, resolveSummaryCurriculumSpells, resolveSummaryFocusSpells } from './spells.js';
 import { loadCommanderTactics, loadCompendium, loadCompendiumCategory, loadAncestries, loadBackgrounds, loadClasses, loadDeities, loadExemplarIkons, loadHeritages, loadInventorArmorModifications, loadInventorArmorOptions, loadInventorWeaponModifications, loadInventorWeaponOptions, loadKineticImpulses, loadRawHeritages, loadSubclasses, loadSubclassesForClass, loadTaggedClassFeatures, loadThaumaturgeImplements, loadTheses, parseCurriculum, parseSpellUuidsFromDescription, parseVesselSpell, resolveClassSubclassTag } from './loaders.js';
 import { annotateGuidance, annotateGuidanceBySlug, filterDisallowedForCurrentUser, sortByGuidancePriority } from '../../access/content-guidance.js';
-import { filterDisallowedSourcePublications, getPublicationFilterMode } from '../../access/source-classification.js';
+import { filterPublicationsForCurrentUser } from '../../access/source-classification.js';
 import { renderApplicationInFront, scheduleBringApplicationToFront } from '../shared/window-focus.js';
 import { resolveSpellcastingTradition } from '../../data/subclass-spells.js';
 
@@ -3383,10 +3383,7 @@ export function buildPublicationOptions(stepContext, storedSelection = []) {
     ...publication,
     selected: selectedKeys.has(publication.key),
   }));
-  return filterDisallowedSourcePublications(displayOptions, {
-    mode: getPublicationFilterMode(),
-    isGM: game.user?.isGM === true,
-  });
+  return filterPublicationsForCurrentUser(displayOptions);
 }
 
 export function buildPublicationFilterState(publicationOptions = [], collapsed = true) {

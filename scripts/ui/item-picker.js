@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
-import { filterDisallowedSourcePublications, getPublicationFilterMode } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -310,10 +310,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._publicationTitles = options.map((e) => e.key);
     this.selectedPublications = initializeSelectionSet(this.selectedPublications, this._publicationTitles, { defaultValues: [] });
     const displayOptions = options.map((e) => ({ ...e, selected: this.selectedPublications.has(e.key) }));
-    return filterDisallowedSourcePublications(displayOptions, {
-      mode: getPublicationFilterMode(),
-      isGM: game.user?.isGM === true,
-    });
+    return filterPublicationsForCurrentUser(displayOptions);
   }
 
   _getSourceOptions() {

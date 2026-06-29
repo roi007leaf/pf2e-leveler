@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
-import { filterDisallowedSourcePublications, getPublicationFilterMode } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -864,10 +864,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       ...entry,
       selected: this.selectedPublications.has(entry.key),
     }));
-    return filterDisallowedSourcePublications(displayOptions, {
-      mode: getPublicationFilterMode(),
-      isGM: game.user?.isGM === true,
-    });
+    return filterPublicationsForCurrentUser(displayOptions);
   }
 
   _getRankOptions() {

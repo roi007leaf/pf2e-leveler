@@ -37,3 +37,10 @@ export function getPublicationFilterMode() {
     return 'show';
   }
 }
+
+export function filterPublicationsForCurrentUser(options) {
+  return filterDisallowedSourcePublications(options, {
+    mode: getPublicationFilterMode(),
+    isGM: game.user?.isGM === true,
+  });
+}
