@@ -540,11 +540,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const listContainer = root?.querySelector('.spell-picker__list');
     if (!listContainer) return;
 
-    const _updateListPublicationOptions = this._getPublicationOptions();
+    const publicationOptions = this._getPublicationOptions();
     const html = await resolveRenderHandlebarsTemplate()(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       filterSections: this._getFilterSections(),
-      publicationOptions: _updateListPublicationOptions,
+      publicationOptions,
       publicationGroupChips: buildPublicationGroupChips(this._publicationTitles, this.selectedPublications),
       rankOptions: this._getRankOptions(),
       traditionOptions: this._getTraditionOptions(),
@@ -833,6 +833,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (body) body.hidden = sectionState.collapsed;
       for (const chip of publicationSection.querySelectorAll('[data-action="togglePublication"]')) {
         chip.classList.toggle('selected', this.selectedPublications.has(chip.dataset.publication));
+      }
+      for (const chip of publicationSection.querySelectorAll('[data-action="togglePublicationGroup"]')) {
+        const members = getPublicationGroupMembers(chip.dataset.group, this._publicationTitles);
+        const selectedCount = members.filter((title) => this.selectedPublications.has(title)).length;
+        chip.classList.toggle('selected', members.length > 0 && selectedCount === members.length);
+        chip.classList.toggle('partial', selectedCount > 0 && selectedCount < members.length);
       }
     }
   }
