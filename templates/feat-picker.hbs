@@ -94,6 +94,14 @@
               {{localize "PF2E_LEVELER.FEAT_PICKER.SKILL_FEATS"}}
             </button>
             {{/if}}
+            <button type="button" class="picker__prereq-toggle {{#if remasterOnly}}active{{/if}}" data-action="toggleRemasterOnly">
+              <i class="fa-solid fa-rocket"></i>
+              {{localize "PF2E_LEVELER.UI.REMASTER_ONLY"}}
+            </button>
+            <button type="button" class="picker__prereq-toggle {{#if hideGunsTech}}active{{/if}}" data-action="toggleHideGunsTech">
+              <i class="fa-solid fa-gun"></i>
+              {{localize "PF2E_LEVELER.UI.HIDE_GUNS_TECH"}}
+            </button>
           </div>
         </div>
       </div>

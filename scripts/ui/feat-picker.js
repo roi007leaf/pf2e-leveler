@@ -17,7 +17,7 @@ import { getBuildStateAncestryFeatTraits } from '../utils/ancestry-feat-traits.j
 import { getActiveSkillConfigEntry, getActiveSkillSlugs } from '../utils/skill-slugs.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -51,6 +51,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.searchText = '';
     this.sortMethod = game.settings.get(MODULE_ID, 'featSortMethod');
     this.hideFailedPrereqs = game.settings.get(MODULE_ID, 'defaultEligibleOnly');
+    this.remasterOnly = false;
+    this.hideGunsTech = false;
     this.selectedRarities = new Set(['common']);
     if (category === 'custom') {
       this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
@@ -165,6 +167,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       minLevelLocked: this._minLevelLocked,
       maxLevelLocked: this._maxLevelLocked,
       hideFailedPrereqs: this.hideFailedPrereqs,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
@@ -289,6 +293,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       minLevelLocked: this._minLevelLocked,
       maxLevelLocked: this._maxLevelLocked,
       hideFailedPrereqs: this.hideFailedPrereqs,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
@@ -391,6 +397,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this._enrichWithPrerequisites(feats);
     if (this.hideFailedPrereqs) feats = feats.filter((f) => !f.prerequisitesFailed);
+    if (this.remasterOnly) feats = feats.filter((feat) => isRemasterItem(feat));
+    if (this.hideGunsTech) feats = feats.filter((feat) => !itemHasExcludedTechTrait(feat));
     return sortFeats(feats, this.sortMethod);
   }
 
@@ -494,6 +502,32 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         () => {
           this.hideFailedPrereqs = !this.hideFailedPrereqs;
           prereqToggle.classList.toggle('active', this.hideFailedPrereqs);
+          this._scheduleListUpdate();
+        },
+        { signal },
+      );
+    }
+
+    const remasterToggle = el.querySelector('[data-action="toggleRemasterOnly"]');
+    if (remasterToggle) {
+      remasterToggle.addEventListener(
+        'click',
+        () => {
+          this.remasterOnly = !this.remasterOnly;
+          remasterToggle.classList.toggle('active', this.remasterOnly);
+          this._scheduleListUpdate();
+        },
+        { signal },
+      );
+    }
+
+    const hideGunsTechToggle = el.querySelector('[data-action="toggleHideGunsTech"]');
+    if (hideGunsTechToggle) {
+      hideGunsTechToggle.addEventListener(
+        'click',
+        () => {
+          this.hideGunsTech = !this.hideGunsTech;
+          hideGunsTechToggle.classList.toggle('active', this.hideGunsTech);
           this._scheduleListUpdate();
         },
         { signal },
@@ -1595,6 +1629,10 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const prereqToggle = root.querySelector('[data-action="togglePrereqFilter"]');
     if (prereqToggle) prereqToggle.classList.toggle('active', this.hideFailedPrereqs);
+    const remasterToggle = root.querySelector('[data-action="toggleRemasterOnly"]');
+    if (remasterToggle) remasterToggle.classList.toggle('active', this.remasterOnly);
+    const hideGunsTechToggle = root.querySelector('[data-action="toggleHideGunsTech"]');
+    if (hideGunsTechToggle) hideGunsTechToggle.classList.toggle('active', this.hideGunsTech);
 
     const skillFeatToggle = root.querySelector('[data-action="toggleGeneralSkillFeats"]');
     if (skillFeatToggle) skillFeatToggle.classList.toggle('active', this.showSkillFeats);
