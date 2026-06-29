@@ -710,7 +710,21 @@
       "BUTTON": "Request GM review",
       "DIALOG_TITLE": "Request GM Review",
       "DIALOG_PROMPT": "Ask the GM to review \"{item}\". Add an optional note (reasoning, backstory, etc.):",
-      "SUBMIT": "Send request"
+      "SUBMIT": "Send request",
+      "PANEL_TITLE": "Review Requests",
+      "MENU_NAME": "Player Review Requests",
+      "MENU_LABEL": "Open Review Requests",
+      "MENU_HINT": "Review item/feat/spell requests your players have sent for approval.",
+      "EMPTY": "No review requests yet.",
+      "INTRO": "Requests your players have sent for GM review. Marking a request resolved or dismissed is informational only — nothing is auto-applied.",
+      "STATUS_PENDING": "Pending",
+      "STATUS_RESOLVED": "Resolved",
+      "STATUS_DISMISSED": "Dismissed",
+      "ACTION_RESOLVE": "Resolve",
+      "ACTION_DISMISS": "Dismiss",
+      "ACTION_REOPEN": "Reopen",
+      "REQUESTED_BY": "Requested by {name}",
+      "FOR_CHARACTER": "Character: {actor}"
     }
   }
 }

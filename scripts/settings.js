@@ -1,6 +1,7 @@
 import { MODULE_ID } from './constants.js';
 import { CompendiumSettingsMenu, PlayerCompendiumAccessMenu } from './ui/compendium-settings-menu.js';
 import { ContentGuidanceMenu } from './ui/content-guidance-menu.js';
+import { ReviewRequestsMenu } from './ui/review-requests-menu.js';
 import { invalidateCache } from './feats/feat-cache.js';
 import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from './access/content-guidance.js';
 import { invalidateItemCache } from './ui/item-picker.js';
@@ -296,6 +297,15 @@ export function registerSettings() {
     type: String,
     default: '',
     requiresReload: true,
+  });
+
+  game.settings.registerMenu(MODULE_ID, 'reviewRequestsMenu', {
+    name: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.MENU_NAME'),
+    label: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.MENU_LABEL'),
+    hint: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.MENU_HINT'),
+    icon: 'fas fa-flag',
+    type: ReviewRequestsMenu,
+    restricted: true,
   });
 
   game.settings.registerMenu(MODULE_ID, 'contentGuidanceMenu', {

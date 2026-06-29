@@ -1,0 +1,70 @@
+<section class="compendium-manager">
+  <header class="compendium-manager__hero">
+    <div>
+      <h2 class="compendium-manager__title">{{localize "PF2E_LEVELER.REVIEW_REQUEST.PANEL_TITLE"}}</h2>
+      <p class="compendium-manager__intro">{{intro}}</p>
+    </div>
+  </header>
+
+  <div class="compendium-manager__panelWrap">
+    <section class="compendium-manager__panel">
+      {{#unless hasRequests}}
+      <p class="compendium-manager__empty">{{emptyLabel}}</p>
+      {{else}}
+      <ul class="review-requests__list">
+        {{#each requests}}
+        <li class="review-requests__card">
+          <div class="review-requests__card-header">
+            <span class="review-requests__requester">
+              {{localize "PF2E_LEVELER.REVIEW_REQUEST.REQUESTED_BY" name=this.requesterName}}
+            </span>
+            <span class="review-requests__character">
+              {{localize "PF2E_LEVELER.REVIEW_REQUEST.FOR_CHARACTER" actor=this.actorName}}
+            </span>
+            {{#if this.isPending}}
+            <span class="tag tag--info">{{localize "PF2E_LEVELER.REVIEW_REQUEST.STATUS_PENDING"}}</span>
+            {{else if this.isResolved}}
+            <span class="tag tag--success">{{localize "PF2E_LEVELER.REVIEW_REQUEST.STATUS_RESOLVED"}}</span>
+            {{else if this.isDismissed}}
+            <span class="tag tag--muted">{{localize "PF2E_LEVELER.REVIEW_REQUEST.STATUS_DISMISSED"}}</span>
+            {{/if}}
+          </div>
+
+          <div class="review-requests__card-body">
+            {{#if this.itemUuid}}
+            <button type="button" class="review-requests__item-link" data-action="open-item" data-uuid="{{this.itemUuid}}">
+              <i class="fas fa-external-link-alt"></i>
+              {{this.itemName}}
+            </button>
+            {{else if this.itemName}}
+            <span class="review-requests__item-name">{{this.itemName}}</span>
+            {{/if}}
+
+            {{#if this.note}}
+            <p class="review-requests__note">{{this.note}}</p>
+            {{/if}}
+
+            <span class="review-requests__date">{{this.dateLabel}}</span>
+          </div>
+
+          <div class="review-requests__card-actions">
+            {{#if this.isPending}}
+            <button type="button" class="review-requests__action review-requests__action--resolve" data-action="resolve-request" data-id="{{this.id}}">
+              {{localize "PF2E_LEVELER.REVIEW_REQUEST.ACTION_RESOLVE"}}
+            </button>
+            <button type="button" class="review-requests__action review-requests__action--dismiss" data-action="dismiss-request" data-id="{{this.id}}">
+              {{localize "PF2E_LEVELER.REVIEW_REQUEST.ACTION_DISMISS"}}
+            </button>
+            {{else}}
+            <button type="button" class="review-requests__action review-requests__action--reopen" data-action="reopen-request" data-id="{{this.id}}">
+              {{localize "PF2E_LEVELER.REVIEW_REQUEST.ACTION_REOPEN"}}
+            </button>
+            {{/if}}
+          </div>
+        </li>
+        {{/each}}
+      </ul>
+      {{/unless}}
+    </section>
+  </div>
+</section>
