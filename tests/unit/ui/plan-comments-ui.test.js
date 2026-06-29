@@ -16,6 +16,10 @@ describe('markerStateClass', () => {
     expect(markerStateClass({ isEmpty: false, resolved: true })).toBe('resolved');
     expect(markerStateClass({ isEmpty: false, resolved: false })).toBe('unresolved');
   });
+  it('returns empty for null/undefined summary', () => {
+    expect(markerStateClass(undefined)).toBe('empty');
+    expect(markerStateClass(null)).toBe('empty');
+  });
 });
 
 describe('collectPlannerCommentAnchors', () => {

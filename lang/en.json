@@ -753,7 +753,8 @@
       "DROP_HINT": "Drag an item, spell, or feat here to attach it",
       "ATTACH_REMOVE": "Remove attachment",
       "READ_ONLY": "You can view comments but not post on this character.",
-      "MARKER_TOOLTIP": "Comments"
+      "MARKER_TOOLTIP": "Comments",
+      "CLOSE": "Close"
     }
   }
 }

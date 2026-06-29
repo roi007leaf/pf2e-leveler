@@ -10,6 +10,7 @@ import {
 const t = (key) => game.i18n.localize(`PF2E_LEVELER.PLAN_COMMENTS.${key}`);
 
 export function markerStateClass(summary) {
+  if (!summary) return 'empty';
   if (summary.isEmpty) return 'empty';
   if (summary.resolved) return 'resolved';
   return 'unresolved';
@@ -88,7 +89,7 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
     <div class="plan-comments-popover__header">
       <span class="plan-comments-popover__title">${escapeHtml(anchor.label)}</span>
       ${resolved ? `<span class="plan-comments-popover__resolved">${t('RESOLVED_BADGE')}</span>` : ''}
-      <button type="button" class="plan-comments-popover__close" data-tooltip="${t('DELETE')}"><i class="fa-solid fa-xmark"></i></button>
+      <button type="button" class="plan-comments-popover__close" data-tooltip="${t('CLOSE')}"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="plan-comments-popover__body"></div>
     ${canComment ? composerMarkup(thread) : `<div class="plan-comments-popover__readonly">${t('READ_ONLY')}</div>`}
@@ -103,7 +104,7 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
     pop.remove();
   });
 
-  if (canComment) wireComposer(pop, actor, anchor.partId, resolved, pendingItems);
+  if (canComment) wireComposer(pop, actor, anchor.partId, pendingItems);
 }
 
 function composerMarkup(thread) {
@@ -145,7 +146,7 @@ function messageMarkup(m, canComment) {
   const chips = (m.items ?? []).map((uuid) => {
     const doc = fromUuidSync(uuid);
     const name = doc?.name ?? uuid;
-    const img = doc?.img ? `<img src="${doc.img}" alt="">` : '';
+    const img = doc?.img ? `<img src="${escapeHtml(doc.img)}" alt="">` : '';
     return `<span class="plan-comment-chip" data-uuid="${escapeHtml(uuid)}">${img}${escapeHtml(name)}</span>`;
   }).join('');
   return `
@@ -161,7 +162,7 @@ function messageMarkup(m, canComment) {
   `;
 }
 
-function wireComposer(pop, actor, partId, resolved, pendingItems) {
+function wireComposer(pop, actor, partId, pendingItems) {
   const drop = pop.querySelector('.plan-comments-composer__drop');
   const chipsEl = pop.querySelector('.plan-comments-composer__chips');
   const textEl = pop.querySelector('.plan-comments-composer__text');
@@ -191,10 +192,14 @@ function wireComposer(pop, actor, partId, resolved, pendingItems) {
     const text = textEl.value;
     if (!text.trim()) return;
     await postPlanComment(actor, partId, { text, items: [...pendingItems] });
+    textEl.value = '';
+    pendingItems.length = 0;
+    renderChips();
   });
 
   pop.querySelector('.plan-comments-composer__resolve')?.addEventListener('click', async () => {
-    await setPlanCommentResolved(actor, partId, !resolved);
+    const current = getThread(actor, partId)?.resolved === true;
+    await setPlanCommentResolved(actor, partId, !current);
   });
 }
 
