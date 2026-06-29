@@ -1276,6 +1276,16 @@
   color: #d98a8a;
 }
 
+.pf2e-leveler .review-requests__action--delete {
+  margin-left: auto;
+  color: var(--leveler-text-muted, #999);
+}
+
+.pf2e-leveler .review-requests__action--delete:hover {
+  color: #d98a8a;
+  border-color: rgba(170, 51, 51, 0.5);
+}
+
 /* Plan comments */
 .plan-comment-marker {
   margin-left: auto;

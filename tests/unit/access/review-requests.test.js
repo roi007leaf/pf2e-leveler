@@ -2,6 +2,8 @@ import {
   buildReviewRequest,
   addReviewRequest,
   updateReviewRequestStatus,
+  removeReviewRequest,
+  deleteReviewRequest,
   getReviewRequests,
   isResponsibleGM,
   REVIEW_REQUEST_STATUS,
@@ -33,6 +35,43 @@ describe('review-requests', () => {
     expect(next.find((e) => e.id === '2').status).toBe('resolved');
     expect(next.find((e) => e.id === '1').status).toBe('pending');
     expect(list[1].status).toBe('pending');
+  });
+
+  it('removes the matching request immutably', () => {
+    const list = [{ id: '1' }, { id: '2' }];
+    const next = removeReviewRequest(list, '1');
+    expect(next).toEqual([{ id: '2' }]);
+    expect(list).toHaveLength(2);
+    expect(removeReviewRequest(null, 'x')).toEqual([]);
+  });
+
+  describe('deleteReviewRequest', () => {
+    const realGet = global.game.settings.get;
+    const realSet = global.game.settings.set;
+    const realMessages = global.game.messages;
+    afterEach(() => {
+      global.game.settings.get = realGet;
+      global.game.settings.set = realSet;
+      global.game.messages = realMessages;
+    });
+
+    it('saves the list without the id and deletes the source whisper', async () => {
+      global.game.settings.get = jest.fn(() => [{ id: '1' }, { id: '2' }]);
+      global.game.settings.set = jest.fn(() => Promise.resolve());
+      const del = jest.fn(() => Promise.resolve());
+      global.game.messages = [{ flags: { 'pf2e-leveler': { reviewRequest: { id: '1' } } }, delete: del }];
+      await deleteReviewRequest('1');
+      expect(global.game.settings.set).toHaveBeenCalledWith('pf2e-leveler', 'reviewRequests', [{ id: '2' }]);
+      expect(del).toHaveBeenCalled();
+    });
+
+    it('still saves when no source whisper exists', async () => {
+      global.game.settings.get = jest.fn(() => [{ id: '1' }]);
+      global.game.settings.set = jest.fn(() => Promise.resolve());
+      global.game.messages = [];
+      await deleteReviewRequest('1');
+      expect(global.game.settings.set).toHaveBeenCalledWith('pf2e-leveler', 'reviewRequests', []);
+    });
   });
 
   describe('getReviewRequests', () => {

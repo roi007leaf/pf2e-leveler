@@ -1,5 +1,5 @@
 import { MODULE_ID } from '../constants.js';
-import { getReviewRequests, importOrphanedReviewRequests, setReviewRequestStatus, REVIEW_REQUEST_STATUS } from '../access/review-requests.js';
+import { deleteReviewRequest, getReviewRequests, importOrphanedReviewRequests, setReviewRequestStatus, REVIEW_REQUEST_STATUS } from '../access/review-requests.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -76,6 +76,13 @@ export class ReviewRequestsMenu extends HandlebarsApplicationMixin(ApplicationV2
     root.querySelectorAll('[data-action="reopen-request"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         await setReviewRequestStatus(btn.dataset.id, REVIEW_REQUEST_STATUS.PENDING);
+        this.render(false);
+      });
+    });
+
+    root.querySelectorAll('[data-action="delete-request"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await deleteReviewRequest(btn.dataset.id);
         this.render(false);
       });
     });

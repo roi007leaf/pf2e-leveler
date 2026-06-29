@@ -736,6 +736,7 @@
       "ACTION_RESOLVE": "Resolve",
       "ACTION_DISMISS": "Dismiss",
       "ACTION_REOPEN": "Reopen",
+      "ACTION_DELETE": "Delete request",
       "REQUESTED_BY": "Requested by {name}",
       "FOR_CHARACTER": "Character: {actor}",
       "APPROVAL_REQUIRED": "Your GM must approve a review request for this character before you can apply. Use \"Request GM review\" first."

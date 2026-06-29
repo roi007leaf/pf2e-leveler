@@ -60,6 +60,9 @@
               {{localize "PF2E_LEVELER.REVIEW_REQUEST.ACTION_REOPEN"}}
             </button>
             {{/if}}
+            <button type="button" class="review-requests__action review-requests__action--delete" data-action="delete-request" data-id="{{this.id}}" data-tooltip="{{localize 'PF2E_LEVELER.REVIEW_REQUEST.ACTION_DELETE'}}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           </div>
         </li>
         {{/each}}

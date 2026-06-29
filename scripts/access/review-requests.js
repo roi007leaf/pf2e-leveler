@@ -29,6 +29,10 @@ export function updateReviewRequestStatus(list, id, status) {
   return (Array.isArray(list) ? list : []).map((entry) => (entry?.id === id ? { ...entry, status } : entry));
 }
 
+export function removeReviewRequest(list, id) {
+  return (Array.isArray(list) ? list : []).filter((entry) => entry?.id !== id);
+}
+
 export function getReviewRequests() {
   try {
     const value = game.settings.get(MODULE_ID, REVIEW_REQUESTS_SETTING);
@@ -108,6 +112,14 @@ export async function recordIncomingReviewRequest(request) {
 
 export async function setReviewRequestStatus(id, status) {
   await saveReviewRequests(updateReviewRequestStatus(getReviewRequests(), id, status));
+}
+
+export async function deleteReviewRequest(id) {
+  await saveReviewRequests(removeReviewRequest(getReviewRequests(), id));
+  // Also remove the source GM-whisper (fallback delivery path), else
+  // importOrphanedReviewRequests would re-add the request next time the panel opens.
+  const message = (game.messages ?? []).find((m) => m?.flags?.[MODULE_ID]?.reviewRequest?.id === id);
+  if (message) await message.delete().catch(() => {});
 }
 
 export function registerReviewRequestSocket() {
