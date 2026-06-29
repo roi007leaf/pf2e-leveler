@@ -706,7 +706,11 @@
     "REVIEW_REQUEST": {
       "SENT": "Review request sent to the GM.",
       "NO_GM": "No GM is online — your request was logged and will reach them later.",
-      "RECEIVED": "{name} requested GM review of {item}."
+      "RECEIVED": "{name} requested GM review of {item}.",
+      "BUTTON": "Request GM review",
+      "DIALOG_TITLE": "Request GM Review",
+      "DIALOG_PROMPT": "Ask the GM to review \"{item}\". Add an optional note (reasoning, backstory, etc.):",
+      "SUBMIT": "Send request"
     }
   }
 }

@@ -65,6 +65,21 @@ export function registerReviewRequestSocket() {
   });
 }
 
+export async function promptReviewRequest({ item, actor } = {}) {
+  const note = await foundry.applications.api.DialogV2.prompt({
+    window: { title: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_TITLE') },
+    content: `<p>${game.i18n.format('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_PROMPT', { item: item?.name ?? '' })}</p>`
+      + `<textarea name="note" rows="4" style="width:100%;box-sizing:border-box;"></textarea>`,
+    ok: {
+      label: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.SUBMIT'),
+      callback: (_event, button) => button.form.elements.note?.value ?? '',
+    },
+    rejectClose: false,
+  }).catch(() => null);
+  if (note === null || note === undefined) return;
+  await submitReviewRequest({ item, actor, note });
+}
+
 export async function submitReviewRequest({ item, actor, note } = {}) {
   const request = buildReviewRequest({
     id: foundry.utils.randomID(),
