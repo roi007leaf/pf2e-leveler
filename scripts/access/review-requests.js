@@ -36,6 +36,14 @@ export function getReviewRequests() {
   }
 }
 
+export function isReviewRequestEnabled() {
+  try {
+    return game.settings.get(MODULE_ID, 'enableReviewRequests') === true;
+  } catch {
+    return false;
+  }
+}
+
 export function isResponsibleGM() {
   return game.users?.activeGM?.isSelf === true;
 }
@@ -96,6 +104,7 @@ export async function promptReviewRequest({ item, actor } = {}) {
 }
 
 export async function submitReviewRequest({ item, actor, note } = {}) {
+  if (!isReviewRequestEnabled()) return null;
   const request = buildReviewRequest({
     id: foundry.utils.randomID(),
     ts: Date.now(),
