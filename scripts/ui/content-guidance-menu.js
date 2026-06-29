@@ -587,6 +587,9 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
   }
 
   _buildRarityBulkGroups(items) {
+    // Sources are all rarity "common", so a rarity bulk control is noise there; the
+    // Bulk-by-Group control covers the sources tab instead.
+    if (this.activeCategory === 'sources') return [];
     const raritySet = new Set(items.map((item) => String(item.rarity ?? 'common').toLowerCase()));
     const rarities = ['common', 'uncommon', 'rare', 'unique'].filter((rarity) => raritySet.has(rarity));
     return rarities.map((rarity) => ({

@@ -1152,3 +1152,126 @@
   font-size: var(--leveler-font-sm, 0.82rem);
   color: var(--leveler-text-muted);
 }
+
+/* Review Requests panel */
+.pf2e-leveler .review-requests__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--leveler-spacing-sm, 8px);
+  margin: 0;
+  padding: var(--leveler-spacing-sm, 8px);
+  list-style: none;
+}
+
+.pf2e-leveler .review-requests__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--leveler-spacing-md, 12px);
+  background: var(--leveler-bg-surface);
+  border: 1px solid var(--leveler-border);
+  border-left: 3px solid var(--leveler-border);
+  border-radius: var(--leveler-radius-md);
+}
+
+.pf2e-leveler .review-requests__card--pending {
+  border-left-color: var(--leveler-accent);
+}
+
+.pf2e-leveler .review-requests__card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pf2e-leveler .review-requests__requester {
+  font-weight: 700;
+  color: var(--leveler-text-bright);
+}
+
+.pf2e-leveler .review-requests__character {
+  font-size: var(--leveler-font-sm, 0.82rem);
+  color: var(--leveler-text-muted);
+}
+
+.pf2e-leveler .review-requests__card-header .tag {
+  margin-left: auto;
+}
+
+.pf2e-leveler .review-requests__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pf2e-leveler .review-requests__item-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--leveler-accent-dim);
+  border: 1px solid var(--leveler-accent);
+  border-radius: var(--leveler-radius-sm);
+  color: var(--leveler-accent-light);
+  cursor: pointer;
+  font-size: var(--leveler-font-sm, 0.82rem);
+}
+
+.pf2e-leveler .review-requests__item-link:hover {
+  background: var(--leveler-accent);
+  color: var(--leveler-bg);
+}
+
+.pf2e-leveler .review-requests__item-name {
+  font-weight: 600;
+}
+
+.pf2e-leveler .review-requests__note {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 2px solid var(--leveler-border-light, rgba(255, 255, 255, 0.15));
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--leveler-radius-sm);
+  color: var(--leveler-text);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.pf2e-leveler .review-requests__date {
+  font-size: 0.72rem;
+  color: var(--leveler-text-muted);
+}
+
+.pf2e-leveler .review-requests__card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pf2e-leveler .review-requests__action {
+  padding: 5px 14px;
+  border: 1px solid var(--leveler-border);
+  border-radius: var(--leveler-radius-sm);
+  background: var(--leveler-bg);
+  color: var(--leveler-text);
+  cursor: pointer;
+  font-size: var(--leveler-font-sm, 0.82rem);
+  transition: all 0.15s ease;
+}
+
+.pf2e-leveler .review-requests__action:hover {
+  filter: brightness(1.15);
+}
+
+.pf2e-leveler .review-requests__action--resolve {
+  background: rgba(46, 125, 50, 0.25);
+  border-color: var(--leveler-success);
+  color: var(--leveler-success);
+}
+
+.pf2e-leveler .review-requests__action--dismiss {
+  background: rgba(170, 51, 51, 0.2);
+  border-color: rgba(170, 51, 51, 0.5);
+  color: #d98a8a;
+}

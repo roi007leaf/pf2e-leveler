@@ -13,7 +13,7 @@
       {{else}}
       <ul class="review-requests__list">
         {{#each requests}}
-        <li class="review-requests__card">
+        <li class="review-requests__card {{#if this.isPending}}review-requests__card--pending{{/if}}">
           <div class="review-requests__card-header">
             <span class="review-requests__requester">
               {{localize "PF2E_LEVELER.REVIEW_REQUEST.REQUESTED_BY" name=this.requesterName}}
