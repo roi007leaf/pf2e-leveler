@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.6.0
+
+### Collaborative Build Comments
+
+- **Inline comment threads on builds** - The GM and a character's owner can leave threaded comments on each part of a Level Planner level (class feat, skill feat, skill increase, ability boosts, spellcasting, equipment, and more) and on each Character Creation step. A comment marker sits beside each section; click it to open the thread, post, and reply - like comments in a shared document. Comments live on the character, so both sides see the same conversation
+- **Attach items, spells, and feats to a comment** - Drag an item, spell, or feat onto a comment, or paste its UUID (or an `@UUID` link) into the composer, to attach it. Attachments render as clickable chips that open the item sheet, so a GM can suggest "try this one" right in the thread. Players can open attached compendium items even when they do not own them
+- **Live updates** - Posting, replying, resolving, and deleting a comment now appears immediately in any open Level Planner or Character Creation window, for both the GM and the player, without reopening the thread
+- **"Awaiting your reply" highlight** - A comment marker shows an attention dot when the other side posted last and the thread is still open, so you can see at a glance which threads need your response
+- **Notifications outside the planner** - When a comment is posted, the other party is whispered in chat with a link to the character, and the character sheet's Level-Up and Creation buttons show a badge counting the threads awaiting your reply - so comments are noticed even when the planner and wizard are closed
+- **Resolve and reopen threads** - The GM can resolve or reopen any thread; a player can resolve only the threads they started, so a GM's review note cannot be closed out from under them. Posting and replying remain open to both sides
+
+### Review Requests
+
+- **Delete review requests** - The GM Review Requests panel adds a Delete button on each request to permanently clear it (along with its originating chat message), keeping the list from growing over time
+
 ## 3.5.8
 
 ### Content Guidance
