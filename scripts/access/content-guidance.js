@@ -123,6 +123,26 @@ export function isDisallowedForCurrentUser(uuid) {
   return isDisallowed(uuid) && shouldRestrictContentForUser();
 }
 
+export const GUIDANCE_TAG_VALUES = ['recommended', 'allowed', 'not-recommended', 'disallowed'];
+
+export function matchesGuidanceTagFilter(item, selectedTags) {
+  if (!selectedTags || selectedTags.size === 0) return true;
+  if (selectedTags.has('recommended') && item?.isRecommended === true) return true;
+  if (selectedTags.has('allowed') && item?.isAllowed === true) return true;
+  if (selectedTags.has('not-recommended') && item?.isNotRecommended === true) return true;
+  if (selectedTags.has('disallowed') && item?.isDisallowed === true) return true;
+  return false;
+}
+
+export function getGuidanceTagLabels() {
+  return {
+    recommended: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED'),
+    allowed: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_ALLOWED'),
+    'not-recommended': game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED'),
+    disallowed: game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED'),
+  };
+}
+
 export function annotateGuidanceBySlug(items, prefix, options = {}) {
   return annotateGuidanceWithResolver(items, (item) => {
     const key = `${prefix}:${item.slug}`;
