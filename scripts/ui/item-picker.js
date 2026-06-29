@@ -4,7 +4,6 @@ import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
-import { promptReviewRequest } from '../access/review-requests.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -911,12 +910,6 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      if (action === 'requestReview') {
-        const uuid = target.closest('.item-option')?.dataset?.uuid || target.dataset.uuid;
-        const item = uuid ? await fromUuid(uuid) : null;
-        if (item) await promptReviewRequest({ item, actor: this.actor });
-        return;
-      }
     }, { signal });
   }
 

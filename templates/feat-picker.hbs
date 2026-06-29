@@ -307,11 +307,6 @@
             {{/if}}
           </div>
           <div class="feat-option__actions">
-            {{#unless @root.isGM}}
-            <button type="button" class="feat-option__chat-btn" data-action="requestReview" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.REVIEW_REQUEST.BUTTON'}}">
-              <i class="fa-solid fa-flag"></i>
-            </button>
-            {{/unless}}
             <button type="button" class="feat-option__chat-btn" data-action="sendToChat" data-uuid="{{this.uuid}}" data-tooltip="{{localize 'PF2E_LEVELER.FEAT_PICKER.SEND_TO_CHAT'}}">
               <i class="fa-solid fa-comment"></i>
             </button>

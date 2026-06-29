@@ -19,7 +19,6 @@ import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
-import { promptReviewRequest } from '../access/review-requests.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -900,7 +899,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       'click',
       async (e) => {
         const target = e.target?.closest?.(
-          '[data-action="viewFeat"], [data-action="selectFeat"], [data-action="toggleSelectAll"], [data-action="toggleFilterSection"], [data-action="confirmSelection"], [data-action="sendToChat"], [data-action="openContentGuidance"], [data-action="requestReview"]',
+          '[data-action="viewFeat"], [data-action="selectFeat"], [data-action="toggleSelectAll"], [data-action="toggleFilterSection"], [data-action="confirmSelection"], [data-action="sendToChat"], [data-action="openContentGuidance"]',
         );
         if (!target || !root.contains(target)) return;
         e.preventDefault();
@@ -966,12 +965,6 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           speaker: { alias: this.actor.name },
         });
       }
-      return;
-    }
-
-    if (action === 'requestReview') {
-      const item = uuid ? await fromUuid(uuid) : null;
-      if (item) await promptReviewRequest({ item, actor: this.actor });
       return;
     }
   }

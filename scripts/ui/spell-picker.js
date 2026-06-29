@@ -4,7 +4,6 @@ import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from 
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
-import { promptReviewRequest } from '../access/review-requests.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -507,13 +506,6 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
-      if (action === 'requestReview') {
-        e.preventDefault();
-        e.stopPropagation();
-        const item = uuid ? await fromUuid(uuid) : null;
-        if (item) await promptReviewRequest({ item, actor: this.actor });
-        return;
-      }
     }, { signal });
 
     this._updateResultCount();
