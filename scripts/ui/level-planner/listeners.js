@@ -441,6 +441,8 @@ export function activateLevelPlannerListeners(planner, html) {
     planner._clearPlan();
   });
 
+  el.querySelector('[data-action="requestPlanReview"]')?.addEventListener('click', () => planner._requestReview());
+
   el.querySelector('[data-action="clearLevel"]')?.addEventListener('click', () => {
     planner._clearSelectedLevel();
   });

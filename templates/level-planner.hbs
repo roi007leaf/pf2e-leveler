@@ -26,6 +26,11 @@
         <i class="fa-solid fa-trash"></i>
         <span class="sidebar-action-btn__label">{{localize "PF2E_LEVELER.UI.CLEAR"}}</span>
       </button>
+        {{#if enableReviewRequests}}{{#unless isGM}}
+        <button type="button" class="sidebar-action-btn" data-action="requestPlanReview" data-tooltip="{{localize 'PF2E_LEVELER.REVIEW_REQUEST.BUTTON'}}">
+          <i class="fa-solid fa-flag"></i>
+        </button>
+        {{/unless}}{{/if}}
     </div>
     {{/if}}
     <div class="sidebar-levels">

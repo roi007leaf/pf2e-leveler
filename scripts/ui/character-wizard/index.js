@@ -23,6 +23,7 @@ import { buildLanguageContext, buildSkillContext, collectWizardDeitySkillMap, co
 import { activateCharacterWizardListeners } from './listeners.js';
 import { buildSpellContext, getSanitizedCurriculumSelections, limitCurriculumSelections, resolveFocusSpells, resolveGrantedSpells, resolveSummaryCurriculumSpells, resolveSummaryFocusSpells } from './spells.js';
 import { loadCommanderTactics, loadCompendium, loadCompendiumCategory, loadAncestries, loadBackgrounds, loadClasses, loadDeities, loadExemplarIkons, loadHeritages, loadInventorArmorModifications, loadInventorArmorOptions, loadInventorWeaponModifications, loadInventorWeaponOptions, loadKineticImpulses, loadRawHeritages, loadSubclasses, loadSubclassesForClass, loadTaggedClassFeatures, loadThaumaturgeImplements, loadTheses, parseCurriculum, parseSpellUuidsFromDescription, parseVesselSpell, resolveClassSubclassTag } from './loaders.js';
+import { promptReviewRequest, isReviewRequestEnabled } from '../../access/review-requests.js';
 import { annotateGuidance, annotateGuidanceBySlug, filterDisallowedForCurrentUser, sortByGuidancePriority } from '../../access/content-guidance.js';
 import { filterPublicationsForCurrentUser } from '../../access/source-classification.js';
 import { renderApplicationInFront, scheduleBringApplicationToFront } from '../shared/window-focus.js';
@@ -496,6 +497,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       publicationFilter,
       hasPublicationFilter: publicationOptions.length > 0,
       showGlobalPublicationFilter: publicationOptions.length > 0 && !browserStep,
+      enableReviewRequests: isReviewRequestEnabled(),
+      isGM: game.user?.isGM === true,
       ...applyOverlay,
       ...stepContext,
     };
@@ -1768,6 +1771,13 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     });
     input.click();
+  }
+
+  async _requestReview() {
+    await promptReviewRequest({
+      item: { uuid: this.actor?.uuid ?? null, name: `${this.actor?.name ?? ''} — Character` },
+      actor: this.actor,
+    });
   }
 
   _captureWizardScroll() {

@@ -44,6 +44,7 @@ import { bindRarityToggles } from '../shared/rarity-filters.js';
 
 export function activateCharacterWizardListeners(wizard, el) {
   el.querySelector('[data-action="exportCreationData"]')?.addEventListener('click', () => wizard._exportCreationData());
+  el.querySelector('[data-action="requestCreationReview"]')?.addEventListener('click', () => wizard._requestReview());
   el.querySelector('[data-action="importCreationData"]')?.addEventListener('click', () => wizard._importCreationData());
   el.querySelector('[data-action="prevStep"]')?.addEventListener('click', () => wizard._prevStep());
   el.querySelector('[data-action="nextStep"]')?.addEventListener('click', () => wizard._nextStep());
