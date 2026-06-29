@@ -27,14 +27,16 @@ export function collectPlannerCommentAnchors(rootEl) {
 }
 
 export function collectWizardCommentAnchors(rootEl) {
-  const anchors = [];
-  for (const step of rootEl.querySelectorAll('.wizard-step[data-step-id]')) {
-    const stepId = step.getAttribute('data-step-id');
-    if (!stepId) continue;
-    const label = step.querySelector('.wizard-step__label')?.textContent.trim() ?? stepId;
-    anchors.push({ partId: `creation:${stepId}`, host: step, label });
-  }
-  return anchors;
+  const content = rootEl.querySelector('.wizard-content[data-comment-part]');
+  if (!content) return [];
+  const partId = content.getAttribute('data-comment-part');
+  if (!partId) return [];
+  // Anchor the marker on the current step's heading so it sits inline with the
+  // step content (mirroring the planner), falling back to the content container.
+  const heading = content.querySelector('h2');
+  const host = heading ?? content;
+  const label = (heading?.textContent ?? '').trim() || partId;
+  return [{ partId, host, label }];
 }
 
 export function mountPlanComments(app, rootEl, actor, anchors) {
@@ -132,7 +134,12 @@ function renderThreadBody(bodyEl, actor, partId, canComment) {
   }
   bodyEl.innerHTML = messages.map((m) => messageMarkup(m, canComment)).join('');
   bodyEl.querySelectorAll('.plan-comment-chip[data-uuid]').forEach((chip) => {
-    chip.addEventListener('click', () => fromUuidSync(chip.dataset.uuid)?.sheet?.render(true));
+    chip.addEventListener('click', async () => {
+      // Load the full document (await fromUuid) — fromUuidSync returns a partial
+      // compendium index entry whose sheet render trips a permission warning for players.
+      const item = await fromUuid(chip.dataset.uuid).catch(() => null);
+      if (item?.sheet) item.sheet.render(true);
+    });
   });
   bodyEl.querySelectorAll('.plan-comment-msg__delete[data-message-id]').forEach((btn) => {
     btn.addEventListener('click', async () => {

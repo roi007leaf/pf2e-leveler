@@ -40,14 +40,33 @@ describe('collectPlannerCommentAnchors', () => {
 });
 
 describe('collectWizardCommentAnchors', () => {
-  it('returns one anchor per .wizard-step[data-step-id]', () => {
+  it('returns one anchor for the current step, hosting its content heading', () => {
     const root = el(`
-      <div class="wizard-step" data-step-id="ancestry"><span class="wizard-step__label">Ancestry</span></div>
-      <div class="wizard-step" data-step-id="class"><span class="wizard-step__label">Class</span></div>
-      <div class="wizard-step"><span class="wizard-step__label">no id</span></div>
+      <div class="wizard-content" data-comment-part="creation:ancestry">
+        <div class="wizard-main"><h2>Ancestry</h2></div>
+      </div>
     `);
     const anchors = collectWizardCommentAnchors(root);
-    expect(anchors.map((a) => a.partId)).toEqual(['creation:ancestry', 'creation:class']);
+    expect(anchors).toHaveLength(1);
+    expect(anchors[0].partId).toBe('creation:ancestry');
+    expect(anchors[0].host.tagName).toBe('H2');
     expect(anchors[0].label).toBe('Ancestry');
+  });
+
+  it('falls back to the content container and partId label when no heading is present', () => {
+    const root = el(`
+      <div class="wizard-content" data-comment-part="creation:summary">
+        <div class="wizard-main"></div>
+      </div>
+    `);
+    const anchors = collectWizardCommentAnchors(root);
+    expect(anchors).toHaveLength(1);
+    expect(anchors[0].host.classList.contains('wizard-content')).toBe(true);
+    expect(anchors[0].label).toBe('creation:summary');
+  });
+
+  it('returns no anchors when the content has no data-comment-part', () => {
+    const root = el(`<div class="wizard-content"><div class="wizard-main"><h2>X</h2></div></div>`);
+    expect(collectWizardCommentAnchors(root)).toEqual([]);
   });
 });
