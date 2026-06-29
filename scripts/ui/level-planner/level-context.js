@@ -1366,14 +1366,28 @@ async function buildNaturalAmbitionChoiceSet(planner) {
   };
 }
 
+// The "Advanced [Archetype]" multiclass feats let you gain a class feat from the
+// archetype's class, so we synthesize a class-feat browse for them. This must only
+// fire for ARCHETYPE feats — base class feats like "Advanced Domain" (cleric) also
+// start with "advanced-" but carry their own rules, so they must be left untouched.
+export function isAdvancedMulticlassFeatCandidate(feat, source) {
+  const slug = String(feat?.slug ?? source?.system?.slug ?? source?.slug ?? '').trim().toLowerCase();
+  const name = String(feat?.name ?? source?.name ?? '').trim().toLowerCase();
+  const isConcoction = slug === 'basic-concoction' || slug === 'advanced-concoction' || name === 'basic concoction' || name === 'advanced concoction';
+  if (isConcoction) return true;
+  if ((source?.system?.rules ?? []).some((rule) => rule?.key === 'GrantItem')) return false;
+  if (!slug.startsWith('advanced-') && !name.startsWith('advanced ')) return false;
+  const traits = (source?.system?.traits?.value ?? feat?.traits ?? []).map((trait) => String(trait).toLowerCase());
+  return traits.includes('archetype');
+}
+
 async function buildAdvancedMulticlassClassFeatChoiceSet(planner, feat, source, parsedChoiceSets = []) {
   if (hasUsableChoiceSet(parsedChoiceSets, ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG)) return null;
+  if (!isAdvancedMulticlassFeatCandidate(feat, source)) return null;
 
   const slug = String(feat?.slug ?? source?.system?.slug ?? source?.slug ?? '').trim().toLowerCase();
   const name = String(feat?.name ?? source?.name ?? '').trim().toLowerCase();
   const isConcoction = slug === 'basic-concoction' || slug === 'advanced-concoction' || name === 'basic concoction' || name === 'advanced concoction';
-  if (!isConcoction && (source?.system?.rules ?? []).some((rule) => rule?.key === 'GrantItem')) return null;
-  if (!isConcoction && !slug.startsWith('advanced-') && !name.startsWith('advanced ')) return null;
 
   const classSlug = isConcoction ? 'alchemist' : getPlannerDedicationArchetypeSlug(feat, source);
   if (!classSlug || !ClassRegistry.has(classSlug)) return null;

@@ -1,9 +1,30 @@
-import { buildSkillRetrainSources, getClassFeaturesForLevel } from '../../../scripts/ui/level-planner/level-context.js';
+import { buildSkillRetrainSources, getClassFeaturesForLevel, isAdvancedMulticlassFeatCandidate } from '../../../scripts/ui/level-planner/level-context.js';
 import { buildSkillContext } from '../../../scripts/ui/level-planner/context.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
+
+describe('isAdvancedMulticlassFeatCandidate', () => {
+  test('true for an "Advanced" archetype feat with no GrantItem', () => {
+    const source = { system: { slug: 'advanced-bloodline', traits: { value: ['archetype'] }, rules: [] } };
+    expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-bloodline' }, source)).toBe(true);
+  });
+
+  test('false for a base class feat like Advanced Domain (no archetype trait)', () => {
+    const source = { system: { slug: 'advanced-domain', traits: { value: ['cleric'] }, rules: [{ key: 'ActiveEffectLike', path: 'flags.system.soulWarden.featCount', value: 1 }] } };
+    expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-domain' }, source)).toBe(false);
+  });
+
+  test('false for an "Advanced" archetype feat that already grants an item', () => {
+    const source = { system: { slug: 'advanced-deity', traits: { value: ['archetype'] }, rules: [{ key: 'GrantItem', uuid: 'Compendium.x.Item.y' }] } };
+    expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-deity' }, source)).toBe(false);
+  });
+
+  test('true for Basic/Advanced Concoction regardless of traits', () => {
+    expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-concoction' }, { system: { slug: 'advanced-concoction', traits: { value: ['archetype'] }, rules: [] } })).toBe(true);
+  });
+});
 
 describe('level planner class feature context', () => {
   beforeAll(() => {

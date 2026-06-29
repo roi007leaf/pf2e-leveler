@@ -19,6 +19,10 @@
 
 - **Legacy alignment prerequisites no longer show as unmet** - Pathfinder Remaster removed alignment, but some feats still carry alignment prerequisites such as "non-evil alignment" or "you follow a good-aligned deity". These previously appeared as a red, unmet requirement; they are now reported as unverified legacy text, so they neither block selection nor mislead
 
+### Level Planner
+
+- **"Advanced" base class feats no longer ask for an unrelated class feat** - The helper that lets multiclass "Advanced [Archetype]" feats grant a class feat was firing on base class feats whose name merely starts with "Advanced" - such as the cleric's Advanced Domain - and wrongly prompting you to browse for another class feat. It is now limited to archetype feats, so Advanced Domain and similar feats apply without the bogus picker (#84)
+
 ## 3.5.8
 
 ### Content Guidance
