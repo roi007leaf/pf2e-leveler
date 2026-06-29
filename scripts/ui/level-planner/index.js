@@ -26,6 +26,7 @@ import { buildAttributeContext, buildImportedInitialSkillContext, buildImportedI
 import { annotateFeat, buildABPContext, buildFeatGrantPreview, buildLoreSkillIncreaseEntry, buildLevelContext, buildSkillRetrainSources, extractFeat, getClassFeaturesForLevel } from './level-context.js';
 import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules, syncSameLevelSkillIncreaseFromFeatRules } from './listeners.js';
 import { buildSpellContext, buildCustomSpellEntryOptions, buildSpellSlotDisplay, detectNewSpellRank, findFeatLevel, getDedicationSelectionLimitsForPlanner, getActorSpellCounts, getFocusSpellsForLevel, getGrantedSpellsForLevel, getHighestRank, getSubclassSlug, ordinalRank, resolveSpellTradition, shouldExcludeOwnedSpellIdentityForPlanner } from './spells.js';
+import { mountPlanComments, collectPlannerCommentAnchors } from '../plan-comments-ui.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
@@ -996,6 +997,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._scheduleInitialBringToFront();
     this._restorePlannerScroll(html);
     this._activateListeners(html);
+    if (html) mountPlanComments(this, html, this.actor, collectPlannerCommentAnchors(html));
   }
 
   _scheduleInitialBringToFront() {

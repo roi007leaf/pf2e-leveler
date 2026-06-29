@@ -82,7 +82,7 @@
         </div>
 
         {{#if classFeatures.length}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:classFeatures">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-medal"></i>
             {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEATURES"}}
@@ -138,7 +138,7 @@
         </div>
         {{/if}}
 
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:retraining">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-retweet"></i>
             Downtime Retraining
@@ -170,7 +170,7 @@
         </div>
 
         {{#if grantRequirements.length}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:grantedChoices">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-wand-magic-sparkles"></i>
             Granted Choices
@@ -200,7 +200,7 @@
         {{/if}}
 
         {{#if showBoosts}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:boosts">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-arrow-up"></i>
             {{format "PF2E_LEVELER.BOOSTS.TITLE" count=boostCount}} ({{selectedBoostCount}}/{{boostCount}})
@@ -247,7 +247,7 @@
         {{/if}}
 
         {{#if intelligenceBenefit}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:intSkills">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-brain"></i>
             {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_SKILLS" selected=intBonusSkillCount count=intelligenceBenefit.count}}
@@ -278,7 +278,7 @@
         {{/if}}
 
         {{#if intBonusLanguageOptions}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:intLanguages">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-language"></i>
             {{format "PF2E_LEVELER.CREATION.INTELLIGENCE_BONUS_LANGUAGES" selected=intBonusLanguageCount count=intelligenceBenefit.count}}
@@ -311,7 +311,7 @@
         {{/if}}
 
         {{#if showClassFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:classFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-book"></i>
             {{localize "PF2E_LEVELER.SECTIONS.CLASS_FEAT"}}
@@ -396,7 +396,7 @@
         {{/if}}
 
         {{#if showSkillFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:skillFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-wrench"></i>
             {{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}
@@ -408,7 +408,7 @@
         {{/if}}
 
         {{#if showGeneralFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:generalFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-shield"></i>
             {{localize "PF2E_LEVELER.SECTIONS.GENERAL_FEAT"}}
@@ -521,7 +521,7 @@
         {{/if}}
 
         {{#if showAncestryFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:ancestryFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-dna"></i>
             {{localize "PF2E_LEVELER.SECTIONS.ANCESTRY_FEAT"}}
@@ -599,7 +599,7 @@
         {{/if}}
 
         {{#if showSkillIncrease}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:skillIncrease">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-chart-line"></i>
             {{localize "PF2E_LEVELER.SECTIONS.SKILL_INCREASE"}}
@@ -641,7 +641,7 @@
         {{/if}}
 
         {{#if showArchetypeFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:archetypeFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-masks-theater"></i>
             {{localize "PF2E_LEVELER.SECTIONS.ARCHETYPE_FEAT"}}
@@ -719,7 +719,7 @@
         {{/if}}
 
         {{#if showMythicFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:mythicFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-bolt"></i>
             {{localize "PF2E_LEVELER.SECTIONS.MYTHIC_FEAT"}}
@@ -731,7 +731,7 @@
         {{/if}}
 
         {{#if showDualClassFeat}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:dualClassFeat">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-users"></i>
             {{localize "PF2E_LEVELER.SECTIONS.DUAL_CLASS_FEAT"}}
@@ -743,7 +743,7 @@
         {{/if}}
 
         {{#if showEquipment}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:equipment">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-shield-halved"></i>
             {{localize "PF2E_LEVELER.SECTIONS.EQUIPMENT"}}
@@ -781,7 +781,7 @@
         {{/if}}
 
         {{#if showCustomLevelPlan}}
-        <div class="level-section level-section--custom-plan">
+        <div class="level-section level-section--custom-plan" data-comment-part="level:{{selectedLevel}}:customPlan">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-sliders"></i>
             {{localize "PF2E_LEVELER.SECTIONS.CUSTOM_LEVEL_PLAN"}}
@@ -1145,7 +1145,7 @@
         {{/if}}
 
         {{#if showABP}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:abp">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-gem"></i>
             {{localize "PF2E_LEVELER.SECTIONS.ABP_POTENCY"}}
@@ -1168,7 +1168,7 @@
         {{/if}}
 
         {{#if showSpells}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:spellcasting">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-sparkles"></i>
             {{localize "PF2E_LEVELER.SECTIONS.SPELLCASTING"}}
@@ -1427,7 +1427,7 @@
         {{/if}}
 
         {{#if showApparitions}}
-        <div class="level-section">
+        <div class="level-section" data-comment-part="level:{{selectedLevel}}:apparitions">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-ghost"></i>
             {{localize "PF2E_LEVELER.ANIMIST.APPARITIONS"}}
