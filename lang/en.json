@@ -751,6 +751,8 @@
       "RESOLVED_BADGE": "Resolved",
       "DELETE": "Delete comment",
       "DROP_HINT": "Drag an item, spell, or feat here to attach it",
+      "PASTE_HINT": "…or paste an item UUID / @UUID link, then Enter",
+      "ATTACH_INVALID": "Couldn't find an item for that UUID.",
       "ATTACH_REMOVE": "Remove attachment",
       "READ_ONLY": "You can view comments but not post on this character.",
       "MARKER_TOOLTIP": "Comments",

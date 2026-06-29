@@ -2,6 +2,7 @@ import {
   markerStateClass,
   collectPlannerCommentAnchors,
   collectWizardCommentAnchors,
+  parseAttachmentUuid,
 } from '../../../scripts/ui/plan-comments-ui.js';
 
 function el(html) {
@@ -19,6 +20,21 @@ describe('markerStateClass', () => {
   it('returns empty for null/undefined summary', () => {
     expect(markerStateClass(undefined)).toBe('empty');
     expect(markerStateClass(null)).toBe('empty');
+  });
+});
+
+describe('parseAttachmentUuid', () => {
+  it('returns a bare UUID unchanged', () => {
+    expect(parseAttachmentUuid('Compendium.pf2e.equipment-srd.Item.abc')).toBe('Compendium.pf2e.equipment-srd.Item.abc');
+    expect(parseAttachmentUuid('  Item.123  ')).toBe('Item.123');
+  });
+  it('extracts the UUID from a @UUID content link', () => {
+    expect(parseAttachmentUuid('@UUID[Compendium.pf2e.feats-srd.Item.xyz]{Toughness}')).toBe('Compendium.pf2e.feats-srd.Item.xyz');
+  });
+  it('returns null for empty/whitespace', () => {
+    expect(parseAttachmentUuid('')).toBeNull();
+    expect(parseAttachmentUuid('   ')).toBeNull();
+    expect(parseAttachmentUuid(null)).toBeNull();
   });
 });
 

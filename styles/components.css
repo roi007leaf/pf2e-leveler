@@ -1385,6 +1385,7 @@
   opacity: 0.6;
 }
 .plan-comments-composer__drop.is-dragover { opacity: 1; border-color: var(--leveler-accent); }
+.plan-comments-composer__uuid { width: 100%; box-sizing: border-box; font-size: 0.75rem; }
 .plan-comments-composer__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .plan-comments-composer__text { width: 100%; box-sizing: border-box; resize: vertical; }
 .plan-comments-composer__actions { display: flex; gap: 8px; justify-content: flex-end; }

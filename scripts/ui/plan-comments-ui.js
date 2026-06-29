@@ -135,6 +135,7 @@ function composerMarkup(thread, canResolve) {
   return `
     <div class="plan-comments-composer">
       <div class="plan-comments-composer__drop">${game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.DROP_HINT')}</div>
+      <input type="text" class="plan-comments-composer__uuid" placeholder="${game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.PASTE_HINT')}">
       <div class="plan-comments-composer__chips"></div>
       <textarea class="plan-comments-composer__text" rows="2" placeholder="${hasMessages ? game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.REPLY_PLACEHOLDER') : game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.COMPOSER_PLACEHOLDER')}"></textarea>
       <div class="plan-comments-composer__actions">
@@ -215,6 +216,27 @@ function wireComposer(pop, actor, partId, partLabel, pendingItems) {
     if (uuid && !pendingItems.includes(uuid)) { pendingItems.push(uuid); renderChips(); }
   });
 
+  const uuidInput = pop.querySelector('.plan-comments-composer__uuid');
+  const attachFromText = async (raw) => {
+    const candidate = parseAttachmentUuid(raw);
+    if (!candidate) return;
+    const doc = await fromUuid(candidate).catch(() => null);
+    if (!doc?.uuid) { ui.notifications?.warn(t('ATTACH_INVALID')); return; }
+    if (!pendingItems.includes(doc.uuid)) { pendingItems.push(doc.uuid); renderChips(); }
+    uuidInput.value = '';
+  };
+  uuidInput?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    void attachFromText(uuidInput.value);
+  });
+  uuidInput?.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text');
+    if (!text) return;
+    e.preventDefault();
+    void attachFromText(text);
+  });
+
   pop.querySelector('.plan-comments-composer__post').addEventListener('click', async () => {
     const text = textEl.value;
     if (!text.trim()) return;
@@ -238,6 +260,15 @@ function parseDropUuid(event) {
   } catch {
     return null;
   }
+}
+
+// Extract a UUID candidate from pasted text: a bare UUID, or the UUID inside a
+// content link like @UUID[Compendium.pf2e.equipment-srd.Item.abc]{Name}.
+export function parseAttachmentUuid(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+  const link = text.match(/@UUID\[([^\]]+)\]/);
+  return link ? link[1].trim() : text;
 }
 
 function positionPopover(pop, hostEl, rootEl) {
