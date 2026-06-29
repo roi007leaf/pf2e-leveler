@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.5.8
+
+### Content Guidance
+
+- **Hide disallowed sources from the publication filters** - A new "Disallowed sources in filters" setting lets GMs drop sources they have banned in Content Guidance from the publication filter lists (everywhere, or for players only); items from those sources are still filtered out as before
+- **Filter pickers by guidance status** - A "Guidance" chip group in the feat, spell, and equipment pickers filters by Suggested / Allowed / Not Recommended / Disallowed (the Disallowed chip is GM-only)
+- **Request GM review of an option** - Players get a "Request GM review" button on picker items that sends the GM a note about the item; GMs review and resolve requests from a new Review Requests panel. Non-blocking — nothing is gated or auto-applied
+
+### Pickers & UX
+
+- **Remaster-only and Hide guns & tech filter toggles** - The feat, spell, and equipment pickers gain quick toggles to show only remaster content or to hide firearm/tech items
+
 ## 3.5.7
 
 ### Prerequisites
