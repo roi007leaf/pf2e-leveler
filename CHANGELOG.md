@@ -11,6 +11,7 @@
 ### Pickers & UX
 
 - **Remaster-only and Hide guns & tech filter toggles** - The feat, spell, and equipment pickers gain quick toggles to show only remaster content or to hide firearm/tech items
+- **Publication group quick-filters** - The publication filter in each picker gains group chips - Adventure Paths, AP Player's Guides, Stand-Alone Adventures, Blogs, and Lost Omens - that select or clear every source in a group at once, taming long source lists
 
 ## 3.5.7
 
