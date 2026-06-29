@@ -702,6 +702,11 @@
         "HIDE": "Hide from filter lists",
         "HIDE_NON_GM": "Hide for players only"
       }
+    },
+    "REVIEW_REQUEST": {
+      "SENT": "Review request sent to the GM.",
+      "NO_GM": "No GM is online — your request was logged and will reach them later.",
+      "RECEIVED": "{name} requested GM review of {item}."
     }
   }
 }

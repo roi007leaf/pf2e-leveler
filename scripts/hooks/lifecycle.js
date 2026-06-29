@@ -5,6 +5,7 @@ import { ensureClassRegistry } from '../classes/ensure.js';
 import { registerSheetIntegration } from '../ui/sheet-integration.js';
 import { ensureLevelerTemplatesLoaded } from '../ui/template-preload.js';
 import { info } from '../utils/logger.js';
+import { registerReviewRequestSocket } from '../access/review-requests.js';
 
 export function registerLifecycleHooks() {
   Hooks.once('init', onInit);
@@ -25,6 +26,7 @@ async function onReady() {
   info('Module ready');
   await migrateWealthSettings();
   registerSheetIntegration();
+  registerReviewRequestSocket();
 }
 
 function registerClasses() {

@@ -281,6 +281,13 @@ export function registerSettings() {
     onChange: () => invalidateContentPickers(),
   });
 
+  game.settings.register(MODULE_ID, 'reviewRequests', {
+    scope: 'world',
+    config: false,
+    type: Array,
+    default: [],
+  });
+
   game.settings.register(MODULE_ID, 'additionalFeatCompendiums', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ADDITIONAL_COMPENDIUMS.HINT'),
