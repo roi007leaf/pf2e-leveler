@@ -7,7 +7,8 @@
 - **Hide disallowed sources from the publication filters** - A new "Disallowed sources in filters" setting lets GMs drop sources they have banned in Content Guidance from the publication filter lists (everywhere, or for players only); items from those sources are still filtered out as before
 - **Bulk-mark sources by category** - The Content Guidance Sources tab adds "Bulk by Group" controls (Adventure Paths, AP Player's Guides, Stand-Alone Adventures, Blogs, Lost Omens) that apply a guidance status to every source in a category at once
 - **Filter pickers by guidance status** - A "Guidance" chip group in the feat, spell, and equipment pickers filters by Suggested / Allowed / Not Recommended / Disallowed (the Disallowed chip is GM-only)
-- **Request GM review of a build** - When a GM turns on the new "Enable player review requests" setting (off by default), players get a "Request GM review" button in the Level Planner and in Character Creation that sends the GM their build with an optional note; the GM reviews and resolves requests from a new Review Requests panel. Non-blocking — nothing is gated or auto-applied
+- **Request GM review of a build** - When a GM turns on the new "Enable player review requests" setting (off by default), players get a "Request GM review" button in the Level Planner and in Character Creation that sends the GM their build with an optional note; the GM reviews and resolves requests from a new Review Requests panel
+- **Optional: require GM approval before applying** - A separate "Require GM approval before applying" setting (off by default) blocks non-GM players from applying a level-up or finishing Character Creation until the GM approves (Resolves) their review request for that character; the approval holds until the GM Reopens or Dismisses it
 
 ### Pickers & UX
 
