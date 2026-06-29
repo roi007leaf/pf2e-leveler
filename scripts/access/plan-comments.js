@@ -103,3 +103,51 @@ export async function deletePlanComment(actor, partId, messageId) {
   if (!canCommentOnActor(actor)) return;
   await writePlanComments(actor, removeMessageFromThreads(getPlanComments(actor), partId, messageId));
 }
+
+// "Whose turn" count: unresolved threads whose last message came from the OTHER side.
+// forGM=true counts threads where a player spoke last (awaiting the GM); forGM=false
+// counts threads where the GM spoke last (awaiting the player). scope ('level'|'creation')
+// optionally restricts to one tool's threads.
+export function countAwaitingComments(actor, { forGM = false, scope = null } = {}) {
+  const threads = getPlanComments(actor);
+  let count = 0;
+  for (const [partId, thread] of Object.entries(threads)) {
+    if (scope && !partId.startsWith(`${scope}:`)) continue;
+    if (thread?.resolved === true) continue;
+    const messages = Array.isArray(thread?.messages) ? thread.messages : [];
+    const last = messages[messages.length - 1];
+    if (!last) continue;
+    const lastByGM = last.isGM === true;
+    if (forGM ? !lastByGM : lastByGM) count += 1;
+  }
+  return count;
+}
+
+// The users to whisper when the current user posts a comment: a GM poster notifies the
+// actor's owning players; a player poster notifies the GMs.
+export function getCommentNotifyRecipients(actor) {
+  if (game.user?.isGM === true) {
+    return (game.users?.players ?? []).filter((u) => actor?.testUserPermission?.(u, 'OWNER') === true);
+  }
+  return ChatMessage?.getWhisperRecipients?.('GM') ?? [];
+}
+
+export async function notifyCommentPosted({ actor, partLabel, message } = {}) {
+  if (!actor || !message) return;
+  const recipients = getCommentNotifyRecipients(actor)
+    .map((u) => u?.id)
+    .filter((id) => id && id !== game.user?.id);
+  if (recipients.length === 0) return;
+  const esc = foundry.utils.escapeHTML;
+  const link = `@UUID[${actor.uuid}]{${actor.name ?? ''}}`;
+  const intro = game.i18n.format('PF2E_LEVELER.PLAN_COMMENTS.NOTIFY', {
+    author: esc(message.authorName ?? ''),
+    part: esc(partLabel ?? ''),
+  });
+  const snippet = String(message.text ?? '').slice(0, 140);
+  await ChatMessage.create({
+    whisper: recipients,
+    flags: { [MODULE_ID]: { planCommentNotice: true } },
+    content: `<p>${link} — ${intro}</p>${snippet ? `<blockquote>${esc(snippet)}</blockquote>` : ''}`,
+  });
+}

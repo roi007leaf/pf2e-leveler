@@ -754,7 +754,9 @@
       "ATTACH_REMOVE": "Remove attachment",
       "READ_ONLY": "You can view comments but not post on this character.",
       "MARKER_TOOLTIP": "Comments",
-      "CLOSE": "Close"
+      "CLOSE": "Close",
+      "NOTIFY": "{author} commented on \"{part}\"",
+      "BADGE_AWAITING": "{count} comment thread(s) awaiting your reply"
     }
   }
 }

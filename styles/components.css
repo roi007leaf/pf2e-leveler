@@ -1296,6 +1296,27 @@
 .plan-comment-marker__count { font-size: 0.7rem; font-weight: 600; }
 /* Wizard: marker sits inline beside the current step's heading (planner-parity). */
 .pf2e-leveler .wizard-content h2 .plan-comment-marker { margin-left: 8px; opacity: 1; vertical-align: middle; }
+/* "Awaiting your reply" badge on the actor-sheet launch buttons (rendered in the sheet
+   window header, outside .pf2e-leveler — selectors stay unscoped). */
+.pf2e-leveler-create-btn,
+.pf2e-leveler-plan-btn { position: relative; }
+.pf2e-leveler-comment-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--leveler-accent, #c4b49e);
+  color: #1e1e1e;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
 
 .plan-comments-popover {
   position: absolute;

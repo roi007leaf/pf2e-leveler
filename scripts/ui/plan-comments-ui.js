@@ -3,6 +3,7 @@ import {
   deletePlanComment,
   getCommentSummary,
   getThread,
+  notifyCommentPosted,
   postPlanComment,
   setPlanCommentResolved,
 } from '../access/plan-comments.js';
@@ -106,7 +107,7 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
     pop.remove();
   });
 
-  if (canComment) wireComposer(pop, actor, anchor.partId, pendingItems);
+  if (canComment) wireComposer(pop, actor, anchor.partId, anchor.label, pendingItems);
 }
 
 function composerMarkup(thread) {
@@ -169,7 +170,7 @@ function messageMarkup(m, canComment) {
   `;
 }
 
-function wireComposer(pop, actor, partId, pendingItems) {
+function wireComposer(pop, actor, partId, partLabel, pendingItems) {
   const drop = pop.querySelector('.plan-comments-composer__drop');
   const chipsEl = pop.querySelector('.plan-comments-composer__chips');
   const textEl = pop.querySelector('.plan-comments-composer__text');
@@ -198,10 +199,11 @@ function wireComposer(pop, actor, partId, pendingItems) {
   pop.querySelector('.plan-comments-composer__post').addEventListener('click', async () => {
     const text = textEl.value;
     if (!text.trim()) return;
-    await postPlanComment(actor, partId, { text, items: [...pendingItems] });
+    const posted = await postPlanComment(actor, partId, { text, items: [...pendingItems] });
     textEl.value = '';
     pendingItems.length = 0;
     renderChips();
+    if (posted) void notifyCommentPosted({ actor, partLabel, message: posted });
   });
 
   pop.querySelector('.plan-comments-composer__resolve')?.addEventListener('click', async () => {

@@ -6,6 +6,7 @@ import { ensureLevelerTemplatesLoaded } from './template-preload.js';
 import { LevelPlanner } from './level-planner/index.js';
 import { CharacterWizard } from './character-wizard/index.js';
 import { renderApplicationInFront, scheduleBringApplicationToFront } from './shared/window-focus.js';
+import { canCommentOnActor, countAwaitingComments } from '../access/plan-comments.js';
 
 const PLANNER_WINDOW_SELECTORS = ['#pf2e-leveler-planner', '.pf2e-leveler.level-planner'];
 const WIZARD_WINDOW_SELECTORS = ['#pf2e-leveler-wizard', '.pf2e-leveler.character-wizard'];
@@ -44,6 +45,17 @@ function getCreationButtonTitle(actor) {
     : localize('CREATION.EDIT_BUTTON');
 }
 
+// Attach an "awaiting your reply" comment badge to a launch button, scoped to that
+// tool's threads ('level' for the planner, 'creation' for the wizard). Stateless: a
+// thread awaits you when the other party posted last and it is unresolved.
+function addCommentBadge(button, actor, scope) {
+  if (!canCommentOnActor(actor)) return;
+  const count = countAwaitingComments(actor, { forGM: game.user?.isGM === true, scope });
+  if (count <= 0) return;
+  const tooltip = game.i18n.format('PF2E_LEVELER.PLAN_COMMENTS.BADGE_AWAITING', { count });
+  button.append(`<span class="pf2e-leveler-comment-badge" data-tooltip="${tooltip}">${count}</span>`);
+}
+
 function onRenderCharacterSheet(sheet, html) {
   if (!game.settings.get(MODULE_ID, 'showPlanButton')) return;
 
@@ -73,6 +85,7 @@ function onRenderCharacterSheet(sheet, html) {
       event.stopPropagation();
       void openWizard(actor, getApplicationElementFromEvent(event));
     });
+    addCommentBadge(createBtn, actor, 'creation');
     if (closeBtn.length) closeBtn.before(createBtn);
     else windowHeader.append(createBtn);
   }
@@ -89,6 +102,7 @@ function onRenderCharacterSheet(sheet, html) {
       event.stopPropagation();
       void openPlanner(actor, getApplicationElementFromEvent(event));
     });
+    addCommentBadge(planBtn, actor, 'level');
     if (closeBtn.length) closeBtn.before(planBtn);
     else windowHeader.append(planBtn);
   }
