@@ -739,6 +739,21 @@
       "REQUESTED_BY": "Requested by {name}",
       "FOR_CHARACTER": "Character: {actor}",
       "APPROVAL_REQUIRED": "Your GM must approve a review request for this character before you can apply. Use \"Request GM review\" first."
+    },
+    "PLAN_COMMENTS": {
+      "TITLE": "Comments",
+      "EMPTY": "No comments yet.",
+      "COMPOSER_PLACEHOLDER": "Write a comment…",
+      "REPLY_PLACEHOLDER": "Reply…",
+      "POST": "Post",
+      "RESOLVE": "Resolve",
+      "REOPEN": "Reopen",
+      "RESOLVED_BADGE": "Resolved",
+      "DELETE": "Delete comment",
+      "DROP_HINT": "Drag an item, spell, or feat here to attach it",
+      "ATTACH_REMOVE": "Remove attachment",
+      "READ_ONLY": "You can view comments but not post on this character.",
+      "MARKER_TOOLTIP": "Comments"
     }
   }
 }
