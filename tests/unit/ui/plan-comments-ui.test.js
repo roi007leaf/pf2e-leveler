@@ -69,16 +69,18 @@ describe('collectWizardCommentAnchors', () => {
     expect(anchors[0].label).toBe('Ancestry');
   });
 
-  it('falls back to the content container and partId label when no heading is present', () => {
+  it('floats on the content container when no heading is present, labelled by the active step', () => {
     const root = el(`
-      <div class="wizard-content" data-comment-part="creation:summary">
+      <div class="wizard-step active"><span class="wizard-step__label">Feats</span></div>
+      <div class="wizard-content" data-comment-part="creation:feats">
         <div class="wizard-main"></div>
       </div>
     `);
     const anchors = collectWizardCommentAnchors(root);
     expect(anchors).toHaveLength(1);
     expect(anchors[0].host.classList.contains('wizard-content')).toBe(true);
-    expect(anchors[0].label).toBe('creation:summary');
+    expect(anchors[0].floating).toBe(true);
+    expect(anchors[0].label).toBe('Feats');
   });
 
   it('returns no anchors when the content has no data-comment-part', () => {

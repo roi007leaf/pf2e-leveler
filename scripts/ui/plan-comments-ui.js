@@ -34,12 +34,13 @@ export function collectWizardCommentAnchors(rootEl) {
   if (!content) return [];
   const partId = content.getAttribute('data-comment-part');
   if (!partId) return [];
-  // Anchor the marker on the current step's heading so it sits inline with the
-  // step content (mirroring the planner), falling back to the content container.
+  const stepLabel = rootEl.querySelector('.wizard-step.active .wizard-step__label')?.textContent.trim();
+  // Most steps have an <h2> — anchor the marker beside it (mirrors the planner).
   const heading = content.querySelector('h2');
-  const host = heading ?? content;
-  const label = (heading?.textContent ?? '').trim() || partId;
-  return [{ partId, host, label }];
+  if (heading) return [{ partId, host: heading, label: heading.textContent.trim() || stepLabel || partId }];
+  // Heading-less steps (e.g. Feats) — float the marker at the content's top-right
+  // instead of letting it append at the bottom of the flex column.
+  return [{ partId, host: content, label: stepLabel || partId, floating: true }];
 }
 
 export function mountPlanComments(app, rootEl, actor, anchors) {
@@ -77,7 +78,7 @@ function injectMarker(app, rootEl, actor, anchor, canComment) {
   const awaiting = threadAwaitsViewer(getThread(actor, anchor.partId), game.user?.isGM === true);
   const marker = document.createElement('button');
   marker.type = 'button';
-  marker.className = `plan-comment-marker plan-comment-marker--${state}${awaiting ? ' plan-comment-marker--awaiting' : ''}`;
+  marker.className = `plan-comment-marker plan-comment-marker--${state}${awaiting ? ' plan-comment-marker--awaiting' : ''}${anchor.floating ? ' plan-comment-marker--floating' : ''}`;
   marker.dataset.commentMarker = anchor.partId;
   marker.setAttribute('data-tooltip', awaiting ? t('AWAITING_TOOLTIP') : `${t('MARKER_TOOLTIP')}${summary.isEmpty ? '' : ` (${summary.count})`}`);
   marker.innerHTML = summary.isEmpty
