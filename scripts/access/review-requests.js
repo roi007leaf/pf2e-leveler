@@ -128,16 +128,18 @@ export async function submitReviewRequest({ item, actor, note } = {}) {
     // so the request is reliably persisted regardless of who triggers it.
     await socket.executeAsGM('recordReviewRequest', request);
     ui.notifications?.info(game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.SENT'));
-  } catch {
-    // No GM connected (or socketlib unavailable): fall back to a durable flagged GM-whisper that
-    // the Review Requests panel folds into the stored list the next time a GM opens it.
+  } catch (err) {
+    // socketlib's live path is unavailable (module not active) or no GM is connected. The request
+    // is NOT lost: deliver it durably as a flagged GM-whisper that the Review Requests panel folds
+    // into the stored list the next time a GM opens it. (Enable socketlib for the instant path.)
+    console.warn('pf2e-leveler | review request delivered via GM-whisper fallback (socketlib inactive or no GM connected)', err);
     const esc = foundry.utils.escapeHTML;
     await ChatMessage.create({
       whisper: ChatMessage.getWhisperRecipients('GM').map((user) => user.id),
       flags: { [MODULE_ID]: { reviewRequest: request } },
       content: `<p><strong>${esc(request.requesterName)}</strong> requests GM review of <strong>${esc(request.itemName)}</strong>${request.note ? `: ${esc(request.note)}` : ''}</p>`,
     });
-    ui.notifications?.warn(game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.NO_GM'));
+    ui.notifications?.info(game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.SENT'));
   }
   return request;
 }
