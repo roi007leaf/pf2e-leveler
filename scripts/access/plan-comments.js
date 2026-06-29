@@ -104,6 +104,16 @@ export async function deletePlanComment(actor, partId, messageId) {
   await writePlanComments(actor, removeMessageFromThreads(getPlanComments(actor), partId, messageId));
 }
 
+// A single thread "awaits the viewer" when it is unresolved and the last message came
+// from the other side (GM viewer ⇢ player spoke last; player viewer ⇢ GM spoke last).
+export function threadAwaitsViewer(thread, isGM) {
+  if (!thread || thread.resolved === true) return false;
+  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  const last = messages[messages.length - 1];
+  if (!last) return false;
+  return (last.isGM === true) !== (isGM === true);
+}
+
 // "Whose turn" count: unresolved threads whose last message came from the OTHER side.
 // forGM=true counts threads where a player spoke last (awaiting the GM); forGM=false
 // counts threads where the GM spoke last (awaiting the player). scope ('level'|'creation')

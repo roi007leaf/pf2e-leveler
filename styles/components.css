@@ -1294,6 +1294,20 @@
 .plan-comment-marker--unresolved { opacity: 1; color: var(--leveler-accent); }
 .plan-comment-marker--resolved { opacity: 0.7; color: var(--leveler-success); }
 .plan-comment-marker__count { font-size: 0.7rem; font-weight: 600; }
+/* "Awaiting your reply": the other party spoke last and the thread is unresolved.
+   An attention dot makes the threads that need YOUR response stand out. */
+.plan-comment-marker--awaiting { position: relative; opacity: 1; color: var(--leveler-accent); }
+.plan-comment-marker--awaiting::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--leveler-warning, #e0a458);
+  box-shadow: 0 0 0 1px var(--leveler-bg, #1e1e1e);
+}
 /* Wizard: marker sits inline beside the current step's heading (planner-parity). */
 .pf2e-leveler .wizard-content h2 .plan-comment-marker { margin-left: 8px; opacity: 1; vertical-align: middle; }
 /* "Awaiting your reply" badge on the actor-sheet launch buttons (rendered in the sheet

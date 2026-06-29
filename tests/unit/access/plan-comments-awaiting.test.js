@@ -2,6 +2,7 @@ import {
   countAwaitingComments,
   getCommentNotifyRecipients,
   notifyCommentPosted,
+  threadAwaitsViewer,
 } from '../../../scripts/access/plan-comments.js';
 
 const gmMsg = (over = {}) => ({ id: 'g', isGM: true, authorName: 'GM', text: 'hi', ts: 1, items: [], ...over });
@@ -38,6 +39,22 @@ describe('countAwaitingComments (whose-turn semantics)', () => {
     expect(countAwaitingComments(a, { forGM: false, scope: 'level' })).toBe(1);
     expect(countAwaitingComments(a, { forGM: false, scope: 'creation' })).toBe(1);
     expect(countAwaitingComments(a, { forGM: false })).toBe(2);
+  });
+});
+
+describe('threadAwaitsViewer', () => {
+  it('awaits the GM viewer when a player spoke last and the thread is unresolved', () => {
+    expect(threadAwaitsViewer({ resolved: false, messages: [gmMsg(), plMsg()] }, true)).toBe(true);
+    expect(threadAwaitsViewer({ resolved: false, messages: [gmMsg(), plMsg()] }, false)).toBe(false);
+  });
+  it('awaits the player viewer when the GM spoke last and the thread is unresolved', () => {
+    expect(threadAwaitsViewer({ resolved: false, messages: [plMsg(), gmMsg()] }, false)).toBe(true);
+    expect(threadAwaitsViewer({ resolved: false, messages: [plMsg(), gmMsg()] }, true)).toBe(false);
+  });
+  it('never awaits when resolved, empty, or missing', () => {
+    expect(threadAwaitsViewer({ resolved: true, messages: [plMsg()] }, true)).toBe(false);
+    expect(threadAwaitsViewer({ resolved: false, messages: [] }, true)).toBe(false);
+    expect(threadAwaitsViewer(null, true)).toBe(false);
   });
 });
 

@@ -6,6 +6,7 @@ import {
   notifyCommentPosted,
   postPlanComment,
   setPlanCommentResolved,
+  threadAwaitsViewer,
 } from '../access/plan-comments.js';
 
 const t = (key) => game.i18n.localize(`PF2E_LEVELER.PLAN_COMMENTS.${key}`);
@@ -57,11 +58,12 @@ export function mountPlanComments(app, rootEl, actor, anchors) {
 function injectMarker(app, rootEl, actor, anchor, canComment) {
   const summary = getCommentSummary(actor, anchor.partId);
   const state = markerStateClass(summary);
+  const awaiting = threadAwaitsViewer(getThread(actor, anchor.partId), game.user?.isGM === true);
   const marker = document.createElement('button');
   marker.type = 'button';
-  marker.className = `plan-comment-marker plan-comment-marker--${state}`;
+  marker.className = `plan-comment-marker plan-comment-marker--${state}${awaiting ? ' plan-comment-marker--awaiting' : ''}`;
   marker.dataset.commentMarker = anchor.partId;
-  marker.setAttribute('data-tooltip', `${t('MARKER_TOOLTIP')}${summary.isEmpty ? '' : ` (${summary.count})`}`);
+  marker.setAttribute('data-tooltip', awaiting ? t('AWAITING_TOOLTIP') : `${t('MARKER_TOOLTIP')}${summary.isEmpty ? '' : ` (${summary.count})`}`);
   marker.innerHTML = summary.isEmpty
     ? '<i class="fa-regular fa-comment"></i>'
     : `<i class="fa-solid fa-comment"></i><span class="plan-comment-marker__count">${summary.count}</span>`;
