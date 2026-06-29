@@ -17,6 +17,7 @@ import { getBuildStateAncestryFeatTraits } from '../utils/ancestry-feat-traits.j
 import { getActiveSkillConfigEntry, getActiveSkillSlugs } from '../utils/skill-slugs.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { filterDisallowedSourcePublications, getPublicationFilterMode } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -1145,10 +1146,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     );
     this._publicationFilterInitialized = true;
 
-    return options.map((entry) => ({
+    const displayOptions = options.map((entry) => ({
       ...entry,
       selected: this.selectedPublications.has(entry.key),
     }));
+    return filterDisallowedSourcePublications(displayOptions, {
+      mode: getPublicationFilterMode(),
+      isGM: game.user?.isGM === true,
+    });
   }
 
   _getFeatTypeOptions() {
