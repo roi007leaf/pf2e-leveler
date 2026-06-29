@@ -12,7 +12,10 @@ export function refreshActorPlanCommentWindows(actorId) {
     const id = app?.options?.id ?? app?.id ?? null;
     if (!LEVELER_WINDOW_IDS.has(id)) continue;
     if (app.actor?.id !== actorId) continue;
-    if (typeof app.render === 'function') app.render(false);
+    // render(true) is the planner/wizard re-render convention; render(false) does not
+    // re-render an already-open ApplicationV2 window (changes would only show on reopen).
+    // Bring-to-front is gated to the first render, so this won't steal focus.
+    if (typeof app.render === 'function') app.render(true);
   }
 }
 

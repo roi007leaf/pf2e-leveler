@@ -24,7 +24,7 @@ describe('refreshActorPlanCommentWindows', () => {
     const other = { options: { id: 'something-else' }, actor: { id: 'a1' }, render: jest.fn() };
     global.ui.windows = { 0: planner, 1: wizard, 2: other };
     refreshActorPlanCommentWindows('a1');
-    expect(planner.render).toHaveBeenCalledWith(false);
+    expect(planner.render).toHaveBeenCalledWith(true);
     expect(wizard.render).not.toHaveBeenCalled();
     expect(other.render).not.toHaveBeenCalled();
   });
@@ -38,6 +38,6 @@ describe('onUpdateActorPlanComments', () => {
     onUpdateActorPlanComments({ id: 'a1' }, { system: {} });
     expect(planner.render).not.toHaveBeenCalled();
     onUpdateActorPlanComments({ id: 'a1' }, { flags: { 'pf2e-leveler': { planComments: { p: {} } } } });
-    expect(planner.render).toHaveBeenCalledWith(false);
+    expect(planner.render).toHaveBeenCalledWith(true);
   });
 });
