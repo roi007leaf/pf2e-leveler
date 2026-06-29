@@ -16,7 +16,7 @@ import { isMythicEnabled } from '../utils/pf2e-api.js';
 import { getBuildStateAncestryFeatTraits } from '../utils/ancestry-feat-traits.js';
 import { getActiveSkillConfigEntry, getActiveSkillSlugs } from '../utils/skill-slugs.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
@@ -77,6 +77,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.additionalArchetypeFeatLevels = new Map();
     this.additionalArchetypeFeatTraits = new Map();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
+    this.selectedGuidanceTags = new Set();
     this.selectedTraits = new Set();
     this.excludedTraits = new Set();
     this.traitLogic = 'or';
@@ -172,6 +173,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       sortMethod: this.sortMethod,
       minLevel: this.minLevel,
       maxLevel: this.maxLevel,
@@ -298,6 +304,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
+      guidanceTagOptions: [],
       sortMethod: this.sortMethod,
       minLevel: this.minLevel,
       maxLevel: this.maxLevel,
@@ -386,6 +393,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           featTraits.has(String(trait).toLowerCase()),
         );
       });
+    }
+    if (this.selectedGuidanceTags.size > 0) {
+      feats = feats.filter((entry) => matchesGuidanceTagFilter(entry, this.selectedGuidanceTags));
     }
     if (!ignoreRarity) {
       feats = applyRarityFilter(
@@ -746,6 +756,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._bindTraitChipListeners(el, signal);
 
     this._bindRarityChipListeners(el, signal);
+    this._bindGuidanceTagListeners(el, signal);
 
     this._bindActionButtons(el, signal);
   }
@@ -764,6 +775,22 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
             rarity,
             this._availableRarityValues ?? RARITY_VALUES,
           );
+          this._scheduleListUpdate();
+        },
+        { signal },
+      );
+    });
+  }
+
+  _bindGuidanceTagListeners(root, signal) {
+    root.querySelectorAll('[data-action="toggleGuidanceTag"]').forEach((btn) => {
+      btn.addEventListener(
+        'click',
+        () => {
+          const tag = String(btn.dataset.tag ?? '').trim().toLowerCase();
+          if (!tag) return;
+          if (this.selectedGuidanceTags.has(tag)) this.selectedGuidanceTags.delete(tag);
+          else this.selectedGuidanceTags.add(tag);
           this._scheduleListUpdate();
         },
         { signal },
@@ -807,6 +834,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rarityOptions: buildChipOptions(this._availableRarityValues, this.selectedRarities, {
         labels: this._getRarityLabels(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       selectedTraitChips: this._getSelectedTraitChips(this._getTraitOptions()),
       selectedTraits: [...this.selectedTraits],
       excludedTraits: [...this.excludedTraits],
@@ -840,6 +872,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this._domListeners?.signal) {
       this._bindPublicationFilterListeners(root, this._domListeners.signal);
       this._bindRarityChipListeners(root, this._domListeners.signal);
+      this._bindGuidanceTagListeners(root, this._domListeners.signal);
     }
 
     const resultCount = root?.querySelector('.picker__results-count');

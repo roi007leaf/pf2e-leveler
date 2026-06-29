@@ -1,7 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
-import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
@@ -92,6 +92,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.selectedCategories = new Set();
     this.selectedRarities = new Set(['common', 'uncommon', 'rare', 'unique']);
     this.lockedRarities = new Set();
+    this.selectedGuidanceTags = new Set();
     this.selectedTraits = new Set();
     this.requiredTraits = new Set();
     this.selectedArmorFilters = new Set();
@@ -180,6 +181,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
         lockedValues: this._getRarityToggleLockedValues(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       traitOptions: this._getTraitOptions(),
       selectedTraitChips: this._getTraitOptions().filter((o) => o.selected),
       traitLogic: this.traitLogic,
@@ -269,6 +275,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (this.remasterOnly) items = items.filter((item) => isRemasterItem(item));
     if (this.hideGunsTech) items = items.filter((item) => !itemHasExcludedTechTrait(item));
+    if (this.selectedGuidanceTags.size > 0) {
+      items = items.filter((entry) => matchesGuidanceTagFilter(entry, this.selectedGuidanceTags));
+    }
     if (!ignoreRarity) {
       items = applyRarityFilter(
         items,
@@ -531,6 +540,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         labels: { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', unique: 'Unique' },
         lockedValues: this._getRarityToggleLockedValues(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
     };
@@ -762,6 +776,16 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         if (lockedRarities.includes(rarity)) return;
         this.selectedRarities = toggleSelectableChip(this.selectedRarities, rarity, this._getVisibleRarityValues(), lockedRarities);
         target.classList.toggle('selected', this.selectedRarities.has(rarity));
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleGuidanceTag') {
+        const tag = String(target.dataset.tag ?? '').trim().toLowerCase();
+        if (!tag) return;
+        if (this.selectedGuidanceTags.has(tag)) this.selectedGuidanceTags.delete(tag);
+        else this.selectedGuidanceTags.add(tag);
+        target.classList.toggle('selected', this.selectedGuidanceTags.has(tag));
         this._updateList();
         return;
       }

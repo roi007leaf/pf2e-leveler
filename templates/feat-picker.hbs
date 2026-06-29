@@ -169,6 +169,22 @@
         </div>
       </div>
 
+      {{#if guidanceTagOptions.length}}
+      <div class="picker__filter-group">
+        <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.GUIDANCE_FILTER"}}</div>
+        <div class="picker__source-list">
+          {{#each guidanceTagOptions}}
+          <button type="button"
+            class="picker__source-chip {{#if this.selected}}selected{{/if}}"
+            data-action="toggleGuidanceTag"
+            data-tag="{{this.value}}">
+            {{this.label}}
+          </button>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
       {{#if publicationOptions.length}}
       <div class="picker__filter-group picker__filter-group--collapsible" data-section="publications">
         <button type="button"

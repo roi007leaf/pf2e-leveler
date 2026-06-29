@@ -1,7 +1,7 @@
 import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
-import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
@@ -76,6 +76,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.traitFilterMode = 'include';
     this.selectedRarities = getAllowedRaritiesForCurrentUser();
     this.lockedRarities = new Set();
+    this.selectedGuidanceTags = new Set();
     this.selectedPublications = new Set();
     this.filterSections = {
       publications: true,
@@ -187,6 +188,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         labels: this._getRarityLabels(),
         lockedValues: this._getRarityToggleLockedValues(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       traitLogic: this.traitLogic,
       traitFilterMode: this.traitFilterMode,
       rank: this.rank,
@@ -441,6 +447,20 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
+      if (action === 'toggleGuidanceTag') {
+        e.preventDefault();
+        e.stopPropagation();
+        const tag = String(target.dataset.tag ?? '').trim().toLowerCase();
+        if (!tag) return;
+        if (this.selectedGuidanceTags.has(tag)) this.selectedGuidanceTags.delete(tag);
+        else this.selectedGuidanceTags.add(tag);
+        for (const chip of el.querySelectorAll('[data-action="toggleGuidanceTag"]')) {
+          chip.classList.toggle('selected', this.selectedGuidanceTags.has(chip.dataset.tag));
+        }
+        this._scheduleListUpdate();
+        return;
+      }
+
       if (action === 'toggleTraitLogic') {
         e.preventDefault();
         e.stopPropagation();
@@ -507,6 +527,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         labels: this._getRarityLabels(),
         lockedValues: this._getRarityToggleLockedValues(),
       }),
+      guidanceTagOptions: buildChipOptions(
+        (game.user?.isGM === true ? GUIDANCE_TAG_VALUES : GUIDANCE_TAG_VALUES.filter((v) => v !== 'disallowed')),
+        this.selectedGuidanceTags,
+        { labels: getGuidanceTagLabels() },
+      ),
       traitLogic: this.traitLogic,
       traitFilterMode: this.traitFilterMode,
       rank: this.rank,
@@ -575,6 +600,9 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.multiSelect) {
       const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
       spells = spells.filter((spell) => !this.selectedSpellUuids.has(spell.uuid) && !preSelectedUuids.has(spell.uuid));
+    }
+    if (this.selectedGuidanceTags.size > 0) {
+      spells = spells.filter((entry) => matchesGuidanceTagFilter(entry, this.selectedGuidanceTags));
     }
     if (!ignoreRarity) {
       spells = applyRarityFilter(
