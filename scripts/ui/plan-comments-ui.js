@@ -1,5 +1,6 @@
 import {
   canCommentOnActor,
+  canResolveThread,
   deletePlanComment,
   getCommentSummary,
   getThread,
@@ -97,7 +98,7 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
       <button type="button" class="plan-comments-popover__close" data-tooltip="${t('CLOSE')}"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="plan-comments-popover__body"></div>
-    ${canComment ? composerMarkup(thread) : `<div class="plan-comments-popover__readonly">${t('READ_ONLY')}</div>`}
+    ${canComment ? composerMarkup(thread, canResolveThread(actor, thread)) : `<div class="plan-comments-popover__readonly">${t('READ_ONLY')}</div>`}
   `;
   positionPopover(pop, anchor.host, rootEl);
   rootEl.appendChild(pop);
@@ -112,9 +113,10 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
   if (canComment) wireComposer(pop, actor, anchor.partId, anchor.label, pendingItems);
 }
 
-function composerMarkup(thread) {
+function composerMarkup(thread, canResolve) {
   const hasMessages = (thread?.messages?.length ?? 0) > 0;
   const resolved = thread?.resolved === true;
+  const showResolve = hasMessages && canResolve;
   return `
     <div class="plan-comments-composer">
       <div class="plan-comments-composer__drop">${game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.DROP_HINT')}</div>
@@ -122,7 +124,7 @@ function composerMarkup(thread) {
       <textarea class="plan-comments-composer__text" rows="2" placeholder="${hasMessages ? game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.REPLY_PLACEHOLDER') : game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.COMPOSER_PLACEHOLDER')}"></textarea>
       <div class="plan-comments-composer__actions">
         <button type="button" class="plan-comments-composer__post">${game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.POST')}</button>
-        ${hasMessages ? `<button type="button" class="plan-comments-composer__resolve">${resolved ? game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.REOPEN') : game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.RESOLVE')}</button>` : ''}
+        ${showResolve ? `<button type="button" class="plan-comments-composer__resolve">${resolved ? game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.REOPEN') : game.i18n.localize('PF2E_LEVELER.PLAN_COMMENTS.RESOLVE')}</button>` : ''}
       </div>
     </div>
   `;

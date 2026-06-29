@@ -1,4 +1,5 @@
 import {
+  canResolveThread,
   countAwaitingComments,
   getCommentNotifyRecipients,
   notifyCommentPosted,
@@ -39,6 +40,30 @@ describe('countAwaitingComments (whose-turn semantics)', () => {
     expect(countAwaitingComments(a, { forGM: false, scope: 'level' })).toBe(1);
     expect(countAwaitingComments(a, { forGM: false, scope: 'creation' })).toBe(1);
     expect(countAwaitingComments(a, { forGM: false })).toBe(2);
+  });
+});
+
+describe('canResolveThread', () => {
+  const realGM = global.game.user.isGM;
+  const realId = global.game.user.id;
+  afterEach(() => { global.game.user.isGM = realGM; global.game.user.id = realId; });
+
+  it('lets the GM resolve any thread', () => {
+    global.game.user.isGM = true;
+    expect(canResolveThread({ isOwner: false }, { messages: [plMsg({ authorId: 'someone' })] })).toBe(true);
+  });
+
+  it('lets a player resolve only a thread they started', () => {
+    global.game.user.isGM = false;
+    global.game.user.id = 'u1';
+    const actor = { isOwner: true };
+    expect(canResolveThread(actor, { messages: [plMsg({ authorId: 'u1' }), gmMsg()] })).toBe(true);
+    expect(canResolveThread(actor, { messages: [gmMsg({ authorId: 'gm' }), plMsg({ authorId: 'u1' })] })).toBe(false);
+  });
+
+  it('denies non-commenters', () => {
+    global.game.user.isGM = false;
+    expect(canResolveThread({ isOwner: false }, { messages: [plMsg()] })).toBe(false);
   });
 });
 

@@ -95,13 +95,24 @@ export async function postPlanComment(actor, partId, { text, items } = {}) {
 }
 
 export async function setPlanCommentResolved(actor, partId, resolved) {
-  if (!canCommentOnActor(actor)) return;
-  await writePlanComments(actor, setThreadResolvedInThreads(getPlanComments(actor), partId, resolved));
+  const threads = getPlanComments(actor);
+  if (!canResolveThread(actor, threads[partId])) return;
+  await writePlanComments(actor, setThreadResolvedInThreads(threads, partId, resolved));
 }
 
 export async function deletePlanComment(actor, partId, messageId) {
   if (!canCommentOnActor(actor)) return;
   await writePlanComments(actor, removeMessageFromThreads(getPlanComments(actor), partId, messageId));
+}
+
+// Who may resolve/reopen a thread: the GM may resolve any thread; a player may only
+// resolve a thread they started (authored its first message). Posting/replying is still
+// open to any commenter — this only restricts closing someone else's thread.
+export function canResolveThread(actor, thread) {
+  if (!canCommentOnActor(actor)) return false;
+  if (game.user?.isGM === true) return true;
+  const first = (Array.isArray(thread?.messages) ? thread.messages : [])[0];
+  return !!first && first.authorId === game.user?.id;
 }
 
 // A single thread "awaits the viewer" when it is unresolved and the last message came
