@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -115,6 +115,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._domListeners = null;
     this._loading = this.allItems.length === 0;
     if (!this._loading) annotateGuidance(this.allItems);
+    this.remasterOnly = false;
+    this.hideGunsTech = false;
     this._applyPreset(options.preset);
   }
 
@@ -162,6 +164,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       capped,
       multiSelect: this.multiSelect,
       isGM: game.user?.isGM === true,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
       selectedCount: this.selectedItemUuids.size,
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
@@ -263,6 +267,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const query = this.searchText.toLowerCase();
       items = items.filter((item) => String(item.name ?? '').toLowerCase().includes(query));
     }
+    if (this.remasterOnly) items = items.filter((item) => isRemasterItem(item));
+    if (this.hideGunsTech) items = items.filter((item) => !itemHasExcludedTechTrait(item));
     if (!ignoreRarity) {
       items = applyRarityFilter(
         items,
@@ -508,6 +514,8 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       capped,
       multiSelect: this.multiSelect,
       isGM: game.user?.isGM === true,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
       selectedCount: this.selectedItemUuids.size,
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
@@ -773,6 +781,19 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (action === 'toggleArmorFilterLogic') {
         this.armorFilterLogic = this.armorFilterLogic === 'and' ? 'or' : 'and';
         target.textContent = this.armorFilterLogic === 'and' ? 'AND' : 'OR';
+        this._updateList();
+        return;
+      }
+
+      if (action === 'toggleRemasterOnly') {
+        this.remasterOnly = !this.remasterOnly;
+        target.classList.toggle('active', this.remasterOnly);
+        this._updateList();
+        return;
+      }
+      if (action === 'toggleHideGunsTech') {
+        this.hideGunsTech = !this.hideGunsTech;
+        target.classList.toggle('active', this.hideGunsTech);
         this._updateList();
         return;
       }
