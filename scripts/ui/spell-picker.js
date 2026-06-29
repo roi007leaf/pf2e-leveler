@@ -2,6 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -188,6 +189,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),
@@ -283,6 +285,13 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
       const action = target.dataset.action;
       const uuid = target.closest('.spell-option')?.dataset?.uuid || target.dataset.uuid;
+
+      if (action === 'openContentGuidance') {
+        e.preventDefault();
+        e.stopPropagation();
+        openContentGuidanceMenu();
+        return;
+      }
 
       if (action === 'selectSpell') {
         e.preventDefault();
@@ -481,6 +490,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rank: this.rank,
       tradition: this.tradition,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedSpellUuids.size,
       sortMode: this.sortMode,
       sortOptions: this._getSortOptions(),

@@ -10,9 +10,17 @@
 
 - **General feat selections now include skill feats** - Grants that let you choose a general feat (such as General Training) now offer skill feats too, since skill feats are a subtype of general feats
 
+### Pickers & UX
+
+- **"Add Selected" is now a clear primary action** - In multi-select pickers (spells, equipment, feats) the confirm button is styled as the primary call-to-action with an arrow, and "Select All" is now a secondary button, so it is obvious how to carry your selections forward
+- **Higher-contrast buttons in the level planner** - Picker "Select" buttons and the active level indicator use dark text on the accent colour to match Character Creation, improving readability
+- **GM shortcut to Content Guidance** - GMs get a gear button in picker filter boxes that opens the Content Guidance settings directly
+
 ### Content Guidance
 
 - **Suggested badge in the spell picker now reads correctly** - The recommended-spell badge showed a raw localization key instead of the "Suggested" label, and now matches the feat and item pickers
+- **Disallowed items are easier to spot** - Disallowed rows in the pickers are tinted red (in addition to the existing pill), and hovering the Disallowed pill explains why an item is unavailable, naming the source when a whole publication is disallowed
+- **Clearer category navigation in Content Guidance** - The active category tab now stands out, and switching categories shows a loading spinner so the first click no longer feels unresponsive
 
 ### Languages
 

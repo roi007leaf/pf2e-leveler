@@ -723,13 +723,6 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-.pf2e-leveler .wizard-item--disallowed {
-  opacity: 0.45;
-}
-
-.pf2e-leveler .wizard-item--disallowed .wizard-item__select {
-  pointer-events: none;
-}
 
 .pf2e-leveler .wizard-item-grid {
   display: grid;
@@ -1505,6 +1498,16 @@
 .pf2e-leveler .wizard-item:hover {
   background: var(--leveler-bg-hover);
   border-color: var(--leveler-accent);
+}
+
+.pf2e-leveler .wizard-item--disallowed {
+  background: rgba(170, 51, 51, 0.1);
+  border-color: rgba(170, 51, 51, 0.6);
+}
+
+.pf2e-leveler .wizard-item--disallowed:hover {
+  background: rgba(170, 51, 51, 0.16);
+  border-color: rgba(170, 51, 51, 0.75);
 }
 
 .pf2e-leveler .wizard-item__img {

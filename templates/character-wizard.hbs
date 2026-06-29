@@ -229,14 +229,14 @@
         </div>
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each this.items}}
-          <div class="wizard-item {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <div class="wizard-item__traits">
                 {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                 {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                 {{#if ../../browserStep.showTraits}}
                   {{#each this.traits}}
                   <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
@@ -272,14 +272,14 @@
         {{else}}
         <div class="wizard-item-grid wizard-item-grid--browser">
           {{#each browserStep.items}}
-          <div class="wizard-item {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
+          <div class="wizard-item {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}" data-name="{{this.name}}" data-rarity="{{this.rarity}}" data-skills="{{this.trainedSkillsText}}" data-attributes="{{this.boostsText}}">
             <img src="{{this.img}}" alt="" class="wizard-item__img">
             <div class="wizard-item__info">
               <span class="wizard-item__name" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</span>
               <div class="wizard-item__traits">
                 {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                 {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                 {{#if ../browserStep.showTraits}}
                   {{#each this.traits}}
                   <span class="tag tag--muted tag--tiny" data-tooltip="{{titleCase this}}">{{this}}</span>
@@ -1300,7 +1300,7 @@
             <span class="skill-btn__tags">
               {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
               {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
               {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
               {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
             </span>
@@ -1349,7 +1349,7 @@
             <span class="skill-btn__tags">
             {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
             {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-            {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+            {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
             </span>
             {{#if this.futureSkillChoices.length}}
             <span class="skill-btn__hint">

@@ -446,6 +446,16 @@ function applyResolvedStatus(item, resolved) {
   item.guidanceStatus = status ?? GUIDANCE_STATUSES.DEFAULT;
   item.guidanceSelectionBlocked = isGuidanceSelectionBlocked(item);
   item.guidanceSelectionTooltip = getGuidanceSelectionTooltip(item);
+  item.guidanceDisallowedTooltip = getGuidanceDisallowedTooltip(item);
+}
+
+function getGuidanceDisallowedTooltip(item) {
+  if (item?.isDisallowed !== true) return '';
+  const source = item?.publicationTitle ?? item?.system?.publication?.title ?? null;
+  if (item?.guidanceInherited === true && source) {
+    return game.i18n.format('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DISALLOWED_SOURCE_REASON', { source });
+  }
+  return game.i18n.localize('PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.DISALLOWED_ITEM_REASON');
 }
 
 function normalizeGuidanceStatus(status) {

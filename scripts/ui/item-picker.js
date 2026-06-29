@@ -2,6 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
   applySourceFilter,
@@ -159,6 +160,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       renderedCount: renderedItems.length,
       capped,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedItemUuids.size,
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
@@ -503,6 +505,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       renderedCount: renderedItems.length,
       capped,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedItemUuids.size,
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
@@ -731,6 +734,11 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!target || !el.contains(target)) return;
 
       const action = target.dataset.action;
+
+      if (action === 'openContentGuidance') {
+        openContentGuidanceMenu();
+        return;
+      }
 
       if (action === 'toggleCategory') {
         this.selectedCategories = toggleSelectableChip(this.selectedCategories, target.dataset.category, this._categoryValues);

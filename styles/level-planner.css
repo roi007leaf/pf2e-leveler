@@ -89,7 +89,7 @@
 
 .pf2e-leveler .sidebar-level.active .sidebar-level__num {
   background: var(--leveler-accent);
-  color: var(--leveler-text-bright);
+  color: var(--leveler-bg);
 }
 
 .pf2e-leveler .sidebar-level__summary {

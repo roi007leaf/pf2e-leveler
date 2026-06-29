@@ -615,7 +615,7 @@
 .pf2e-leveler .spell-option__select-btn {
   padding: 4px 12px;
   background: var(--leveler-accent);
-  color: var(--leveler-text-bright);
+  color: var(--leveler-bg);
   border: none;
   border-radius: var(--leveler-radius-sm);
   cursor: pointer;
@@ -769,10 +769,64 @@
 
 .pf2e-leveler .spell-picker__confirm-btn {
   white-space: nowrap;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .pf2e-leveler .spell-picker__bulk-btn {
   white-space: nowrap;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 180, 158, 0.22);
+  color: var(--leveler-accent-light);
+}
+
+.pf2e-leveler .spell-picker__bulk-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(196, 180, 158, 0.4);
+  color: var(--leveler-text-bright);
+}
+
+.pf2e-leveler .feat-option--disallowed,
+.pf2e-leveler .item-option--disallowed,
+.pf2e-leveler .spell-option--disallowed {
+  background: rgba(170, 51, 51, 0.1);
+  border-color: rgba(170, 51, 51, 0.6);
+}
+
+.pf2e-leveler .feat-option--disallowed:hover,
+.pf2e-leveler .item-option--disallowed:hover,
+.pf2e-leveler .spell-option--disallowed:hover {
+  background: rgba(170, 51, 51, 0.16);
+  border-color: rgba(170, 51, 51, 0.75);
+}
+
+.pf2e-leveler .picker__filter-group--search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pf2e-leveler .picker__filter-group--search .picker__search {
+  flex: 1;
+  min-width: 0;
+}
+
+.pf2e-leveler .picker__settings-gear {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  background: transparent;
+  border: 1px solid var(--leveler-border);
+  border-radius: var(--leveler-radius-sm);
+  color: var(--leveler-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pf2e-leveler .picker__settings-gear:hover {
+  color: var(--leveler-accent-light);
+  border-color: var(--leveler-accent);
 }
 
 .pf2e-leveler .spell-picker__selected-sidebar {

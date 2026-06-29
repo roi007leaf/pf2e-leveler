@@ -17,6 +17,7 @@ import { getBuildStateAncestryFeatTraits } from '../utils/ancestry-feat-traits.j
 import { getActiveSkillConfigEntry, getActiveSkillSlugs } from '../utils/skill-slugs.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
+import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -178,6 +179,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       showSkillFeats: this.showSkillFeats,
       enforcePrerequisites: this.enforcePrerequisites,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedFeatUuids.size,
       selectedTraits: [...this.selectedTraits],
       excludedTraits: [...this.excludedTraits],
@@ -301,6 +303,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       showSkillFeats: this.showSkillFeats,
       enforcePrerequisites: this.enforcePrerequisites,
       multiSelect: this.multiSelect,
+      isGM: game.user?.isGM === true,
       selectedCount: this.selectedFeatUuids.size,
       selectedTraits: [...this.selectedTraits],
       excludedTraits: [...this.excludedTraits],
@@ -817,7 +820,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       'click',
       async (e) => {
         const target = e.target?.closest?.(
-          '[data-action="viewFeat"], [data-action="selectFeat"], [data-action="toggleSelectAll"], [data-action="toggleFilterSection"], [data-action="confirmSelection"], [data-action="sendToChat"]',
+          '[data-action="viewFeat"], [data-action="selectFeat"], [data-action="toggleSelectAll"], [data-action="toggleFilterSection"], [data-action="confirmSelection"], [data-action="sendToChat"], [data-action="openContentGuidance"]',
         );
         if (!target || !root.contains(target)) return;
         e.preventDefault();
@@ -867,6 +870,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (action === 'confirmSelection') {
       await this._confirmSelection();
+      return;
+    }
+
+    if (action === 'openContentGuidance') {
+      openContentGuidanceMenu();
       return;
     }
 

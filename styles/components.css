@@ -627,9 +627,32 @@
 }
 
 .pf2e-leveler .compendium-manager__tab.is-active {
-  background: linear-gradient(180deg, rgba(176, 160, 138, 0.18), rgba(176, 160, 138, 0.06));
-  border-color: rgba(196, 180, 158, 0.4);
-  color: var(--leveler-text-bright);
+  background: var(--leveler-accent);
+  border-color: var(--leveler-accent);
+  color: var(--leveler-bg);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(196, 167, 71, 0.45), 0 0 10px rgba(196, 167, 71, 0.35);
+}
+
+.pf2e-leveler .compendium-manager__tab.is-loading {
+  cursor: progress;
+  opacity: 0.9;
+}
+
+.pf2e-leveler .compendium-manager__tab-spinner {
+  margin-right: 2px;
+}
+
+.pf2e-leveler .compendium-manager__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: var(--leveler-accent-light);
+  background: rgba(20, 23, 29, 0.45);
+  z-index: 5;
 }
 
 .pf2e-leveler .compendium-manager__tabLabel {

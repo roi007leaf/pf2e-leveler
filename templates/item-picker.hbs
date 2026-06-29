@@ -6,11 +6,17 @@
   {{else}}
   <div class="picker__browser">
     <aside class="picker__sidebar">
-      <div class="picker__filter-group picker__filter-group--compact">
+      <div class="picker__filter-group picker__filter-group--compact picker__filter-group--search">
         <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.ITEM_PICKER.SEARCH'}}"
                data-action="searchItems"
                value="{{searchText}}">
+        {{#if isGM}}
+        <button type="button" class="picker__settings-gear" data-action="openContentGuidance"
+                data-tooltip="{{localize 'PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.OPEN_SETTINGS'}}">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+        {{/if}}
       </div>
 
       <div class="picker__filter-group picker__filter-group--compact">
@@ -215,7 +221,7 @@
             {{/if}}
           </button>
           <button type="button" class="item-option__select-btn spell-picker__confirm-btn" data-action="confirmSelection" {{#unless selectedCount}}disabled{{/unless}}>
-            {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}}
+            {{localize "PF2E_LEVELER.SPELLS.ADD_SELECTED"}} <i class="fa-solid fa-arrow-right"></i>
           </button>
           {{/if}}
           <div class="picker__results-count">{{#if capped}}{{renderedCount}}/{{filteredCount}}{{else}}{{filteredCount}}{{/if}}</div>
@@ -224,7 +230,7 @@
 
       <div class="item-list">
         {{#each items}}
-        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}item-option--taken{{/if}} {{#if this.guidanceSelectionBlocked}}wizard-item--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.selectionBlocked}}false{{else}}true{{/if}}">
+        <div class="item-option {{#if this._levelerSelected}}spell-option--selected{{/if}} {{#if this.alreadyTaken}}item-option--taken{{/if}} {{#if this.isDisallowed}}item-option--disallowed{{/if}}" data-uuid="{{this.uuid}}" data-already-taken="{{#if this.alreadyTaken}}true{{else}}false{{/if}}" data-selectable="{{#if this.selectionBlocked}}false{{else}}true{{/if}}">
           <img class="item-option__img" src="{{this.img}}" alt="">
           <div class="item-option__info">
             <div class="item-option__header">
@@ -246,7 +252,7 @@
               {{/if}}
               {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
               {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+              {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
             </div>
           </div>
           <div class="item-option__actions">

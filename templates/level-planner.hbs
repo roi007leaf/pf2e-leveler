@@ -259,7 +259,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                   </span>
                 </span>
               </button>
@@ -291,7 +291,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                     {{#if (notEqual this.rarity "common")}}
                     <span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>
@@ -335,7 +335,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                   </span>
                 </span>
@@ -432,7 +432,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                     {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                   </span>
@@ -545,7 +545,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                     {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                   </span>
@@ -620,7 +620,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                   </span>
                 </span>
                 {{#if this.lockedByFeat}}
@@ -665,7 +665,7 @@
                   <span class="skill-btn__tags">
                     {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                     {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                    {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                     {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                   </span>
@@ -884,7 +884,7 @@
                     <span class="skill-btn__tags">
                       {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                       {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                       {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                       {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                     </span>
@@ -950,7 +950,7 @@
                     <span class="skill-btn__tags">
                       {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                       {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                       {{#if this.suggested}}<span class="tag tag--info tag--tiny">{{localize "PF2E_LEVELER.CREATION.ANCESTRY_SUGGESTION"}}</span>{{/if}}
                       {{#if (notEqual this.rarity "common")}}<span class="tag tag--rarity-{{this.rarity}} tag--tiny">{{this.rarity}}</span>{{/if}}
                     </span>
@@ -1031,7 +1031,7 @@
                     <span class="skill-btn__tags">
                       {{#if this.isRecommended}}<span class="tag tag--recommended tag--tiny"><i class="fa-solid fa-star"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_SUGGESTED"}}</span>{{/if}}
                       {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
-                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
+                      {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     </span>
                   </span>
                   <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>

@@ -50,6 +50,10 @@ const SOURCE_SCAN_CATEGORIES = [
   ['deities', (doc) => doc.type === 'deity'],
 ];
 
+export function openContentGuidanceMenu() {
+  return new ContentGuidanceMenu().render(true);
+}
+
 export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(options = {}) {
     super(options);
@@ -255,6 +259,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         if (category && category !== this.activeCategory) {
           this.activeCategory = category;
           this.searchText = '';
+          this._showCategoryLoading(btn);
           this._rerenderPreservingScroll({ resetScroll: true });
         }
       });
@@ -719,6 +724,29 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     return this.element?.querySelector?.('.compendium-manager__panelWrap')
       ?? this.element?.closest?.('.window-content')
       ?? null;
+  }
+
+  _showCategoryLoading(activeBtn) {
+    const root = this.element;
+    if (!root) return;
+    root.querySelectorAll('[data-action="select-category"]').forEach((tab) => {
+      const isActive = tab === activeBtn;
+      tab.classList.toggle('is-active', isActive);
+      tab.classList.toggle('is-loading', isActive);
+      tab.disabled = true;
+    });
+    if (activeBtn && !activeBtn.querySelector('.compendium-manager__tab-spinner')) {
+      const spinner = document.createElement('i');
+      spinner.className = 'fa-solid fa-spinner fa-spin compendium-manager__tab-spinner';
+      activeBtn.prepend(spinner);
+    }
+    const panel = root.querySelector('.compendium-manager__panelWrap');
+    if (panel && !panel.querySelector('.compendium-manager__loading')) {
+      const overlay = document.createElement('div');
+      overlay.className = 'compendium-manager__loading';
+      overlay.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      panel.appendChild(overlay);
+    }
   }
 
   _rerenderPreservingScroll({ resetScroll = false } = {}) {
