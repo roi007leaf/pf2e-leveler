@@ -543,6 +543,10 @@
         "NAME": "Enable player review requests",
         "HINT": "Adds a \"Request GM review\" button for non-GM players in the Level Planner and Character Creation, letting them send you their build for review. Requests appear in the Player Review Requests panel. Off by default."
       },
+      "REQUIRE_REVIEW_APPROVAL": {
+        "NAME": "Require GM approval before applying",
+        "HINT": "When on, non-GM players must get a review request approved (Resolved) before they can apply a level-up or finish Character Creation for a character. Approval stays valid until you Reopen or Dismiss the request. Requires the review-request workflow; the request button appears even if 'Enable player review requests' is off. Off by default."
+      },
       "HIDE_UNCOMMON": {
         "NAME": "Hide Uncommon Feats",
         "HINT": "Hide uncommon and rarer feats from the feat picker by default"
@@ -733,7 +737,8 @@
       "ACTION_DISMISS": "Dismiss",
       "ACTION_REOPEN": "Reopen",
       "REQUESTED_BY": "Requested by {name}",
-      "FOR_CHARACTER": "Character: {actor}"
+      "FOR_CHARACTER": "Character: {actor}",
+      "APPROVAL_REQUIRED": "Your GM must approve a review request for this character before you can apply. Use \"Request GM review\" first."
     }
   }
 }

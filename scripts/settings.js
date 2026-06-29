@@ -95,6 +95,16 @@ export function registerSettings() {
     onChange: () => refreshOpenLevelerWindows(),
   });
 
+  game.settings.register(MODULE_ID, 'requireReviewApproval', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.REQUIRE_REVIEW_APPROVAL.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.REQUIRE_REVIEW_APPROVAL.HINT'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => refreshOpenLevelerWindows(),
+  });
+
   game.settings.register(MODULE_ID, 'ignoreFreeArchetypeDedicationLock', {
     name: game.i18n.localize('PF2E_LEVELER.SETTINGS.IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK.NAME'),
     hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK.HINT'),

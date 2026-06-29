@@ -46,6 +46,32 @@ export function isReviewRequestEnabled() {
   }
 }
 
+export function isReviewApprovalRequired() {
+  try {
+    return game.settings.get(MODULE_ID, 'requireReviewApproval') === true;
+  } catch {
+    return false;
+  }
+}
+
+// The review-request UI (buttons, dialog, submit) is active when EITHER the optional-requests
+// setting or the require-approval gate is on — otherwise players could be blocked with no way to ask.
+export function isReviewFeatureActive() {
+  return isReviewRequestEnabled() || isReviewApprovalRequired();
+}
+
+export function hasApprovedReview(actorId) {
+  if (!actorId) return false;
+  return getReviewRequests().some((req) => req?.actorId === actorId && req?.status === REVIEW_REQUEST_STATUS.RESOLVED);
+}
+
+// True when a non-GM must obtain GM approval before applying for this actor and hasn't yet.
+export function isApplyBlockedForActor(actor) {
+  if (!isReviewApprovalRequired()) return false;
+  if (game.user?.isGM === true) return false;
+  return !hasApprovedReview(actor?.id ?? null);
+}
+
 export function isResponsibleGM() {
   return game.users?.activeGM?.isSelf === true;
 }
@@ -94,7 +120,7 @@ export function registerReviewRequestSocket() {
 }
 
 export async function promptReviewRequest({ item, actor } = {}) {
-  if (!isReviewRequestEnabled()) return;
+  if (!isReviewFeatureActive()) return;
   const note = await foundry.applications.api.DialogV2.prompt({
     window: { title: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_TITLE') },
     content: `<p>${game.i18n.format('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_PROMPT', { item: item?.name ?? '' })}</p>`
@@ -110,7 +136,7 @@ export async function promptReviewRequest({ item, actor } = {}) {
 }
 
 export async function submitReviewRequest({ item, actor, note } = {}) {
-  if (!isReviewRequestEnabled()) return null;
+  if (!isReviewFeatureActive()) return null;
   const request = buildReviewRequest({
     id: foundry.utils.randomID(),
     ts: Date.now(),

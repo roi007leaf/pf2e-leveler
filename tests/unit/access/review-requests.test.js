@@ -5,6 +5,9 @@ import {
   getReviewRequests,
   isResponsibleGM,
   REVIEW_REQUEST_STATUS,
+  hasApprovedReview,
+  isApplyBlockedForActor,
+  isReviewFeatureActive,
 } from '../../../scripts/access/review-requests.js';
 
 describe('review-requests', () => {
@@ -57,6 +60,54 @@ describe('review-requests', () => {
       expect(isResponsibleGM()).toBe(false);
       global.game.users = { activeGM: null };
       expect(isResponsibleGM()).toBe(false);
+    });
+  });
+
+  describe('review approval gating', () => {
+    const realGet = global.game.settings.get;
+    const realIsGM = global.game.user.isGM;
+    afterEach(() => { global.game.settings.get = realGet; global.game.user.isGM = realIsGM; });
+
+    const mockSettings = (overrides) => {
+      global.game.settings.get = jest.fn((_mod, key) => overrides[key]);
+    };
+
+    it('hasApprovedReview is true only for a resolved request matching the actor', () => {
+      mockSettings({ reviewRequests: [{ actorId: 'a1', status: 'resolved' }, { actorId: 'a2', status: 'pending' }] });
+      expect(hasApprovedReview('a1')).toBe(true);
+      expect(hasApprovedReview('a2')).toBe(false);
+      expect(hasApprovedReview('a3')).toBe(false);
+      expect(hasApprovedReview(null)).toBe(false);
+    });
+
+    it('blocks a non-GM without approval when approval is required', () => {
+      global.game.user.isGM = false;
+      mockSettings({ requireReviewApproval: true, reviewRequests: [] });
+      expect(isApplyBlockedForActor({ id: 'a1' })).toBe(true);
+    });
+
+    it('allows a non-GM once an approval exists', () => {
+      global.game.user.isGM = false;
+      mockSettings({ requireReviewApproval: true, reviewRequests: [{ actorId: 'a1', status: 'resolved' }] });
+      expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
+    });
+
+    it('never blocks a GM, and never blocks when approval is not required', () => {
+      mockSettings({ requireReviewApproval: true, reviewRequests: [] });
+      global.game.user.isGM = true;
+      expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
+      global.game.user.isGM = false;
+      mockSettings({ requireReviewApproval: false, reviewRequests: [] });
+      expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
+    });
+
+    it('isReviewFeatureActive is true if either setting is on', () => {
+      mockSettings({ enableReviewRequests: true, requireReviewApproval: false });
+      expect(isReviewFeatureActive()).toBe(true);
+      mockSettings({ enableReviewRequests: false, requireReviewApproval: true });
+      expect(isReviewFeatureActive()).toBe(true);
+      mockSettings({ enableReviewRequests: false, requireReviewApproval: false });
+      expect(isReviewFeatureActive()).toBe(false);
     });
   });
 });
