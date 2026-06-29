@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import { promptReviewRequest } from '../access/review-requests.js';
 import {
@@ -144,6 +144,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       return { loading: true };
     }
     const publicationOptions = this._getPublicationOptions();
+    const publicationGroupChips = buildPublicationGroupChips(this._publicationTitles, this.selectedPublications);
     const categoryOptions = this._getCategoryOptions();
     const armorFilterOptions = this._getArmorFilterOptions();
     const weaponFilterOptions = this._getWeaponFilterOptions();
@@ -172,6 +173,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
       publicationOptions,
+      publicationGroupChips,
       categoryOptions,
       armorFilterOptions,
       weaponFilterOptions,
@@ -530,6 +532,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       maxSelect: this.maxSelect,
       allVisibleSelected: this._areAllVisibleSelected(),
       publicationOptions: this._getPublicationOptions(),
+      publicationGroupChips: buildPublicationGroupChips(this._publicationTitles, this.selectedPublications),
       armorFilterOptions: this._getArmorFilterOptions(),
       weaponFilterOptions: this._getWeaponFilterOptions(),
       showArmorFilters: this._shouldShowEquipmentFilters('armor'),
@@ -843,6 +846,19 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       if (action === 'togglePublication') {
         this.selectedPublications = toggleSelectableChip(this.selectedPublications, target.dataset.publication, this._publicationTitles);
         target.classList.toggle('selected', this.selectedPublications.has(target.dataset.publication));
+        this._updateList();
+        return;
+      }
+
+      if (action === 'togglePublicationGroup') {
+        const groupId = target.dataset.group;
+        if (!groupId) return;
+        const members = getPublicationGroupMembers(groupId, this._publicationTitles);
+        const allSelected = members.length > 0 && members.every((title) => this.selectedPublications.has(title));
+        for (const title of members) {
+          if (allSelected) this.selectedPublications.delete(title);
+          else this.selectedPublications.add(title);
+        }
         this._updateList();
         return;
       }

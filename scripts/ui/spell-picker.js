@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import { promptReviewRequest } from '../access/review-requests.js';
 import {
@@ -159,6 +159,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const publicationOptions = this._getPublicationOptions();
+    const publicationGroupChips = buildPublicationGroupChips(this._publicationTitles, this.selectedPublications);
     const rankOptions = this._getRankOptions();
     const traditionOptions = this._getTraditionOptions();
     const categoryOptions = this._getCategoryOptions();
@@ -177,6 +178,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       filterSections: this._getFilterSections(),
       publicationOptions,
+      publicationGroupChips,
       rankOptions,
       traditionOptions,
       categoryOptions,
@@ -368,6 +370,22 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
+      if (action === 'togglePublicationGroup') {
+        e.preventDefault();
+        e.stopPropagation();
+        const groupId = target.dataset.group;
+        if (!groupId) return;
+        const members = getPublicationGroupMembers(groupId, this._publicationTitles);
+        const allSelected = members.length > 0 && members.every((title) => this.selectedPublications.has(title));
+        for (const title of members) {
+          if (allSelected) this.selectedPublications.delete(title);
+          else this.selectedPublications.add(title);
+        }
+        this._updateFilterControlState();
+        this._scheduleListUpdate();
+        return;
+      }
+
       if (action === 'toggleFilterSection') {
         e.preventDefault();
         e.stopPropagation();
@@ -522,10 +540,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const listContainer = root?.querySelector('.spell-picker__list');
     if (!listContainer) return;
 
+    const _updateListPublicationOptions = this._getPublicationOptions();
     const html = await resolveRenderHandlebarsTemplate()(`modules/${MODULE_ID}/templates/spell-picker.hbs`, {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
       filterSections: this._getFilterSections(),
-      publicationOptions: this._getPublicationOptions(),
+      publicationOptions: _updateListPublicationOptions,
+      publicationGroupChips: buildPublicationGroupChips(this._publicationTitles, this.selectedPublications),
       rankOptions: this._getRankOptions(),
       traditionOptions: this._getTraditionOptions(),
       categoryOptions: this._getCategoryOptions(),

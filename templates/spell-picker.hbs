@@ -189,6 +189,15 @@
         </button>
         {{#unless filterSections.publications.collapsed}}
         <div class="picker__section-body">
+          {{#if publicationGroupChips.length}}
+          <div class="picker__source-list picker__source-list--compact" data-role="publication-group-chips">
+            {{#each publicationGroupChips}}
+            <button type="button" class="picker__source-chip {{#if this.selected}}selected{{/if}} {{#if this.partial}}partial{{/if}}" data-action="togglePublicationGroup" data-group="{{this.id}}">
+              {{this.label}}
+            </button>
+            {{/each}}
+          </div>
+          {{/if}}
           <input type="text" class="picker__search picker__search--compact" placeholder="{{localize 'PF2E_LEVELER.UI.SEARCH_PUBLICATIONS'}}" data-action="searchPublications">
           <div class="picker__source-list picker__source-list--stacked">
             {{#each publicationOptions}}

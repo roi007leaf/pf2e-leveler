@@ -17,7 +17,7 @@ import { getBuildStateAncestryFeatTraits } from '../utils/ancestry-feat-traits.j
 import { getActiveSkillConfigEntry, getActiveSkillSlugs } from '../utils/skill-slugs.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import { promptReviewRequest } from '../access/review-requests.js';
 import {
@@ -150,6 +150,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     const publicationOptions = this._getPublicationOptions();
+    const publicationGroupChips = buildPublicationGroupChips(this._publicationTitles, this.selectedPublications);
     const featTypeOptions = this._getFeatTypeOptions();
     const traitOptions = this._getTraitOptions();
     const skillChips = this._getSkillChipOptions();
@@ -162,6 +163,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredFeats.length,
       filterSections: this._getFilterSections(),
       publicationOptions,
+      publicationGroupChips,
       featTypeOptions,
       levelOptions: this._getLevelOptions(),
       category: this.category,
@@ -293,6 +295,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: 0,
       filterSections: this._getFilterSections(),
       publicationOptions: [],
+      publicationGroupChips: [],
       featTypeOptions: [],
       levelOptions: this._getLevelOptions(),
       category: this.category,
@@ -830,6 +833,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       filteredCount: this.filteredFeats.length,
       filterSections: this._getFilterSections(),
       publicationOptions,
+      publicationGroupChips: buildPublicationGroupChips(this._publicationTitles, this.selectedPublications),
       category: this.category,
       targetLevel: this.targetLevel,
       sortMethod: this.sortMethod,
@@ -1823,6 +1827,24 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
               'selected',
               this.selectedPublications.has(chip.dataset.publication),
             );
+          }
+          this._scheduleListUpdate();
+        },
+        { signal },
+      );
+    });
+
+    root.querySelectorAll('[data-action="togglePublicationGroup"]').forEach((btn) => {
+      btn.addEventListener(
+        'click',
+        () => {
+          const groupId = btn.dataset.group;
+          if (!groupId) return;
+          const members = getPublicationGroupMembers(groupId, this._publicationTitles);
+          const allSelected = members.length > 0 && members.every((title) => this.selectedPublications.has(title));
+          for (const title of members) {
+            if (allSelected) this.selectedPublications.delete(title);
+            else this.selectedPublications.add(title);
           }
           this._scheduleListUpdate();
         },
