@@ -44,3 +44,60 @@ export function filterPublicationsForCurrentUser(options) {
     isGM: game.user?.isGM === true,
   });
 }
+
+export const PUBLICATION_GROUPS = [
+  {
+    id: 'adventure-paths',
+    labelKey: 'PF2E_LEVELER.UI.PUB_GROUP_AP',
+    match: (title) =>
+      /^Pathfinder #\d+:/.test(title)
+      || /^Pathfinder Adventure Path:/.test(title)
+      || /Hardcover Compilation$/.test(title)
+      || /^Pathfinder Wake the Dead/.test(title),
+  },
+  {
+    id: 'ap-players-guides',
+    labelKey: 'PF2E_LEVELER.UI.PUB_GROUP_AP_GUIDE',
+    match: (title) => /Player'?s Guide/i.test(title) && !/Advanced Player'?s Guide/i.test(title),
+  },
+  {
+    id: 'standalone-adventures',
+    labelKey: 'PF2E_LEVELER.UI.PUB_GROUP_STANDALONE',
+    match: (title) => /^Pathfinder Adventure:/.test(title),
+  },
+  {
+    id: 'blogs',
+    labelKey: 'PF2E_LEVELER.UI.PUB_GROUP_BLOG',
+    match: (title) => /\bBlog\b/i.test(title),
+  },
+  {
+    id: 'lost-omens',
+    labelKey: 'PF2E_LEVELER.UI.PUB_GROUP_LOST_OMENS',
+    match: (title) => /Lost Omens/i.test(title),
+  },
+];
+
+export function getPublicationGroupMembers(groupId, publicationTitles) {
+  const group = PUBLICATION_GROUPS.find((entry) => entry.id === groupId);
+  if (!group) return [];
+  const titles = Array.isArray(publicationTitles) ? publicationTitles : [...(publicationTitles ?? [])];
+  return titles.filter((title) => group.match(String(title ?? '')));
+}
+
+export function buildPublicationGroupChips(publicationTitles, selectedPublications) {
+  const titles = Array.isArray(publicationTitles) ? publicationTitles : [...(publicationTitles ?? [])];
+  const selected = selectedPublications instanceof Set ? selectedPublications : new Set(selectedPublications ?? []);
+  const chips = [];
+  for (const group of PUBLICATION_GROUPS) {
+    const members = titles.filter((title) => group.match(String(title ?? '')));
+    if (members.length === 0) continue;
+    const selectedCount = members.filter((title) => selected.has(title)).length;
+    chips.push({
+      id: group.id,
+      label: game.i18n.localize(group.labelKey),
+      selected: selectedCount === members.length,
+      partial: selectedCount > 0 && selectedCount < members.length,
+    });
+  }
+  return chips;
+}
