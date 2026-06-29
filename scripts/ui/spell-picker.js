@@ -2,7 +2,7 @@ import { MODULE_ID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from '../access/player-content.js';
 import { annotateGuidance, filterDisallowedForCurrentUser } from '../access/content-guidance.js';
-import { filterPublicationsForCurrentUser } from '../access/source-classification.js';
+import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
 import {
   applyRarityFilter,
@@ -88,6 +88,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.customTitle = typeof options.title === 'string' && options.title.trim().length > 0
       ? options.title.trim()
       : null;
+    this.remasterOnly = false;
+    this.hideGunsTech = false;
     this._applyPreset(this.preset);
   }
 
@@ -197,6 +199,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedSpells: this.selectedSpells.map((spell, index) => this._toSelectedTemplateSpell(spell, index)),
       maxSelect: this.maxSelect,
       remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
     };
   }
 
@@ -364,6 +368,23 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return;
       }
 
+      if (action === 'toggleRemasterOnly') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.remasterOnly = !this.remasterOnly;
+        target.classList.toggle('active', this.remasterOnly);
+        this._scheduleListUpdate();
+        return;
+      }
+      if (action === 'toggleHideGunsTech') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideGunsTech = !this.hideGunsTech;
+        target.classList.toggle('active', this.hideGunsTech);
+        this._scheduleListUpdate();
+        return;
+      }
+
       if (action === 'toggleSpellRank') {
         e.preventDefault();
         e.stopPropagation();
@@ -498,6 +519,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       selectedSpells: this.selectedSpells.map((spell, index) => this._toSelectedTemplateSpell(spell, index)),
       maxSelect: this.maxSelect,
       remainingSlots: this.maxSelect != null ? this.maxSelect - this.selectedSpellUuids.size : null,
+      remasterOnly: this.remasterOnly,
+      hideGunsTech: this.hideGunsTech,
     });
 
     const temp = document.createElement('div');
@@ -546,6 +569,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         return [...this.excludedTraits].every((trait) => !traits.has(trait));
       });
     }
+    if (this.remasterOnly) spells = spells.filter((spell) => isRemasterItem(spell));
+    if (this.hideGunsTech) spells = spells.filter((spell) => !itemHasExcludedTechTrait(spell));
     if (this.searchText) spells = spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
     if (this.multiSelect) {
       const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
