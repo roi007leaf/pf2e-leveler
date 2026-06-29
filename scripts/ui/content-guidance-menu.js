@@ -10,6 +10,7 @@ import {
   normalizeGuidanceEntry,
 } from '../access/content-guidance.js';
 import { getLanguageMap, getLanguageRarityMap } from './character-wizard/skills-languages.js';
+import { PUBLICATION_GROUPS, getPublicationGroupMembers } from '../access/source-classification.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -167,6 +168,7 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
         },
       ],
       rarityBulkGroups: this._buildRarityBulkGroups(items),
+      publicationGroupBulkGroups: this._buildPublicationGroupBulkGroups(items),
       specialBulkGroups: this._buildSpecialBulkGroups(items),
       groupedItems: this.activeCategory === 'heritages' ? this._buildHeritageGroups(displayItems) : null,
     };
@@ -452,6 +454,9 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
     if (scopeType === ORPHAN_ARCHETYPE_NO_PREREQS_SCOPE) {
       return isOrphanArchetypeNoPrerequisitesFeat(item) && this._matchesCurrentSearch(item);
     }
+    if (scopeType === 'publicationGroup') {
+      return getPublicationGroupMembers(scopeValue, [item.publicationTitle ?? item.name]).length > 0;
+    }
     return false;
   }
 
@@ -593,6 +598,21 @@ export class ContentGuidanceMenu extends HandlebarsApplicationMixin(ApplicationV
       freeArchetypeExclusiveActions: this._getActiveFreeArchetypeExclusiveActions(),
       showFreeArchetypeExclusiveActions: this.activeCategory === 'classArchetypes',
     }));
+  }
+
+  _buildPublicationGroupBulkGroups(items) {
+    if (this.activeCategory !== 'sources') return [];
+    const titles = items.map((item) => String(item.publicationTitle ?? item.name ?? ''));
+    return PUBLICATION_GROUPS
+      .map((group) => ({ group, count: titles.filter((title) => group.match(title)).length }))
+      .filter(({ count }) => count > 0)
+      .map(({ group, count }) => ({
+        label: game.i18n.localize(group.labelKey),
+        count,
+        scopeType: 'publicationGroup',
+        scopeValue: group.id,
+        actions: this._buildBulkActions(),
+      }));
   }
 
   _buildSpecialBulkGroups(items) {

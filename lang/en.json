@@ -689,6 +689,7 @@
         "BADGE_INHERITED": "Inherited",
         "BULK_SPECIAL": "Bulk Filters",
         "BULK_RARITY": "Bulk by Rarity",
+        "BULK_GROUP": "Bulk by Group",
         "BULK_ARCHETYPE_ONLY_NO_PREREQS": "Archetype-only feats with no prerequisites",
         "BULK_ALLOWED": "Allow",
         "BULK_RECOMMENDED": "Suggest",

@@ -158,6 +158,30 @@
       </section>
       {{/if}}
 
+      {{#if publicationGroupBulkGroups.length}}
+      <section class="guidance-bulk">
+        <div class="guidance-bulk__title">{{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BULK_GROUP"}}</div>
+        {{#each publicationGroupBulkGroups}}
+        <div class="guidance-bulk__row">
+          <span class="tag tag--info">{{this.label}} ({{this.count}})</span>
+          <div class="guidance-bulk__actions guidance-bulk__actions--status">
+            {{#each this.actions}}
+            <button
+              type="button"
+              class="compendium-manager__button compendium-manager__button--small guidance-bulk__button {{this.className}}"
+              data-action="bulk-guidance"
+              data-scope-type="{{../scopeType}}"
+              data-scope-value="{{../scopeValue}}"
+              data-status="{{this.status}}">
+              {{this.label}}
+            </button>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+
       <div class="guidance-list {{#if useGridLayout}}guidance-list--grid{{/if}}">
         {{#if groupedItems}}
           {{#each groupedItems}}

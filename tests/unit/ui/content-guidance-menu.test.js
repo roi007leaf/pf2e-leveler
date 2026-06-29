@@ -415,6 +415,40 @@ describe('ContentGuidanceMenu', () => {
     });
   });
 
+  test('exposes publication-group bulk groups only on the sources tab', () => {
+    const menu = new ContentGuidanceMenu();
+    const items = [
+      { uuid: 'source-title:paizo blog: foo', publicationTitle: 'Paizo Blog: Foo', name: 'Paizo Blog: Foo' },
+      { uuid: 'source-title:pathfinder #219: bar', publicationTitle: 'Pathfinder #219: Bar', name: 'Pathfinder #219: Bar' },
+      { uuid: 'source-title:pathfinder player core', publicationTitle: 'Pathfinder Player Core', name: 'Pathfinder Player Core' },
+    ];
+
+    menu.activeCategory = 'sources';
+    const groups = menu._buildPublicationGroupBulkGroups(items);
+    expect(groups.map((g) => g.scopeValue)).toEqual(expect.arrayContaining(['adventure-paths', 'blogs']));
+    expect(groups.map((g) => g.scopeValue)).not.toContain('lost-omens');
+    expect(groups.every((g) => g.scopeType === 'publicationGroup')).toBe(true);
+    expect(groups.find((g) => g.scopeValue === 'blogs').count).toBe(1);
+
+    menu.activeCategory = 'backgrounds';
+    expect(menu._buildPublicationGroupBulkGroups(items)).toEqual([]);
+  });
+
+  test('bulk-applies guidance to every source in a publication group', () => {
+    const menu = new ContentGuidanceMenu();
+    menu.activeCategory = 'sources';
+    menu._draft = {};
+    menu._itemCache.sources = [
+      { uuid: 'source-title:paizo blog: foo', publicationTitle: 'Paizo Blog: Foo' },
+      { uuid: 'source-title:pathfinder player core', publicationTitle: 'Pathfinder Player Core' },
+    ];
+
+    menu._applyBulkGuidance('publicationGroup', 'blogs', 'disallowed');
+
+    expect(menu._draft['source-title:paizo blog: foo']).toBe('disallowed');
+    expect(menu._draft['source-title:pathfinder player core']).toBeUndefined();
+  });
+
   test('bulk guidance actions expose distinct allow and exclusive visual classes', () => {
     const menu = new ContentGuidanceMenu();
 
