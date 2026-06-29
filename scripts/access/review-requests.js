@@ -89,6 +89,7 @@ export function registerReviewRequestSocket() {
 }
 
 export async function promptReviewRequest({ item, actor } = {}) {
+  if (!isReviewRequestEnabled()) return;
   const note = await foundry.applications.api.DialogV2.prompt({
     window: { title: game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_TITLE') },
     content: `<p>${game.i18n.format('PF2E_LEVELER.REVIEW_REQUEST.DIALOG_PROMPT', { item: item?.name ?? '' })}</p>`
