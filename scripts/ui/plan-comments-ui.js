@@ -100,6 +100,9 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
   rootEl.querySelector('.plan-comments-popover')?.remove();
   app._openCommentPartId = anchor.partId;
 
+  // Repaint locally and immediately after the author's own action — the updateActor
+  // hook covers other clients, but the author should never wait for a round-trip.
+  const refresh = () => refreshPlanComments(app);
   const thread = getThread(actor, anchor.partId);
   const resolved = thread?.resolved === true;
   const pendingItems = [];
@@ -118,14 +121,14 @@ function openPopover(app, rootEl, actor, anchor, canComment) {
   positionPopover(pop, anchor.host, rootEl);
   rootEl.appendChild(pop);
 
-  renderThreadBody(pop.querySelector('.plan-comments-popover__body'), actor, anchor.partId, canComment);
+  renderThreadBody(pop.querySelector('.plan-comments-popover__body'), actor, anchor.partId, canComment, refresh);
 
   pop.querySelector('.plan-comments-popover__close').addEventListener('click', () => {
     app._openCommentPartId = null;
     pop.remove();
   });
 
-  if (canComment) wireComposer(pop, actor, anchor.partId, anchor.label, pendingItems);
+  if (canComment) wireComposer(pop, actor, anchor.partId, anchor.label, pendingItems, refresh);
 }
 
 function composerMarkup(thread, canResolve) {
@@ -146,7 +149,7 @@ function composerMarkup(thread, canResolve) {
   `;
 }
 
-function renderThreadBody(bodyEl, actor, partId, canComment) {
+function renderThreadBody(bodyEl, actor, partId, canComment, refresh) {
   const thread = getThread(actor, partId);
   const messages = thread?.messages ?? [];
   if (messages.length === 0) {
@@ -165,6 +168,7 @@ function renderThreadBody(bodyEl, actor, partId, canComment) {
   bodyEl.querySelectorAll('.plan-comment-msg__delete[data-message-id]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       await deletePlanComment(actor, partId, btn.dataset.messageId);
+      refresh?.();
     });
   });
 }
@@ -190,7 +194,7 @@ function messageMarkup(m, canComment) {
   `;
 }
 
-function wireComposer(pop, actor, partId, partLabel, pendingItems) {
+function wireComposer(pop, actor, partId, partLabel, pendingItems, refresh) {
   const drop = pop.querySelector('.plan-comments-composer__drop');
   const chipsEl = pop.querySelector('.plan-comments-composer__chips');
   const textEl = pop.querySelector('.plan-comments-composer__text');
@@ -241,15 +245,14 @@ function wireComposer(pop, actor, partId, partLabel, pendingItems) {
     const text = textEl.value;
     if (!text.trim()) return;
     const posted = await postPlanComment(actor, partId, { text, items: [...pendingItems] });
-    textEl.value = '';
-    pendingItems.length = 0;
-    renderChips();
     if (posted) void notifyCommentPosted({ actor, partLabel, message: posted });
+    refresh?.();
   });
 
   pop.querySelector('.plan-comments-composer__resolve')?.addEventListener('click', async () => {
     const current = getThread(actor, partId)?.resolved === true;
     await setPlanCommentResolved(actor, partId, !current);
+    refresh?.();
   });
 }
 

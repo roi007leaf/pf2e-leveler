@@ -26,12 +26,30 @@ describe('planCommentsChanged', () => {
 });
 
 describe('findActorPlanCommentWindows', () => {
-  afterEach(() => { global.ui.windows = {}; });
-  it('returns only leveler planner/wizard windows bound to the actor', () => {
+  afterEach(() => {
+    global.ui.windows = {};
+    delete global.foundry.applications.instances;
+  });
+
+  it('returns only leveler planner/wizard windows bound to the actor (ui.windows)', () => {
     const planner = makeWindow('pf2e-leveler-planner', 'a1');
     const wizardOther = makeWindow('pf2e-leveler-wizard', 'a2');
     const other = makeWindow('something-else', 'a1');
     global.ui.windows = { 0: planner, 1: wizardOther, 2: other };
+    expect(findActorPlanCommentWindows('a1')).toEqual([planner]);
+  });
+
+  it('finds ApplicationV2 instances (foundry.applications.instances), not just ui.windows', () => {
+    const wizard = makeWindow('pf2e-leveler-wizard', 'a1');
+    global.foundry.applications.instances = new Map([['pf2e-leveler-wizard', wizard]]);
+    global.ui.windows = {};
+    expect(findActorPlanCommentWindows('a1')).toEqual([wizard]);
+  });
+
+  it('does not double-count an app present in both registries', () => {
+    const planner = makeWindow('pf2e-leveler-planner', 'a1');
+    global.foundry.applications.instances = new Map([['pf2e-leveler-planner', planner]]);
+    global.ui.windows = { 0: planner };
     expect(findActorPlanCommentWindows('a1')).toEqual([planner]);
   });
 });

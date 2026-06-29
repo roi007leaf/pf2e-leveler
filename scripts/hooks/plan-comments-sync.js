@@ -8,8 +8,21 @@ export function planCommentsChanged(changes) {
   return foundry.utils.hasProperty(changes ?? {}, `flags.${MODULE_ID}.${PLAN_COMMENTS_FLAG}`);
 }
 
+// Enumerate open apps from BOTH registries: ApplicationV2 instances live in
+// foundry.applications.instances (NOT ui.windows, which only holds legacy V1 apps).
+// The planner/wizard are ApplicationV2, so ui.windows alone finds nothing.
+function getOpenApps() {
+  const seen = new Set();
+  const out = [];
+  const add = (app) => { if (app && !seen.has(app)) { seen.add(app); out.push(app); } };
+  const instances = foundry.applications?.instances;
+  if (instances?.values) for (const app of instances.values()) add(app);
+  if (ui?.windows) for (const app of Object.values(ui.windows)) add(app);
+  return out;
+}
+
 export function findActorPlanCommentWindows(actorId) {
-  return Object.values(ui.windows ?? {}).filter((app) => {
+  return getOpenApps().filter((app) => {
     const id = app?.options?.id ?? app?.id ?? null;
     return LEVELER_WINDOW_IDS.has(id) && app?.actor?.id === actorId;
   });
