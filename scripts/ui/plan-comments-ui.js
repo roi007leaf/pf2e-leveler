@@ -56,6 +56,21 @@ export function mountPlanComments(app, rootEl, actor, anchors) {
   }
 }
 
+// Re-sync markers and the open popover from current flag data on the live DOM, WITHOUT
+// a full app re-render. The updateActor hook calls this so a post/resolve/delete shows
+// immediately on every client — ApplicationV2's render pipeline does not reliably
+// repaint an already-open window when invoked from a hook.
+export function refreshPlanComments(app) {
+  const rootEl = app?.element;
+  const actor = app?.actor;
+  if (!rootEl?.querySelectorAll || !actor) return;
+  rootEl.querySelectorAll('.plan-comment-marker').forEach((m) => m.remove());
+  const anchors = rootEl.querySelector('.wizard-content[data-comment-part]')
+    ? collectWizardCommentAnchors(rootEl)
+    : collectPlannerCommentAnchors(rootEl);
+  mountPlanComments(app, rootEl, actor, anchors);
+}
+
 function injectMarker(app, rootEl, actor, anchor, canComment) {
   const summary = getCommentSummary(actor, anchor.partId);
   const state = markerStateClass(summary);
