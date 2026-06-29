@@ -10,6 +10,7 @@ import { registerReviewRequestSocket } from '../access/review-requests.js';
 export function registerLifecycleHooks() {
   Hooks.once('init', onInit);
   Hooks.once('ready', onReady);
+  Hooks.once('socketlib.ready', registerReviewRequestSocket);
 }
 
 async function onInit() {
@@ -26,7 +27,6 @@ async function onReady() {
   info('Module ready');
   await migrateWealthSettings();
   registerSheetIntegration();
-  registerReviewRequestSocket();
 }
 
 function registerClasses() {

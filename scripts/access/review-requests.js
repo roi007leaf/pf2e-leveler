@@ -1,8 +1,10 @@
 import { MODULE_ID } from '../constants.js';
 
 export const REVIEW_REQUESTS_SETTING = 'reviewRequests';
-export const REVIEW_REQUEST_CHANNEL = `module.${MODULE_ID}`;
 export const REVIEW_REQUEST_STATUS = { PENDING: 'pending', RESOLVED: 'resolved', DISMISSED: 'dismissed' };
+
+// socketlib socket handle, set on the 'socketlib.ready' hook (see registerReviewRequestSocket).
+let socket = null;
 
 export function buildReviewRequest({ id, ts, itemUuid, itemName, actorId, actorName, requesterUserId, requesterName, note } = {}) {
   return {
@@ -68,7 +70,7 @@ export async function importOrphanedReviewRequests() {
 }
 
 export async function recordIncomingReviewRequest(request) {
-  if (!isResponsibleGM()) return;
+  // Invoked via socketlib executeAsGM, so this always runs on exactly one connected GM.
   await saveReviewRequests(addReviewRequest(getReviewRequests(), request));
   ui.notifications?.info(
     game.i18n.format('PF2E_LEVELER.REVIEW_REQUEST.RECEIVED', {
@@ -83,9 +85,12 @@ export async function setReviewRequestStatus(id, status) {
 }
 
 export function registerReviewRequestSocket() {
-  game.socket?.on(REVIEW_REQUEST_CHANNEL, (data) => {
-    if (data?.type === 'review-request' && data.request) recordIncomingReviewRequest(data.request).catch((err) => console.error('pf2e-leveler | failed to record review request', err));
-  });
+  if (typeof globalThis.socketlib === 'undefined') {
+    console.warn('pf2e-leveler | socketlib not available; review requests will fall back to GM whispers');
+    return;
+  }
+  socket = globalThis.socketlib.registerModule(MODULE_ID);
+  socket.register('recordReviewRequest', recordIncomingReviewRequest);
 }
 
 export async function promptReviewRequest({ item, actor } = {}) {
@@ -117,10 +122,15 @@ export async function submitReviewRequest({ item, actor, note } = {}) {
     requesterName: game.user?.name ?? '',
     note: note ?? '',
   });
-  if (game.users?.activeGM) {
-    game.socket?.emit(REVIEW_REQUEST_CHANNEL, { type: 'review-request', request });
+  try {
+    if (!socket) throw new Error('socketlib socket unavailable');
+    // executeAsGM runs recordReviewRequest on a connected GM (or locally if the caller is a GM),
+    // so the request is reliably persisted regardless of who triggers it.
+    await socket.executeAsGM('recordReviewRequest', request);
     ui.notifications?.info(game.i18n.localize('PF2E_LEVELER.REVIEW_REQUEST.SENT'));
-  } else {
+  } catch {
+    // No GM connected (or socketlib unavailable): fall back to a durable flagged GM-whisper that
+    // the Review Requests panel folds into the stored list the next time a GM opens it.
     const esc = foundry.utils.escapeHTML;
     await ChatMessage.create({
       whisper: ChatMessage.getWhisperRecipients('GM').map((user) => user.id),

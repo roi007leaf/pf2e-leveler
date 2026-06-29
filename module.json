@@ -69,6 +69,13 @@
     }
   },
   "relationships": {
+    "recommends": [
+      {
+        "id": "socketlib",
+        "type": "module",
+        "reason": "Reliable GM delivery of player review requests; falls back to GM whispers if absent."
+      }
+    ],
     "systems": [
       {
         "id": "pf2e",
