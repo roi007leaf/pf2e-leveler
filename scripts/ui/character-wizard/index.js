@@ -28,6 +28,7 @@ import { annotateGuidance, annotateGuidanceBySlug, filterDisallowedForCurrentUse
 import { filterPublicationsForCurrentUser } from '../../access/source-classification.js';
 import { renderApplicationInFront, scheduleBringApplicationToFront } from '../shared/window-focus.js';
 import { resolveSpellcastingTradition } from '../../data/subclass-spells.js';
+import { mountPlanComments, collectWizardCommentAnchors } from '../plan-comments-ui.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
@@ -513,6 +514,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._ensureBootstrapped();
     this._syncSpellLayout(el);
     this._syncPublicationTooltips(el);
+    if (el) mountPlanComments(this, el, this.actor, collectWizardCommentAnchors(el));
   }
 
   _scheduleInitialBringToFront() {

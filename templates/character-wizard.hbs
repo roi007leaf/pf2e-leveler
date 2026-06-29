@@ -34,7 +34,7 @@
     <div class="wizard-steps">
       {{#each steps}}
       <div class="wizard-step {{#if this.active}}active{{/if}} {{#if this.complete}}complete{{/if}}"
-           data-action="goToStep" data-step="{{this.index}}">
+           data-action="goToStep" data-step="{{this.index}}" data-step-id="{{this.id}}">
         <span class="wizard-step__num">{{#if this.complete}}<i class="fa-solid fa-check"></i>{{else}}{{@index}}{{/if}}</span>
         <span class="wizard-step__label">{{this.label}}</span>
       </div>
