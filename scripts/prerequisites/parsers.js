@@ -114,8 +114,18 @@ const WEAPON_NAME_PROFICIENCY_PATTERN = new RegExp(
   'iu',
 );
 const COMPANION_PROHIBITION_PATTERN = /\byou\s+do(?:\s+not|n't)\s+have\b.*\bcompanion\b/i;
-const ALIGNMENT_PATTERN =
-  /^(lawful|neutral|chaotic|good|evil)(?:\s+(lawful|neutral|chaotic|good|evil))?\s+alignment$/i;
+// Pathfinder Remaster removed alignment. Match character-alignment prerequisites broadly
+// ("good alignment", "non-evil alignment", "any non-evil alignment", "lawful or chaotic
+// alignment", "any alignment") so they can be treated as always met rather than as a
+// missing feat. "X-aligned deity" is handled separately (still requires following a deity).
+const ALIGNMENT_TERM = '(?:non-)?(?:lawful|neutral|chaotic|good|evil)';
+const CHARACTER_ALIGNMENT_PATTERN = new RegExp(
+  `^(?:any\\s+)?${ALIGNMENT_TERM}(?:\\s*(?:,|/|\\bor\\b|\\band\\b)?\\s*${ALIGNMENT_TERM})*\\s+alignment$`,
+  'iu',
+);
+const ANY_ALIGNMENT_PATTERN = /^any\s+alignment$/iu;
+const ALIGNED_DEITY_PATTERN =
+  /^(?:you\s+follow\s+)?(?:an?\s+)?(?:lawful|neutral|chaotic|good|evil)[\s-]+aligned\s+deity$/iu;
 const CURSE_STATE_PATTERN = /\bcursed\b/i;
 const SIGNATURE_TRICK_PATTERN = /^(?:you\s+)?must\s+have\s+(?:a|an)\s+signature\s+trick\b/i;
 const MULTIPLE_ANCESTRY_FEATS_PATTERN =
@@ -314,7 +324,9 @@ function shouldKeepUnknownPrerequisiteAtomic(text) {
     ACTION_CAPABILITY_PATTERN,
     WEAPON_TYPE_PROFICIENCY_PATTERN,
     COMPANION_PROHIBITION_PATTERN,
-    ALIGNMENT_PATTERN,
+    ANY_ALIGNMENT_PATTERN,
+    CHARACTER_ALIGNMENT_PATTERN,
+    ALIGNED_DEITY_PATTERN,
     CURSE_STATE_PATTERN,
     SIGNATURE_TRICK_PATTERN,
     MULTIPLE_ANCESTRY_FEATS_PATTERN,
@@ -453,6 +465,19 @@ function tryParseLivingCreatureRequirement(text, fullText = text) {
     type: 'livingCreature',
     text: fullText,
   };
+}
+
+// Pathfinder Remaster removed alignment. Recognize legacy alignment prerequisites -
+// character alignment ("non-evil alignment", "any alignment"), alignment combinations
+// ("lawful good alignment"), and alignment-restricted deities ("good-aligned deity") -
+// so they are reported as unverified legacy text rather than a missing feat.
+function isLegacyAlignmentText(text) {
+  const normalized = String(text ?? '').trim();
+  return (
+    ANY_ALIGNMENT_PATTERN.test(normalized) ||
+    CHARACTER_ALIGNMENT_PATTERN.test(normalized) ||
+    ALIGNED_DEITY_PATTERN.test(normalized)
+  );
 }
 
 function tryParseSanctificationRequirement(text, fullText = text) {
@@ -1047,7 +1072,7 @@ function looksLikeDescriptiveRequirement(text) {
   if (WEAPON_TYPE_PROFICIENCY_PATTERN.test(normalized)) return true;
   if (looksLikeWeaponNameProficiency(normalized)) return true;
   if (COMPANION_PROHIBITION_PATTERN.test(normalized)) return true;
-  if (ALIGNMENT_PATTERN.test(normalized)) return true;
+  if (isLegacyAlignmentText(normalized)) return true;
   if (CURSE_STATE_PATTERN.test(normalized)) return true;
   if (SIGNATURE_TRICK_PATTERN.test(normalized)) return true;
   if (MULTIPLE_ANCESTRY_FEATS_PATTERN.test(normalized)) return true;
@@ -1222,7 +1247,8 @@ function shouldPreserveOrPhrase(text) {
     WEARING_ARMOR_PATTERN.test(text) ||
     WIELDING_WEAPON_PATTERN.test(text) ||
     COMPANION_PROHIBITION_PATTERN.test(text) ||
-    CURSE_STATE_PATTERN.test(text)
+    CURSE_STATE_PATTERN.test(text) ||
+    CHARACTER_ALIGNMENT_PATTERN.test(text)
   );
 }
 

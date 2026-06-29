@@ -418,9 +418,10 @@ describe('parsePrerequisite', () => {
     expect(result.type).toBe('unknown');
   });
 
-  test('treats alignment prerequisites as unknown legacy text', () => {
-    const result = parsePrerequisite('evil alignment');
-    expect(result.type).toBe('unknown');
+  test('treats legacy alignment prerequisites as unknown (Remaster removed alignment)', () => {
+    for (const text of ['evil alignment', 'lawful good alignment', 'non-evil alignment', 'any non-evil alignment', 'any alignment', 'chaotic or lawful alignment', 'good-aligned deity', 'you follow a good-aligned deity']) {
+      expect(parsePrerequisite(text).type).toBe('unknown');
+    }
   });
 
   test('parses plural save proficiency prerequisites', () => {

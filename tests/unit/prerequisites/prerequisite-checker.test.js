@@ -1411,7 +1411,7 @@ describe('checkPrerequisites', () => {
     const feat = {
       system: {
         prerequisites: {
-          value: [{ value: 'evil alignment' }, { value: 'trained in Religion' }],
+          value: [{ value: 'non-evil alignment' }, { value: 'trained in Religion' }],
         },
       },
     };
@@ -1423,6 +1423,16 @@ describe('checkPrerequisites', () => {
     expect(result.results).toHaveLength(2);
     expect(result.results[0].met).toBeNull();
     expect(result.results[1].met).toBe(true);
+  });
+
+  test('treats an alignment-restricted deity as unverified rather than a missing feat', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'you follow a good-aligned deity' }] } },
+    };
+    const result = checkPrerequisites(feat, buildState);
+    expect(result.met).toBe(true);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].met).toBeNull();
   });
 
   test('treats curse-state prerequisites as a single unverified clause instead of mixed false and unknown results', () => {
