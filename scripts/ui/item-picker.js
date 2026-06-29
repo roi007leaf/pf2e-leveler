@@ -556,6 +556,9 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const rarityContainer = root?.querySelector('[data-role="rarity-chips"]');
     const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
     if (rarityContainer && newRarityContainer) rarityContainer.innerHTML = newRarityContainer.innerHTML;
+    const guidanceContainer = root?.querySelector('[data-role="guidance-tag-chips"]');
+    const newGuidanceContainer = temp.querySelector('[data-role="guidance-tag-chips"]');
+    if (guidanceContainer && newGuidanceContainer) guidanceContainer.innerHTML = newGuidanceContainer.innerHTML;
     const publicationSection = root?.querySelector('[data-section="publications"]');
     const newPublicationSection = temp.querySelector('[data-section="publications"]');
     if (publicationSection && newPublicationSection) publicationSection.replaceWith(newPublicationSection);

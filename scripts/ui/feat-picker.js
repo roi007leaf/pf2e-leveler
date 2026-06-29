@@ -791,6 +791,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
           if (!tag) return;
           if (this.selectedGuidanceTags.has(tag)) this.selectedGuidanceTags.delete(tag);
           else this.selectedGuidanceTags.add(tag);
+          btn.classList.toggle('selected', this.selectedGuidanceTags.has(tag));
           this._scheduleListUpdate();
         },
         { signal },
@@ -861,6 +862,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const newRarityContainer = temp.querySelector('[data-role="rarity-chips"]');
     if (rarityContainer && newRarityContainer) {
       rarityContainer.innerHTML = newRarityContainer.innerHTML;
+    }
+
+    const guidanceContainer = root?.querySelector('[data-role="guidance-tag-chips"]');
+    const newGuidanceContainer = temp.querySelector('[data-role="guidance-tag-chips"]');
+    if (guidanceContainer && newGuidanceContainer) {
+      guidanceContainer.innerHTML = newGuidanceContainer.innerHTML;
     }
 
     const publicationSection = root?.querySelector('[data-section="publications"]');

@@ -560,6 +560,12 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       rarityContainer.innerHTML = newRarityContainer.innerHTML;
     }
 
+    const guidanceContainer = root?.querySelector('[data-role="guidance-tag-chips"]');
+    const newGuidanceContainer = temp.querySelector('[data-role="guidance-tag-chips"]');
+    if (guidanceContainer && newGuidanceContainer) {
+      guidanceContainer.innerHTML = newGuidanceContainer.innerHTML;
+    }
+
     this._updateResultCount();
     this._updateFilterControlState();
     this._updateSelectionUI();

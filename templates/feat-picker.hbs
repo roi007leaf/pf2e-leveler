@@ -172,7 +172,7 @@
       {{#if guidanceTagOptions.length}}
       <div class="picker__filter-group">
         <div class="picker__filter-label">{{localize "PF2E_LEVELER.UI.GUIDANCE_FILTER"}}</div>
-        <div class="picker__source-list">
+        <div class="picker__source-list" data-role="guidance-tag-chips">
           {{#each guidanceTagOptions}}
           <button type="button"
             class="picker__source-chip {{#if this.selected}}selected{{/if}}"
