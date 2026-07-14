@@ -65,4 +65,34 @@ describe('resolveSubclassSpells', () => {
       expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.x7SPrsRxGb2Vy2nu' }),
     );
   });
+
+  test.each([
+    ['bloodline-aberrant', 'occult'],
+    ['bloodline-aesir', 'divine'],
+    ['bloodline-angelic', 'divine'],
+    ['bloodline-demonic', 'divine'],
+    ['bloodline-diabolic', 'divine'],
+    ['bloodline-elemental', 'primal'],
+    ['bloodline-fey', 'primal'],
+    ['bloodline-genie', 'arcane'],
+    ['bloodline-hag', 'occult'],
+    ['bloodline-harrow', 'occult'],
+    ['bloodline-imperial', 'arcane'],
+    ['bloodline-nymph', 'primal'],
+    ['bloodline-phoenix', 'primal'],
+    ['bloodline-psychopomp', 'divine'],
+    ['bloodline-shadow', 'occult'],
+    ['bloodline-undead', 'divine'],
+    ['bloodline-wyrmblessed', 'divine'],
+  ])('resolves %s to its fixed spellcasting tradition', (slug, tradition) => {
+    expect(resolveSpellcastingTradition('bloodline', { slug })).toBe(tradition);
+  });
+
+  test.each([
+    ['bloodline-elemental', { elementalBloodline: 'fire' }, 'primal'],
+    ['bloodline-genie', { genie: 'ifrit' }, 'arcane'],
+    ['bloodline-wyrmblessed', { dragonBloodline: 'umbral' }, 'divine'],
+  ])('keeps %s fixed when its choice only changes gifts', (slug, choices, tradition) => {
+    expect(resolveSpellcastingTradition('bloodline', { slug, choices })).toBe(tradition);
+  });
 });

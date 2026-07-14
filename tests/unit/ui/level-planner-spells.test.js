@@ -491,6 +491,45 @@ describe('level planner spell context', () => {
     ).toBe('primal');
   });
 
+  test('uses fixed Undead bloodline tradition instead of an unrelated actor entry', () => {
+    const planner = {
+      actor: {
+        items: [
+          {
+            type: 'spellcastingEntry',
+            name: 'Occult Focus Spells',
+            system: {
+              prepared: { value: 'focus' },
+              tradition: { value: 'occult' },
+            },
+          },
+          {
+            type: 'feat',
+            slug: 'bloodline-undead',
+            system: {
+              traits: {
+                otherTags: ['sorcerer-bloodline'],
+              },
+            },
+          },
+          {
+            type: 'spellcastingEntry',
+            name: 'Divine Spontaneous Spells',
+            system: {
+              prepared: { value: 'spontaneous' },
+              tradition: { value: 'divine' },
+            },
+          },
+        ],
+      },
+      plan: {
+        classSlug: 'sorcerer',
+      },
+    };
+
+    expect(resolveSpellTradition(planner, SORCERER)).toBe('divine');
+  });
+
   test('leaves unresolved Starfinder variable spell traditions open in the planner', () => {
     const planner = {
       actor: {

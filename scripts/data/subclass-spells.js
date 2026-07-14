@@ -47,26 +47,31 @@ export const SUBCLASS_SPELLS = {
   },
   // sorcerer — Bloodline: Aberrant
   'bloodline-aberrant': {
+    tradition: 'occult',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.i8PBZsnoCrK7IWph", "advanced": "Compendium.pf2e.spells-srd.Item.ddKBoCjmSyPSHcws" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.R8bqnYiThB6MYTxD", "2": "Compendium.pf2e.spells-srd.Item.CQb8HtQ1BPeZmu9h", "3": "Compendium.pf2e.spells-srd.Item.N1Z1oLPdBxaSgrEE", "4": "Compendium.pf2e.spells-srd.Item.LiGbewa9pO0yjbsY", "5": "Compendium.pf2e.spells-srd.Item.xFp4EwVcYwSG336t", "6": "Compendium.pf2e.spells-srd.Item.5BbU1V6wGSGbrmRD", "7": "Compendium.pf2e.spells-srd.Item.8kJbiBEjMWG4VUjs", "8": "Compendium.pf2e.spells-srd.Item.Jvyy6oVIQsD34MHB", "9": "Compendium.pf2e.spells-srd.Item.FmNDwqMEjeTEGPrY", "cantrip": "Compendium.pf2e.spells-srd.Item.4gBIw4IDrSfFHik4" },
   },
   // sorcerer — Bloodline: Aesir
   'bloodline-aesir': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.dQ7LrD2HxJoCzi2M", "advanced": "Compendium.pf2e.spells-srd.Item.USKnG2ZSzVs4xn85" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.aAbfKn8maGjJjk2W", "2": "Compendium.pf2e.spells-srd.Item.WPu3UE3kTXSLqO40", "3": "Compendium.pf2e.spells-srd.Item.KqvqNAfGIE5a9wSv", "4": "Compendium.pf2e.spells-srd.Item.gfKhtVsXF3HKSdmY", "5": "Compendium.pf2e.spells-srd.Item.hghGRzOSzEl4UXdS", "6": "Compendium.pf2e.spells-srd.Item.NhGXgmI3AjkkwnPk", "7": "Compendium.pf2e.spells-srd.Item.Z9OrRXKgAPv6Hn5l", "8": "Compendium.pf2e.spells-srd.Item.Ht35SDf9PDStJfoC", "9": "Compendium.pf2e.spells-srd.Item.10VcmSYNBrvBphu1", "cantrip": "Compendium.pf2e.spells-srd.Item.TVKNbcgTee19PXZR" },
   },
   // sorcerer — Bloodline: Angelic
   'bloodline-angelic': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.w3uGXDVEdbLFZVO0", "advanced": "Compendium.pf2e.spells-srd.Item.9WlTR9JlEcjRmGiD" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs", "2": "Compendium.pf2e.spells-srd.Item.WPu3UE3kTXSLqO40", "3": "Compendium.pf2e.spells-srd.Item.DyiD239dNS7RIxZE", "4": "Compendium.pf2e.spells-srd.Item.hVU9msO9yGkxKZ3J", "5": "Compendium.pf2e.spells-srd.Item.A16eFTRh82xIjMu8", "6": "Compendium.pf2e.spells-srd.Item.jj5d830iUi2ZlQfs", "7": "Compendium.pf2e.spells-srd.Item.sX2o0HH4RjJDAZ8C", "8": "Compendium.pf2e.spells-srd.Item.4MOew29Z1oCX8O28", "9": "Compendium.pf2e.spells-srd.Item.qsNeG9KZpODSACMq", "cantrip": "Compendium.pf2e.spells-srd.Item.WBmvzNDfpwka3qT4" },
   },
   // sorcerer — Bloodline: Demonic
   'bloodline-demonic': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.SdXFiQ4Py8761sNO", "advanced": "Compendium.pf2e.spells-srd.Item.crF4g9jRN1y84MSD" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.4koZzrnMXhhosn0D", "2": "Compendium.pf2e.spells-srd.Item.wzctak6BxOW8xvFV", "3": "Compendium.pf2e.spells-srd.Item.WsUwpfmhKrKwoIe3", "4": "Compendium.pf2e.spells-srd.Item.hVU9msO9yGkxKZ3J", "5": "Compendium.pf2e.spells-srd.Item.59NR1hA2jPSgg2sW", "6": "Compendium.pf2e.spells-srd.Item.r7ihOgKv19eJQnik", "7": "Compendium.pf2e.spells-srd.Item.sX2o0HH4RjJDAZ8C", "8": "Compendium.pf2e.spells-srd.Item.qlxM7Ik3uUeUIOcv", "9": "Compendium.pf2e.spells-srd.Item.4WS7HrFjwNvTn8T2", "cantrip": "Compendium.pf2e.spells-srd.Item.thAHF1zxNplLCJPO" },
   },
   // sorcerer — Bloodline: Diabolic
   'bloodline-diabolic': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.Vctwx1ewa8HUOA94", "advanced": "Compendium.pf2e.spells-srd.Item.9LHr9SuDLTicdbXs" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.vLA0q0WOK2YPuJs6", "2": "Compendium.pf2e.spells-srd.Item.2ZdHjnpEQJuqOYSG", "3": "Compendium.pf2e.spells-srd.Item.IihxWhRfpsBgQ5jS", "4": "Compendium.pf2e.spells-srd.Item.qwlh6aDgi86U3Q7H", "5": "Compendium.pf2e.spells-srd.Item.GaRQlC9Yw1BGKHfN", "6": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki", "7": "Compendium.pf2e.spells-srd.Item.sX2o0HH4RjJDAZ8C", "8": "Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL", "9": "Compendium.pf2e.spells-srd.Item.jrBa9deU2ULFWvSl", "cantrip": "Compendium.pf2e.spells-srd.Item.6DfLZBl8wKIV03Iq" },
   },
@@ -124,6 +129,7 @@ export const SUBCLASS_SPELLS = {
   // sorcerer — Bloodline: Elemental
   // Elemental: element-specific spells at cantrip, 1, 3, 6. Shared at 2, 4, 5, 7, 8, 9.
   'bloodline-elemental': {
+    tradition: 'primal',
     focusSpells: { initial: 'Compendium.pf2e.spells-srd.Item.0JUOgbbFCapp3HlW', advanced: 'Compendium.pf2e.spells-srd.Item.Qlp8G3knwLGhAxQ0' },
     grantedSpells: {
       2: 'Compendium.pf2e.spells-srd.Item.Fr58LDSrbndgld9n',  // Resist Energy
@@ -146,11 +152,13 @@ export const SUBCLASS_SPELLS = {
   },
   // sorcerer — Bloodline: Fey
   'bloodline-fey': {
+    tradition: 'primal',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.IkS3lDGUpIOMug7v", "advanced": "Compendium.pf2e.spells-srd.Item.DdXKfIjDtORUtUvY" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.vLA0q0WOK2YPuJs6", "2": "Compendium.pf2e.spells-srd.Item.tlSE7Ly8vi1Dgddv", "3": "Compendium.pf2e.spells-srd.Item.IihxWhRfpsBgQ5jS", "4": "Compendium.pf2e.spells-srd.Item.qwlh6aDgi86U3Q7H", "5": "Compendium.pf2e.spells-srd.Item.U58aQWJ47VrI36yP", "6": "Compendium.pf2e.spells-srd.Item.WPXzPl7YbMEIGWfi", "7": "Compendium.pf2e.spells-srd.Item.jBGAYmR0BkkbpJvG", "8": "Compendium.pf2e.spells-srd.Item.Jvyy6oVIQsD34MHB", "9": "Compendium.pf2e.spells-srd.Item.pswdik31kuHEvdno", "cantrip": "Compendium.pf2e.spells-srd.Item.0zU8CPejjQFnhZFI" },
   },
   // sorcerer — Bloodline: Genie
   'bloodline-genie': {
+    tradition: 'arcane',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.OyiKIbWllLZC6sGz", "advanced": "Compendium.pf2e.spells-srd.Item.B3tbO85GBpzQ3u8l" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.i35dpZFI7jZcRoBo", "3": "Compendium.pf2e.spells-srd.Item.IihxWhRfpsBgQ5jS", "4": "Compendium.pf2e.spells-srd.Item.TUj8eugNqAvB1vVR", "6": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki", "7": "Compendium.pf2e.spells-srd.Item.m2xFMNyQiUKQDRaj", "9": "Compendium.pf2e.spells-srd.Item.KPDHmmjJiw7PhTYF", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
     choiceFlag: 'genie',
@@ -185,46 +193,55 @@ export const SUBCLASS_SPELLS = {
   },
   // sorcerer — Bloodline: Hag
   'bloodline-hag': {
+    tradition: 'occult',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.kvm68hVtmADiIvN4", "advanced": "Compendium.pf2e.spells-srd.Item.x2LALaHXO7644GQA" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.i35dpZFI7jZcRoBo", "2": "Compendium.pf2e.spells-srd.Item.CQb8HtQ1BPeZmu9h", "3": "Compendium.pf2e.spells-srd.Item.VosLNn2M8S7JH67D", "4": "Compendium.pf2e.spells-srd.Item.KSAEhNfZyXMO7Z7V", "5": "Compendium.pf2e.spells-srd.Item.z2mfh3oPnfYqXflY", "6": "Compendium.pf2e.spells-srd.Item.dN8QBNuTiaBHCKUe", "7": "Compendium.pf2e.spells-srd.Item.8kJbiBEjMWG4VUjs", "8": "Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7", "9": "Compendium.pf2e.spells-srd.Item.MJx7DmjsWYzDZ3a4", "cantrip": "Compendium.pf2e.spells-srd.Item.4gBIw4IDrSfFHik4" },
   },
   // sorcerer — Bloodline: Harrow
   'bloodline-harrow': {
+    tradition: 'occult',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.PaHxcqXihXkkXPsB", "advanced": "Compendium.pf2e.spells-srd.Item.BAu5AgqoO556clyK" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.6ZIKB0151LUR19Rw", "2": "Compendium.pf2e.spells-srd.Item.41TZEjhO6D1nWw2X", "3": "Compendium.pf2e.spells-srd.Item.ppA1StEigPLKEQqR", "4": "Compendium.pf2e.spells-srd.Item.qwlh6aDgi86U3Q7H", "5": "Compendium.pf2e.spells-srd.Item.tcwT97RWKxsJiefG", "6": "Compendium.pf2e.spells-srd.Item.uqlxMQQeSGWEVjki", "7": "Compendium.pf2e.spells-srd.Item.rsZ5c0AUyywe5yoK", "8": "Compendium.pf2e.spells-srd.Item.y2cQYLr5mljDSu1G", "9": "Compendium.pf2e.spells-srd.Item.qDjeG6dxT4aEEC6J", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
   },
   // sorcerer — Bloodline: Imperial
   'bloodline-imperial': {
+    tradition: 'arcane',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.dtOUkMC57izf93z5", "advanced": "Compendium.pf2e.spells-srd.Item.h47yv6j6x1pUtzlr" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.gKKqvLohtrSJj3BM", "2": "Compendium.pf2e.spells-srd.Item.9HpwDN4MYQJnW0LG", "3": "Compendium.pf2e.spells-srd.Item.o6YCGx4lycsYpww4", "4": "Compendium.pf2e.spells-srd.Item.VlNcjmYyu95vOUe8", "5": "Compendium.pf2e.spells-srd.Item.Ek5XI0aEdZhBgm21", "6": "Compendium.pf2e.spells-srd.Item.r7ihOgKv19eJQnik", "7": "Compendium.pf2e.spells-srd.Item.rsZ5c0AUyywe5yoK", "8": "Compendium.pf2e.spells-srd.Item.Oj1PJBMQD9vuwCv7", "9": "Compendium.pf2e.spells-srd.Item.4WS7HrFjwNvTn8T2", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
   },
   // sorcerer — Bloodline: Nymph
   'bloodline-nymph': {
+    tradition: 'primal',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.pHrVvoTKygXeczVG", "advanced": "Compendium.pf2e.spells-srd.Item.XlQBVvlDWGrGlApl" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.vLA0q0WOK2YPuJs6", "2": "Compendium.pf2e.spells-srd.Item.b515AZlB0sridKSq", "3": "Compendium.pf2e.spells-srd.Item.1HfusQ8NDWutGvMx", "4": "Compendium.pf2e.spells-srd.Item.ikSb3LRGnrwXJBVX", "5": "Compendium.pf2e.spells-srd.Item.GaRQlC9Yw1BGKHfN", "6": "Compendium.pf2e.spells-srd.Item.yrZA4k2VAqEP8xx7", "7": "Compendium.pf2e.spells-srd.Item.bVtkBJvGLP69qVGI", "8": "Compendium.pf2e.spells-srd.Item.4MOew29Z1oCX8O28", "9": "Compendium.pf2e.spells-srd.Item.fkDeKktdmbeplYRY", "cantrip": "Compendium.pf2e.spells-srd.Item.uZK2BYzPnxUBnDjr" },
   },
   // sorcerer — Bloodline: Phoenix
   'bloodline-phoenix': {
+    tradition: 'primal',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.lZx8jZfKrMEtyGY0", "advanced": "Compendium.pf2e.spells-srd.Item.tf4PMMMzR5xxJDun" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.y6rAdMK6EFlV6U0t", "2": ["Compendium.pf2e.spells-srd.Item.jwK43yKsHTkJQvQ9", "Compendium.pf2e.spells-srd.Item.SUKaxVZW2TlM8lu0"], "3": "Compendium.pf2e.spells-srd.Item.sxQZ6yqTn0czJxVd", "5": "Compendium.pf2e.spells-srd.Item.Hnc7eGi7vyZenAIm", "6": "Compendium.pf2e.spells-srd.Item.r7ihOgKv19eJQnik", "7": "Compendium.pf2e.spells-srd.Item.WG91Z5TiR6oO5FOw", "8": "Compendium.pf2e.spells-srd.Item.4MOew29Z1oCX8O28", "9": "Compendium.pf2e.spells-srd.Item.jrBa9deU2ULFWvSl", "cantrip": "Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl" },
   },
   // sorcerer — Bloodline: Psychopomp
   'bloodline-psychopomp': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.3mINzPzup2m9qzFU", "advanced": "Compendium.pf2e.spells-srd.Item.SzKkzq3Rr6vKIxbp" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs", "2": "Compendium.pf2e.spells-srd.Item.b515AZlB0sridKSq", "3": "Compendium.pf2e.spells-srd.Item.DyiD239dNS7RIxZE", "4": "Compendium.pf2e.spells-srd.Item.ksLCg62cLOojw3gN", "5": "Compendium.pf2e.spells-srd.Item.YvXKGlHOt7mdW2jZ", "6": "Compendium.pf2e.spells-srd.Item.PHVHBbdHeQRfjLmE", "7": "Compendium.pf2e.spells-srd.Item.Z9OrRXKgAPv6Hn5l", "8": "Compendium.pf2e.spells-srd.Item.Ht35SDf9PDStJfoC", "9": "Compendium.pf2e.spells-srd.Item.10VcmSYNBrvBphu1", "cantrip": "Compendium.pf2e.spells-srd.Item.kcelf6IHl3L9VXXg" },
   },
   // sorcerer — Bloodline: Shadow
   'bloodline-shadow': {
+    tradition: 'occult',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.6UafOE1ZUbHamsZJ", "advanced": "Compendium.pf2e.spells-srd.Item.HMTloW1hvRFJ5Z2D" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.k34hDOfIIMAxNL4a", "2": "Compendium.pf2e.spells-srd.Item.4GE2ZdODgIQtg51c", "3": "Compendium.pf2e.spells-srd.Item.sRfSBHWHdbIa0aGc", "4": "Compendium.pf2e.spells-srd.Item.tlcrVRqW1MSKJ5IC", "5": "Compendium.pf2e.spells-srd.Item.tcwT97RWKxsJiefG", "6": "Compendium.pf2e.spells-srd.Item.c3XygMbzrZMgV1y3", "7": "Compendium.pf2e.spells-srd.Item.73rToy0v5Ra9NvL6", "8": "Compendium.pf2e.spells-srd.Item.wfleiawxsfhpRRwf", "9": "Compendium.pf2e.spells-srd.Item.qDjeG6dxT4aEEC6J", "cantrip": "Compendium.pf2e.spells-srd.Item.mAMEt4FFbdqoRnkN" },
   },
   // sorcerer — Bloodline: Undead
   'bloodline-undead': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.FedTjedva2rYk33r", "advanced": "Compendium.pf2e.spells-srd.Item.2YIr0S2Gt14PMMQp" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.wdA52JJnsuQWeyqz", "2": "Compendium.pf2e.spells-srd.Item.jwK43yKsHTkJQvQ9", "3": "Compendium.pf2e.spells-srd.Item.GUeRTriJkMlMlVrk", "4": "Compendium.pf2e.spells-srd.Item.FM3SmEW8N1FCRjqt", "5": "Compendium.pf2e.spells-srd.Item.hghGRzOSzEl4UXdS", "6": "Compendium.pf2e.spells-srd.Item.fd31tAHSSGXyOxW6", "7": "Compendium.pf2e.spells-srd.Item.Z9OrRXKgAPv6Hn5l", "8": "Compendium.pf2e.spells-srd.Item.qlxM7Ik3uUeUIOcv", "9": "Compendium.pf2e.spells-srd.Item.FEsuyf203wTNE2et", "cantrip": "Compendium.pf2e.spells-srd.Item.mAMEt4FFbdqoRnkN" },
   },
   // sorcerer — Bloodline: Wyrmblessed
   'bloodline-wyrmblessed': {
+    tradition: 'divine',
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.K8vvrOgW4bGakXxm", "advanced": "Compendium.pf2e.spells-srd.Item.HWJODX2zPg5cg34F" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.aAbfKn8maGjJjk2W", "2": "Compendium.pf2e.spells-srd.Item.Fr58LDSrbndgld9n", "3": "Compendium.pf2e.spells-srd.Item.o6YCGx4lycsYpww4", "4": "Compendium.pf2e.spells-srd.Item.Mv5L4201uk8hnAtD", "5": "Compendium.pf2e.spells-srd.Item.TCk2MDwf5L5OYjFC", "6": "Compendium.pf2e.spells-srd.Item.yrZA4k2VAqEP8xx7", "7": "Compendium.pf2e.spells-srd.Item.O6VQC1Bs4aSYDa6R", "8": "Compendium.pf2e.spells-srd.Item.KtTGLbLG9nqMbUYL", "9": "Compendium.pf2e.spells-srd.Item.fkDeKktdmbeplYRY", "cantrip": "Compendium.pf2e.spells-srd.Item.OhD2Z6rIGGD5ocZA" },
     choiceFlag: 'dragonBloodline',
@@ -680,7 +697,8 @@ export function resolveSubclassChoiceTradition(subclassOrSlug, choices = null) {
 export function resolveSpellcastingTradition(baseTradition, subclass, fallback = 'arcane') {
   const normalizedBase = normalizeChoiceIdentity(baseTradition);
   if (VARIABLE_SPELLCASTING_TRADITIONS.has(normalizedBase)) {
-    return resolveSubclassChoiceTradition(subclass) ?? normalizeSpellTradition(subclass?.tradition) ?? fallback;
+    const fixedSubclassTradition = normalizeSpellTradition(getSubclassSpellData(subclass?.slug)?.tradition);
+    return resolveSubclassChoiceTradition(subclass) ?? fixedSubclassTradition ?? normalizeSpellTradition(subclass?.tradition) ?? fallback;
   }
   return normalizeSpellTradition(baseTradition) ?? baseTradition ?? fallback;
 }

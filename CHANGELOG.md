@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.6.5
+
+### Fixed
+
+- **Sorcerer spell pickers now use each bloodline's correct tradition** - The Level Planner now filters spells using the selected bloodline's Arcane, Divine, Occult, or Primal tradition instead of potentially borrowing an unrelated spellcasting entry. Draconic bloodlines still follow their chosen exemplar, while Elemental, Genie, and Wyrmblessed choices keep their fixed traditions
+
 ## 3.6.4
 
 ### Fixed
