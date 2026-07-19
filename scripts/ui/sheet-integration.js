@@ -18,6 +18,64 @@ export function registerSheetIntegration() {
   Hooks.on('renderSpellPreparationSheetPF2e', onRenderSpellPreparationSheet);
 }
 
+export function registerLevelerKeybindings() {
+  if (!game.keybindings?.register) return;
+
+  game.keybindings.register(MODULE_ID, 'openLevelerForCharacter', {
+    name: 'PF2E_LEVELER.KEYBINDINGS.OPEN_LEVELER.NAME',
+    hint: 'PF2E_LEVELER.KEYBINDINGS.OPEN_LEVELER.HINT',
+    editable: [{ key: 'KeyL', modifiers: ['Shift'] }],
+    precedence: globalThis.CONST?.KEYBINDING_PRECEDENCE?.NORMAL ?? 0,
+    restricted: false,
+    onDown: () => {
+      const actor = resolveLevelerShortcutActor();
+      if (!actor) {
+        ui.notifications.warn(localize('KEYBINDINGS.NO_ACTOR'));
+        return false;
+      }
+
+      void openLevelerForActor(actor);
+      return true;
+    },
+  });
+}
+
+export function resolveLevelerShortcutActor() {
+  const controlledActors = uniqueUsableActors(
+    (canvas?.tokens?.controlled ?? []).map((token) => token?.actor),
+  );
+  if (controlledActors.length === 1) return controlledActors[0];
+
+  const assignedActor = game.user?.character;
+  if (canUseLevelerForActor(assignedActor)) return assignedActor;
+
+  const worldActors = game.actors?.contents ?? Array.from(game.actors ?? []);
+  const usableActors = uniqueUsableActors(worldActors);
+  return usableActors.length === 1 ? usableActors[0] : null;
+}
+
+function uniqueUsableActors(actors) {
+  const unique = new Map();
+  for (const actor of actors ?? []) {
+    if (!canUseLevelerForActor(actor)) continue;
+    unique.set(actor.id ?? actor.uuid, actor);
+  }
+  return [...unique.values()];
+}
+
+async function openLevelerForActor(actor) {
+  if (!canUseLevelerForActor(actor)) return false;
+  if (isSupportedClass(actor)) {
+    await openPlanner(actor);
+    return true;
+  }
+  if (canOpenCreationWizard(actor)) {
+    await openWizard(actor);
+    return true;
+  }
+  return false;
+}
+
 export function isSupportedClass(actor) {
   const actorClass = actor.class;
   if (!actorClass) return false;
@@ -84,7 +142,7 @@ function onRenderCharacterSheet(sheet, html) {
   if (canOpenCreationWizard(actor)) {
     const createTitle = getCreationButtonTitle(actor);
     const createBtn = $(`
-      <a class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}" role="button">
+      <a class="pf2e-leveler-create-btn header-control" data-tooltip="${createTitle}" title="${createTitle}" aria-label="${createTitle}" role="button">
         <i class="fas fa-wand-magic-sparkles"></i>
       </a>
     `);
@@ -101,7 +159,7 @@ function onRenderCharacterSheet(sheet, html) {
   if (isSupportedClass(actor)) {
     const planTitle = localize('UI.OPEN_PLANNER');
     const planBtn = $(`
-      <a class="pf2e-leveler-plan-btn header-control" data-tooltip="${planTitle}" role="button">
+      <a class="pf2e-leveler-plan-btn header-control" data-tooltip="${planTitle}" title="${planTitle}" aria-label="${planTitle}" role="button">
         <i class="fas fa-arrow-up-right-dots"></i>
       </a>
     `);

@@ -2,7 +2,7 @@ import { registerSettings, migrateWealthSettings } from '../settings.js';
 import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { ensureClassRegistry } from '../classes/ensure.js';
-import { registerSheetIntegration } from '../ui/sheet-integration.js';
+import { registerLevelerKeybindings, registerSheetIntegration } from '../ui/sheet-integration.js';
 import { ensureLevelerTemplatesLoaded } from '../ui/template-preload.js';
 import { info } from '../utils/logger.js';
 import { registerReviewRequestSocket } from '../access/review-requests.js';
@@ -18,6 +18,7 @@ async function onInit() {
   info('Initializing module');
 
   registerSettings();
+  registerLevelerKeybindings();
   await migrateLegacyFeatCompendiumsSetting();
   registerClasses();
   registerHandlebarsHelpers();

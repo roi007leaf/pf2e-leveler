@@ -559,8 +559,8 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(templated.prereqGroups[0].items).toHaveLength(2);
     expect(templated.prereqGroups[0].items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ text: 'Master In Occultism', met: false }),
-        expect.objectContaining({ text: 'Master In Religion', met: true }),
+        expect.objectContaining({ text: 'Master in Occultism', met: false }),
+        expect.objectContaining({ text: 'Master in Religion', met: true }),
       ]),
     );
   });
@@ -620,6 +620,31 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
     expect(templated.prereqResults[0].displayHtml).toBe('Trained By A Hellknight Order');
     expect(templated.prereqResults[0].displayHtml).not.toContain('prereq-rank');
+  });
+
+  test('preserves German prerequisite casing and colors localized proficiency ranks', () => {
+    const feat = createFeat({
+      name: 'Deutsches Talent',
+      prereqText: 'Geübt in Athletik',
+      uuid: 'deutsches-talent',
+      slug: 'deutsches-talent',
+    });
+    const picker = new FeatPicker(
+      createActor(),
+      'skill',
+      2,
+      createBuildState({ skills: { athletics: 1 } }),
+      jest.fn(),
+    );
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+    const templated = picker._toTemplateFeat(result);
+
+    expect(templated.prereqResults[0].displayHtml).toBe(
+      '<span class="prereq-rank rank-text-trained">Geübt</span> in Athletik',
+    );
+    expect(templated.prereqResults[0].displayHtml).not.toContain('GeüBt');
   });
 
   test('multi-ancestry feat selection prerequisites pass with adopted ancestry in build state', () => {

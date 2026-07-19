@@ -1,6 +1,14 @@
-import { resolveSpellcastingTradition, resolveSubclassSpells } from '../../../scripts/data/subclass-spells.js';
+import { SUBCLASS_SPELLS, resolveSpellcastingTradition, resolveSubclassSpells } from '../../../scripts/data/subclass-spells.js';
 
 describe('resolveSubclassSpells', () => {
+  test('maps all three Time mystery revelation spells to their correct tiers', () => {
+    expect(SUBCLASS_SPELLS.time.focusSpells).toEqual({
+      initial: 'Compendium.pf2e.spells-srd.Item.UbHK19RYbxRXWgWX',
+      advanced: 'Compendium.pf2e.spells-srd.Item.LbqunTurwXB3u9Vp',
+      greater: 'Compendium.pf2e.spells-srd.Item.MT8usUfwudDVUm5H',
+    });
+  });
+
   test('resolves Genie bloodline variable spells by explicit genie type', () => {
     expect(resolveSubclassSpells('bloodline-genie', { genie: 'janni' }, 2)).toEqual(
       expect.objectContaining({ grantedSpell: 'Compendium.pf2e.spells-srd.Item.0qaqksrGGDj74HXE' }),

@@ -4,7 +4,9 @@ import {
   isActorCharacterSheetApplication,
   isSupportedClass,
   normalizePreparationGroupRank,
+  registerLevelerKeybindings,
   registerSheetIntegration,
+  resolveLevelerShortcutActor,
   shouldRedirectCreationWizardToPlanner,
 } from '../../../scripts/ui/sheet-integration.js';
 import { resetLevelerTemplatePreloadForTests } from '../../../scripts/ui/template-preload.js';
@@ -24,6 +26,47 @@ describe('normalizePreparationGroupRank', () => {
   test('returns null for unsupported group ids', () => {
     expect(normalizePreparationGroupRank('focus')).toBeNull();
     expect(normalizePreparationGroupRank(null)).toBeNull();
+  });
+});
+
+describe('leveler keyboard shortcut', () => {
+  afterEach(() => {
+    delete game.keybindings;
+    delete game.actors;
+    game.user.character = null;
+    canvas.tokens.controlled = [];
+  });
+
+  test('registers Shift+L as an editable Foundry keybinding', () => {
+    game.keybindings = { register: jest.fn() };
+
+    registerLevelerKeybindings();
+
+    expect(game.keybindings.register).toHaveBeenCalledWith(
+      'pf2e-leveler',
+      'openLevelerForCharacter',
+      expect.objectContaining({
+        editable: [{ key: 'KeyL', modifiers: ['Shift'] }],
+        restricted: false,
+        onDown: expect.any(Function),
+      }),
+    );
+  });
+
+  test('prefers one selected character over the assigned character', () => {
+    const selected = createMockActor({ id: 'selected' });
+    const assigned = createMockActor({ id: 'assigned' });
+    canvas.tokens.controlled = [{ actor: selected }];
+    game.user.character = assigned;
+
+    expect(resolveLevelerShortcutActor()).toBe(selected);
+  });
+
+  test('falls back to the only usable world character', () => {
+    const actor = createMockActor({ id: 'only-character' });
+    game.actors = { contents: [actor, { id: 'npc', type: 'npc' }] };
+
+    expect(resolveLevelerShortcutActor()).toBe(actor);
   });
 });
 

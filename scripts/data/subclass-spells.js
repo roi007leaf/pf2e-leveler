@@ -494,7 +494,11 @@ export const SUBCLASS_SPELLS = {
   },
   // oracle — Time
   'time': {
-    focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.UbHK19RYbxRXWgWX", "advanced": "Compendium.pf2e.spells-srd.Item.MT8usUfwudDVUm5H" },
+    focusSpells: {
+      initial: 'Compendium.pf2e.spells-srd.Item.UbHK19RYbxRXWgWX',
+      advanced: 'Compendium.pf2e.spells-srd.Item.LbqunTurwXB3u9Vp',
+      greater: 'Compendium.pf2e.spells-srd.Item.MT8usUfwudDVUm5H',
+    },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.rerNA6YZsdxuJYt3", "3": "Compendium.pf2e.spells-srd.Item.0Rl3W7kiq9xVZRcr", "7": "Compendium.pf2e.spells-srd.Item.G56DJkxlUjFv0C4Z", "cantrip": "Compendium.pf2e.spells-srd.Item.BvNbDwFYaidKJG9j" },
   },
   // magus — Twisting Tree

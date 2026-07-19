@@ -16,6 +16,11 @@ describe('isAdvancedMulticlassFeatCandidate', () => {
     expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-domain' }, source)).toBe(false);
   });
 
+  test('false for the Oracle Advanced Revelation class feat', () => {
+    const source = { system: { slug: 'advanced-revelation', traits: { value: ['oracle'] }, rules: [] } };
+    expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-revelation' }, source)).toBe(false);
+  });
+
   test('false for an "Advanced" archetype feat that already grants an item', () => {
     const source = { system: { slug: 'advanced-deity', traits: { value: ['archetype'] }, rules: [{ key: 'GrantItem', uuid: 'Compendium.x.Item.y' }] } };
     expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-deity' }, source)).toBe(false);

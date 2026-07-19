@@ -172,6 +172,37 @@ describe('checkPrerequisites', () => {
     expect(result.met).toBe(true);
   });
 
+  test('matches ancestry and homebrew heritage prerequisites together', () => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [
+            { value: 'Android ancestry' },
+            { value: 'Hellforge Android heritage' },
+          ],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      ancestrySlug: 'android',
+      ancestryTraits: new Set(['android', 'humanoid']),
+      heritageAliases: new Set(['hellforge-android', 'hellforge-android-heritage']),
+    });
+    expect(result.met).toBe(true);
+  });
+
+  test('meets German localized skill prerequisites', () => {
+    const feat = {
+      system: { prerequisites: { value: [{ value: 'Geübt in Athletik' }] } },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      skills: { ...buildState.skills, athletics: 1 },
+    });
+    expect(result.met).toBe(true);
+  });
+
   test('meets French-only translated skill prerequisites when actor has matching skill', () => {
     const feat = {
       system: {

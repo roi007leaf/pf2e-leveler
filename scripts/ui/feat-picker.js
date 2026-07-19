@@ -1519,7 +1519,7 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _decoratePrereqResult(result) {
-    const text = this._titleCase(String(result?.text ?? ''));
+    const text = this._formatPrerequisiteText(result?.text);
     return {
       ...result,
       text,
@@ -1580,14 +1580,29 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _colorizePrereqRanks(text) {
     const escaped = this._escapeHtml(text);
-    return escaped.replace(/\b(Untrained|Trained|Expert|Master|Legendary)\b(?=\s+(?:In|En)\b)/g, (match) => {
-      const rankName = String(match).toLowerCase();
+    const rankNames = {
+      untrained: 'untrained',
+      trained: 'trained',
+      expert: 'expert',
+      master: 'master',
+      legendary: 'legendary',
+      ungeübt: 'untrained',
+      geübt: 'trained',
+      experte: 'expert',
+      meister: 'master',
+      legende: 'legendary',
+    };
+    return escaped.replace(/(Untrained|Trained|Expert|Master|Legendary|Ungeübt|Geübt|Experte|Meister|Legende)(?=\s+(?:in|en)\b)/giu, (match) => {
+      const rankName = rankNames[String(match).toLocaleLowerCase('de')];
       return `<span class="prereq-rank rank-text-${rankName}">${match}</span>`;
     });
   }
 
-  _titleCase(value) {
-    return String(value ?? '').replace(/\b\w/g, (char) => char.toUpperCase());
+  _formatPrerequisiteText(value) {
+    const text = String(value ?? '').trim();
+    if (!text) return '';
+    const [first, ...rest] = [...text];
+    return `${first.toLocaleUpperCase(game.i18n?.lang ?? undefined)}${rest.join('')}`;
   }
 
   _escapeHtml(value) {

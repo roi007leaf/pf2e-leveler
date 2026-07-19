@@ -1325,7 +1325,17 @@
 /* "Awaiting your reply" badge on the actor-sheet launch buttons (rendered in the sheet
    window header, outside .pf2e-leveler — selectors stay unscoped). */
 .pf2e-leveler-create-btn,
-.pf2e-leveler-plan-btn { position: relative; }
+.pf2e-leveler-plan-btn {
+  position: relative;
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex: 0 0 auto !important;
+  align-items: center;
+  justify-content: center;
+  color: inherit !important;
+  background: transparent !important;
+}
 .pf2e-leveler-comment-badge {
   position: absolute;
   top: -3px;

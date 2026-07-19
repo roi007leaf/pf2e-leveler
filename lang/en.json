@@ -1,6 +1,13 @@
 {
   "PF2E_LEVELER": {
     "MODULE_TITLE": "PF2e Leveler",
+    "KEYBINDINGS": {
+      "OPEN_LEVELER": {
+        "NAME": "Open PF2e Leveler",
+        "HINT": "Open the level planner for one selected token or your assigned character."
+      },
+      "NO_ACTOR": "Select one owned character token or assign a character to your user first."
+    },
     "UI": {
       "OPEN_PLANNER": "Plan Levels",
       "LEVEL": "Level {level}",

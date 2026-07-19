@@ -20,6 +20,30 @@ describe('parsePrerequisite', () => {
     expect(result.minRank).toBe(2);
   });
 
+  test('parses German localized skill rank requirements', () => {
+    expect(parsePrerequisite('Geübt in Athletik')).toEqual(expect.objectContaining({
+      type: 'skill',
+      skill: 'athletics',
+      minRank: 1,
+    }));
+    expect(parsePrerequisite('Experte in Heilkunde')).toEqual(expect.objectContaining({
+      type: 'skill',
+      skill: 'medicine',
+      minRank: 2,
+    }));
+  });
+
+  test('parses ancestry and localized heritage prerequisites', () => {
+    expect(parsePrerequisite('Android ancestry')).toEqual(expect.objectContaining({
+      type: 'ancestry',
+      slug: 'android',
+    }));
+    expect(parsePrerequisite('Hellforge Android Herkunft')).toEqual(expect.objectContaining({
+      type: 'heritage',
+      slug: 'hellforge-android',
+    }));
+  });
+
   test('parses generic any-skill requirement', () => {
     const result = parsePrerequisite('trained in at least one skill');
     expect(result.type).toBe('anySkill');

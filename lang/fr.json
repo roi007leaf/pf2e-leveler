@@ -1,6 +1,13 @@
 {
   "PF2E_LEVELER": {
     "MODULE_TITLE": "PF2e Leveler",
+    "KEYBINDINGS": {
+      "OPEN_LEVELER": {
+        "NAME": "Ouvrir PF2e Leveler",
+        "HINT": "Ouvre le planificateur de niveaux pour un jeton sélectionné ou pour le personnage qui vous est attribué."
+      },
+      "NO_ACTOR": "Sélectionnez un jeton de personnage que vous possédez ou attribuez d’abord un personnage à votre utilisateur."
+    },
     "UI": {
       "OPEN_PLANNER": "Planifier les niveaux",
       "LEVEL": "Niveau {level}",

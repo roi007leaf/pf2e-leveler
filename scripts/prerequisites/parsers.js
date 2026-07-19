@@ -20,6 +20,11 @@ const RANK_NAME_ALIASES = {
   legendaire: 'legendary',
   inexperimente: 'untrained',
   inexperimentee: 'untrained',
+  ungeubt: 'untrained',
+  geubt: 'trained',
+  experte: 'expert',
+  meister: 'master',
+  legende: 'legendary',
 };
 
 const RANK_NAME_PATTERN = [
@@ -28,6 +33,11 @@ const RANK_NAME_PATTERN = [
   'ma(?:i|î)tre',
   'l(?:e|é)gendaire',
   'inexp(?:e|é)riment(?:e|é)(?:e)?',
+  'unge(?:u|ü)bt',
+  'ge(?:u|ü)bt',
+  'experte',
+  'meister',
+  'legende',
 ].join('|');
 const RANK_CONNECTOR_PATTERN = '(?:in|en)';
 const OR_WORD_PATTERN = '(?:or|ou)';
@@ -86,7 +96,8 @@ const SUBCLASS_TRADITION_PATTERN =
 const GENERIC_BARD_MUSE_PATTERN = /^(?:bard muse|muse de barde)$/i;
 const CLASS_FEATURE_PATTERN = /^(.+?)\s+class feature$/i;
 const BACKGROUND_PATTERN = /^(.+?)\s+background$/i;
-const HERITAGE_PATTERN = /^(.+?)\s+heritage$/i;
+const ANCESTRY_PATTERN = /^(.+?)\s+(?:ancestry|abstammung)$/iu;
+const HERITAGE_PATTERN = /^(.+?)\s+(?:heritage|herkunft)$/iu;
 const LANGUAGE_LIST_PATTERN = /^(.+?)\s+languages?$/i;
 const WIELD_SHIELD_PATTERN = /^wielding a shield$/i;
 const WEARING_ARMOR_PATTERN = /^wearing\s+(.+?)\s+armor$/i;
@@ -173,6 +184,21 @@ const FALLBACK_SKILL_ALIASES = {
   discretion: 'stealth',
   survie: 'survival',
   vol: 'thievery',
+  akrobatik: 'acrobatics',
+  'arkane kunste': 'arcana',
+  athletik: 'athletics',
+  handwerkskunst: 'crafting',
+  tauschung: 'deception',
+  einschuchtern: 'intimidation',
+  heilkunde: 'medicine',
+  naturkunde: 'nature',
+  okkultismus: 'occultism',
+  darbietung: 'performance',
+  religionskunde: 'religion',
+  gesellschaftskunde: 'society',
+  heimlichkeit: 'stealth',
+  uberlebenskunst: 'survival',
+  diebeskunst: 'thievery',
 };
 
 export function parsePrerequisite(text) {
@@ -237,6 +263,9 @@ export function parsePrerequisite(text) {
 
   const backgroundMatch = tryParseBackgroundRequirement(baseText, trimmed);
   if (backgroundMatch) return backgroundMatch;
+
+  const ancestryMatch = tryParseAncestryRequirement(baseText, trimmed);
+  if (ancestryMatch) return ancestryMatch;
 
   const heritageMatch = tryParseHeritageRequirement(baseText, trimmed);
   if (heritageMatch) return heritageMatch;
@@ -820,6 +849,20 @@ function tryParseHeritageRequirement(text, fullText = text) {
 
   return {
     type: 'heritage',
+    slug,
+    text: fullText,
+  };
+}
+
+function tryParseAncestryRequirement(text, fullText = text) {
+  const match = text.match(ANCESTRY_PATTERN);
+  if (!match) return null;
+
+  const slug = slugify(match[1]);
+  if (!slug) return null;
+
+  return {
+    type: 'ancestry',
     slug,
     text: fullText,
   };

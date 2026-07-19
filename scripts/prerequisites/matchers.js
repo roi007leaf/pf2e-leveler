@@ -148,6 +148,19 @@ export function matchHeritage(parsed, buildState) {
   };
 }
 
+export function matchAncestry(parsed, buildState) {
+  const required = normalizeText(parsed.slug);
+  const ancestrySlug = normalizeText(buildState.ancestrySlug);
+  const ancestryTraits = buildState.ancestryTraits instanceof Set
+    ? buildState.ancestryTraits
+    : new Set(buildState.ancestryTraits ?? []);
+  const normalizedTraits = new Set([...ancestryTraits].map((trait) => normalizeText(trait)));
+  return {
+    met: ancestrySlug === required || normalizedTraits.has(required),
+    text: parsed.text,
+  };
+}
+
 export function matchAncestryFeatAccess(parsed, buildState) {
   if (parsed.multipleAncestries !== true) {
     return { met: null, text: parsed.text };

@@ -1,5 +1,13 @@
 {
     "PF2E_LEVELER": {
+        "MODULE_TITLE": "PF2e Leveler",
+        "KEYBINDINGS": {
+            "OPEN_LEVELER": {
+                "NAME": "打开 PF2e Leveler",
+                "HINT": "为一个选中的角色指示物或分配给你的角色打开等级规划器。"
+            },
+            "NO_ACTOR": "请先选择一个你拥有的角色指示物，或为你的用户分配一个角色。"
+        },
         "UI": {
             "LEVEL": "{level}级",
             "EXPORT": "导出规划",

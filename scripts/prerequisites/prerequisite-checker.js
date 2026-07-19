@@ -13,6 +13,7 @@ import {
   matchClassFeature,
   matchBackground,
   matchHeritage,
+  matchAncestry,
   matchAncestryFeatAccess,
   matchProficiency,
   matchClassHp,
@@ -218,6 +219,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchBackground(parsed, buildState));
     case 'heritage':
       return wrapLeafResult(matchHeritage(parsed, buildState));
+    case 'ancestry':
+      return wrapLeafResult(matchAncestry(parsed, buildState));
     case 'ancestryFeatAccess':
       return wrapLeafResult(matchAncestryFeatAccess(parsed, buildState));
     case 'proficiency':
