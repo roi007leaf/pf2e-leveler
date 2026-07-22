@@ -246,6 +246,19 @@ describe('computeBuildState', () => {
     expect(state.skills.athletics).toBe(2);
   });
 
+  test('tracks the selected Assurance skill as a feat alias', () => {
+    setLevelFeat(plan, 2, 'skillFeats', {
+      uuid: 'Compendium.pf2e.feats-srd.Item.assurance',
+      name: 'Assurance',
+      slug: 'assurance',
+      choices: { skill: 'crafting' },
+    });
+
+    const state = computeBuildState(mockActor, plan, 2);
+
+    expect(state.feats).toContain('assurance-crafting');
+  });
+
   test('applies actor-owned skill rank rules with selected heritage skill at matching level', () => {
     mockActor.items = [
       {

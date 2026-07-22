@@ -2,6 +2,7 @@ import {
   matchSkill,
   matchAnySkill,
   matchRecallKnowledgeSkill,
+  matchAssuranceRecallKnowledgeSkill,
   matchWeaponFamilyProficiency,
   matchLore,
   matchLanguage,
@@ -415,6 +416,24 @@ describe('matchDeityState', () => {
       { deity: { slug: 'sarenrae', name: 'Sarenrae', domains: new Set() } },
     );
     expect(result.met).toBe(true);
+  });
+});
+
+describe('matchAssuranceRecallKnowledgeSkill', () => {
+  test('met when Assurance and expert rank refer to the same Recall Knowledge skill', () => {
+    const result = matchAssuranceRecallKnowledgeSkill(
+      { type: 'assuranceRecallKnowledgeSkill', text: 'Assurance in that skill' },
+      { skills: { arcana: 1, crafting: 2 }, lores: {}, feats: new Set(['assurance', 'assurance-crafting']) },
+    );
+    expect(result.met).toBe(true);
+  });
+
+  test('not met when Assurance applies to a different Recall Knowledge skill', () => {
+    const result = matchAssuranceRecallKnowledgeSkill(
+      { type: 'assuranceRecallKnowledgeSkill', text: 'Assurance in that skill' },
+      { skills: { arcana: 1, crafting: 2 }, lores: {}, feats: new Set(['assurance', 'assurance-arcana']) },
+    );
+    expect(result.met).toBe(false);
   });
 });
 

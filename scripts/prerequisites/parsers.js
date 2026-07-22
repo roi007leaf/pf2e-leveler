@@ -115,6 +115,7 @@ const RECALL_KNOWLEDGE_SKILL_PATTERN = new RegExp(
   `^(${PROFICIENCY_RANK_NAMES.join('|')})\\s+in\\s+(?:a|an|any)\\s+skill\\s+with\\s+(?:the\\s+)?recall\\s+knowledge\\s+action$`,
   'i',
 );
+const ASSURANCE_SAME_SKILL_PATTERN = /^assurance\s+in\s+(?:that|the\s+same)\s+skill$/i;
 const WEAPON_TYPE_PROFICIENCY_PATTERN = /^trained in at least one type of\b/i;
 const WEAPON_FAMILY_PROFICIENCY_PATTERN = new RegExp(
   `^(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(?:at\\s+least\\s+one|au\\s+moins\\s+une)\\s+(.+)$`,
@@ -206,6 +207,10 @@ export function parsePrerequisite(text) {
 
   const trimmed = text.trim();
   const baseText = stripTrailingParenthetical(trimmed);
+
+  if (ASSURANCE_SAME_SKILL_PATTERN.test(baseText)) {
+    return { type: 'assuranceRecallKnowledgeSkill', text: trimmed };
+  }
 
   const rankMatch = tryParseRankRequirement(baseText, trimmed);
   if (rankMatch) return rankMatch;

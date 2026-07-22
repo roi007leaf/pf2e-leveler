@@ -706,6 +706,37 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
+  test('Automatic Knowledge passes when Assurance matches an expert Recall Knowledge skill', () => {
+    const feat = createFeat({
+      name: 'Automatic Knowledge',
+      prereqText: 'Expert in a skill with the Recall Knowledge action',
+      uuid: 'automatic-knowledge',
+      slug: 'automatic-knowledge',
+      level: 4,
+      traits: ['general', 'skill'],
+    });
+    feat.system.prerequisites.value.push({ value: 'Assurance in that skill' });
+
+    const picker = new FeatPicker(
+      createActor(),
+      'skill',
+      4,
+      createBuildState({
+        level: 4,
+        skills: { arcana: 1, crafting: 2 },
+        feats: new Set(['assurance', 'assurance-crafting']),
+      }),
+      jest.fn(),
+    );
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults.map((entry) => entry.met)).toEqual([true, true]);
+    expect(result.prerequisitesFailed).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
   test('archetype additional feats stay visible but respect their native prerequisites', () => {
     const feat = createFeat({
       name: 'Trap Finder',

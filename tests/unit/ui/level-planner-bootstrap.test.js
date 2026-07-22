@@ -9,6 +9,7 @@ import { computeBuildState } from '../../../scripts/plan/build-state.js';
 import { loadFeats } from '../../../scripts/feats/feat-cache.js';
 import { ItemPicker } from '../../../scripts/ui/item-picker.js';
 import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
+import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 import { readFileSync } from 'node:fs';
 
 jest.mock('../../../scripts/plan/plan-store.js', () => ({
@@ -2936,7 +2937,8 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }
   });
 
-  it('shows an ancestry selector under Adopted Ancestry general feats', async () => {
+  it('shows common and access-granted ancestries under Adopted Ancestry general feats', async () => {
+    const originalSettingsGet = game.settings.get;
     const actor = createMockActor({ items: [] });
     actor.class.slug = 'alchemist';
     actor.ancestry.slug = 'human';
@@ -2953,20 +2955,36 @@ describe('LevelPlanner bootstrap from existing actor', () => {
       choices: { adoptedAncestry: 'dwarf' },
     }];
     planner._compendiumCache['category-ancestries'] = [
-      { slug: 'human', name: 'Human', rarity: 'common' },
-      { slug: 'dwarf', name: 'Dwarf', rarity: 'common', img: 'dwarf.webp' },
-      { slug: 'elf', name: 'Elf', rarity: 'common', img: 'elf.webp' },
-      { slug: 'fetchling', name: 'Fetchling', rarity: 'uncommon', img: 'fetchling.webp' },
+      { uuid: 'ancestry-human', slug: 'human', name: 'Human', rarity: 'common' },
+      { uuid: 'ancestry-dwarf', slug: 'dwarf', name: 'Dwarf', rarity: 'common', img: 'dwarf.webp' },
+      { uuid: 'ancestry-elf', slug: 'elf', name: 'Elf', rarity: 'common', img: 'elf.webp' },
+      { uuid: 'ancestry-fetchling', slug: 'fetchling', name: 'Fetchling', rarity: 'uncommon', img: 'fetchling.webp' },
+      { uuid: 'ancestry-sprite', slug: 'sprite', name: 'Sprite', rarity: 'rare', img: 'sprite.webp' },
     ];
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'gmContentGuidance') {
+        return {
+          'ancestry-fetchling': { status: 'recommended', exclusive: true },
+        };
+      }
+      return originalSettingsGet.call(game.settings, scope, key);
+    });
+    invalidateGuidanceCache();
 
-    const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
-    expect(context.showGeneralFeatAdoptedAncestry).toBe(true);
-    expect(context.selectedGeneralFeatAdoptedAncestry).toBe('dwarf');
-    expect(context.generalFeatAdoptedAncestryOptions).toEqual([
-      expect.objectContaining({ value: 'dwarf', selected: true, img: 'dwarf.webp' }),
-      expect.objectContaining({ value: 'elf', selected: false, img: 'elf.webp' }),
-    ]);
-    expect(context.generalFeatAdoptedAncestryOptions).toHaveLength(2);
+    try {
+      const context = await planner._buildLevelContext(ClassRegistry.get('alchemist'), planner._getVariantOptions());
+      expect(context.showGeneralFeatAdoptedAncestry).toBe(true);
+      expect(context.selectedGeneralFeatAdoptedAncestry).toBe('dwarf');
+      expect(context.generalFeatAdoptedAncestryOptions).toEqual([
+        expect.objectContaining({ value: 'dwarf', selected: true, img: 'dwarf.webp' }),
+        expect.objectContaining({ value: 'elf', selected: false, img: 'elf.webp' }),
+        expect.objectContaining({ value: 'fetchling', selected: false, img: 'fetchling.webp', rarity: 'uncommon' }),
+      ]);
+      expect(context.generalFeatAdoptedAncestryOptions).toHaveLength(3);
+    } finally {
+      game.settings.get = originalSettingsGet;
+      invalidateGuidanceCache();
+    }
   });
 
   it('uses Cultural Adaptability ancestry choices to filter the granted ancestry feat', async () => {

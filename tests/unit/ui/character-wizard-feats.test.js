@@ -23,6 +23,7 @@ import { getClassHandler } from '../../../scripts/creation/class-handlers/regist
 import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 import { SWASHBUCKLER } from '../../../scripts/classes/swashbuckler.js';
+import { MAGUS } from '../../../scripts/classes/magus.js';
 const { getCreationData } = jest.requireMock('../../../scripts/creation/creation-store.js');
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -2772,6 +2773,57 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     expect(buildState.classFeatures).toBeInstanceOf(Set);
     expect(buildState.classFeatures.has('precise-strike')).toBe(true);
+  });
+
+  it("allows Magus's Analysis through Natural Ambition when creating a level 1 Magus", async () => {
+    game.settings.get = jest.fn((scope, key) => {
+      if (scope === 'pf2e-leveler' && key === 'enforcePrerequisites') return true;
+      if (scope === 'pf2e-leveler' && key === 'showPrerequisites') return true;
+      return false;
+    });
+    ClassRegistry.register(MAGUS);
+
+    const actor = createMockActor();
+    const wizard = new CharacterWizard(actor);
+    wizard.data.class = {
+      slug: 'magus',
+      name: 'Magus',
+      uuid: 'Compendium.pf2e.classes.Item.Magus',
+    };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getBackgroundTrainedSkills = jest.fn(async () => []);
+    wizard._buildCreationAbilityModifiers = jest.fn(async () => ({}));
+    wizard._collectHeritageGrantedTraits = jest.fn(async () => []);
+    wizard._collectSenses = jest.fn(async () => []);
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.magus-s-analysis',
+      slug: 'magus-s-analysis',
+      name: "Magus's Analysis",
+      img: 'magus-analysis.webp',
+      system: {
+        level: { value: 1 },
+        maxTakable: 1,
+        traits: { value: ['magus'], rarity: 'common' },
+        prerequisites: { value: [{ value: 'Spellstrike' }] },
+      },
+    };
+    const picker = new FeatPicker(actor, 'class', 1, buildState, jest.fn(), {
+      preset: {
+        allowedFeatUuids: [feat.uuid],
+        maxLevel: 1,
+        lockMaxLevel: true,
+      },
+    });
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result.prereqResults).toEqual([
+      expect.objectContaining({ met: true, text: 'Spellstrike' }),
+    ]);
+    expect(result.selectionBlocked).toBe(false);
   });
 
   it('includes passive ancestry-granted feats in creation prerequisite build state', async () => {

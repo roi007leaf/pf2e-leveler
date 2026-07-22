@@ -4,6 +4,7 @@ import {
   matchSkill,
   matchAnySkill,
   matchRecallKnowledgeSkill,
+  matchAssuranceRecallKnowledgeSkill,
   matchWeaponFamilyProficiency,
   matchLore,
   matchLanguage,
@@ -201,6 +202,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchAnySkill(parsed, buildState));
     case 'recallKnowledgeSkill':
       return wrapLeafResult(matchRecallKnowledgeSkill(parsed, buildState));
+    case 'assuranceRecallKnowledgeSkill':
+      return wrapLeafResult(matchAssuranceRecallKnowledgeSkill(parsed, buildState));
     case 'weaponFamilyProficiency':
       return wrapLeafResult(matchWeaponFamilyProficiency(parsed, buildState));
     case 'lore':

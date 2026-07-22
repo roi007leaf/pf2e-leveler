@@ -15,6 +15,7 @@ export const MAGUS = {
   abilityBoostSchedule: [5, 10, 15, 20],
 
   classFeatures: [
+    { level: 1, name: 'Spellstrike', key: 'spellstrike' },
     { level: 5, name: 'Lightning Reflexes', key: 'lightning-reflexes' },
     { level: 5, name: 'Weapon Expertise', key: 'weapon-expertise' },
     { level: 7, name: 'Studious Spells', key: 'studious-spells' },

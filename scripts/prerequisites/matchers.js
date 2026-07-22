@@ -23,6 +23,7 @@ const RECALL_KNOWLEDGE_SKILLS = new Set([
   'religion',
   'society',
 ]);
+const EXPERT_RANK = 2;
 
 export function matchRecallKnowledgeSkill(parsed, buildState) {
   const skillMet = Object.entries(buildState.skills ?? {}).some(
@@ -37,6 +38,20 @@ export function matchRecallKnowledgeSkill(parsed, buildState) {
     met: loreMet,
     text: parsed.text,
   };
+}
+
+export function matchAssuranceRecallKnowledgeSkill(parsed, buildState) {
+  const featSlugs = buildState.feats instanceof Set ? buildState.feats : new Set(buildState.feats ?? []);
+  const trainedSkills = [
+    ...Object.entries(buildState.skills ?? {})
+      .filter(([skill]) => RECALL_KNOWLEDGE_SKILLS.has(String(skill ?? '').trim().toLowerCase())),
+    ...Object.entries(buildState.lores ?? {}),
+  ];
+  const met = trainedSkills.some(([skill, rank]) =>
+    Number(rank ?? 0) >= EXPERT_RANK
+    && featSlugs.has(`assurance-${String(skill ?? '').trim().toLowerCase()}`));
+
+  return { met, text: parsed.text };
 }
 
 export function matchWeaponFamilyProficiency(parsed, buildState) {

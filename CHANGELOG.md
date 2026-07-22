@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.6.6
+
+### Fixed
+
+- **Automatic Knowledge now recognizes the skill chosen for Assurance** - The Level Planner remembers which skill was selected for Assurance and correctly unlocks Automatic Knowledge when that same Recall Knowledge skill reaches expert. Assurance in a different skill still does not satisfy the prerequisite
+- **Adopted Ancestry now supports non-common ancestries you have access to** - Its ancestry selector now includes uncommon and rare ancestries explicitly granted through Content Guidance as Allowed, Suggested, Not Recommended, or Exclusive, while keeping ungranted non-common ancestries unavailable
+- **Level 1 magi can now select Magus's Analysis through Natural Ambition** - Character Creation now recognizes Spellstrike as a level 1 Magus class feature, so its prerequisite is satisfied instead of incorrectly blocking the feat
+
 ## 3.6.5
 
 ### Fixed

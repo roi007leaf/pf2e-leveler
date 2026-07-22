@@ -13,7 +13,7 @@ import { isCantripExpansionFeat } from '../../plan/spellbook-feats.js';
 import { loadCompendium, loadCompendiumCategory, loadDeities, loadTaggedClassFeatures } from '../character-wizard/loaders.js';
 import { extractGrantedTrainedSkills, normalizePf2eCompendiumUuid, parseChoiceSets } from '../character-wizard/choice-sets.js';
 import { humanizeSkillLikeLabel, normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizard/skills-languages.js';
-import { annotateGuidanceBySlug, filterDisallowedForCurrentUser } from '../../access/content-guidance.js';
+import { annotateGuidanceBySlug, filterDisallowedForCurrentUser, GUIDANCE_STATUSES, resolveGuidanceStatus } from '../../access/content-guidance.js';
 import { extractFeatSkillRules } from './index.js';
 import { buildImportedInitialSkillSummary, getAvailableLanguages, shouldShowImportedInitialSkillButton } from './context.js';
 import { buildCustomSpellEntryOptions } from './spells.js';
@@ -31,6 +31,11 @@ const MANUAL_SPELL_FEATS = new Set([
 
 const ADVANCED_MULTICLASS_FEAT_CHOICE_FLAG = 'levelerAdvancedClassFeat';
 const FREE_HEART_BACKGROUND_CHOICE_FLAG = 'levelerFreeHeartBackground';
+const ADOPTED_ANCESTRY_ACCESS_STATUSES = new Set([
+  GUIDANCE_STATUSES.ALLOWED,
+  GUIDANCE_STATUSES.RECOMMENDED,
+  GUIDANCE_STATUSES.NOT_RECOMMENDED,
+]);
 
 export async function buildLevelContext(planner, classDef, options) {
   if (!planner.plan || !classDef) return {};
@@ -830,7 +835,7 @@ async function buildAdoptedAncestryOptions(planner, feat) {
 
   return items
     .filter((item) => item?.slug && String(item.slug).toLowerCase() !== actorAncestry)
-    .filter((item) => String(item?.rarity ?? 'common').toLowerCase() === 'common')
+    .filter(hasAdoptedAncestryAccess)
     .map((item) => ({
       value: String(item.slug).toLowerCase(),
       label: item.name,
@@ -838,6 +843,13 @@ async function buildAdoptedAncestryOptions(planner, feat) {
       rarity: String(item.rarity ?? 'common').toLowerCase(),
       selected: String(item.slug).toLowerCase() === String(current).toLowerCase(),
     }));
+}
+
+function hasAdoptedAncestryAccess(item) {
+  if (String(item?.rarity ?? 'common').toLowerCase() === 'common') return true;
+
+  const guidance = resolveGuidanceStatus(item);
+  return ADOPTED_ANCESTRY_ACCESS_STATUSES.has(guidance.status) || guidance.exclusive === true;
 }
 
 async function buildPlannerFeatChoiceSets(planner, feat) {

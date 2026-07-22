@@ -2408,6 +2408,14 @@ function getFeatAliases(feat) {
     addFeatChoiceAlias(aliases, selected);
   }
 
+  if (aliases.has('assurance')) {
+    for (const selected of getStoredFeatChoiceValues(feat)) {
+      if (typeof selected !== 'string') continue;
+      const skill = normalizeSkillSlug(selected) ?? slugify(selected);
+      if (skill) aliases.add(`assurance-${skill}`);
+    }
+  }
+
   for (const alias of getMultifariousMuseChoiceAliases(feat)) {
     aliases.add(alias);
   }

@@ -418,6 +418,11 @@ describe('parsePrerequisite', () => {
     expect(result.minRank).toBe(1);
   });
 
+  test('parses Assurance in that skill as a Recall Knowledge skill relation', () => {
+    const result = parsePrerequisite('Assurance in that skill');
+    expect(result.type).toBe('assuranceRecallKnowledgeSkill');
+  });
+
   test('treats weapon-type proficiency prerequisites as unknown instead of fake proficiency keys', () => {
     const result = parsePrerequisite('trained in at least one type of one-handed firearm');
     expect(result.type).toBe('unknown');
