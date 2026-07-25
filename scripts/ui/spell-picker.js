@@ -627,7 +627,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.searchText) spells = spells.filter((s) => (s._levelerSearchName ?? s.name.toLowerCase()).includes(this.searchText));
     if (this.multiSelect) {
       const preSelectedUuids = new Set(this.selectedSpells.map((s) => s.uuid));
-      spells = spells.filter((spell) => !this.selectedSpellUuids.has(spell.uuid) && !preSelectedUuids.has(spell.uuid));
+      spells = spells.filter((spell) => !preSelectedUuids.has(spell.uuid));
     }
     if (this.selectedGuidanceTags.size > 0) {
       spells = spells.filter((entry) => matchesGuidanceTagFilter(entry, this.selectedGuidanceTags));

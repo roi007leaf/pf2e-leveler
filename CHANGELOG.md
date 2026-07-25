@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.6.7
+
+### Fixed
+
+- **Selected spells can now be deselected after changing filters** - A spell temporarily hidden by a rank or other filter now returns to the spell list when that filter is cleared, remains visibly selected, and can be deselected without closing and reopening the picker
+
 ## 3.6.6
 
 ### Fixed

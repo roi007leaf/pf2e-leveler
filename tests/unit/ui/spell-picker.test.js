@@ -594,6 +594,24 @@ describe('SpellPicker', () => {
     expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(expect.arrayContaining(['magic-missile', 'heal', 'acid-grip']));
   });
 
+  test('restores a selected spell after clearing a filter that hid it', async () => {
+    const actor = createMockActor({ items: [] });
+    const picker = new SpellPicker(actor, 'any', -1, jest.fn(), {
+      multiSelect: true,
+      excludedSelections: [],
+    });
+    await picker._prepareContext();
+    picker.selectedSpellUuids.add('acid-grip');
+
+    picker.selectedRanks = new Set([1]);
+    expect(picker._filterSpells().map((spell) => spell.uuid)).not.toContain('acid-grip');
+
+    picker.selectedRanks = new Set();
+    const restored = picker._filterSpells().find((spell) => spell.uuid === 'acid-grip');
+    expect(restored).toBeDefined();
+    expect(picker._toTemplateSpell(restored)._levelerSelected).toBe(true);
+  });
+
   test('can filter spells by selected traditions', async () => {
     const actor = createMockActor({ items: [] });
     const picker = new SpellPicker(actor, 'any', -1, jest.fn(), { excludedSelections: [] });
