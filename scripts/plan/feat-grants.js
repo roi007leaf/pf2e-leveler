@@ -235,6 +235,7 @@ function inferSpellGrant(text) {
 function inferFormulaRequirements(text, source, context = {}) {
   if (!/\bformulas?\b/.test(text)) return [];
   if (isPassiveFormulaKnowledgeGrant(text)) return [];
+  if (!hasFormulaGrantIntent(text)) return [];
   const specialRequirements = inferSpecialFormulaRequirements(text, source, context);
   if (specialRequirements) return specialRequirements;
   const hasFixedSelections = inferFixedFormulaSelections(text).length > 0;
@@ -255,6 +256,7 @@ function inferFormulaRequirements(text, source, context = {}) {
 }
 
 function inferFixedFormulaRequirements(text, source) {
+  if (!hasFormulaGrantIntent(text)) return [];
   const selections = inferFixedFormulaSelections(text);
   if (selections.length === 0) return [];
   return [
@@ -319,6 +321,7 @@ function inferSpecialFormulaRequirements(text, source, context = {}) {
 function inferFormulaProgressionRequirements(text, source, context = {}) {
   if (!/\bformulas?\b/.test(text)) return [];
   if (isPassiveFormulaKnowledgeGrant(text)) return [];
+  if (!hasFormulaGrantIntent(text)) return [];
   if (isCauldronFormulaGrant(text)) {
     const progression = buildCauldronProgressionRequirement(source, context);
     return progression ? [progression] : [];
@@ -440,6 +443,18 @@ function splitSentences(text) {
     .split(/(?<=[.!?])\s+|;\s+/u)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
+}
+
+function hasFormulaGrantIntent(text) {
+  const grantVerb = /\b(?:add|adds|choose|chooses|gain|gains|have|include|includes|know|learn|learns|obtain|obtains|receive|receives|select|selects)\b/u;
+  const countedFormulaSection = /\bformulas?\s+(?:one|two|three|four|five|six|seven|eight|nine|[1-9])\b/u;
+  return splitSentences(text).some((sentence) =>
+    /\bformulas?\b/u.test(sentence)
+    && (
+      grantVerb.test(sentence)
+      || countedFormulaSection.test(sentence)
+      || /\bformula book\b.*\b(?:begins?|contains?|starts?)\b/u.test(sentence)
+    ));
 }
 
 function inferFormulaCount(text) {

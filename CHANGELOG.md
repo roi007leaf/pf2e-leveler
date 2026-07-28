@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.6.9
+
+### Fixed
+
+- **Psychic characters no longer get stuck on a false Feat Choices step** - Selecting Emotional Acceptance as the subconscious mind no longer mistakes its flavor-text mention of mathematical formulas for formulas to choose. Restore the Mind remains granted automatically by PF2e
+
 ## 3.6.8
 
 ### Fixed

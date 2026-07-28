@@ -1,5 +1,6 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
 import { ItemPicker } from '../../../scripts/ui/item-picker.js';
+import { setSubconsciousMind } from '../../../scripts/creation/creation-model.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
   getCreationData: jest.fn(() => null),
@@ -26,6 +27,24 @@ describe('CharacterWizard feat grant choices', () => {
             description: {
               value: '<p>You gain formulas for two common alchemical items.</p>',
             },
+          },
+        };
+      }
+      if (uuid === 'emotional-acceptance') {
+        return {
+          uuid,
+          name: 'Emotional Acceptance',
+          slug: 'emotional-acceptance',
+          type: 'feat',
+          system: {
+            description: {
+              value: "<p>The mind's truths come not in learned words or mathematical formulas but in deeper feelings and sensations.</p>",
+            },
+            rules: [{
+              allowDuplicate: false,
+              key: 'GrantItem',
+              uuid: 'Compendium.pf2e.actionspf2e.Item.Restore the Mind',
+            }],
           },
         };
       }
@@ -132,6 +151,23 @@ describe('CharacterWizard feat grant choices', () => {
       ],
     }];
 
+    expect(wizard._isStepComplete('featChoices')).toBe(true);
+  });
+
+  it('does not mistake Emotional Acceptance flavor text for a formula choice', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-psychic', slug: 'psychic', name: 'Psychic' };
+    setSubconsciousMind(wizard.data, {
+      uuid: 'emotional-acceptance',
+      name: 'Emotional Acceptance',
+      slug: 'emotional-acceptance',
+      keyAbility: 'cha',
+    });
+
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+
+    expect(wizard._cachedFeatGrantRequirements).toEqual([]);
+    expect(wizard._hasFeatChoices()).toBe(false);
     expect(wizard._isStepComplete('featChoices')).toBe(true);
   });
 
