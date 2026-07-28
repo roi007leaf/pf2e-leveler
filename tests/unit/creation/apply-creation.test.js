@@ -1110,6 +1110,7 @@ describe('applyCreation ancestry paragon', () => {
             name: doc.name,
             slug: doc.system?.slug ?? doc.slug ?? doc.name.toLowerCase(),
             system: doc.system ?? {},
+            update: jest.fn(async () => {}),
           };
         }
       }
@@ -1145,7 +1146,7 @@ describe('applyCreation ancestry paragon', () => {
       dualClass: { uuid: 'wizard-class', name: 'Wizard', slug: 'wizard' },
       subclass: null,
       dualSubclass: null,
-      boosts: { free: [] },
+      boosts: { class: ['int'], dualClass: ['str'], free: [] },
       languages: [],
       skills: [],
       lores: [],
@@ -1164,6 +1165,20 @@ describe('applyCreation ancestry paragon', () => {
     });
 
     expect(actor.class.slug).toBe('witch');
+    const classItems = actor.createEmbeddedDocuments.mock.calls.find(
+      ([type, docs]) => type === 'Item' && docs.every((doc) => doc.type === 'class'),
+    )[1];
+    expect(classItems.map((item) => item.system.keyAbility.selected)).toEqual(['str', 'int']);
+    expect(actor.update).toHaveBeenCalledWith({
+      'system.abilities': {
+        str: { mod: 1 },
+        dex: { mod: 0 },
+        con: { mod: 0 },
+        int: { mod: 0 },
+        wis: { mod: 0 },
+        cha: { mod: 0 },
+      },
+    });
   });
 
   it('creates both classes in one embedded-document operation so PF2E can keep both class feature sets', async () => {

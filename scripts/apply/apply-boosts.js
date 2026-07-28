@@ -11,6 +11,12 @@ export async function applyBoosts(actor, plan, level) {
   const boostKey = findBoostKey(level);
   if (!boostKey) return [];
 
+  if (actor.system?.build?.attributes?.manual === true) {
+    const abilities = buildManualAbilities(actor, levelData.abilityBoosts);
+    await actor.update({ 'system.abilities': abilities });
+    return levelData.abilityBoosts;
+  }
+
   const buildSource = foundry.utils.deepClone(actor.toObject().system.build ?? {});
   if (!buildSource.attributes) buildSource.attributes = {};
   if (!buildSource.attributes.boosts) buildSource.attributes.boosts = {};
@@ -19,6 +25,22 @@ export async function applyBoosts(actor, plan, level) {
   await actor.update({ 'system.build': buildSource });
 
   return levelData.abilityBoosts;
+}
+
+function buildManualAbilities(actor, boosts) {
+  const source = actor.toObject().system.abilities ?? {};
+  const abilities = Object.fromEntries(
+    ATTRIBUTES.map((attribute) => {
+      const modifier = Number(source[attribute]?.mod ?? actor.system?.abilities?.[attribute]?.mod);
+      return [attribute, { mod: Number.isFinite(modifier) ? modifier : 0 }];
+    }),
+  );
+
+  for (const boost of normalizeAbilityBoostList(boosts)) {
+    abilities[boost].mod = abilities[boost].mod >= 4 ? abilities[boost].mod + 0.5 : abilities[boost].mod + 1;
+  }
+
+  return abilities;
 }
 
 function findBoostKey(level) {

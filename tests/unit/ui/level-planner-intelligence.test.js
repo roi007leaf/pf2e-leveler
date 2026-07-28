@@ -367,6 +367,38 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     }));
   });
 
+  it('includes the saved dual class boost when reconstructing level 1 attributes', () => {
+    const actor = createMockActor();
+    actor.system.details.level.value = 5;
+    actor.system.build.attributes.boosts[5] = ['str'];
+    actor.system.abilities.str.mod = 4.5;
+    actor.getFlag = jest.fn(() => ({
+      boosts: {
+        ancestry: ['str'],
+        background: ['str'],
+        class: ['str'],
+        dualClass: ['str'],
+        free: ['dex', 'con', 'wis', 'cha'],
+      },
+    }));
+
+    const planner = new LevelPlanner(actor);
+    planner.selectedLevel = 5;
+    planner.plan.levels[5].abilityBoosts = ['str'];
+
+    const choices = [{ type: 'abilityBoosts', count: 4 }];
+    const context = planner._buildAttributeContext(planner.plan.levels[5], choices);
+    const strength = context.find((entry) => entry.key === 'str');
+
+    expect(strength).toEqual(expect.objectContaining({
+      selected: true,
+      applied: true,
+      mod: 4,
+      newMod: 4,
+      partial: true,
+    }));
+  });
+
   it('uses raw imported partial boosts when previewing future standard boosts', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';

@@ -19,6 +19,48 @@ describe('applyBoosts', () => {
     expect(result).toEqual(['str', 'wis', 'cha', 'int']);
   });
 
+  test('applies planned boosts directly to manual ability modifiers', async () => {
+    mockActor.system = {
+      build: { attributes: { manual: true } },
+      abilities: {
+        str: { mod: 4 },
+        dex: { mod: 3 },
+        con: { mod: 0 },
+        int: { mod: 4.5 },
+        wis: { mod: -1 },
+        cha: { mod: 0 },
+      },
+    };
+    mockActor.toObject = jest.fn(() => ({
+      system: {
+        abilities: {
+          str: { mod: 4 },
+          dex: { mod: 3 },
+          con: { mod: 0 },
+          int: { mod: 4.5 },
+          wis: { mod: -1 },
+          cha: { mod: 0 },
+        },
+        build: { attributes: { manual: true, boosts: {} } },
+      },
+    }));
+    const plan = { levels: { 5: { abilityBoosts: ['str', 'dex', 'int', 'wis'] } } };
+
+    const result = await applyBoosts(mockActor, plan, 5);
+
+    expect(mockActor.update).toHaveBeenCalledWith({
+      'system.abilities': {
+        str: { mod: 4.5 },
+        dex: { mod: 4 },
+        con: { mod: 0 },
+        int: { mod: 5 },
+        wis: { mod: 0 },
+        cha: { mod: 0 },
+      },
+    });
+    expect(result).toEqual(['str', 'dex', 'int', 'wis']);
+  });
+
   test('overwrites the current gradual boost slot instead of appending after stale actor data', async () => {
     global._testSettings = {
       pf2e: {

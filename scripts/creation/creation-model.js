@@ -336,6 +336,7 @@ export function setClass(data, item) {
   data.curriculumSpells = { cantrips: [], rank1: [] };
   data.dualCurriculumSpells = { cantrips: [], rank1: [] };
   clearBoostsForPrefix(data, 'class');
+  clearBoostsForPrefix(data, 'dualClass');
   return data;
 }
 
@@ -357,6 +358,7 @@ export function setDualClass(data, item) {
   data.dualClassFeat = null;
   data.dualSpells = { cantrips: [], rank1: [] };
   data.dualCurriculumSpells = { cantrips: [], rank1: [] };
+  clearBoostsForPrefix(data, 'dualClass');
   return data;
 }
 
@@ -492,8 +494,9 @@ export function setSubconsciousMind(data, item, target = 'class') {
     target,
   );
 
-  if (target === 'class' && data.class?.slug === 'psychic') {
-    data.boosts.class = item?.keyAbility ? [item.keyAbility] : [];
+  const classEntry = target === 'dualClass' ? data.dualClass : data.class;
+  if (classEntry?.slug === 'psychic') {
+    data.boosts[target] = item?.keyAbility ? [item.keyAbility] : [];
   }
 
   return data;

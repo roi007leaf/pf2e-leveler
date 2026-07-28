@@ -16,7 +16,9 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 
 jest.mock('../../../scripts/classes/registry.js', () => ({
   ClassRegistry: {
-    get: jest.fn(() => ({ keyAbility: ['str'] })),
+    get: jest.fn((slug) => ({
+      keyAbility: ['ranger', 'monk'].includes(slug) ? ['str', 'dex'] : ['str'],
+    })),
   },
 }));
 
@@ -64,6 +66,44 @@ describe('CharacterWizard boosts completion', () => {
 
     await wizard._prepareContext();
 
+    expect(wizard._isStepComplete('boosts')).toBe(false);
+  });
+
+  it('requires one independent key ability boost selection from each dual class', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'ranger-class-uuid', slug: 'ranger', name: 'Ranger' };
+    wizard.data.dualClass = { uuid: 'monk-class-uuid', slug: 'monk', name: 'Monk' };
+    wizard.data.boosts = {
+      ancestry: [],
+      background: [],
+      class: ['str'],
+      dualClass: [],
+      free: ['con', 'int', 'wis', 'cha'],
+    };
+
+    const context = await wizard._buildBoostContext();
+    const classRows = context.boostRows.filter((row) => ['class', 'dualClass'].includes(row.source));
+
+    expect(classRows).toEqual([
+      expect.objectContaining({
+        source: 'class',
+        label: 'Ranger',
+        freeCount: 1,
+        options: ['str', 'dex'],
+        selected: ['str'],
+        complete: true,
+      }),
+      expect.objectContaining({
+        source: 'dualClass',
+        label: 'Monk',
+        freeCount: 1,
+        options: ['str', 'dex'],
+        selected: [],
+        complete: false,
+      }),
+    ]);
+    expect(wizard._cachedBoostStepComplete).toBe(false);
+    wizard._cachedBoostStepComplete = null;
     expect(wizard._isStepComplete('boosts')).toBe(false);
   });
 

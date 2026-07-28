@@ -1,7 +1,7 @@
 import { getClassHandler } from './class-handlers/registry.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from './creation-model.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
+import { ATTRIBUTES, MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { info, warn } from '../utils/logger.js';
 import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
@@ -137,13 +137,16 @@ export async function applyItem(actor, entry, type, choices = {}) {
 }
 
 async function applyClassItems(actor, data) {
-  const classEntries = [data.dualClass, data.class].filter((entry) => !!entry?.uuid);
+  const classEntries = [
+    { entry: data.dualClass, keyAbility: data.boosts?.dualClass?.[0] },
+    { entry: data.class, keyAbility: data.boosts?.class?.[0] },
+  ].filter(({ entry }) => !!entry?.uuid);
   if (classEntries.length === 0) return;
 
   const itemData = [];
   const appliedNames = [];
 
-  for (const entry of classEntries) {
+  for (const { entry, keyAbility } of classEntries) {
     const item = await fromUuid(entry.uuid).catch(() => null);
     if (!item) {
       warn(`Failed to resolve class: ${entry.uuid}`);
@@ -152,6 +155,11 @@ async function applyClassItems(actor, data) {
 
     const resolvedItemData = foundry.utils.deepClone(item.toObject());
     applyStoredChoices(resolvedItemData, getStoredChoiceSelections(data, entry.uuid));
+    if (ATTRIBUTES.includes(keyAbility)) {
+      resolvedItemData.system ??= {};
+      resolvedItemData.system.keyAbility ??= {};
+      resolvedItemData.system.keyAbility.selected = keyAbility;
+    }
     itemData.push(resolvedItemData);
     appliedNames.push(entry.name);
   }
@@ -225,6 +233,7 @@ async function applyBoosts(actor, data) {
   const ancestryBoosts = data.boosts.ancestry ?? [];
   const backgroundBoosts = data.boosts.background ?? [];
   const classBoosts = data.boosts.class ?? [];
+  const dualClassBoosts = data.boosts.dualClass ?? [];
   const freeBoosts = data.boosts.free ?? [];
 
   const ancestry = actor.ancestry;
@@ -277,6 +286,22 @@ async function applyBoosts(actor, data) {
     buildSource.attributes.boosts[1] = freeBoosts;
     await actor.update({ 'system.build': buildSource });
   }
+
+  const dualClassBoost = dualClassBoosts[0];
+  if (data.dualClass?.uuid && ATTRIBUTES.includes(dualClassBoost)) {
+    await actor.update({ 'system.abilities': buildManualAbilitiesWithBoost(actor, dualClassBoost) });
+  }
+}
+
+function buildManualAbilitiesWithBoost(actor, boost) {
+  const abilities = Object.fromEntries(
+    ATTRIBUTES.map((attribute) => {
+      const modifier = Number(actor.system?.abilities?.[attribute]?.mod);
+      return [attribute, { mod: Number.isFinite(modifier) ? modifier : 0 }];
+    }),
+  );
+  abilities[boost].mod = abilities[boost].mod >= 4 ? abilities[boost].mod + 0.5 : abilities[boost].mod + 1;
+  return abilities;
 }
 
 async function applyLanguages(actor, data) {

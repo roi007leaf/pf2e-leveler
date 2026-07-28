@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.6.8
+
+### Fixed
+
+- **Dual-class characters now receive both class ability boosts** - Character Creation requires and applies an independent key attribute boost for each class, preserves the final attribute modifiers, and carries both boosts into later Level Planner calculations
+- **Captain Dedication now offers the correct skill choices** - Its skill selector correctly offers untrained Diplomacy while disabling Intimidation when it is already trained
+
 ## 3.6.7
 
 ### Fixed

@@ -92,6 +92,10 @@ const ATTRIBUTE_SLUG_ALIASES = {
 
 const STEPS = ['ancestry', 'heritage', 'mixedAncestry', 'background', 'class', 'deity', 'sanctification', 'divineFont', 'subclass', 'implement', 'tactics', 'ikons', 'innovationDetails', 'kineticGate', 'subconsciousMind', 'thesis', 'apparitions', 'subclassChoices', 'boosts', 'skills', 'feats', 'featChoices', 'languages', 'spells', 'equipment', 'summary'];
 
+function applyAbilityBoostModifier(modifier) {
+  return modifier >= 4 ? modifier + 0.5 : modifier + 1;
+}
+
 function equipmentTotalCp(equipment) {
   let cp = 0;
   for (const entry of equipment) {
@@ -1872,15 +1876,20 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _computeIntMod() {
     let mod = 0;
+    const applyBoosts = (boosts) => {
+      for (const boost of boosts) {
+        if (boost === 'int') mod = applyAbilityBoostModifier(mod);
+      }
+    };
 
     if (this.data.ancestry?.uuid) {
       const ancestry = await this._getCachedDocument(this.data.ancestry.uuid);
       if (this.data.alternateAncestryBoosts) {
-        mod += (this.data.boosts.ancestry ?? []).filter((value) => value === 'int').length;
+        applyBoosts(this.data.boosts.ancestry ?? []);
       } else {
         const sets = this._parseBoostSets(ancestry?.system?.boosts);
-        mod += sets.filter((set) => set.type === 'fixed' && set.attr === 'int').length;
-        mod += (this.data.boosts.ancestry ?? []).filter((value) => value === 'int').length;
+        applyBoosts(sets.filter((set) => set.type === 'fixed').map((set) => set.attr));
+        applyBoosts(this.data.boosts.ancestry ?? []);
         mod -= this._extractFixedValues(ancestry?.system?.flaws).filter((value) => value === 'int').length;
       }
     }
@@ -1888,14 +1897,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.data.background?.uuid) {
       const background = await this._getCachedDocument(this.data.background.uuid);
       const sets = this._parseBoostSets(background?.system?.boosts);
-      mod += sets.filter((set) => set.type === 'fixed' && set.attr === 'int').length;
-      mod += (this.data.boosts.background ?? []).filter((value) => value === 'int').length;
+      applyBoosts(sets.filter((set) => set.type === 'fixed').map((set) => set.attr));
+      applyBoosts(this.data.boosts.background ?? []);
     }
 
-    mod += (this.data.boosts.class ?? []).filter((value) => value === 'int').length;
-    mod += (this.data.boosts.free ?? []).filter((value) => value === 'int').length;
+    applyBoosts(this.data.boosts.class ?? []);
+    applyBoosts(this.data.boosts.dualClass ?? []);
+    applyBoosts(this.data.boosts.free ?? []);
 
-    return mod;
+    return Math.trunc(mod);
   }
 
   async _getClassTrainedSkills(target = 'class') {
@@ -1975,7 +1985,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       case 'boosts':
         if (typeof this._cachedBoostStepComplete === 'boolean') return this._cachedBoostStepComplete;
-        return this.data.boosts.free.length === 4 && (this.data.boosts.class?.length ?? 0) >= (this._cachedRequiredClassBoostSelections ?? 0);
+        return (
+          this.data.boosts.free.length === 4 &&
+          this._getStepHandlers()
+            .filter(({ classEntry }) => !!classEntry?.slug)
+            .every(({ key }) => (this.data.boosts[key]?.length ?? 0) >= 1)
+        );
       case 'languages':
         return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills':
@@ -2504,34 +2519,40 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       boostRows[boostRows.length - 1].restricted = restricted;
     }
 
-    if (this.data.class?.slug) {
-      const classDef = ClassRegistry.get(this.data.class.slug);
-      const keyAbility = await this.classHandler.getKeyAbilityOptions(this.data, classDef);
-      if (this.data.class.slug === 'psychic' && this.data.subconsciousMind?.keyAbility) {
-        this.data.boosts.class = [this.data.subconsciousMind.keyAbility];
-        buildRow('class', this.data.class.name, 'Class', [this.data.subconsciousMind.keyAbility], [], 0, [], []);
-        boostRows[boostRows.length - 1].keyAbility = this.data.subconsciousMind.keyAbility;
+    for (const { key, classEntry, handler, data } of this._getStepHandlers()) {
+      if (!classEntry?.slug) continue;
+
+      const classDef = ClassRegistry.get(classEntry.slug);
+      const keyAbility = await handler.getKeyAbilityOptions(data, classDef);
+      const label = key === 'dualClass' ? 'Dual Class' : 'Class';
+      if (classEntry.slug === 'psychic' && data.subconsciousMind?.keyAbility) {
+        this.data.boosts[key] = [data.subconsciousMind.keyAbility];
+        buildRow(key, classEntry.name, label, [data.subconsciousMind.keyAbility], [], 0, [], []);
+        boostRows[boostRows.length - 1].keyAbility = data.subconsciousMind.keyAbility;
       } else if (keyAbility.length === 1) {
-        this.data.boosts.class = [keyAbility[0]];
-        buildRow('class', this.data.class.name, 'Class', [keyAbility[0]], [], 0, [], []);
+        this.data.boosts[key] = [keyAbility[0]];
+        buildRow(key, classEntry.name, label, [keyAbility[0]], [], 0, [], []);
         boostRows[boostRows.length - 1].keyAbility = keyAbility[0];
       } else if (keyAbility.length > 1) {
-        this.data.boosts.class ??= [];
-        buildRow('class', this.data.class.name, 'Class', [], [], 1, keyAbility, this.data.boosts.class);
+        this.data.boosts[key] ??= [];
+        buildRow(key, classEntry.name, label, [], [], 1, keyAbility, this.data.boosts[key]);
         boostRows[boostRows.length - 1].isKeyChoice = true;
       } else {
-        buildRow('class', this.data.class.name, 'Class', [], [], 0, [], []);
+        buildRow(key, classEntry.name, label, [], [], 0, [], []);
       }
     }
 
     buildRow('free', 'Level 1', 'Free', [], [], 4, [...ATTRIBUTES], this.data.boosts.free ?? []);
 
-    const allBoosts = [...boostRows.flatMap((r) => r.fixed), ...boostRows.flatMap((r) => r.selected)];
-    const allFlaws = boostRows.flatMap((r) => r.flaws);
-    const totals = {};
-    for (const a of ATTRIBUTES) totals[a] = 0;
-    for (const b of allBoosts) if (totals[b] !== undefined) totals[b]++;
-    for (const f of allFlaws) if (totals[f] !== undefined) totals[f]--;
+    const totals = Object.fromEntries(ATTRIBUTES.map((attribute) => [attribute, 0]));
+    for (const row of boostRows) {
+      for (const boost of [...row.fixed, ...row.selected]) {
+        if (totals[boost] !== undefined) totals[boost] = applyAbilityBoostModifier(totals[boost]);
+      }
+      for (const flaw of row.flaws) {
+        if (totals[flaw] !== undefined) totals[flaw]--;
+      }
+    }
 
     for (const row of boostRows) {
       const restricted = row.restricted ?? [];
@@ -2567,12 +2588,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _getRequiredClassBoostSelections() {
-    if (!this.data.class?.slug) return 0;
-    const classDef = ClassRegistry.get(this.data.class.slug);
-    const keyAbility = await this.classHandler.getKeyAbilityOptions(this.data, classDef);
-
-    if (this.data.class.slug === 'psychic' && this.data.subconsciousMind?.keyAbility) return 0;
-    return keyAbility.length > 1 ? 1 : 0;
+    let required = 0;
+    for (const { classEntry, handler, data } of this._getStepHandlers()) {
+      if (!classEntry?.slug) continue;
+      if (classEntry.slug === 'psychic' && data.subconsciousMind?.keyAbility) continue;
+      const classDef = ClassRegistry.get(classEntry.slug);
+      const keyAbility = await handler.getKeyAbilityOptions(data, classDef);
+      if (keyAbility.length > 1) required++;
+    }
+    return required;
   }
 
   _parseBoostSets(boostObj) {

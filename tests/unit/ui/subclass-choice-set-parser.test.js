@@ -3541,6 +3541,33 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('normalizes Captain Dedication skill-key choices into selectable skill values', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+
+    const choiceSets = await wizard._parseChoiceSets([
+      {
+        key: 'ChoiceSet',
+        flag: 'skill',
+        prompt: 'PF2E.SpecificRule.Prompt.Skill',
+        choices: [
+          { label: 'PF2E.Skill.Diplomacy', skill: 'diplomacy' },
+          { label: 'PF2E.Skill.Intimidation', value: 'intimidation' },
+        ],
+      },
+      {
+        key: 'ActiveEffectLike',
+        mode: 'upgrade',
+        path: 'system.skills.{item|flags.system.rulesSelections.skill}.rank',
+        value: 1,
+      },
+    ]);
+
+    expect(choiceSets[0].options).toEqual([
+      expect.objectContaining({ value: 'diplomacy', label: 'PF2E.Skill.Diplomacy' }),
+      expect.objectContaining({ value: 'intimidation', label: 'PF2E.Skill.Intimidation' }),
+    ]);
+  });
+
   it('widens explicit authored skill choice arrays when every listed skill is already trained', async () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {

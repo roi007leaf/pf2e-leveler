@@ -2206,6 +2206,7 @@ export function extractChoiceValue(choice) {
       ?? (typeof rawValue.name === 'string' ? rawValue.name : '')
       ?? ''
   }
+  if (typeof choice.skill === 'string' && choice.skill.length > 0) return choice.skill;
   if (typeof choice.uuid === 'string' && choice.uuid.length > 0) return choice.uuid;
   if (typeof choice.slug === 'string' && choice.slug.length > 0) return choice.slug;
   if (typeof choice.value === 'string') return choice.value;

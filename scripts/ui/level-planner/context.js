@@ -135,7 +135,7 @@ function buildKnownInitialAttributeBaseline(planner) {
   const applyBoosts = (boosts, delta = 1) => {
     for (const boost of boosts) {
       if (!ATTRIBUTES.includes(boost)) continue;
-      raw[boost] += delta;
+      raw[boost] = delta > 0 ? applyAbilityBoost(raw[boost]) : raw[boost] + delta;
       hasEvidence = true;
     }
   };
@@ -175,21 +175,31 @@ function buildKnownInitialAttributeBaseline(planner) {
 
 function getInitialClassBoosts(planner, creationData) {
   const creationClassBoosts = normalizeAbilityBoostList(creationData.boosts?.class);
-  if (creationClassBoosts.length > 0) return creationClassBoosts;
+  const dualClassBoosts = normalizeAbilityBoostList(creationData.boosts?.dualClass);
+  let primaryClassBoosts = creationClassBoosts;
 
-  const actorClassBoosts = normalizeStoredBoostBucket(planner.actor?.system?.build?.attributes?.boosts?.class);
-  if (actorClassBoosts.length > 0) return actorClassBoosts;
+  if (primaryClassBoosts.length === 0) {
+    primaryClassBoosts = normalizeStoredBoostBucket(planner.actor?.system?.build?.attributes?.boosts?.class);
+  }
 
   const keyAbility = planner.actor?.class?.system?.keyAbility ?? {};
-  const selected = normalizeAbilityBoostKey(keyAbility.selected);
-  if (ATTRIBUTES.includes(selected)) return [selected];
+  if (primaryClassBoosts.length === 0) {
+    const selected = normalizeAbilityBoostKey(keyAbility.selected);
+    if (ATTRIBUTES.includes(selected)) primaryClassBoosts = [selected];
+  }
 
-  const systemValues = normalizeAbilityBoostList(keyAbility.value);
-  if (systemValues.length === 1) return systemValues;
+  if (primaryClassBoosts.length === 0) {
+    const systemValues = normalizeAbilityBoostList(keyAbility.value);
+    if (systemValues.length === 1) primaryClassBoosts = systemValues;
+  }
 
-  const classDef = ClassRegistry.get(planner.plan?.classSlug);
-  const classValues = normalizeAbilityBoostList(classDef?.keyAbility);
-  return classValues.length === 1 ? classValues : [];
+  if (primaryClassBoosts.length === 0) {
+    const classDef = ClassRegistry.get(planner.plan?.classSlug);
+    const classValues = normalizeAbilityBoostList(classDef?.keyAbility);
+    if (classValues.length === 1) primaryClassBoosts = classValues;
+  }
+
+  return [...primaryClassBoosts, ...dualClassBoosts];
 }
 
 function getFixedBoostValues(boostObj) {
