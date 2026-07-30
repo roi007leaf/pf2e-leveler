@@ -1,5 +1,6 @@
 import { MODULE_ID, PROFICIENCY_RANK_NAMES } from '../constants.js';
 import { getCachedFeats, loadFeats } from '../feats/feat-cache.js';
+import { getStandardizedAncestryFeatAccess } from '../feats/standardized-ancestry-feats.js';
 import {
   getFeatsForSelection,
   collectAdditionalArchetypeFeatLevels,
@@ -76,6 +77,8 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._publicationFilterInitialized = false;
     this.additionalArchetypeFeatLevels = new Map();
     this.additionalArchetypeFeatTraits = new Map();
+    this.standardizedAncestryFeatUuids = new Set();
+    this.accessibleStandardizedAncestryFeatUuids = new Set();
     this.enforcePrerequisites = game.settings.get(MODULE_ID, 'enforcePrerequisites');
     this.selectedGuidanceTags = new Set();
     this.selectedTraits = new Set();
@@ -207,7 +210,14 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _initializeFeats() {
-    const allCachedFeats = await loadFeats();
+    const [allCachedFeats, standardizedAncestryAccess] = await Promise.all([
+      loadFeats(),
+      getStandardizedAncestryFeatAccess(this.buildState),
+    ]);
+    this.standardizedAncestryFeatUuids =
+      standardizedAncestryAccess.standardizedAncestryFeatUuids;
+    this.accessibleStandardizedAncestryFeatUuids =
+      standardizedAncestryAccess.accessibleStandardizedAncestryFeatUuids;
     const directlyAllowedFeats = await this._loadDirectlyAllowedFeats();
     const availableFeats = [
       ...allCachedFeats,
@@ -254,6 +264,9 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         buildState: this.buildState,
         additionalArchetypeFeatLevels: this.additionalArchetypeFeatLevels,
         ignoreDedicationLock: this._ignoreDedicationLock,
+        standardizedAncestryFeatUuids: this.standardizedAncestryFeatUuids,
+        accessibleStandardizedAncestryFeatUuids:
+          this.accessibleStandardizedAncestryFeatUuids,
       },
     );
     this.allFeats = this.allowedFeatUuids.size > 0
@@ -1297,6 +1310,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   _getFeatTypes(feat) {
     const traits = (feat.system?.traits?.value ?? []).map((trait) => String(trait).toLowerCase());
     const ancestryTraits = getBuildStateAncestryFeatTraits(this.buildState);
+    const featUuid = this._getFeatUuid(feat);
+    const isStandardizedAncestryFeat =
+      this.standardizedAncestryFeatUuids.has(featUuid);
+    const hasStandardizedAncestryAccess =
+      this.accessibleStandardizedAncestryFeatUuids.has(featUuid);
     const classSlug = String(
       this.buildState?.class?.slug ?? this.actor?.class?.slug ?? '',
     ).toLowerCase();
@@ -1316,7 +1334,16 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     if (countsAsArchetypeFeat) types.push('archetype');
     if (traits.includes('general')) types.push('general');
     if (traits.includes('skill')) types.push('skill');
-    if (ancestryTraits.some((trait) => traits.includes(trait)) || isUniversalAncestryFeat(feat))
+    if (
+      (isStandardizedAncestryFeat && hasStandardizedAncestryAccess)
+      || (
+        !isStandardizedAncestryFeat
+        && (
+          ancestryTraits.some((trait) => traits.includes(trait))
+          || isUniversalAncestryFeat(feat)
+        )
+      )
+    )
       types.push('ancestry');
     if (this.category === 'custom') {
       if ((classSlug && traits.includes(classSlug)) || traits.some((trait) => ClassRegistry.has(trait))) {
@@ -1349,6 +1376,12 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const traits = [...(feat.system?.traits?.value ?? [])].map((trait) =>
       String(trait).toLowerCase(),
     );
+    const featUuid = this._getFeatUuid(feat);
+    const isAccessibleStandardizedAncestryFeat =
+      this.accessibleStandardizedAncestryFeatUuids.has(featUuid);
+    const isTrueUniversalAncestryFeat =
+      !this.standardizedAncestryFeatUuids.has(featUuid)
+      && isUniversalAncestryFeat(feat);
     const isSkillTaggedArchetype =
       traits.includes('skill') && traits.includes('archetype') && !traits.includes('dedication');
     const filteredTraits = isSkillTaggedArchetype
@@ -1369,6 +1402,11 @@ export class FeatPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       const extraTraits = this.additionalArchetypeFeatTraits.get(key);
       if (!extraTraits) continue;
       for (const trait of extraTraits) {
+        if (!filteredTraits.includes(trait)) filteredTraits.push(trait);
+      }
+    }
+    if (isAccessibleStandardizedAncestryFeat || isTrueUniversalAncestryFeat) {
+      for (const trait of getBuildStateAncestryFeatTraits(this.buildState)) {
         if (!filteredTraits.includes(trait)) filteredTraits.push(trait);
       }
     }

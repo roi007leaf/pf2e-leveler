@@ -1445,6 +1445,85 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(picker._applyFilters().map((feat) => feat.name)).toEqual(['Reincarnation']);
   });
 
+  test('locked ancestry filters use exact standardized access and keep true universal feats', () => {
+    const ancestralSkills = createFeat({
+      name: 'Ancestral Skills',
+      uuid: 'Compendium.sf2e.feats.Item.3iiARSS25VacP3Nc',
+      slug: 'ancestral-skills',
+      level: 1,
+      traits: [],
+    });
+    ancestralSkills.system.category = 'ancestry';
+    const ancestralCantrip = createFeat({
+      name: 'Ancestral Cantrip',
+      uuid: 'Compendium.sf2e.feats.Item.IEQmMRA1uMPb0rJo',
+      slug: 'ancestral-cantrip',
+      level: 1,
+      traits: [],
+    });
+    ancestralCantrip.system.category = 'ancestry';
+    const reincarnation = createFeat({
+      name: 'Reincarnation',
+      uuid: 'Compendium.pf2e.feats-srd.Item.reincarnation',
+      slug: 'reincarnation',
+      level: 9,
+      traits: [],
+    });
+    reincarnation.system.category = 'ancestry';
+
+    const picker = new FeatPicker(
+      createActor(),
+      'ancestry',
+      9,
+      createBuildState({ ancestryFeatTraits: new Set(['human']) }),
+      jest.fn(),
+    );
+    picker.allFeats = [ancestralSkills, ancestralCantrip, reincarnation];
+    picker.standardizedAncestryFeatUuids = new Set([
+      ancestralSkills.uuid,
+      ancestralCantrip.uuid,
+    ]);
+    picker.accessibleStandardizedAncestryFeatUuids = new Set([ancestralSkills.uuid]);
+    picker.selectedFeatTypes = new Set(['ancestry']);
+    picker.selectedTraits = new Set(['human']);
+    picker.selectedRarities = new Set(['common']);
+    picker.maxLevel = '9';
+
+    const names = picker._applyFilters().map((feat) => feat.name);
+    expect(names).toEqual(expect.arrayContaining(['Ancestral Skills', 'Reincarnation']));
+    expect(names).not.toContain('Ancestral Cantrip');
+  });
+
+  test('locked ancestry filters keep accessible standardized feats with legacy source traits', () => {
+    const internalCompartment = createFeat({
+      name: 'Internal Compartment',
+      uuid: 'Compendium.sf2e.feats.Item.upMcjxPDgNOLuu7N',
+      slug: 'internal-compartment',
+      level: 1,
+      traits: ['android'],
+    });
+    internalCompartment.system.category = 'ancestry';
+
+    const picker = new FeatPicker(
+      createActor(),
+      'ancestry',
+      1,
+      createBuildState({ ancestryFeatTraits: new Set(['vesk']) }),
+      jest.fn(),
+    );
+    picker.allFeats = [internalCompartment];
+    picker.standardizedAncestryFeatUuids = new Set([internalCompartment.uuid]);
+    picker.accessibleStandardizedAncestryFeatUuids = new Set([internalCompartment.uuid]);
+    picker.selectedFeatTypes = new Set(['ancestry']);
+    picker.selectedTraits = new Set(['vesk']);
+    picker.selectedRarities = new Set(['common']);
+    picker.maxLevel = '1';
+
+    expect(picker._applyFilters().map((feat) => feat.name)).toEqual([
+      'Internal Compartment',
+    ]);
+  });
+
   test('locked ancestry type filter keeps rare Reincarnated ancestry feats', () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {

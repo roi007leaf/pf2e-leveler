@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.6.10
+
+### Fixed
+
+- **SF2e standardized ancestry feats now use each ancestry's correct access list** - Character Creation and the Level Planner now offer the standardized feats listed for your ancestry, including generic feats with no ancestry trait and converted feats that still carry another ancestry's source trait. Standardized feats from other ancestries remain unavailable, while universal ancestry feats and access from adopted or mixed ancestries continue to work
+
 ## 3.6.9
 
 ### Fixed

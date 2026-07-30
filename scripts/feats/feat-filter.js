@@ -8,9 +8,14 @@ export function filterFeatsByCategory(feats, category, searchQuery, targetLevel,
   const includeDedications = !!options.includeDedications;
   const includeSkillFeats = !!options.includeSkillFeats;
   const additionalArchetypeFeatLevels = options.additionalArchetypeFeatLevels ?? new Map();
+  const standardizedAncestryFeatUuids =
+    options.standardizedAncestryFeatUuids ?? new Set();
+  const accessibleStandardizedAncestryFeatUuids =
+    options.accessibleStandardizedAncestryFeatUuids ?? new Set();
 
   return feats.filter((feat) => {
     const traits = feat.system.traits.value.map((t) => t.toLowerCase());
+    const featUuid = getFeatUuid(feat);
     const featMatchKeys = getAdditionalArchetypeMatchKeys(feat);
     const prerequisiteTexts = (feat.system?.prerequisites?.value ?? []).map((entry) => String(entry?.value ?? ''));
     const itemCategory = normalizeItemCategory(feat.system?.category);
@@ -21,6 +26,9 @@ export function filterFeatsByCategory(feats, category, searchQuery, targetLevel,
       additionalArchetypeFeatLevels,
       prerequisiteTexts,
       itemCategory,
+      isStandardizedAncestryFeat: standardizedAncestryFeatUuids.has(featUuid),
+      hasStandardizedAncestryAccess:
+        accessibleStandardizedAncestryFeatUuids.has(featUuid),
     });
     const unlockedLevel = getAdditionalArchetypeUnlockedLevel(additionalArchetypeFeatLevels, featMatchKeys);
     const hasNativeArchetypeTrait = traits.includes('archetype');
@@ -63,6 +71,9 @@ function matchesFeatCategory(traits, category, queries, options = {}) {
         || (includeDedications && (isAdditionalArchetypeFeat || hasDedicationPrerequisite) && !isSkillFeat)
         || (includeDedications && (traits.includes('dedication') || traits.includes('archetype')));
     case 'ancestry':
+      if (options.isStandardizedAncestryFeat) {
+        return options.hasStandardizedAncestryAccess;
+      }
       return queries.some((q) => traits.includes(q))
         || (itemCategory === 'ancestry' && hasUniversalAncestryAccess(traits));
     case 'skill':
@@ -190,6 +201,9 @@ export function getFeatsForSelection(feats, category, actor, targetLevel, option
     includeDedications: !!options.includeDedications,
     includeSkillFeats: !!options.includeSkillFeats,
     additionalArchetypeFeatLevels: options.additionalArchetypeFeatLevels,
+    standardizedAncestryFeatUuids: options.standardizedAncestryFeatUuids,
+    accessibleStandardizedAncestryFeatUuids:
+      options.accessibleStandardizedAncestryFeatUuids,
   });
 
   if (options.hideUncommon) {
@@ -228,6 +242,17 @@ export function isUniversalAncestryFeat(feat) {
 
 function normalizeItemCategory(value) {
   return String(value?.value ?? value ?? '').toLowerCase();
+}
+
+function getFeatUuid(feat) {
+  return String(
+    feat?.uuid
+      ?? feat?.sourceId
+      ?? feat?.flags?.core?.sourceId
+      ?? (feat?.sourcePack && feat?.id
+        ? `Compendium.${feat.sourcePack}.Item.${feat.id}`
+        : ''),
+  );
 }
 
 function hasKnownCreatureTrait(traits) {

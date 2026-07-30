@@ -605,6 +605,63 @@ describe('filterFeatsByCategory', () => {
     ]));
   });
 
+  test('ancestry feat filtering uses exact standardized ancestry access instead of source traits', () => {
+    const ancestralSkills = makeFeat('Ancestral Skills', 1, []);
+    ancestralSkills.uuid = 'Compendium.sf2e.feats.Item.3iiARSS25VacP3Nc';
+    ancestralSkills.system.category = 'ancestry';
+    const ancestralCantrip = makeFeat('Ancestral Cantrip', 1, []);
+    ancestralCantrip.uuid = 'Compendium.sf2e.feats.Item.IEQmMRA1uMPb0rJo';
+    ancestralCantrip.system.category = 'ancestry';
+    const internalCompartment = makeFeat('Internal Compartment', 1, ['android']);
+    internalCompartment.uuid = 'Compendium.sf2e.feats.Item.upMcjxPDgNOLuu7N';
+    internalCompartment.system.category = 'ancestry';
+    const reincarnation = makeFeat('Reincarnation', 9, []);
+    reincarnation.uuid = 'Compendium.pf2e.feats-srd.Item.reincarnation';
+    reincarnation.system.category = 'ancestry';
+    const standardizedAncestryFeatUuids = new Set([
+      ancestralSkills.uuid,
+      ancestralCantrip.uuid,
+      internalCompartment.uuid,
+    ]);
+
+    const humanResult = getFeatsForSelection(
+      [ancestralSkills, ancestralCantrip, internalCompartment, reincarnation],
+      'ancestry',
+      { ancestry: { slug: 'human' }, heritage: null },
+      9,
+      {
+        buildState: { ancestryFeatTraits: new Set(['human']) },
+        standardizedAncestryFeatUuids,
+        accessibleStandardizedAncestryFeatUuids: new Set([ancestralSkills.uuid]),
+      },
+    );
+
+    expect(humanResult).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Ancestral Skills' }),
+      expect.objectContaining({ name: 'Reincarnation' }),
+    ]));
+    expect(humanResult).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Ancestral Cantrip' }),
+      expect.objectContaining({ name: 'Internal Compartment' }),
+    ]));
+
+    const veskResult = getFeatsForSelection(
+      [internalCompartment],
+      'ancestry',
+      { ancestry: { slug: 'vesk' }, heritage: null },
+      1,
+      {
+        buildState: { ancestryFeatTraits: new Set(['vesk']) },
+        standardizedAncestryFeatUuids,
+        accessibleStandardizedAncestryFeatUuids: new Set([internalCompartment.uuid]),
+      },
+    );
+
+    expect(veskResult).toEqual([
+      expect.objectContaining({ name: 'Internal Compartment' }),
+    ]);
+  });
+
   test('ancestry feat filtering treats Reincarnated ancestry feats as universal access', () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {
