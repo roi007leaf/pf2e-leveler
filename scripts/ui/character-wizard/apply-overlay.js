@@ -23,6 +23,7 @@ const CLASS_SUBCLASS_TYPES = {
   investigator: 'methodology',
   kineticist: 'gate',
   magus: 'study',
+  necromancer: 'fatal method',
   oracle: 'mystery',
   psychic: 'conscious mind',
   ranger: "hunter's edge",

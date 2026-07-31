@@ -18,11 +18,13 @@ import { KINETICIST } from './kineticist.js';
 import { MAGUS } from './magus.js';
 import { MONK } from './monk.js';
 import { MYSTIC } from './mystic.js';
+import { NECROMANCER } from './necromancer.js';
 import { ORACLE } from './oracle.js';
 import { OPERATIVE } from './operative.js';
 import { PSYCHIC } from './psychic.js';
 import { RANGER } from './ranger.js';
 import { ROGUE } from './rogue.js';
+import { RUNESMITH } from './runesmith.js';
 import { SLAYER } from './slayer.js';
 import { SOLARIAN } from './solarian.js';
 import { SOLDIER } from './soldier.js';
@@ -35,7 +37,7 @@ import { WITCHWARPER } from './witchwarper.js';
 import { WIZARD } from './wizard.js';
 import { ClassRegistry } from './registry.js';
 
-const DEFAULT_CLASSES = [ALCHEMIST, ANIMIST, BARBARIAN, BARD, CHAMPION, CLERIC, COMMANDER, DAREDEVIL, DRUID, ENVOY, EXEMPLAR, FIGHTER, GUARDIAN, GUNSLINGER, INVENTOR, INVESTIGATOR, KINETICIST, MAGUS, MONK, MYSTIC, OPERATIVE, ORACLE, PSYCHIC, RANGER, ROGUE, SLAYER, SOLARIAN, SOLDIER, SORCERER, SUMMONER, SWASHBUCKLER, THAUMATURGE, WITCH, WITCHWARPER, WIZARD];
+const DEFAULT_CLASSES = [ALCHEMIST, ANIMIST, BARBARIAN, BARD, CHAMPION, CLERIC, COMMANDER, DAREDEVIL, DRUID, ENVOY, EXEMPLAR, FIGHTER, GUARDIAN, GUNSLINGER, INVENTOR, INVESTIGATOR, KINETICIST, MAGUS, MONK, MYSTIC, NECROMANCER, OPERATIVE, ORACLE, PSYCHIC, RANGER, ROGUE, RUNESMITH, SLAYER, SOLARIAN, SOLDIER, SORCERER, SUMMONER, SWASHBUCKLER, THAUMATURGE, WITCH, WITCHWARPER, WIZARD];
 
 export function ensureClassRegistry() {
   if (ClassRegistry.getAll().length > 0) return ClassRegistry.getAll();

@@ -1,6 +1,7 @@
 import { buildSpellContext, buildSpellSlotDisplay, resolveSpellTradition, shouldExcludeOwnedSpellIdentityForPlanner } from '../../../scripts/ui/level-planner/spells.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
+import { NECROMANCER } from '../../../scripts/classes/necromancer.js';
 import { ORACLE } from '../../../scripts/classes/oracle.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
@@ -52,6 +53,9 @@ beforeAll(() => {
   if (!ClassRegistry.get('oracle')) {
     ClassRegistry.register(ORACLE);
   }
+  if (!ClassRegistry.get('necromancer')) {
+    ClassRegistry.register(NECROMANCER);
+  }
 });
 
 describe('level planner spell context', () => {
@@ -80,6 +84,26 @@ describe('level planner spell context', () => {
     expect(context.hasSpellbook).toBe(true);
     expect(context.spellbookSelectionCount).toBe(2);
     expect(context.highestRank).toBe(1);
+  });
+
+  test('necromancer dirge learns two additional spells each level', async () => {
+    const planner = {
+      actor: { items: [] },
+      plan: { classSlug: 'necromancer' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+
+    const context = await buildSpellContext(planner, NECROMANCER, 2);
+
+    expect(context).toEqual(
+      expect.objectContaining({
+        spellTradition: 'occult',
+        isSpontaneous: false,
+        hasRankSpellSelections: false,
+        hasSpellbook: true,
+        spellbookSelectionCount: 2,
+      }),
+    );
   });
 
   test('spontaneous casters still use rank-based spell picks', async () => {

@@ -1,6 +1,7 @@
 import { INITIAL_SKILL_RETRAIN_SOURCE_TYPE, PROFICIENCY_RANK_NAMES, PROFICIENCY_RANKS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
 import { getChoicesForLevel } from '../../classes/progression.js';
 import { ClassRegistry } from '../../classes/registry.js';
+import { getRunicRepertoireIncrease } from '../../classes/runesmith.js';
 import { getLevelData } from '../../plan/plan-model.js';
 import {
   buildFeatGrantRequirements,
@@ -129,6 +130,11 @@ export async function buildLevelContext(planner, classDef, options) {
     mythicFeat: extractFeat(levelData.mythicFeats),
     showDualClassFeat: choiceTypes.has('dualClassFeat'),
     dualClassFeat: extractFeat(levelData.dualClassFeats),
+    runicRepertoireReminders: buildRunicRepertoireReminders(
+      classDef,
+      ClassRegistry.get(planner.plan?.dualClassSlug),
+      level,
+    ),
     showCustomLevelPlan: true,
     customPlanOpen: planner._isCustomPlanOpen(level),
     customFeats,
@@ -142,6 +148,13 @@ export async function buildLevelContext(planner, classDef, options) {
     ...buildABPContext(level, options),
     ...(await planner._buildSpellContext(classDef, level)),
   };
+}
+
+export function buildRunicRepertoireReminders(classDef, dualClassDef, level) {
+  return [classDef, dualClassDef].flatMap((definition) => {
+    const increase = getRunicRepertoireIncrease(definition, level);
+    return increase ? [{ slug: definition.slug, ...increase }] : [];
+  });
 }
 
 function buildRetrainingContext(planner, level, levelData) {

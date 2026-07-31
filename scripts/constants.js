@@ -47,6 +47,7 @@ export const SUBCLASS_TAGS = {
   kineticist: 'kineticist-kinetic-gate',
   magus: 'magus-hybrid-study',
   mystic: 'mystic-connection',
+  necromancer: 'necromancer-fatal-method',
   operative: 'operative-specialization',
   oracle: 'oracle-mystery',
   psychic: 'psychic-conscious-mind',
@@ -70,7 +71,7 @@ export const ANCESTRY_TRAIT_ALIASES = {
   'half-elf': ['half-elf', 'elf', 'aiuvarin'],
 };
 
-export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus'];
+export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus', 'necromancer'];
 
 export const PLAN_STATUS = {
   COMPLETE: 'complete',

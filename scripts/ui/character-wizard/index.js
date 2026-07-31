@@ -48,6 +48,7 @@ const CREATION_CLASS_SUBCLASS_TYPES = {
   kineticist: 'gate',
   magus: 'study',
   mystic: 'connection',
+  necromancer: 'fatal method',
   operative: 'specialization',
   oracle: 'mystery',
   psychic: 'conscious mind',

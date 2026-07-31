@@ -82,6 +82,22 @@
           </button>
         </div>
 
+        {{#if runicRepertoireReminders.length}}
+        <div class="level-section">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-hammer"></i>
+            {{localize "PF2E_LEVELER.RUNESMITH.RUNIC_REPERTOIRE"}}
+          </div>
+          <div class="level-section__body">
+            {{#each runicRepertoireReminders}}
+            <p class="wizard-hint">
+              {{format "PF2E_LEVELER.RUNESMITH.REPERTOIRE_LIMITS" known=this.known etched=this.etched}}
+            </p>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+
         {{#if classFeatures.length}}
         <div class="level-section" data-comment-part="level:{{selectedLevel}}:classFeatures">
           <div class="section-header">

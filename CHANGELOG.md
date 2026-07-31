@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.7.0
+
+### Added
+
+- **Necromancer support for PF2e 8.4** - Character Creation and the Level Planner now understand the Necromancer's full progression, Fatal Method, occult prepared spellcasting, and spellbook. Character Creation grants Harm and Create Thrall automatically, prompts for Blood, Bone, Flesh, or Spirit as the character's Grim Fascination, and grants the matching grave focus spell
+- **Runesmith support for PF2e 8.4** - Character Creation and the Level Planner now understand the Runesmith's feats, skills, proficiency progression, and class features. Runic Repertoire reminders show the correct known and etched rune limits at levels 1, 5, 9, 13, and 17, including dual-class builds
+
+### Compatibility
+
+- **PF2e 8.4 and SF2e 1.4 are now verified** - Module metadata now reflects compatibility with the current system releases
+
 ## 3.6.10
 
 ### Fixed

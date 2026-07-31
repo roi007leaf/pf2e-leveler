@@ -1955,6 +1955,12 @@
           </span>
         </div>
         {{/if}}
+        {{#each runicRepertoireReminders}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E_LEVELER.RUNESMITH.RUNIC_REPERTOIRE"}}</span>
+          <span class="wizard-summary__value">{{format "PF2E_LEVELER.RUNESMITH.REPERTOIRE_LIMITS" known=this.known etched=this.etched}}</span>
+        </div>
+        {{/each}}
       </div>
 
       {{#if data.subclass}}
@@ -2012,6 +2018,13 @@
         <span>{{localize "PF2E_LEVELER.CREATION.WIZARD.REMINDER_PREFIX"}} <strong>{{data.thesis.name}}</strong> {{localize "PF2E_LEVELER.CREATION.WIZARD.REMINDER_THESIS_SUFFIX"}}</span>
       </div>
       {{/if}}
+
+      {{#each runicRepertoireReminders}}
+      <div class="subclass-warning-banner">
+        <i class="fa-solid fa-exclamation-triangle"></i>
+        <span>{{format "PF2E_LEVELER.RUNESMITH.RECORD_INITIAL_RUNES" known=this.known etched=this.etched}}</span>
+      </div>
+      {{/each}}
 
       {{#if pendingChoices.length}}
       <div class="wizard-pending">

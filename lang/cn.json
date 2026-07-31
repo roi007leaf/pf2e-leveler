@@ -647,6 +647,9 @@
         "MONK": {
             "NAME": "武僧"
         },
+        "NECROMANCER": {
+            "NAME": "Necromancer"
+        },
         "ORACLE": {
             "NAME": "先知"
         },
@@ -658,6 +661,12 @@
         },
         "ROGUE": {
             "NAME": "游荡者"
+        },
+        "RUNESMITH": {
+            "NAME": "Runesmith",
+            "RUNIC_REPERTOIRE": "Runic Repertoire",
+            "REPERTOIRE_LIMITS": "{known} runes known; {etched} runes etched.",
+            "RECORD_INITIAL_RUNES": "After creation, record your {known} known runes and {etched} etched runes on the character sheet."
         },
         "SLAYER": {
             "NAME": "猎杀者"

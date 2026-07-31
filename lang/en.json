@@ -489,10 +489,17 @@
     "KINETICIST": { "NAME": "Kineticist" },
     "MAGUS": { "NAME": "Magus" },
     "MONK": { "NAME": "Monk" },
+    "NECROMANCER": { "NAME": "Necromancer" },
     "ORACLE": { "NAME": "Oracle" },
     "PSYCHIC": { "NAME": "Psychic" },
     "RANGER": { "NAME": "Ranger" },
     "ROGUE": { "NAME": "Rogue" },
+    "RUNESMITH": {
+      "NAME": "Runesmith",
+      "RUNIC_REPERTOIRE": "Runic Repertoire",
+      "REPERTOIRE_LIMITS": "{known} runes known; {etched} runes etched.",
+      "RECORD_INITIAL_RUNES": "After creation, record your {known} known runes and {etched} etched runes on the character sheet."
+    },
     "SLAYER": { "NAME": "Slayer" },
     "SUMMONER": { "NAME": "Summoner" },
     "SWASHBUCKLER": { "NAME": "Swashbuckler" },

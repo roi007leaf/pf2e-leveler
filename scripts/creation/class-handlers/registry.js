@@ -13,6 +13,7 @@ import { ThaumaturgeHandler } from './thaumaturge.js';
 import { ExemplarHandler } from './exemplar.js';
 import { InventorHandler } from './inventor.js';
 import { KineticistHandler } from './kineticist.js';
+import { NecromancerHandler } from './necromancer.js';
 import { WizardHandler } from './wizard.js';
 import { WitchHandler } from './witch.js';
 
@@ -28,6 +29,7 @@ const handlers = {
   exemplar: new ExemplarHandler(),
   inventor: new InventorHandler(),
   kineticist: new KineticistHandler(),
+  necromancer: new NecromancerHandler(),
   summoner: new SummonerHandler(),
   wizard: new WizardHandler(),
   witch: new WitchHandler(),

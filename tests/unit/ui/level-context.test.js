@@ -1,8 +1,14 @@
-import { buildSkillRetrainSources, getClassFeaturesForLevel, isAdvancedMulticlassFeatCandidate } from '../../../scripts/ui/level-planner/level-context.js';
+import {
+  buildRunicRepertoireReminders,
+  buildSkillRetrainSources,
+  getClassFeaturesForLevel,
+  isAdvancedMulticlassFeatCandidate,
+} from '../../../scripts/ui/level-planner/level-context.js';
 import { buildSkillContext } from '../../../scripts/ui/level-planner/context.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
+import { RUNESMITH } from '../../../scripts/classes/runesmith.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
 
 describe('isAdvancedMulticlassFeatCandidate', () => {
@@ -28,6 +34,21 @@ describe('isAdvancedMulticlassFeatCandidate', () => {
 
   test('true for Basic/Advanced Concoction regardless of traits', () => {
     expect(isAdvancedMulticlassFeatCandidate({ slug: 'advanced-concoction' }, { system: { slug: 'advanced-concoction', traits: { value: ['archetype'] }, rules: [] } })).toBe(true);
+  });
+});
+
+describe('buildRunicRepertoireReminders', () => {
+  test('shows only exact repertoire increase levels', () => {
+    expect(buildRunicRepertoireReminders(RUNESMITH, null, 5)).toEqual([
+      { slug: 'runesmith', known: 6, etched: 3 },
+    ]);
+    expect(buildRunicRepertoireReminders(RUNESMITH, null, 6)).toEqual([]);
+  });
+
+  test('supports Runesmith as the secondary dual class', () => {
+    expect(buildRunicRepertoireReminders(ALCHEMIST, RUNESMITH, 9)).toEqual([
+      { slug: 'runesmith', known: 8, etched: 4 },
+    ]);
   });
 });
 

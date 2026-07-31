@@ -73,6 +73,41 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     expect(actor.createEmbeddedDocuments).toHaveBeenCalledTimes(3);
   });
 
+  it('applies spells resolved by a specialized class handler', async () => {
+    const createdDocs = [];
+    const actor = {
+      items: [],
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => {
+        createdDocs.push(...docs);
+        return docs.map((doc, index) => ({
+          id: doc.type === 'spellcastingEntry' ? 'entry-1' : `spell-${index}`,
+          ...doc,
+        }));
+      }),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+    const handler = new CasterBaseHandler();
+    handler.resolveGrantedSpells = jest.fn(async () => ({
+      cantrips: [],
+      rank1s: [
+        {
+          uuid: 'Compendium.pf2e.spells-srd.Item.harm',
+          name: 'Harm',
+        },
+      ],
+    }));
+
+    await handler._applySpellcasting(actor, {
+      class: { slug: 'druid', name: 'Druid' },
+      subclass: null,
+      spells: { cantrips: [], rank1: [] },
+    });
+
+    expect(createdDocs.filter((doc) => doc.type === 'spell')).toEqual([
+      expect.objectContaining({ name: 'harm' }),
+    ]);
+  });
+
   it('creates a separate studious spellcasting entry for magus at level 7+', async () => {
     const createdDocs = [];
     const actor = {

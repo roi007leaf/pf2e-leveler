@@ -165,13 +165,19 @@ export async function hydrateChoiceSets(wizard, choiceSets, currentChoices) {
     const options = hydrateChoiceSetOptions(wizard, cs, skillState, currentChoices);
     const selectedOption = findMatchingChoiceOption(options, currentChoices?.[cs.flag] ?? null);
     const isKineticImpulseChoice = isKineticistImpulseChoiceSetForWizard(wizard, cs);
+    const hasClassFeatureOption = options.some(
+      (option) => normalizeChoiceCategory(option?.category) === 'classfeature',
+    );
     const rawHasSelection = !!currentChoices[cs.flag] && currentChoices[cs.flag] !== '[object Object]';
     if (isKineticImpulseChoice && rawHasSelection && !selectedOption) delete currentChoices[cs.flag];
 
     return {
       ...cs,
       isItemChoice: options.some((opt) => !!extractChoiceUuid(opt) || !!opt?.img || !!opt?.description),
-      isFeatChoice: options.length > 0 && options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'feat'),
+      isFeatChoice:
+        !hasClassFeatureOption &&
+        options.length > 0 &&
+        options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'feat'),
       isSpellChoice: options.length > 0 && options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'spell'),
       isWeaponChoice: options.length > 0 && options.every((opt) => String(opt?.type ?? '').toLowerCase() === 'weapon'),
       options,
@@ -1215,6 +1221,8 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
   const promptImpliesCommonAncestry = isCommonAncestryChoiceSet(rule)
     && !String(JSON.stringify(resolvedFilter ?? [])).includes('item:rarity:')
   const itemType = typeof rule.choices.itemType === 'string' ? rule.choices.itemType.toLowerCase() : null;
+  const allowsTaggedClassFeatures =
+    !itemType && safeSerializeChoiceFilters(resolvedFilter).includes('item:tag:');
   return candidates
     .filter((item) => {
       const type = String(item.type ?? '').toLowerCase();
@@ -1230,7 +1238,7 @@ async function resolveChoiceSetOptions(wizard, rule, currentChoices = {}, source
     .filter((item) => !promptImpliesCommonAncestry || String(item.rarity ?? 'common').toLowerCase() === 'common')
     .filter((item) => {
       const cat = String(item.category ?? '').toLowerCase();
-      if (cat === 'classfeature') return itemType === 'classfeature';
+      if (cat === 'classfeature') return itemType === 'classfeature' || allowsTaggedClassFeatures;
       return true;
     })
     .filter((item) => slugsAsValues ? !!(item.slug ?? item.uuid) : !!(item.uuid ?? item.slug))

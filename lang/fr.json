@@ -441,10 +441,17 @@
     "KINETICIST": { "NAME": "Cinetiste" },
     "MAGUS": { "NAME": "Magus" },
     "MONK": { "NAME": "Moine" },
+    "NECROMANCER": { "NAME": "Necromancien" },
     "ORACLE": { "NAME": "Oracle" },
     "PSYCHIC": { "NAME": "Psychique" },
     "RANGER": { "NAME": "Rodeur" },
     "ROGUE": { "NAME": "Roublard" },
+    "RUNESMITH": {
+      "NAME": "Graveur de runes",
+      "RUNIC_REPERTOIRE": "Repertoire runique",
+      "REPERTOIRE_LIMITS": "{known} runes connues ; {etched} runes gravees.",
+      "RECORD_INITIAL_RUNES": "Apres la creation, notez vos {known} runes connues et vos {etched} runes gravees sur la fiche."
+    },
     "SLAYER": { "NAME": "Slayer" },
     "SUMMONER": { "NAME": "Invocateur" },
     "SWASHBUCKLER": { "NAME": "Bretteur" },

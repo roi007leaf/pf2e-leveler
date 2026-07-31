@@ -42,6 +42,17 @@ describe('class registry ensure helpers', () => {
     );
   });
 
+  test('loads PF2e 8.4 Necromancer and Runesmith classes', () => {
+    ensureClassRegistry();
+
+    expect(ClassRegistry.get('necromancer')?.compendiumUuid).toBe(
+      'Compendium.pf2e.classes.Item.x0vpqoK830wozKMH',
+    );
+    expect(ClassRegistry.get('runesmith')?.compendiumUuid).toBe(
+      'Compendium.pf2e.classes.Item.5RK0O6eiijmC7NmA',
+    );
+  });
+
   test('registers Mystic actor classes with spellcasting progression', () => {
     const actor = {
       class: {

@@ -1986,6 +1986,96 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
+  it('surfaces Necromancer Grim Fascination from its embedded level-1 class feature', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const classUuid = 'Compendium.pf2e.classes.Item.x0vpqoK830wozKMH';
+    const fascinationUuid = 'Compendium.pf2e.classfeatures.Item.PGUiN4995rreH3aU';
+    const fascinationChoices = [
+      ['gyN8OZZ3txxIAKLf', 'Blood'],
+      ['4Y2Bt7bvuOeptAqS', 'Bone'],
+      ['nJLKij2UY2nxVmb9', 'Flesh'],
+      ['qle7hjEReQK0nByC', 'Spirit'],
+    ].map(([id, name]) => ({
+      uuid: `Compendium.pf2e.classfeatures.Item.${id}`,
+      name,
+      type: 'feat',
+      slug: name.toLowerCase(),
+      category: 'classfeature',
+      otherTags: ['necromancer-grim-fascination'],
+    }));
+    wizard.data.class = {
+      uuid: classUuid,
+      name: 'Necromancer',
+      slug: 'necromancer',
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === classUuid) {
+        return {
+          uuid,
+          name: 'Necromancer',
+          type: 'class',
+          system: {
+            rules: [],
+            items: {
+              grimFascination: {
+                level: 1,
+                name: 'Grim Fascination',
+                uuid: fascinationUuid,
+              },
+            },
+          },
+        };
+      }
+      if (uuid === fascinationUuid) {
+        return {
+          uuid,
+          name: 'Grim Fascination',
+          type: 'feat',
+          system: {
+            rules: [
+              {
+                key: 'ChoiceSet',
+                flag: 'grimFascination',
+                prompt: 'Select a grim fascination.',
+                choices: {
+                  filter: ['item:tag:necromancer-grim-fascination'],
+                },
+              },
+            ],
+          },
+        };
+      }
+      return null;
+    });
+    wizard._loadCompendium = jest.fn(async (key) =>
+      key === 'pf2e.classfeatures' ? fascinationChoices : [],
+    );
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const context = await wizard._buildFeatChoicesContext();
+    const section = context.featChoiceSections.find((entry) => entry.slot === fascinationUuid);
+
+    expect(section).toEqual(
+      expect.objectContaining({
+        featName: 'Grim Fascination',
+        sourceName: 'Necromancer -> Grim Fascination',
+      }),
+    );
+    expect(section.choiceSets[0]).toEqual(
+      expect.objectContaining({
+        isItemChoice: true,
+        isFeatChoice: false,
+      }),
+    );
+    expect(section.choiceSets[0].options.map((option) => option.label)).toEqual([
+      'Blood',
+      'Bone',
+      'Flesh',
+      'Spirit',
+    ]);
+  });
+
   it('does not build a feat choice section for synthetic Mixed Ancestry heritage', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = {

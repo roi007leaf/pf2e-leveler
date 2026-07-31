@@ -1,3 +1,6 @@
+import { ClassRegistry } from '../../classes/registry.js';
+import { getRunicRepertoireAtLevel } from '../../classes/runesmith.js';
+
 export async function buildSummaryContext(wizard) {
   const classSummaryLabel = [wizard.data.class?.name, wizard.data.dualClass?.name].filter(Boolean).join(' + ') || null;
   const choiceLabels = await wizard._getSelectedSubclassChoiceLabels();
@@ -37,6 +40,12 @@ export async function buildSummaryContext(wizard) {
   const fontLabel = fontStep?.label ?? 'Divine Font';
   const sanctValue = formatSanctificationValue(wizard.data.sanctification);
   const fontValue = formatCapitalizedValue(wizard.data.divineFont);
+  const runicRepertoireReminders = [wizard.data.class, wizard.data.dualClass]
+    .flatMap((selectedClass) => {
+      const definition = ClassRegistry.get(selectedClass?.slug);
+      const limits = getRunicRepertoireAtLevel(definition, 1);
+      return limits ? [{ slug: definition.slug, ...limits }] : [];
+    });
 
   return {
     pendingChoices: await wizard._getPendingChoices(),
@@ -50,6 +59,7 @@ export async function buildSummaryContext(wizard) {
     dualClassFeatChoiceLabels,
     skillFeatChoiceLabels,
     grantedFeatChoiceSummaries,
+    runicRepertoireReminders,
     subclassSummaryLabel,
     showSubclassSummary,
     implementLabel: wizard.data.implement?.name ?? null,

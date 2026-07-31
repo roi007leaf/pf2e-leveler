@@ -134,6 +134,9 @@ export class CasterBaseHandler extends BaseClassHandler {
 
   async _applySpellcasting(actor, data) {
     const grantedUuids = new Set();
+    const resolvedGranted = await this.resolveGrantedSpells(data);
+    for (const spell of resolvedGranted.cantrips ?? []) grantedUuids.add(spell.uuid);
+    for (const spell of resolvedGranted.rank1s ?? []) grantedUuids.add(spell.uuid);
 
     const curriculum = data.subclass?.curriculum;
     if (curriculum) {
