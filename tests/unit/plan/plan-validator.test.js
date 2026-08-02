@@ -4,6 +4,7 @@ import { PLAN_STATUS } from '../../../scripts/constants.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
+import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
 import { validatePlan, validateLevel } from '../../../scripts/plan/plan-validator.js';
 import * as buildState from '../../../scripts/plan/build-state.js';
 import {
@@ -22,6 +23,7 @@ beforeAll(() => {
   ClassRegistry.register(DRUID);
   ClassRegistry.register(SORCERER);
   ClassRegistry.register(WIZARD);
+  ClassRegistry.register(THAUMATURGE);
 });
 
 describe('validateLevel', () => {
@@ -43,6 +45,34 @@ describe('validateLevel', () => {
     setLevelFeat(plan, 2, 'skillFeats', { uuid: 'y', name: 'Y', slug: 'y' });
     const result = validateLevel(plan, ALCHEMIST, 2);
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('requires and restricts the Thaumaturgic Expertise skill increase', () => {
+    const plan = createPlan('thaumaturge');
+    setLevelFeat(plan, 9, 'ancestryFeats', { uuid: 'ancestry', name: 'Ancestry Feat', slug: 'ancestry-feat' });
+    setLevelSkillIncrease(plan, 9, { skill: 'stealth', toRank: 2 });
+
+    expect(validateLevel(plan, THAUMATURGE, 9).issues).toContainEqual(expect.objectContaining({
+      severity: 'error',
+      message: expect.stringContaining('Thaumaturgic Expertise'),
+    }));
+
+    setLevelSkillIncrease(plan, 9, {
+      skill: 'athletics',
+      toRank: 2,
+      source: 'thaumaturge:thaumaturgic-expertise',
+    });
+    expect(validateLevel(plan, THAUMATURGE, 9).issues).toContainEqual(expect.objectContaining({
+      severity: 'error',
+      message: expect.stringContaining('Arcana, Nature, Occultism, or Religion'),
+    }));
+
+    setLevelSkillIncrease(plan, 9, {
+      skill: 'arcana',
+      toRank: 2,
+      source: 'thaumaturge:thaumaturgic-expertise',
+    });
+    expect(validateLevel(plan, THAUMATURGE, 9).status).toBe(PLAN_STATUS.COMPLETE);
   });
 
   test('empty free archetype slot does not make the level incomplete', () => {

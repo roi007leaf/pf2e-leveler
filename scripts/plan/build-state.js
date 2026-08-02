@@ -10,6 +10,7 @@ import { getFeatLoreRules, getFeatSkillRules, PLAN_FEAT_KEYS } from '../utils/fe
 import { isCompendiumUuidInCategory } from '../system-support/profiles.js';
 import { inferSf2eSpellcastingTraditionFromItem, normalizeSpellTradition } from '../utils/sf2e-spellcasting.js';
 import { getRankAfterSkillRetrain } from '../utils/skill-retrains.js';
+import { getAutomaticLoreProficiencies } from '../classes/progression.js';
 
 const CLASS_SUBCLASS_TYPES = {
   alchemist: 'research field',
@@ -1566,7 +1567,10 @@ function applyPlannedSkillRankRules(skills, plan, atLevel) {
 
 function computeLoreSkills(actor, plan, atLevel) {
   const lores = {};
-  const skills = computeSkills(actor, plan, atLevel, ClassRegistry.get(plan.classSlug));
+  const primaryClassDef = ClassRegistry.get(plan.classSlug);
+  const dualClassSlug = getTrackedDualClassSlug(plan);
+  const dualClassDef = dualClassSlug ? ClassRegistry.get(dualClassSlug) : null;
+  const skills = computeSkills(actor, plan, atLevel, primaryClassDef);
 
   for (const item of getOwnedItems(actor)) {
     if (item?.type !== 'lore') continue;
@@ -1582,6 +1586,10 @@ function computeLoreSkills(actor, plan, atLevel) {
 
   for (const lore of getAutomaticInitialLoreTraining(actor, plan, ClassRegistry.get(plan.classSlug))) {
     lores[lore] = Math.max(lores[lore] ?? 0, PROFICIENCY_RANKS.TRAINED);
+  }
+
+  for (const entry of getAutomaticLoreProficiencies([primaryClassDef, dualClassDef], atLevel)) {
+    lores[entry.skill] = Math.max(lores[entry.skill] ?? 0, entry.rank);
   }
 
   for (let level = 1; level <= atLevel; level++) {

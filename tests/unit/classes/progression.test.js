@@ -1,6 +1,7 @@
 import { getChoicesForLevel, getGradualBoostGroupLevels } from '../../../scripts/classes/progression.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
+import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
 
 describe('getGradualBoostGroupLevels', () => {
   test('returns the first gradual boost set for levels 2 through 5', () => {
@@ -42,5 +43,34 @@ describe('getChoicesForLevel dual class support', () => {
     expect(choices.filter((choice) => choice.type === 'skillIncrease')).toHaveLength(1);
     expect(choices.filter((choice) => choice.type === 'classFeat')).toHaveLength(1);
     expect(choices.filter((choice) => choice.type === 'dualClassFeat')).toHaveLength(1);
+  });
+});
+
+describe('additional class skill increases', () => {
+  test('adds Thaumaturgic Expertise beside the normal level 9 increase', () => {
+    const choices = getChoicesForLevel(THAUMATURGE, 9)
+      .filter((choice) => choice.type === 'skillIncrease');
+
+    expect(choices).toEqual([
+      { type: 'skillIncrease' },
+      {
+        type: 'skillIncrease',
+        source: 'thaumaturge:thaumaturgic-expertise',
+        label: 'Thaumaturgic Expertise',
+        allowedSkills: ['arcana', 'nature', 'occultism', 'religion'],
+      },
+    ]);
+  });
+
+  test('keeps a secondary Thaumaturge bonus even when the primary class has a normal increase', () => {
+    const choices = getChoicesForLevel(FIGHTER, 9, {
+      dualClass: true,
+      dualClassDef: THAUMATURGE,
+    }).filter((choice) => choice.type === 'skillIncrease');
+
+    expect(choices).toHaveLength(2);
+    expect(choices[1]).toEqual(expect.objectContaining({
+      source: 'thaumaturge:thaumaturgic-expertise',
+    }));
   });
 });

@@ -1116,8 +1116,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return localizeLanguageLabel(label);
   }
 
-  _buildSkillContext(levelData, level) {
-    return buildSkillContext(this, levelData, level);
+  _buildSkillContext(levelData, level, options = {}) {
+    return buildSkillContext(this, levelData, level, options);
   }
 
   async _promptLoreSkillIncrease({ custom = false } = {}) {

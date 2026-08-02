@@ -1,5 +1,5 @@
 import { ATTRIBUTES, MIN_PLAN_LEVEL, PROFICIENCY_RANK_NAMES, SKILLS } from '../../constants.js';
-import { getGradualBoostGroupLevels } from '../../classes/progression.js';
+import { getAutomaticLoreProficiencies, getGradualBoostGroupLevels, getSkillIncreaseSelection, getSkillRankBeforeIncreaseChoice } from '../../classes/progression.js';
 import { computeBuildState, computeSkillPickerState, getAutomaticInitialLoreTraining, getAutomaticInitialSkillTrainingEntries, getImportedInitialSkillChoiceTraining, getImportedInitialSkillLimit, getImportedInitialSkillTraining, getInitialSkillSourceItems, getIntelligenceBenefitCount, isImportedHistoricalSkillLevel } from '../../plan/build-state.js';
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { ClassRegistry } from '../../classes/registry.js';
@@ -489,9 +489,13 @@ export function localizeLanguageLabel(label) {
   return game.i18n?.has?.(label) ? game.i18n.localize(label) : label;
 }
 
-export function buildSkillContext(planner, levelData, level) {
+export function buildSkillContext(planner, levelData, level, options = {}) {
   const maxRank = getMaxSkillRank(level);
   const classDef = ClassRegistry.get(planner.plan?.classSlug);
+  const choices = options.choices?.length ? options.choices : [{ type: 'skillIncrease' }];
+  const choice = options.choice ?? choices[0];
+  const currentIncrease = getSkillIncreaseSelection(levelData, choice);
+  const allowedSkills = new Set((choice?.allowedSkills ?? []).map(normalizeSkillSlug));
   const useHistoricalSkillState = isImportedHistoricalSkillLevel(planner.plan, level);
   const historicalInitialSkills = getHistoricalInitialSkillTraining(planner);
   const skillPickerOptions = {
@@ -516,14 +520,13 @@ export function buildSkillContext(planner, levelData, level) {
     : computeBuildState(planner.actor, planner.plan, level);
   const currentSkills = computeSkillPickerState(planner.actor, planner.plan, level, classDef, skillPickerOptions);
   const baseSkills = computeSkillPickerState(planner.actor, planner.plan, level, classDef, baseSkillPickerOptions);
-  const currentIncrease = levelData.skillIncreases?.[0];
-
   const skills = Object.entries(currentSkills).map(([slug, rawRank]) => {
-    const rank = getRankBeforeCurrentSkillIncrease(slug, rawRank, currentIncrease);
+    const rank = getSkillRankBeforeIncreaseChoice(slug, rawRank, levelData, choices, choice);
     const nextRank = rank + 1;
     const maxed = nextRank > maxRank;
     const plannedFeatSourceName = findSkillGrantingFeatName(planner.plan, slug, level);
-    const featGranted = rank > (baseSkills[slug] ?? 0) || (maxed && !!plannedFeatSourceName);
+    const baseRank = getSkillRankBeforeIncreaseChoice(slug, baseSkills[slug] ?? 0, levelData, choices, choice);
+    const featGranted = rank > baseRank || (maxed && !!plannedFeatSourceName);
     const featSourceName = featGranted ? plannedFeatSourceName : null;
     const lockedByFeat = featGranted && nextRank > maxRank;
     return {
@@ -537,7 +540,7 @@ export function buildSkillContext(planner, levelData, level) {
       featSourceName,
       disabled: !featGranted && nextRank > maxRank,
       lockedByFeat,
-      selected: currentIncrease?.skill === slug,
+      selected: normalizeSkillSlug(currentIncrease?.skill) === slug,
     };
   });
 
@@ -555,7 +558,7 @@ export function buildSkillContext(planner, levelData, level) {
   }
 
   const lores = [...loreSlugs].map((slug) => {
-    const rank = getRankBeforeCurrentSkillIncrease(slug, loreRanks[slug] ?? 0, currentIncrease);
+    const rank = getSkillRankBeforeIncreaseChoice(slug, loreRanks[slug] ?? 0, levelData, choices, choice);
     const nextRank = rank + 1;
     return {
       slug,
@@ -568,12 +571,15 @@ export function buildSkillContext(planner, levelData, level) {
       featSourceName: null,
       disabled: nextRank > maxRank,
       lockedByFeat: false,
-      selected: currentIncrease?.skill === slug,
+      selected: normalizeSkillSlug(currentIncrease?.skill) === slug,
     };
   });
 
   return filterDisallowedForCurrentUser(annotateGuidanceBySlug(
-    [...skills, ...lores].filter((s) => !s.maxed || s.selected || s.featGranted),
+    [...skills, ...lores].filter((entry) => (
+      (allowedSkills.size === 0 || allowedSkills.has(entry.slug))
+      && (!entry.maxed || entry.selected || entry.featGranted)
+    )),
     'skill',
   )).map((entry) => ({
     ...entry,
@@ -915,6 +921,13 @@ function buildHistoricalLoreRanks(planner, upToLevel) {
   for (const slug of collectActorLoreSlugs(planner.actor)) {
     lores[slug] ??= 0;
   }
+  const classDefs = [planner.plan?.classSlug, planner.plan?.dualClassSlug]
+    .filter(Boolean)
+    .map((slug) => ClassRegistry.get(slug))
+    .filter(Boolean);
+  for (const entry of getAutomaticLoreProficiencies(classDefs, upToLevel)) {
+    lores[entry.skill] = Math.max(lores[entry.skill] ?? 0, entry.rank);
+  }
 
   for (let level = 1; level <= upToLevel; level++) {
     const levelData = planner.plan?.levels?.[level];
@@ -941,16 +954,6 @@ function collectActorLoreSlugs(actor) {
   return (actor?.items?.filter?.((item) => item?.type === 'lore') ?? [])
     .map((item) => slugifyLoreSkillName(item?.slug ?? item?.name ?? ''))
     .filter(Boolean);
-}
-
-function getRankBeforeCurrentSkillIncrease(slug, rank, currentIncrease) {
-  const selectedSkill = normalizeSkillSlug(currentIncrease?.skill);
-  if (!selectedSkill || selectedSkill !== normalizeSkillSlug(slug)) return rank;
-
-  const targetRank = Number(currentIncrease?.toRank);
-  if (!Number.isFinite(targetRank) || targetRank <= 0) return rank;
-
-  return Math.max(0, targetRank - 1);
 }
 
 function localizeSkillSlug(slug) {

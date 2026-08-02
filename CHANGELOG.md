@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.7.1
+
+### Fixed
+
+- **Necromancers now receive their complete Grave Spells and Undead Lore progression** - Character Creation grants Create Thrall, Thrall Charge, Necrotic Bomb, the grave focus spell from Grim Fascination, and a focus pool of 2. Undead Lore is granted as trained at level 1 and automatically improves to expert, master, and legendary at levels 3, 7, and 15
+- **Thaumaturgic Expertise now grants its additional skill increase** - Level 9 Thaumaturges receive a second skill increase restricted to Arcana, Nature, Occultism, or Religion, separate from their normal skill increase
+
 ## 3.7.0
 
 ### Added

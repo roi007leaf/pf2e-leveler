@@ -15,6 +15,7 @@ import { normalizeLoreSkillName, slugifyLoreSkillName } from '../character-wizar
 import { getMaxSkillRank } from '../../utils/pf2e-api.js';
 import { isActiveSkillSlug, normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { getCreationData } from '../../creation/creation-store.js';
+import { getChoicesForLevel, getSkillIncreaseChoiceSource, getSkillIncreaseChoices, getSkillIncreaseSelection, getSkillRankBeforeIncreaseChoice, normalizeSkillIncreaseSource } from '../../classes/progression.js';
 
 export function activateLevelPlannerListeners(planner, html) {
   const el = html.querySelectorAll ? html : html[0];
@@ -229,19 +230,23 @@ export function activateLevelPlannerListeners(planner, html) {
       if (btn.dataset.locked === 'true') return;
       const slug = btn.dataset.skill;
       if (!slug) return;
+      const source = normalizeSkillIncreaseSource(btn.dataset.source);
       const levelData = getLevelData(planner.plan, planner.selectedLevel);
-      const currentIncrease = levelData?.skillIncreases?.[0];
+      const currentIncrease = getSkillIncreaseSelection(levelData, source);
       if (
         normalizeSkillSlug(currentIncrease?.skill) === normalizeSkillSlug(slug)
         && Number.isFinite(Number(currentIncrease?.toRank))
       ) {
         return;
       }
-      const currentRank = getSelectableSkillRank(planner, slug);
+      const choices = getPlannerSkillIncreaseChoices(planner);
+      const currentRank = getSelectableSkillRank(planner, slug, { source, choices });
       setLevelSkillIncrease(planner.plan, planner.selectedLevel, {
         skill: slug,
         toRank: currentRank + 1,
+        ...(source ? { source } : {}),
       });
+      reflowLevelSkillIncreases(planner, choices);
       planner._savePlanAndRender();
     });
   });
@@ -469,16 +474,24 @@ function syncSameLevelSkillIncreaseFromFeatChoice(planner, value, { grantsSkillT
   const currentRank = getSelectableSkillRank(planner, selectedSkill);
   const toRank = currentRank + 1;
   if (toRank > getMaxSkillRank(planner.selectedLevel)) {
-    if (levelData.skillIncreases[0]?.skill === selectedSkill) levelData.skillIncreases = [];
+    const currentIncrease = getSkillIncreaseSelection(levelData);
+    if (currentIncrease?.skill === selectedSkill) {
+      levelData.skillIncreases = levelData.skillIncreases.filter(
+        (increase) => normalizeSkillIncreaseSource(increase?.source) !== '',
+      );
+    }
     return;
   }
 
   setLevelSkillIncrease(planner.plan, planner.selectedLevel, { skill: selectedSkill, toRank });
+  reflowLevelSkillIncreases(planner, getPlannerSkillIncreaseChoices(planner));
 }
 
-export function getSelectableSkillRank(planner, slug) {
+export function getSelectableSkillRank(planner, slug, options = {}) {
+  const choices = options.choices?.length ? options.choices : getPlannerSkillIncreaseChoices(planner);
+  const source = normalizeSkillIncreaseSource(options.source);
   if (isImportedHistoricalSkillLevel(planner.plan, planner.selectedLevel)) {
-    return getHistoricalSelectableSkillRank(planner, slug);
+    return getHistoricalSelectableSkillRank(planner, slug, { choices, source });
   }
 
   const buildState = computeBuildState(planner.actor, planner.plan, planner.selectedLevel - 1);
@@ -495,10 +508,18 @@ export function getSelectableSkillRank(planner, slug) {
     }
   }
 
-  return buildState.skills[slug] ?? buildState.lores?.[slug] ?? 0;
+  const skill = normalizeSkillSlug(slug);
+  const rank = buildState.skills[skill] ?? buildState.lores?.[skill] ?? 0;
+  return getSkillRankBeforeIncreaseChoice(
+    skill,
+    rank,
+    levelData,
+    choices,
+    source,
+  );
 }
 
-function getHistoricalSelectableSkillRank(planner, slug) {
+function getHistoricalSelectableSkillRank(planner, slug, options = {}) {
   const skill = normalizeSkillSlug(slug);
   const classDef = ClassRegistry.get(planner.plan?.classSlug);
   const skills = computeSkillPickerState(planner.actor, planner.plan, planner.selectedLevel, classDef, {
@@ -514,7 +535,42 @@ function getHistoricalSelectableSkillRank(planner, slug) {
       skills[customSkill] = Math.max(skills[customSkill] ?? 0, inc.toRank);
     }
   }
-  return skills[skill] ?? 0;
+  return getSkillRankBeforeIncreaseChoice(
+    skill,
+    skills[skill] ?? 0,
+    levelData,
+    options.choices,
+    options.source,
+  );
+}
+
+function getPlannerSkillIncreaseChoices(planner) {
+  const classDef = ClassRegistry.get(planner.plan?.classSlug);
+  if (!classDef) return [{ type: 'skillIncrease' }];
+  return getSkillIncreaseChoices(getChoicesForLevel(
+    classDef,
+    planner.selectedLevel,
+    planner._getVariantOptions?.() ?? {},
+  ));
+}
+
+function reflowLevelSkillIncreases(planner, choices) {
+  const levelData = getLevelData(planner.plan, planner.selectedLevel);
+  const orderedSelections = [];
+  for (const choice of choices) {
+    const selection = getSkillIncreaseSelection(levelData, choice);
+    if (!selection?.skill) continue;
+    selection.toRank = getSelectableSkillRank(planner, selection.skill, {
+      source: getSkillIncreaseChoiceSource(choice),
+      choices,
+    }) + 1;
+    orderedSelections.push(selection);
+  }
+  const orderedSet = new Set(orderedSelections);
+  levelData.skillIncreases = [
+    ...orderedSelections,
+    ...(levelData.skillIncreases ?? []).filter((selection) => !orderedSet.has(selection)),
+  ];
 }
 
 function getHistoricalInitialSkillTraining(planner) {

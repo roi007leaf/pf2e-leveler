@@ -1,5 +1,5 @@
 import { INITIAL_SKILL_RETRAIN_SOURCE_TYPE, PROFICIENCY_RANK_NAMES, PROFICIENCY_RANKS, SUBCLASS_TAGS, WEALTH_MODES, CHARACTER_WEALTH, expandPermanentItemSlots, MODULE_ID } from '../../constants.js';
-import { getChoicesForLevel } from '../../classes/progression.js';
+import { getChoicesForLevel, getSkillIncreaseChoiceSource, getSkillIncreaseChoices } from '../../classes/progression.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getRunicRepertoireIncrease } from '../../classes/runesmith.js';
 import { getLevelData } from '../../plan/plan-model.js';
@@ -89,6 +89,16 @@ export async function buildLevelContext(planner, classDef, options) {
   const customSpellEntryOptions = buildCustomSpellEntryOptions(planner, level);
   const customSpellGroups = buildCustomSpellGroups(levelData.customSpells ?? [], customSpellEntryOptions);
   const importedInitialSkillSummary = buildImportedInitialSkillSummary(planner);
+  const skillIncreaseChoices = getSkillIncreaseChoices(choices);
+  const skillIncreaseGroups = skillIncreaseChoices.map((choice) => ({
+    selectedLevel: level,
+    source: getSkillIncreaseChoiceSource(choice),
+    label: choice.label ?? null,
+    availableSkills: planner._buildSkillContext(levelData, level, {
+      choice,
+      choices: skillIncreaseChoices,
+    }),
+  }));
 
   return {
     classFeatures: await buildClassFeatureEntries(planner, level, levelData),
@@ -121,8 +131,9 @@ export async function buildLevelContext(planner, classDef, options) {
     generalFeatGrantedAncestryFeat,
     showImportedInitialSkillButton: shouldShowImportedInitialSkillButton(planner, level),
     ...importedInitialSkillSummary,
-    showSkillIncrease: choiceTypes.has('skillIncrease'),
-    availableSkills: planner._buildSkillContext(levelData, level),
+    showSkillIncrease: skillIncreaseGroups.length > 0,
+    skillIncreaseGroups,
+    availableSkills: skillIncreaseGroups[0]?.availableSkills ?? [],
     showArchetypeFeat: choiceTypes.has('archetypeFeat'),
     archetypeFeat,
     archetypeFeatChoiceSets,

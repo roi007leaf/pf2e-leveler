@@ -7,6 +7,7 @@ import { GUARDIAN } from '../../../scripts/classes/guardian.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
 import { MYSTIC } from '../../../scripts/classes/mystic.js';
+import { NECROMANCER } from '../../../scripts/classes/necromancer.js';
 import { ORACLE } from '../../../scripts/classes/oracle.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
@@ -25,6 +26,7 @@ beforeAll(() => {
   ClassRegistry.register(INVESTIGATOR);
   ClassRegistry.register(MAGUS);
   ClassRegistry.register(MYSTIC);
+  ClassRegistry.register(NECROMANCER);
   ClassRegistry.register(ORACLE);
   ClassRegistry.register(ROGUE);
   ClassRegistry.register(SORCERER);
@@ -45,6 +47,16 @@ describe('computeBuildState', () => {
     const state = computeBuildState(mockActor, plan, 2);
     expect(state.level).toBe(2);
     expect(state.classSlug).toBe('alchemist');
+  });
+
+  test('includes automatic Necromancer Undead Lore progression', () => {
+    plan = createPlan('necromancer');
+    mockActor.items = [];
+
+    expect(computeBuildState(mockActor, plan, 1).lores['undead-lore']).toBe(1);
+    expect(computeBuildState(mockActor, plan, 3).lores['undead-lore']).toBe(2);
+    expect(computeBuildState(mockActor, plan, 7).lores['undead-lore']).toBe(3);
+    expect(computeBuildState(mockActor, plan, 15).lores['undead-lore']).toBe(4);
   });
 
   test('tracks armor (defense) proficiencies for prerequisites like "Expert in Unarmored Defense"', () => {

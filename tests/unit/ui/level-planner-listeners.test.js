@@ -3,6 +3,7 @@ import { LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
+import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
 
 jest.mock('../../../scripts/apply/apply-manager.js', () => ({
   promptApplyPlan: jest.fn(async () => true),
@@ -19,6 +20,7 @@ async function flushAsyncListeners() {
 describe('Level planner skill increase listeners', () => {
   beforeAll(() => {
     ClassRegistry.register(ALCHEMIST);
+    ClassRegistry.register(THAUMATURGE);
   });
 
   it('routes sidebar level clicks through the planner loading transition', () => {
@@ -84,6 +86,69 @@ describe('Level planner skill increase listeners', () => {
       { skill: 'society', toRank: 3 },
     ]);
     expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('preserves the normal increase and stacks Thaumaturgic Expertise after it', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="arcana" data-source="thaumaturge:thaumaturgic-expertise"></button>';
+    const actor = createMockActor();
+    actor.class.slug = 'thaumaturge';
+    actor.items = [];
+    actor.system.skills.arcana.rank = 1;
+    const plan = createPlan('thaumaturge');
+    plan.levels[9].skillIncreases = [{ skill: 'arcana', toRank: 2 }];
+    const planner = {
+      actor,
+      plan,
+      selectedLevel: 9,
+      _getVariantOptions: jest.fn(() => ({})),
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectSkillIncrease"]').click();
+
+    expect(plan.levels[9].skillIncreases).toEqual([
+      { skill: 'arcana', toRank: 2 },
+      {
+        skill: 'arcana',
+        toRank: 3,
+        source: 'thaumaturge:thaumaturgic-expertise',
+      },
+    ]);
+    expect(planner._savePlanAndRender).toHaveBeenCalled();
+  });
+
+  it('reorders and reflows the slots when Thaumaturgic Expertise was selected first', () => {
+    document.body.innerHTML = '<button type="button" data-action="selectSkillIncrease" data-skill="arcana"></button>';
+    const actor = createMockActor();
+    actor.class.slug = 'thaumaturge';
+    actor.items = [];
+    actor.system.skills.arcana.rank = 1;
+    const plan = createPlan('thaumaturge');
+    plan.levels[9].skillIncreases = [{
+      skill: 'arcana',
+      toRank: 2,
+      source: 'thaumaturge:thaumaturgic-expertise',
+    }];
+    const planner = {
+      actor,
+      plan,
+      selectedLevel: 9,
+      _getVariantOptions: jest.fn(() => ({})),
+      _savePlanAndRender: jest.fn(),
+    };
+
+    activateLevelPlannerListeners(planner, document.body);
+    document.querySelector('[data-action="selectSkillIncrease"]').click();
+
+    expect(plan.levels[9].skillIncreases).toEqual([
+      { skill: 'arcana', toRank: 2 },
+      {
+        skill: 'arcana',
+        toRank: 3,
+        source: 'thaumaturge:thaumaturgic-expertise',
+      },
+    ]);
   });
 
   it('uses manual historical skill state instead of final actor ranks when selecting imported past skill increases', () => {

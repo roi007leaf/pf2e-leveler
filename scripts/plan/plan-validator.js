@@ -1,6 +1,6 @@
 import { INITIAL_SKILL_RETRAIN_SOURCE_TYPE, PLAN_STATUS, MIN_PLAN_LEVEL, MAX_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS, MODULE_ID } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getChoicesForLevel, getGradualBoostGroupLevels } from '../classes/progression.js';
+import { getChoicesForLevel, getGradualBoostGroupLevels, getSkillIncreaseSelection } from '../classes/progression.js';
 import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { getIntelligenceBenefitCount } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
@@ -8,6 +8,7 @@ import { getFeatGrantCompletion } from './feat-grants.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
 import { collectArchetypeSpellcastingConfigs } from '../utils/spellcasting-support.js';
 import { doesFeatMatchRequiredSecondLevelClassFeat, getRequiredSecondLevelClassFeatForActor } from '../classes/class-archetype-requirements.js';
+import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
   const classDef = ClassRegistry.get(plan.classSlug);
@@ -252,7 +253,7 @@ function validateChoice(choice, levelData, level, plan, classDef, options, actor
       return validateFeatSlot(levelData.dualClassFeats, 'Dual Class Feat');
     case 'skillIncrease':
       if (optionsSkipHistoricalSkillIncrease(options, level)) return null;
-      return validateSkillIncrease(levelData, level, plan);
+      return validateSkillIncrease(levelData, level, choice);
     case 'spells':
       return validateSpells(levelData, level, classDef, actor, plan);
     default:
@@ -504,19 +505,27 @@ function getActorSpellCounts(actor) {
   return Object.keys(counts).length > 0 ? counts : null;
 }
 
-function validateSkillIncrease(levelData, level, _plan) {
-  const increases = levelData.skillIncreases;
-  if (!increases || increases.length === 0) {
-    return { severity: 'error', message: 'Skill increase not selected' };
+function validateSkillIncrease(levelData, level, choice) {
+  const increase = getSkillIncreaseSelection(levelData, choice);
+  const label = choice.label ? `${choice.label} skill increase` : 'Skill increase';
+  if (!increase) return { severity: 'error', message: `${label} not selected` };
+
+  const allowedSkills = (choice.allowedSkills ?? []).map(normalizeSkillSlug);
+  if (allowedSkills.length > 0 && !allowedSkills.includes(normalizeSkillSlug(increase.skill))) {
+    const allowedLabels = allowedSkills.map((skill) => skill.charAt(0).toUpperCase() + skill.slice(1));
+    const finalLabel = allowedLabels.pop();
+    return {
+      severity: 'error',
+      message: `${choice.label ?? 'This increase'} must apply to ${allowedLabels.join(', ')}, or ${finalLabel}`,
+    };
   }
+
   const maxRank = getMaxSkillRank(level);
-  for (const inc of increases) {
-    if (inc.toRank > maxRank) {
-      return {
-        severity: 'warning',
-        message: `Skill rank ${inc.toRank} exceeds maximum ${maxRank} at level ${level}`,
-      };
-    }
+  if (increase.toRank > maxRank) {
+    return {
+      severity: 'warning',
+      message: `Skill rank ${increase.toRank} exceeds maximum ${maxRank} at level ${level}`,
+    };
   }
   return null;
 }

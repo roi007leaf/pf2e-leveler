@@ -1,4 +1,4 @@
-import { getChoicesForLevel } from '../../../scripts/classes/progression.js';
+import { getAutomaticLoreProficiencies, getChoicesForLevel } from '../../../scripts/classes/progression.js';
 import { NECROMANCER } from '../../../scripts/classes/necromancer.js';
 import {
   getRunicRepertoireAtLevel,
@@ -33,6 +33,15 @@ describe('Necromancer class definition', () => {
       5: 2,
     });
     expect(NECROMANCER.spellcasting.slots[19][10]).toBe(1);
+  });
+
+  test('automatically scales Undead Lore at its four class thresholds', () => {
+    expect(getAutomaticLoreProficiencies(NECROMANCER, 1)).toEqual([
+      expect.objectContaining({ skill: 'undead-lore', name: 'Undead Lore', rank: 1 }),
+    ]);
+    expect(getAutomaticLoreProficiencies(NECROMANCER, 3)[0].rank).toBe(2);
+    expect(getAutomaticLoreProficiencies(NECROMANCER, 7)[0].rank).toBe(3);
+    expect(getAutomaticLoreProficiencies(NECROMANCER, 15)[0].rank).toBe(4);
   });
 });
 

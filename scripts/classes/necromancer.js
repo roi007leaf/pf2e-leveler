@@ -17,6 +17,12 @@ export const NECROMANCER = {
   },
   skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
   abilityBoostSchedule: [5, 10, 15, 20],
+  automaticLoreProficiencies: [
+    { level: 1, skill: 'undead-lore', name: 'Undead Lore', rank: 1 },
+    { level: 3, skill: 'undead-lore', name: 'Undead Lore', rank: 2 },
+    { level: 7, skill: 'undead-lore', name: 'Undead Lore', rank: 3 },
+    { level: 15, skill: 'undead-lore', name: 'Undead Lore', rank: 4 },
+  ],
 
   classFeatures: [
     { level: 3, name: 'Inevitable Return', key: 'inevitable-return' },

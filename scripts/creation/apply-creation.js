@@ -15,6 +15,7 @@ import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 import { extractCompendiumUuidsByCategory, isCompendiumUuidInCategory } from '../system-support/profiles.js';
 import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
 import { resolveSpellcastingTradition } from '../data/subclass-spells.js';
+import { getAutomaticLoreProficiencies } from '../classes/progression.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -313,18 +314,29 @@ async function applyLanguages(actor, data) {
   await actor.update({ 'system.details.languages.value': merged });
 }
 
-async function applyLores(actor, data) {
-  const lores = [...new Set([...(data.lores ?? []), ...(data.selectedLoreSkills ?? [])])];
-  if (lores.length === 0) return;
+export async function applyLores(actor, data) {
+  const classDefs = [data.class?.slug, data.dualClass?.slug]
+    .filter(Boolean)
+    .map((slug) => ClassRegistry.get(slug))
+    .filter(Boolean);
+  const loreRanks = new Map(
+    [...(data.lores ?? []), ...(data.selectedLoreSkills ?? [])]
+      .map((name) => [name, 1]),
+  );
+  for (const entry of getAutomaticLoreProficiencies(classDefs, 1)) {
+    const name = entry.name ?? entry.skill;
+    loreRanks.set(name, Math.max(loreRanks.get(name) ?? 0, entry.rank));
+  }
+  if (loreRanks.size === 0) return;
 
   const existingLores = actor.items?.filter((i) => i.type === 'lore').map((i) => i.name) ?? [];
-  const toCreate = lores
-    .filter((name) => !existingLores.includes(name))
-    .map((name) => ({
+  const toCreate = [...loreRanks]
+    .filter(([name]) => !existingLores.includes(name))
+    .map(([name, rank]) => ({
       name,
       type: 'lore',
       system: {
-        proficient: { value: 1 },
+        proficient: { value: rank },
       },
     }));
 

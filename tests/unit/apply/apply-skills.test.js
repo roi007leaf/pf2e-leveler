@@ -1,5 +1,11 @@
 import { applySkillIncreases } from '../../../scripts/apply/apply-skills.js';
 import { applySkillRetrains } from '../../../scripts/apply/apply-skill-retrains.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { NECROMANCER } from '../../../scripts/classes/necromancer.js';
+
+beforeAll(() => {
+  ClassRegistry.register(NECROMANCER);
+});
 
 describe('applySkillIncreases', () => {
   let mockActor;
@@ -27,6 +33,37 @@ describe('applySkillIncreases', () => {
     const result = await applySkillIncreases(mockActor, plan, 2);
     expect(mockActor.update).not.toHaveBeenCalled();
     expect(result).toEqual([]);
+  });
+
+  test('applies the automatic Undead Lore increase at level 3', async () => {
+    mockActor = {
+      items: [{
+        id: 'undead-lore',
+        type: 'lore',
+        slug: 'undead-lore',
+        name: 'Undead Lore',
+        system: { proficient: { value: 1 } },
+      }],
+      update: jest.fn(async () => {}),
+      createEmbeddedDocuments: jest.fn(async () => []),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+    const plan = {
+      classSlug: 'necromancer',
+      levels: { 3: {} },
+    };
+
+    const result = await applySkillIncreases(mockActor, plan, 3);
+
+    expect(mockActor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      _id: 'undead-lore',
+      'system.proficient.value': 2,
+    }]);
+    expect(result).toContainEqual(expect.objectContaining({
+      skill: 'undead-lore',
+      toRank: 2,
+      automatic: true,
+    }));
   });
 
   test('returns empty for nonexistent level', async () => {

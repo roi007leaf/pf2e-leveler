@@ -1,6 +1,7 @@
 import { extractFeatSkillRules, LevelPlanner } from '../../../scripts/ui/level-planner/index.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
+import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
 import { createPlan, setLevelBoosts, setLevelSkillIncrease } from '../../../scripts/plan/plan-model.js';
 import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 import { readFileSync } from 'node:fs';
@@ -20,6 +21,7 @@ describe('LevelPlanner intelligence boost planner choices', () => {
   beforeAll(() => {
     ClassRegistry.clear();
     ClassRegistry.register(ALCHEMIST);
+    ClassRegistry.register(THAUMATURGE);
   });
 
   it('shows localized extra skill and language selections when INT modifier increases', () => {
@@ -365,6 +367,30 @@ describe('LevelPlanner intelligence boost planner choices', () => {
       partial: false,
       completesPartial: false,
     }));
+  });
+
+  it('builds a second magic-skill-only group for Thaumaturgic Expertise', async () => {
+    const actor = createMockActor();
+    actor.class.slug = 'thaumaturge';
+    actor.items = [];
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('thaumaturge');
+    planner.selectedLevel = 9;
+
+    const context = await planner._buildLevelContext(THAUMATURGE, {});
+    const bonus = context.skillIncreaseGroups[1];
+
+    expect(context.skillIncreaseGroups).toHaveLength(2);
+    expect(bonus).toEqual(expect.objectContaining({
+      source: 'thaumaturge:thaumaturgic-expertise',
+      label: 'Thaumaturgic Expertise',
+    }));
+    expect(bonus.availableSkills.map((entry) => entry.slug).sort()).toEqual([
+      'arcana',
+      'nature',
+      'occultism',
+      'religion',
+    ]);
   });
 
   it('includes the saved dual class boost when reconstructing level 1 attributes', () => {

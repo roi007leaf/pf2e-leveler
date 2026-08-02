@@ -47,6 +47,7 @@ export function getChoicesForLevel(classDef, level, options = {}) {
   if (classDef.skillIncreaseSchedule.includes(level)) {
     choices.push({ type: 'skillIncrease' });
   }
+  addClassFeatureSkillIncreaseChoices(choices, classDef, level);
 
   addSecondaryDualClassChoices(choices, classDef, dualClassDef, level);
 
@@ -97,6 +98,108 @@ function addSecondaryDualClassChoices(choices, primaryClassDef, dualClassDef, le
   ) {
     choices.push({ type: 'skillIncrease' });
   }
+  addClassFeatureSkillIncreaseChoices(choices, dualClassDef, level);
+}
+
+function addClassFeatureSkillIncreaseChoices(choices, classDef, level) {
+  for (const feature of classDef?.classFeatures ?? []) {
+    const benefit = feature?.additionalSkillIncrease;
+    if (feature.level !== level || !benefit) continue;
+
+    const source = `${classDef.slug}:${feature.key}`;
+    if (choices.some((choice) => choice.type === 'skillIncrease' && choice.source === source)) continue;
+    choices.push({
+      type: 'skillIncrease',
+      source,
+      label: feature.name,
+      allowedSkills: [...(benefit.allowedSkills ?? [])],
+    });
+  }
+}
+
+export function normalizeSkillIncreaseSource(source) {
+  return String(source ?? '').trim();
+}
+
+export function getSkillIncreaseChoiceSource(choice) {
+  return normalizeSkillIncreaseSource(choice?.source);
+}
+
+export function getSkillIncreaseSelection(levelData, choiceOrSource = '') {
+  const source = typeof choiceOrSource === 'object'
+    ? getSkillIncreaseChoiceSource(choiceOrSource)
+    : normalizeSkillIncreaseSource(choiceOrSource);
+  return (levelData?.skillIncreases ?? []).find(
+    (increase) => normalizeSkillIncreaseSource(increase?.source) === source,
+  ) ?? null;
+}
+
+export function getSkillIncreaseChoices(choices) {
+  return (choices ?? []).filter((choice) => choice.type === 'skillIncrease');
+}
+
+export function getPriorSkillIncreaseSelections(levelData, choices, choiceOrSource = '') {
+  const source = typeof choiceOrSource === 'object'
+    ? getSkillIncreaseChoiceSource(choiceOrSource)
+    : normalizeSkillIncreaseSource(choiceOrSource);
+  const skillChoices = getSkillIncreaseChoices(choices);
+  const index = skillChoices.findIndex((choice) => getSkillIncreaseChoiceSource(choice) === source);
+  if (index <= 0) return [];
+  return skillChoices.slice(0, index)
+    .map((choice) => getSkillIncreaseSelection(levelData, choice))
+    .filter(Boolean);
+}
+
+export function getSkillRankBeforeIncreaseChoice(skill, rawRank, levelData, choices, choiceOrSource = '') {
+  const normalizedSkill = String(skill ?? '').trim().toLowerCase();
+  const matchingSelections = getSkillIncreaseChoices(choices)
+    .map((choice) => getSkillIncreaseSelection(levelData, choice))
+    .filter((selection) => String(selection?.skill ?? '').trim().toLowerCase() === normalizedSkill);
+  let rank = Number(rawRank ?? 0);
+
+  if (matchingSelections.length > 0) {
+    rank = Math.min(
+      rank,
+      ...matchingSelections
+        .map((selection) => Number(selection?.toRank))
+        .filter(Number.isFinite)
+        .map((targetRank) => Math.max(0, targetRank - 1)),
+    );
+  }
+
+  for (const selection of getPriorSkillIncreaseSelections(levelData, choices, choiceOrSource)) {
+    if (String(selection?.skill ?? '').trim().toLowerCase() !== normalizedSkill) continue;
+    const targetRank = Number(selection?.toRank);
+    if (Number.isFinite(targetRank)) rank = Math.max(rank, targetRank);
+  }
+
+  return rank;
+}
+
+export function getAutomaticLoreProficiencies(classDef, atLevel, options = {}) {
+  const classDefs = Array.isArray(classDef) ? classDef.filter(Boolean) : [classDef].filter(Boolean);
+  const bySkill = new Map();
+
+  for (const definition of classDefs) {
+    for (const entry of definition?.automaticLoreProficiencies ?? []) {
+      const level = Number(entry?.level);
+      const rank = Number(entry?.rank);
+      const skill = String(entry?.skill ?? '').trim().toLowerCase();
+      const applies = options.exactLevel === true ? level === atLevel : level <= atLevel;
+      if (!applies || !skill || !Number.isFinite(rank)) continue;
+
+      const existing = bySkill.get(skill);
+      if (existing && existing.rank >= rank) continue;
+      bySkill.set(skill, {
+        ...entry,
+        skill,
+        rank,
+        source: `${definition.slug}:${skill}`,
+      });
+    }
+  }
+
+  return [...bySkill.values()];
 }
 
 export function hasChoicesAtLevel(classDef, level, options = {}) {

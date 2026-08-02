@@ -5,6 +5,8 @@ const SPELL_PACK = 'Compendium.pf2e.spells-srd.Item';
 const CLASS_FEATURE_PACK = 'Compendium.pf2e.classfeatures.Item';
 const HARM_UUID = `${SPELL_PACK}.wdA52JJnsuQWeyqz`;
 const CREATE_THRALL_UUID = `${SPELL_PACK}.1JaRoJvlf8EPvnnD`;
+const THRALL_CHARGE_UUID = `${SPELL_PACK}.NWDTNTpfPEc821pu`;
+const NECROTIC_BOMB_UUID = `${SPELL_PACK}.cg1l2AxBenLU6JFE`;
 
 export const NECROMANCER_GRIM_FASCINATION_UUID = `${CLASS_FEATURE_PACK}.PGUiN4995rreH3aU`;
 
@@ -24,6 +26,10 @@ export class NecromancerHandler extends CasterBaseHandler {
     return { cantrips: 8, rank1: 5 };
   }
 
+  getFocusPoolMinimum() {
+    return 2;
+  }
+
   async resolveGrantedSpells() {
     const harm = await resolveSpell(HARM_UUID, 'Necromancer Spellcasting');
     return {
@@ -33,7 +39,7 @@ export class NecromancerHandler extends CasterBaseHandler {
   }
 
   async resolveFocusSpells(data) {
-    const spellUuids = [CREATE_THRALL_UUID];
+    const spellUuids = [CREATE_THRALL_UUID, THRALL_CHARGE_UUID, NECROTIC_BOMB_UUID];
     const selectedFascination = getGrantedFeatChoiceValues(
       data,
       NECROMANCER_GRIM_FASCINATION_UUID,

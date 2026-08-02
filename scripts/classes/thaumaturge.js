@@ -23,7 +23,15 @@ export const THAUMATURGE = {
     { level: 7, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 9, name: 'Intensify Vulnerability', key: 'intensify-vulnerability' },
     { level: 9, name: 'Perception Expertise', key: 'perception-expertise' },
-    { level: 9, name: 'Thaumaturgic Expertise', key: 'thaumaturgic-expertise', proficiencies: { classdc: 2 } },
+    {
+      level: 9,
+      name: 'Thaumaturgic Expertise',
+      key: 'thaumaturgic-expertise',
+      proficiencies: { classdc: 2 },
+      additionalSkillIncrease: {
+        allowedSkills: ['arcana', 'nature', 'occultism', 'religion'],
+      },
+    },
     { level: 11, name: 'Medium Armor Expertise', key: 'medium-armor-expertise' },
     { level: 11, name: 'Second Adept', key: 'second-adept' },
     { level: 13, name: 'Perfected Mind', key: 'perfected-mind' },

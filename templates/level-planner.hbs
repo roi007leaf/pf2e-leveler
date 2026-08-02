@@ -616,17 +616,22 @@
         {{/if}}
 
         {{#if showSkillIncrease}}
+        {{#each skillIncreaseGroups}}
         <div class="level-section" data-comment-part="level:{{selectedLevel}}:skillIncrease">
           <div class="section-header">
             <i class="section-header__icon fa-solid fa-chart-line"></i>
+            {{#if this.label}}
+            {{this.label}}
+            {{else}}
             {{localize "PF2E_LEVELER.SECTIONS.SKILL_INCREASE"}}
+            {{/if}}
           </div>
           <div class="level-section__body">
             <div class="skill-btn-grid">
-              {{#each availableSkills}}
+              {{#each this.availableSkills}}
               <button type="button"
                 class="skill-btn skill-btn--stacked rank-bg-{{this.rankName}} {{#if this.selected}}selected{{/if}} {{#if this.lockedByFeat}}skill-btn--feat-granted{{/if}} {{#if this.isDisallowed}}wizard-item--disallowed{{/if}}"
-                data-action="selectSkillIncrease" data-skill="{{this.slug}}"
+                data-action="selectSkillIncrease" data-skill="{{this.slug}}" data-source="{{../source}}"
                 data-locked="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
                 aria-disabled="{{#if this.lockedByFeat}}true{{else}}false{{/if}}"
                 {{#if (or this.guidanceSelectionBlocked (and this.disabled (not this.lockedByFeat)))}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
@@ -655,6 +660,7 @@
             </div>
           </div>
         </div>
+        {{/each}}
         {{/if}}
 
         {{#if showArchetypeFeat}}

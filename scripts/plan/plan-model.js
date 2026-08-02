@@ -1,6 +1,6 @@
 import { MIN_PLAN_LEVEL, MAX_LEVEL } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
-import { getChoicesForLevel } from '../classes/progression.js';
+import { getChoicesForLevel, normalizeSkillIncreaseSource } from '../classes/progression.js';
 
 const CURRENT_VERSION = 1;
 
@@ -126,7 +126,14 @@ export function setLevelBoosts(plan, level, boosts) {
 export function setLevelSkillIncrease(plan, level, skillIncrease) {
   if (!plan.levels[level]) plan.levels[level] = {};
   ensureCustomLevelData(plan.levels[level]);
-  plan.levels[level].skillIncreases = [skillIncrease];
+  const increases = [...(plan.levels[level].skillIncreases ?? [])];
+  const source = normalizeSkillIncreaseSource(skillIncrease?.source);
+  const index = increases.findIndex(
+    (increase) => normalizeSkillIncreaseSource(increase?.source) === source,
+  );
+  if (index >= 0) increases[index] = skillIncrease;
+  else increases.push(skillIncrease);
+  plan.levels[level].skillIncreases = increases;
   return plan;
 }
 

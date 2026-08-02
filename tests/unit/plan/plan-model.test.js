@@ -126,6 +126,26 @@ describe('setLevelSkillIncrease', () => {
     setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
     expect(plan.levels[3].skillIncreases).toEqual([{ skill: 'athletics', toRank: 2 }]);
   });
+
+  test('upserts one source slot without replacing another', () => {
+    const plan = createPlan('alchemist');
+    setLevelSkillIncrease(plan, 3, { skill: 'athletics', toRank: 2 });
+    setLevelSkillIncrease(plan, 3, {
+      skill: 'arcana',
+      toRank: 2,
+      source: 'thaumaturge:thaumaturgic-expertise',
+    });
+    setLevelSkillIncrease(plan, 3, { skill: 'stealth', toRank: 2 });
+
+    expect(plan.levels[3].skillIncreases).toEqual([
+      { skill: 'stealth', toRank: 2 },
+      {
+        skill: 'arcana',
+        toRank: 2,
+        source: 'thaumaturge:thaumaturgic-expertise',
+      },
+    ]);
+  });
 });
 
 describe('retraining helpers', () => {

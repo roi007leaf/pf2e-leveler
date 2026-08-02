@@ -2,6 +2,8 @@ import { getAllPlannedFeats } from '../plan/plan-model.js';
 import { evaluateRuleNumericValue } from '../plan/build-state.js';
 import { getFeatLoreRules, getFeatSkillRules } from '../utils/feat-skill-rules.js';
 import { isActiveSkillSlug, normalizeSkillSlug } from '../utils/skill-slugs.js';
+import { ClassRegistry } from '../classes/registry.js';
+import { getAutomaticLoreProficiencies } from '../classes/progression.js';
 
 export async function applySkillIncreases(actor, plan, level) {
   const levelData = plan.levels[level];
@@ -9,7 +11,12 @@ export async function applySkillIncreases(actor, plan, level) {
   const intBonusSkills = levelData?.intBonusSkills ?? [];
   const featSkillRules = getPlannedFeatSkillRules(plan, level);
   const featLoreRules = getPlannedFeatLoreRules(plan, level);
-  if (skillIncreases.length === 0 && intBonusSkills.length === 0 && featSkillRules.length === 0 && featLoreRules.length === 0) return [];
+  const classDefs = [plan.classSlug, plan.dualClassSlug]
+    .filter(Boolean)
+    .map((slug) => ClassRegistry.get(slug))
+    .filter(Boolean);
+  const automaticLoreIncreases = getAutomaticLoreProficiencies(classDefs, level, { exactLevel: true });
+  if (skillIncreases.length === 0 && intBonusSkills.length === 0 && featSkillRules.length === 0 && featLoreRules.length === 0 && automaticLoreIncreases.length === 0) return [];
 
   const updates = {};
   const applied = [];
@@ -22,8 +29,13 @@ export async function applySkillIncreases(actor, plan, level) {
       loreItemsToCreate.push({ skill, toRank: inc.toRank, appliedEntry: inc });
       continue;
     }
-    updates[`system.skills.${skill}.rank`] = inc.toRank;
-    applied.push(inc);
+    const toRank = Number(inc?.toRank);
+    if (!Number.isFinite(toRank)) continue;
+    const currentRank = getPendingSkillRank(actor, updates, skill);
+    if (toRank > currentRank) {
+      updates[`system.skills.${skill}.rank`] = toRank;
+      applied.push(inc);
+    }
   }
 
   for (const rawSkill of intBonusSkills) {
@@ -67,6 +79,20 @@ export async function applySkillIncreases(actor, plan, level) {
     loreItemsToCreate.push({ skill, toRank, appliedEntry: { skill, toRank, featChoice: true } });
   }
 
+  for (const entry of automaticLoreIncreases) {
+    loreItemsToCreate.push({
+      skill: entry.skill,
+      name: entry.name,
+      toRank: entry.rank,
+      appliedEntry: {
+        skill: entry.skill,
+        toRank: entry.rank,
+        automatic: true,
+        source: entry.source,
+      },
+    });
+  }
+
   if (Object.keys(updates).length > 0) {
     await actor.update(updates);
   }
@@ -78,15 +104,21 @@ export async function applySkillIncreases(actor, plan, level) {
         .map((item) => [slugify(String(item.slug ?? item.name ?? '')), item]),
     );
 
+    const pendingLores = new Map();
+    for (const entry of loreItemsToCreate) {
+      const existing = pendingLores.get(entry.skill);
+      if (!existing || Number(entry.toRank) > Number(existing.toRank)) pendingLores.set(entry.skill, entry);
+    }
+
     const loreCreates = [];
     const loreUpdates = [];
-    for (const entry of loreItemsToCreate) {
+    for (const entry of pendingLores.values()) {
       const existing = existingLores.get(entry.skill);
-      const name = humanizeLoreSlug(entry.skill);
+      const name = entry.name ?? humanizeLoreSlug(entry.skill);
       if (existing) {
         const currentRank = Number(existing.system?.proficient?.value ?? existing.system?.proficiency?.value ?? existing.system?.rank ?? 0);
         if (entry.toRank > currentRank) {
-          loreUpdates.push({ _id: existing.id, 'system.proficient.value': entry.toRank });
+          loreUpdates.push({ _id: existing.id ?? existing._id, 'system.proficient.value': entry.toRank });
           applied.push(entry.appliedEntry);
         }
         continue;

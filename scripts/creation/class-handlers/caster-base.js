@@ -132,6 +132,10 @@ export class CasterBaseHandler extends BaseClassHandler {
     await this._applyFocusSpells(actor, data);
   }
 
+  getFocusPoolMinimum(_data, _focusSpells) {
+    return 1;
+  }
+
   async _applySpellcasting(actor, data) {
     const grantedUuids = new Set();
     const resolvedGranted = await this.resolveGrantedSpells(data);
@@ -238,8 +242,12 @@ export class CasterBaseHandler extends BaseClassHandler {
     const focusSpellsToCreate = focusSpells.filter((spell) =>
       !getItemSourceIds(spell).some((id) => existingSpellSources.has(id)),
     );
+    const minimumFocusPoints = Math.min(
+      3,
+      Math.max(1, Number(this.getFocusPoolMinimum(data, focusSpells)) || 1),
+    );
     if (focusSpellsToCreate.length === 0) {
-      await ensureFocusResource(actor);
+      await ensureFocusResource(actor, minimumFocusPoints);
       return;
     }
 
@@ -277,7 +285,7 @@ export class CasterBaseHandler extends BaseClassHandler {
       for (const id of spellSourceIds) existingSpellSources.add(id);
     }
 
-    await ensureFocusResource(actor);
+    await ensureFocusResource(actor, minimumFocusPoints);
   }
 
   _resolveTradition(tradition, subclass) {
@@ -424,13 +432,13 @@ function getItemSourceIds(item) {
     .filter(Boolean);
 }
 
-async function ensureFocusResource(actor) {
+async function ensureFocusResource(actor, minimumMax = 1) {
   const currentMax = actor.system?.resources?.focus?.max ?? 0;
   const currentValue = actor.system?.resources?.focus?.value ?? 0;
-  if (currentMax < 1 || currentValue < 1) {
+  if (currentMax < minimumMax || currentValue < minimumMax) {
     await actor.update({
-      'system.resources.focus.max': Math.max(1, currentMax),
-      'system.resources.focus.value': Math.max(1, currentValue),
+      'system.resources.focus.max': Math.max(minimumMax, currentMax),
+      'system.resources.focus.value': Math.max(minimumMax, currentValue),
     });
   }
 }

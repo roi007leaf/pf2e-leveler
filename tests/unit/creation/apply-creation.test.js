@@ -1,5 +1,5 @@
 import { getAdditionalSelectedFormulas, getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
-import { applyCreation } from '../../../scripts/creation/apply-creation.js';
+import { applyCreation, applyLores } from '../../../scripts/creation/apply-creation.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
@@ -33,6 +33,40 @@ jest.mock('../../../scripts/utils/logger.js', () => ({
 }));
 
 const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
+const { ClassRegistry } = jest.requireMock('../../../scripts/classes/registry.js');
+
+describe('applyLores automatic class training', () => {
+  afterEach(() => {
+    ClassRegistry.get.mockReturnValue(null);
+  });
+
+  it('creates trained Undead Lore for a new Necromancer', async () => {
+    ClassRegistry.get.mockImplementation((slug) => slug === 'necromancer'
+      ? {
+          slug: 'necromancer',
+          automaticLoreProficiencies: [
+            { level: 1, skill: 'undead-lore', name: 'Undead Lore', rank: 1 },
+          ],
+        }
+      : null);
+    const actor = {
+      items: [],
+      createEmbeddedDocuments: jest.fn(async () => []),
+    };
+
+    await applyLores(actor, {
+      class: { slug: 'necromancer' },
+      lores: [],
+      selectedLoreSkills: [],
+    });
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [{
+      name: 'Undead Lore',
+      type: 'lore',
+      system: { proficient: { value: 1 } },
+    }]);
+  });
+});
 
 describe('getAdditionalSelectedItems', () => {
   it('does not manually add handler-owned class selections', () => {
