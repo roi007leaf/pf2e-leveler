@@ -712,6 +712,32 @@ describe('computeBuildState', () => {
     expect(state.classFeatures.has('blessing-of-swiftness')).toBe(true);
   });
 
+  test('adds the fatal method suffix to an owned Necromancer subclass feature', () => {
+    const necromancerActor = createMockActor({
+      class: { slug: 'necromancer', name: 'Necromancer' },
+      items: [
+        {
+          type: 'feat',
+          slug: 'puppeteer',
+          name: 'Puppeteer',
+          system: {
+            category: 'classfeature',
+            level: { value: 1, taken: 1 },
+            traits: {
+              otherTags: ['necromancer-fatal-method'],
+              value: ['necromancer'],
+            },
+          },
+        },
+      ],
+    });
+
+    const state = computeBuildState(necromancerActor, createPlan('necromancer'), 8);
+
+    expect(state.class.subclassType).toBe('fatal method');
+    expect(state.feats.has('puppeteer-fatal-method')).toBe(true);
+  });
+
   test('adds selected hybrid study aliases from owned class feature rule selections', () => {
     const magusActor = createMockActor({
       class: { slug: 'magus', name: 'Magus' },

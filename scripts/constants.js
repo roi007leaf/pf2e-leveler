@@ -32,6 +32,36 @@ export const FEAT_CATEGORIES = {
   MYTHIC: 'mythic',
 };
 
+export const CLASS_SUBCLASS_TYPES = {
+  alchemist: 'research field',
+  animist: 'practice',
+  barbarian: 'instinct',
+  bard: 'muse',
+  champion: 'cause',
+  cleric: 'doctrine',
+  druid: 'order',
+  envoy: 'leadership style',
+  gunslinger: 'way',
+  inventor: 'innovation',
+  investigator: 'methodology',
+  kineticist: 'gate',
+  magus: 'study',
+  mystic: 'connection',
+  necromancer: 'fatal method',
+  operative: 'specialization',
+  oracle: 'mystery',
+  psychic: 'conscious mind',
+  ranger: "hunter's edge",
+  rogue: 'racket',
+  soldier: 'fighting style',
+  sorcerer: 'bloodline',
+  summoner: 'eidolon',
+  swashbuckler: 'style',
+  witch: 'patron',
+  witchwarper: 'paradox',
+  wizard: 'school',
+};
+
 export const SUBCLASS_TAGS = {
   alchemist: 'alchemist-research-field',
   animist: 'animistic-practice',

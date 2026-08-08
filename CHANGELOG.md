@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.7.2
+
+### Fixed
+
+- **Puppeteer Necromancers can select Conjurer of Corpses** - The Level Planner now recognizes the Puppeteer Fatal Method from the selected Necromancer subclass, so the level 6 feat is correctly shown as eligible and can be added to planned builds
+- **Dual-class level-ups now apply secondary class features** - Applying a Leveler plan backfills every missing secondary-class feature through the selected level, including proficiency upgrades that PF2e otherwise grants only from the primary class item
+- **Necromancer feat choices now match their rules** - Neutral Necromancers qualify for both The Hallowed Dead and The Unholy Dead, while Widespread Fascination selected through Natural Ambition offers a grave spell from another Grim Fascination, grants it once, and increases the focus pool to 3
+
 ## 3.7.1
 
 ### Fixed

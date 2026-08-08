@@ -2076,6 +2076,87 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     ]);
   });
 
+  it('surfaces Widespread Fascination grave spell choice selected through Natural Ambition', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    const naturalAmbitionUuid = 'Compendium.pf2e.feats-srd.Item.natural-ambition';
+    const widespreadUuid = 'Compendium.pf2e.feats-srd.Item.SXFz4JqJdg60uo9u';
+    const grimFascinationUuid = 'Compendium.pf2e.classfeatures.Item.PGUiN4995rreH3aU';
+    const bloodSpellUuid = 'Compendium.pf2e.spells-srd.Item.tFWa3ouvMC5Zz3P0';
+    const graveSpells = new Map([
+      [bloodSpellUuid, 'Life Tap'],
+      ['Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm', 'Bone Spear'],
+      ['Compendium.pf2e.spells-srd.Item.4kQMFyRKj5Gv13zl', 'Flesh Maggot'],
+      ['Compendium.pf2e.spells-srd.Item.fgmxDC2PH2TEYGKG', 'Spirit Stride'],
+    ]);
+    wizard.data.class = { name: 'Necromancer', slug: 'necromancer' };
+    wizard.data.ancestryFeat = {
+      uuid: naturalAmbitionUuid,
+      name: 'Natural Ambition',
+      choices: { classFeat: widespreadUuid },
+      choiceSets: [],
+    };
+    wizard.data.grantedFeatChoices = {
+      [grimFascinationUuid]: {
+        grimFascination: 'Compendium.pf2e.classfeatures.Item.gyN8OZZ3txxIAKLf',
+      },
+    };
+
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === naturalAmbitionUuid) {
+        return {
+          uuid,
+          name: 'Natural Ambition',
+          type: 'feat',
+          system: {
+            rules: [{
+              key: 'ChoiceSet',
+              flag: 'classFeat',
+              prompt: 'Select a 1st-level class feat.',
+              choices: [{ value: widespreadUuid, label: 'Widespread Fascination' }],
+            }],
+          },
+        };
+      }
+      if (uuid === widespreadUuid) {
+        return {
+          uuid,
+          name: 'Widespread Fascination',
+          slug: 'widespread-fascination',
+          type: 'feat',
+          system: { rules: [] },
+        };
+      }
+      if (graveSpells.has(uuid)) {
+        return {
+          uuid,
+          name: graveSpells.get(uuid),
+          img: `${uuid.split('.').at(-1)}.webp`,
+          type: 'spell',
+          system: { description: { value: '' }, traits: { value: ['focus'] } },
+        };
+      }
+      return null;
+    });
+
+    await wizard._refreshGrantedFeatChoiceSections();
+    const context = await wizard._buildFeatChoicesContext();
+    const section = context.featChoiceSections.find((entry) => entry.slot === widespreadUuid);
+
+    expect(section).toEqual(expect.objectContaining({
+      featName: 'Widespread Fascination',
+    }));
+    expect(section.choiceSets[0]).toEqual(expect.objectContaining({
+      isSpellChoice: true,
+      hasSelection: false,
+      managedByClassHandler: true,
+    }));
+    expect(section.choiceSets[0].options.map((option) => option.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+      'Compendium.pf2e.spells-srd.Item.4kQMFyRKj5Gv13zl',
+      'Compendium.pf2e.spells-srd.Item.fgmxDC2PH2TEYGKG',
+    ]);
+  });
+
   it('does not build a feat choice section for synthetic Mixed Ancestry heritage', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.ancestry = {

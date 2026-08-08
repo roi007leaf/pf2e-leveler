@@ -487,6 +487,42 @@ describe('FeatPicker prerequisite enforcement', () => {
     expect(result.selectionBlocked).toBe(false);
   });
 
+  test('allows Conjurer of Corpses when the Necromancer has the Puppeteer fatal method', () => {
+    const feat = createFeat({
+      name: 'Conjurer of Corpses',
+      prereqText: 'Puppeteer Fatal Method',
+      uuid: 'conjurer-of-corpses',
+      slug: 'conjurer-of-corpses',
+      level: 6,
+      traits: ['necromancer'],
+    });
+
+    const picker = new FeatPicker(
+      createActor(),
+      'class',
+      8,
+      createBuildState({
+        level: 8,
+        class: { slug: 'necromancer', hp: 8, subclassType: 'fatal method' },
+        feats: new Set(['puppeteer-fatal-method']),
+        classFeatures: new Set(['puppeteer']),
+      }),
+      jest.fn(),
+    );
+    picker.allFeats = [feat];
+
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.prereqResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Puppeteer Fatal Method', met: true }),
+      ]),
+    );
+    expect(result.hasFailedPrerequisites).toBe(false);
+    expect(result.selectionBlocked).toBe(false);
+  });
+
   test('mechanical alternative prerequisites do not block selection when one branch is met', () => {
     const feat = createFeat({
       name: 'Break Curse',

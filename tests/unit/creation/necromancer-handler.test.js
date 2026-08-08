@@ -1,5 +1,7 @@
 import {
   NECROMANCER_GRIM_FASCINATION_UUID,
+  NECROMANCER_WIDESPREAD_FASCINATION_CHOICE_FLAG,
+  NECROMANCER_WIDESPREAD_FASCINATION_UUID,
   NecromancerHandler,
 } from '../../../scripts/creation/class-handlers/necromancer.js';
 
@@ -88,5 +90,30 @@ describe('NecromancerHandler', () => {
       'system.resources.focus.max': 2,
       'system.resources.focus.value': 2,
     });
+  });
+
+  test('adds Widespread Fascination grave spell and raises focus pool minimum to three', async () => {
+    const handler = new NecromancerHandler();
+    const data = {
+      grantedFeatChoices: {
+        [NECROMANCER_GRIM_FASCINATION_UUID]: {
+          grimFascination: 'Compendium.pf2e.classfeatures.Item.gyN8OZZ3txxIAKLf',
+        },
+        [NECROMANCER_WIDESPREAD_FASCINATION_UUID]: {
+          [NECROMANCER_WIDESPREAD_FASCINATION_CHOICE_FLAG]: 'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+        },
+      },
+    };
+
+    const focusSpells = await handler.resolveFocusSpells(data);
+
+    expect(focusSpells.map((spell) => spell.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.1JaRoJvlf8EPvnnD',
+      'Compendium.pf2e.spells-srd.Item.NWDTNTpfPEc821pu',
+      'Compendium.pf2e.spells-srd.Item.cg1l2AxBenLU6JFE',
+      'Compendium.pf2e.spells-srd.Item.tFWa3ouvMC5Zz3P0',
+      'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+    ]);
+    expect(handler.getFocusPoolMinimum(data)).toBe(3);
   });
 });

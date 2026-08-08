@@ -175,6 +175,15 @@ describe('parsePrerequisite', () => {
     expect(result.characterSanctification).toBe('unholy');
   });
 
+  test.each([
+    ["You aren't unholy", 'unholy'],
+    ['You aren\u2019t holy', 'holy'],
+  ])('parses forbidden character sanctification prerequisite: %s', (text, sanctification) => {
+    const result = parsePrerequisite(text);
+    expect(result.type).toBe('sanctificationState');
+    expect(result.forbiddenCharacterSanctification).toBe(sanctification);
+  });
+
   test('parses focus pool prerequisite', () => {
     const result = parsePrerequisite('Focus pool');
     expect(result.type).toBe('spellcastingState');

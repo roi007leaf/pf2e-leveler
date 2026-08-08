@@ -509,6 +509,7 @@ export function getAdditionalSelectedItems(data) {
 
   for (const container of containers) {
     for (const choiceSet of container.choiceSets ?? []) {
+      if (choiceSet?.managedByClassHandler === true) continue;
       const selectedValue = container.choices?.[choiceSet.flag];
       if (typeof selectedValue !== 'string' || selectedValue.length === 0 || selectedValue === '[object Object]') continue;
       const option = findMatchingChoiceOption(choiceSet.options, selectedValue);

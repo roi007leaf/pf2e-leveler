@@ -7,6 +7,7 @@ import { applyFeats } from './apply-feats.js';
 import { applyFeatRetrains } from './apply-feat-retrains.js';
 import { applyFeatGrants } from './apply-feat-grants.js';
 import { applyClassFeatureChoices } from './apply-class-feature-choices.js';
+import { applyDualClassFeatures } from './apply-dual-class-features.js';
 import { applySpells } from './apply-spells.js';
 import { applyClassSpecific } from './apply-class-specific.js';
 import { info, error as logError, notify } from '../utils/logger.js';
@@ -75,6 +76,7 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const skills = await applySkillIncreases(actor, plan, plannedLevel);
       const feats = await applyFeats(actor, plan, plannedLevel);
       const featGrants = await applyFeatGrants(actor, plan, plannedLevel);
+      await applyDualClassFeatures(actor, plan, plannedLevel);
       const classFeatureChoices = await applyClassFeatureChoices(actor, plan, plannedLevel);
       const spells = await applySpells(actor, plan, plannedLevel);
       const equipment = await applyEquipment(actor, plan, plannedLevel);

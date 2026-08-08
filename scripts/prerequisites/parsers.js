@@ -77,6 +77,7 @@ const NOT_WORSHIPPER_PATTERN = /^not a worshipper of\s+(.+)$/i;
 const DEITY_SANCTIFICATION_PATTERN =
   /^(?:must\s+)?(?:worship|worshipper of|follower of|you follow)\s+(?:a\s+)?deity\s+that\s+lists?\s+"?(holy|unholy)"?(?:\s+in\s+(?:their|its)\s+sanctification)?$/i;
 const CHARACTER_SANCTIFICATION_PATTERN = /^"?(holy|unholy)"?\s+in\s+(?:their|your)\s+sanctification$/i;
+const FORBIDDEN_CHARACTER_SANCTIFICATION_PATTERN = /^you\s+(?:are\s+not|aren['\u2019]t)\s+(holy|unholy)$/i;
 const FOCUS_POOL_PATTERN = /^(?:a |an )?focus pool$/i;
 const FOCUS_SPELLS_PATTERN = /^ability to cast focus spells$/i;
 const INNATE_SPELL_FROM_ANCESTRY_FEAT_PATTERN =
@@ -520,6 +521,15 @@ function tryParseSanctificationRequirement(text, fullText = text) {
     return {
       type: 'sanctificationState',
       deityLists: normalizeSanctificationValue(deityMatch[1]),
+      text: fullText,
+    };
+  }
+
+  const forbiddenCharacterMatch = text.match(FORBIDDEN_CHARACTER_SANCTIFICATION_PATTERN);
+  if (forbiddenCharacterMatch) {
+    return {
+      type: 'sanctificationState',
+      forbiddenCharacterSanctification: normalizeSanctificationValue(forbiddenCharacterMatch[1]),
       text: fullText,
     };
   }

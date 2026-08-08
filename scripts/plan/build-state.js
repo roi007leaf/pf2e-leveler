@@ -1,4 +1,4 @@
-import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, INITIAL_SKILL_RETRAIN_SOURCE_TYPE, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MAX_LEVEL, MIN_PLAN_LEVEL, PROFICIENCY_RANKS, SUBCLASS_TAGS } from '../constants.js';
+import { ANCESTRY_TRAIT_ALIASES, ATTRIBUTES, CLASS_SUBCLASS_TYPES, INITIAL_SKILL_RETRAIN_SOURCE_TYPE, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MAX_LEVEL, MIN_PLAN_LEVEL, PROFICIENCY_RANKS, SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { resolveSubclassChoiceTradition } from '../data/subclass-spells.js';
 import { getAllPlannedFeats, getAllPlannedBoosts, getAllPlannedSpells } from './plan-model.js';
@@ -11,35 +11,6 @@ import { isCompendiumUuidInCategory } from '../system-support/profiles.js';
 import { inferSf2eSpellcastingTraditionFromItem, normalizeSpellTradition } from '../utils/sf2e-spellcasting.js';
 import { getRankAfterSkillRetrain } from '../utils/skill-retrains.js';
 import { getAutomaticLoreProficiencies } from '../classes/progression.js';
-
-const CLASS_SUBCLASS_TYPES = {
-  alchemist: 'research field',
-  animist: 'practice',
-  barbarian: 'instinct',
-  bard: 'muse',
-  champion: 'cause',
-  cleric: 'doctrine',
-  druid: 'order',
-  envoy: 'leadership style',
-  gunslinger: 'way',
-  inventor: 'innovation',
-  investigator: 'methodology',
-  kineticist: 'gate',
-  magus: 'study',
-  mystic: 'connection',
-  operative: 'specialization',
-  oracle: 'mystery',
-  psychic: 'conscious mind',
-  ranger: "hunter's edge",
-  rogue: 'racket',
-  soldier: 'fighting style',
-  sorcerer: 'bloodline',
-  summoner: 'eidolon',
-  swashbuckler: 'style',
-  witch: 'patron',
-  witchwarper: 'paradox',
-  wizard: 'school',
-};
 
 const VARIABLE_SPELLCASTING_TRADITIONS = new Set(['bloodline', 'patron', 'connection', 'paradox']);
 const SECOND_DEDICATION_EXCEPTION_SLUGS = new Set(['cavalier-dedication']);

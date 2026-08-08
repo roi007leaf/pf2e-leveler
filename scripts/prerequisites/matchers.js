@@ -280,6 +280,16 @@ export function matchSanctificationState(parsed, buildState) {
     };
   }
 
+  if (parsed.forbiddenCharacterSanctification) {
+    const forbidden = normalizeSanctification(parsed.forbiddenCharacterSanctification);
+    const current = getCharacterSanctifications(buildState);
+    if (!current) return { met: null, text: parsed.text };
+    return {
+      met: !current.has(forbidden),
+      text: parsed.text,
+    };
+  }
+
   if (parsed.characterSanctification) {
     const required = normalizeSanctification(parsed.characterSanctification);
     const current = getCharacterSanctifications(buildState);

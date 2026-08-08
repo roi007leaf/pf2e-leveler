@@ -1,4 +1,4 @@
-import { SUBCLASS_TAGS } from '../../constants.js';
+import { CLASS_SUBCLASS_TYPES, SUBCLASS_TAGS } from '../../constants.js';
 import { getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import {
   getSelectedHandlerChoiceSourceItems,
@@ -9,31 +9,6 @@ import {
   matchesChoiceSetPredicate,
 } from './choice-sets.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
-
-const CLASS_SUBCLASS_TYPES = {
-  alchemist: 'research field',
-  animist: 'practice',
-  barbarian: 'instinct',
-  bard: 'muse',
-  champion: 'cause',
-  cleric: 'doctrine',
-  druid: 'order',
-  gunslinger: 'way',
-  inventor: 'innovation',
-  investigator: 'methodology',
-  kineticist: 'gate',
-  magus: 'study',
-  necromancer: 'fatal method',
-  oracle: 'mystery',
-  psychic: 'conscious mind',
-  ranger: "hunter's edge",
-  rogue: 'racket',
-  sorcerer: 'bloodline',
-  summoner: 'eidolon',
-  swashbuckler: 'style',
-  witch: 'patron',
-  wizard: 'school',
-};
 
 async function resolveDocument(wizard, uuid) {
   if (!uuid) return null;

@@ -225,6 +225,32 @@ describe('getAdditionalSelectedItems', () => {
     ]);
   });
 
+  it('does not duplicate spell choices applied by a class handler', () => {
+    const items = getAdditionalSelectedItems({
+      grantedFeatSections: [{
+        slot: 'Compendium.pf2e.feats-srd.Item.SXFz4JqJdg60uo9u',
+        featName: 'Widespread Fascination',
+        choiceSets: [{
+          flag: 'levelerWidespreadGraveSpell',
+          managedByClassHandler: true,
+          options: [{
+            value: 'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+            uuid: 'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+            label: 'Bone Spear',
+            type: 'spell',
+          }],
+        }],
+      }],
+      grantedFeatChoices: {
+        'Compendium.pf2e.feats-srd.Item.SXFz4JqJdg60uo9u': {
+          levelerWidespreadGraveSpell: 'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
+        },
+      },
+    });
+
+    expect(items).toEqual([]);
+  });
+
   it('does not manually add stale Champion devotion spell choices', () => {
     const items = getAdditionalSelectedItems({
       class: { slug: 'champion', name: 'Champion' },

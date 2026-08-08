@@ -38,6 +38,10 @@ jest.mock('../../../scripts/apply/apply-class-feature-choices.js', () => ({
   applyClassFeatureChoices: jest.fn(async () => []),
 }));
 
+jest.mock('../../../scripts/apply/apply-dual-class-features.js', () => ({
+  applyDualClassFeatures: jest.fn(async () => []),
+}));
+
 jest.mock('../../../scripts/apply/apply-class-specific.js', () => ({
   applyClassSpecific: jest.fn(async () => {}),
 }));
@@ -50,6 +54,7 @@ import { applySkillRetrains } from '../../../scripts/apply/apply-skill-retrains.
 import { applySpells } from '../../../scripts/apply/apply-spells.js';
 import { applyFeatGrants } from '../../../scripts/apply/apply-feat-grants.js';
 import { applyClassFeatureChoices } from '../../../scripts/apply/apply-class-feature-choices.js';
+import { applyDualClassFeatures } from '../../../scripts/apply/apply-dual-class-features.js';
 
 describe('applyPlan', () => {
   beforeEach(() => {
@@ -109,6 +114,7 @@ describe('applyPlan', () => {
 
     expect(applySpells).toHaveBeenNthCalledWith(1, actor, plan, 5);
     expect(applyFeatGrants).toHaveBeenNthCalledWith(1, actor, plan, 5);
+    expect(applyDualClassFeatures).toHaveBeenNthCalledWith(1, actor, plan, 5);
     expect(applyClassFeatureChoices).toHaveBeenNthCalledWith(1, actor, plan, 5);
 
     expect(ChatMessage.create).toHaveBeenCalledTimes(4);

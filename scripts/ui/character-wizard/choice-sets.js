@@ -1,6 +1,13 @@
 import { SKILLS, SUBCLASS_TAGS } from '../../constants.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
+import {
+  getNecromancerGraveSpellUuid,
+  NECROMANCER_GRAVE_SPELL_UUIDS,
+  NECROMANCER_GRIM_FASCINATION_UUID,
+  NECROMANCER_WIDESPREAD_FASCINATION_CHOICE_FLAG,
+  NECROMANCER_WIDESPREAD_FASCINATION_UUID,
+} from '../../creation/class-handlers/necromancer.js';
 import { localize } from '../../utils/i18n.js';
 import { evaluatePredicate } from '../../utils/predicate.js';
 import { slugify } from '../../utils/pf2e-api.js';
@@ -253,6 +260,13 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
 
     const currentChoices = choiceSource?.choices ?? getGrantedFeatChoiceValues(wizard.data, item.uuid);
     let parsedChoiceSets = await parseChoiceSets(wizard, item.system?.rules ?? [], currentChoices, item);
+    await maybeAddSyntheticWidespreadFascinationSection(
+      wizard,
+      item,
+      sourceName,
+      sections,
+      seenSections,
+    );
     if (isAssuranceGrant(item) && inheritedSkillChoiceSet) {
       parsedChoiceSets = constrainAssuranceChoiceSets(parsedChoiceSets, inheritedSkillChoiceSet);
     }
@@ -341,6 +355,61 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
   maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections);
 
   return sections;
+}
+
+async function maybeAddSyntheticWidespreadFascinationSection(
+  wizard,
+  item,
+  sourceName,
+  sections,
+  seenSections,
+) {
+  if (!isWidespreadFascination(item)) return;
+
+  const slot = item.uuid ?? NECROMANCER_WIDESPREAD_FASCINATION_UUID;
+  if (seenSections.has(slot)) return;
+
+  const selectedFascination = getGrantedFeatChoiceValues(
+    wizard.data,
+    NECROMANCER_GRIM_FASCINATION_UUID,
+  ).grimFascination;
+  const excludedSpellUuid = getNecromancerGraveSpellUuid(selectedFascination);
+  const options = [];
+
+  for (const uuid of NECROMANCER_GRAVE_SPELL_UUIDS) {
+    if (uuid === excludedSpellUuid) continue;
+    const spell = await resolveDocument(wizard, uuid);
+    if (!spell) continue;
+    options.push({
+      value: spell.uuid ?? uuid,
+      uuid: spell.uuid ?? uuid,
+      label: spell.name,
+      name: spell.name,
+      img: spell.img ?? null,
+      description: spell.system?.description?.value ?? '',
+      type: 'spell',
+    });
+  }
+
+  if (options.length === 0) return;
+  seenSections.add(slot);
+  sections.push({
+    slot,
+    featName: item.name ?? 'Widespread Fascination',
+    sourceName,
+    choiceSets: [{
+      flag: NECROMANCER_WIDESPREAD_FASCINATION_CHOICE_FLAG,
+      prompt: 'Select a grave spell from another grim fascination.',
+      managedByClassHandler: true,
+      options,
+    }],
+  });
+}
+
+function isWidespreadFascination(item) {
+  if (item?.uuid === NECROMANCER_WIDESPREAD_FASCINATION_UUID) return true;
+  const slug = slugify(item?.slug ?? item?.system?.slug ?? item?.name ?? '');
+  return slug === 'widespread-fascination';
 }
 
 function maybeAddSyntheticClericDomainInitiateSection(wizard, sections, seenSections) {

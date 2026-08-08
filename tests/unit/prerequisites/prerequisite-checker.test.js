@@ -706,6 +706,29 @@ describe('checkPrerequisites', () => {
     expect(result.results[0].met).toBeNull();
   });
 
+  test.each([
+    ["You aren't unholy", new Set(), true],
+    ["You aren't unholy", new Set(['holy']), true],
+    ["You aren't unholy", new Set(['unholy']), false],
+    ["You aren't holy", new Set(), true],
+    ["You aren't holy", new Set(['unholy']), true],
+    ["You aren't holy", new Set(['holy']), false],
+  ])('evaluates forbidden sanctification prerequisite: %s with %p', (prerequisite, traits, expected) => {
+    const feat = {
+      system: {
+        prerequisites: {
+          value: [{ value: prerequisite }],
+        },
+      },
+    };
+    const result = checkPrerequisites(feat, {
+      ...buildState,
+      traits,
+    });
+    expect(result.met).toBe(expected);
+    expect(result.results[0].met).toBe(expected);
+  });
+
   test('meets focus pool prerequisite when actor has a focus pool', () => {
     const feat = {
       system: {
