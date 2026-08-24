@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.7.3
+
+### Fixed
+
+- **Commander Warfare Expertise now advances Warfare Lore correctly** - The Level Planner projects expert Warfare Lore from level 3 for feat prerequisites and applies the automatic proficiency increase during level-up
+
 ## 3.7.2
 
 ### Fixed

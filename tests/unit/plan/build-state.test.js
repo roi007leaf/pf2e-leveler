@@ -1,6 +1,7 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { BARD } from '../../../scripts/classes/bard.js';
+import { COMMANDER } from '../../../scripts/classes/commander.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { GUARDIAN } from '../../../scripts/classes/guardian.js';
@@ -15,11 +16,13 @@ import { WIZARD } from '../../../scripts/classes/wizard.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
 import { computeBuildState, computePlanArchetypeDedicationProgress, computeSkillPickerState, getImportedInitialSkillLimit, syncPlanArchetypeDedicationProgress } from '../../../scripts/plan/build-state.js';
 import { createPlan, addLevelFeatRetrain, addLevelSkillRetrain, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill } from '../../../scripts/plan/plan-model.js';
+import { checkPrerequisites } from '../../../scripts/prerequisites/prerequisite-checker.js';
 
 beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
   ClassRegistry.register(BARD);
+  ClassRegistry.register(COMMANDER);
   ClassRegistry.register(DRUID);
   ClassRegistry.register(FIGHTER);
   ClassRegistry.register(GUARDIAN);
@@ -57,6 +60,28 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 3).lores['undead-lore']).toBe(2);
     expect(computeBuildState(mockActor, plan, 7).lores['undead-lore']).toBe(3);
     expect(computeBuildState(mockActor, plan, 15).lores['undead-lore']).toBe(4);
+  });
+
+  test("satisfies Battle Planner's Warfare Lore prerequisite after Warfare Expertise", () => {
+    plan = createPlan('commander');
+    mockActor.items = [
+      {
+        type: 'lore',
+        name: 'Warfare Lore',
+        system: { proficient: { value: PROFICIENCY_RANKS.TRAINED } },
+      },
+    ];
+    const battlePlanner = {
+      name: 'Battle Planner',
+      system: {
+        prerequisites: { value: [{ value: 'expert in Warfare Lore' }] },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 4);
+
+    expect(state.lores['warfare-lore']).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(checkPrerequisites(battlePlanner, state).met).toBe(true);
   });
 
   test('tracks armor (defense) proficiencies for prerequisites like "Expert in Unarmored Defense"', () => {

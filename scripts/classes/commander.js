@@ -13,6 +13,9 @@ export const COMMANDER = {
   },
   skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
   abilityBoostSchedule: [5, 10, 15, 20],
+  automaticLoreProficiencies: [
+    { level: 3, skill: 'warfare-lore', name: 'Warfare Lore', rank: 2 },
+  ],
 
   classFeatures: [
     { level: 3, name: 'Warfare Expertise', key: 'warfare-expertise' },
