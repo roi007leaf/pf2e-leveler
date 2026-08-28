@@ -154,6 +154,73 @@ describe('CharacterWizard feat grant choices', () => {
     expect(wizard._isStepComplete('featChoices')).toBe(true);
   });
 
+  it('opens Snare Crafting formula choices when Snare Setter grants the feat', async () => {
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === 'feat-snare-setter') {
+        return {
+          uuid,
+          name: 'Snare Setter',
+          type: 'feat',
+          system: {
+            description: {
+              value: '<p>You gain the Snare Crafting feat, though when choosing your formulas for that feat, you can also choose from uncommon kobold snares, as well as common snares.</p>',
+            },
+            rules: [{ key: 'GrantItem', uuid: 'feat-snare-crafting' }],
+          },
+        };
+      }
+      if (uuid === 'feat-snare-crafting') {
+        return {
+          uuid,
+          name: 'Snare Crafting',
+          type: 'feat',
+          system: {
+            description: {
+              value: '<p>You add the formulas for four common 1st-level snares to your formula book.</p>',
+            },
+            rules: [],
+          },
+        };
+      }
+      return null;
+    });
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestryFeat = {
+      uuid: 'feat-snare-setter',
+      name: 'Snare Setter',
+      choiceSets: [],
+      choices: {},
+    };
+
+    wizard._cachedFeatGrantRequirements = await wizard._buildFeatGrantRequirements();
+
+    expect(wizard._cachedFeatGrantRequirements).toEqual([
+      expect.objectContaining({
+        id: 'feat-snare-crafting:formula',
+        sourceFeatUuid: 'feat-snare-crafting',
+        sourceFeatName: 'Snare Crafting',
+        grantingSourceUuid: 'feat-snare-setter',
+        grantingSourceName: 'Snare Setter',
+        kind: 'formula',
+        count: 4,
+        confidence: 'inferred',
+        filters: expect.objectContaining({
+          maxLevel: 1,
+          rarity: ['common', 'uncommon'],
+          traits: ['snare'],
+        }),
+      }),
+    ]);
+
+    wizard._openFeatGrantItemPicker = jest.fn(async () => {});
+    await wizard._openFeatGrantPicker('feat-snare-crafting:formula');
+
+    expect(wizard._openFeatGrantItemPicker).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'feat-snare-crafting:formula',
+      count: 4,
+    }));
+  });
+
   it('does not mistake Emotional Acceptance flavor text for a formula choice', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { uuid: 'class-psychic', slug: 'psychic', name: 'Psychic' };

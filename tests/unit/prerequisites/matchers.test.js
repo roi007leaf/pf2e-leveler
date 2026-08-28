@@ -9,6 +9,7 @@ import {
   matchAbility,
   matchLevel,
   matchFeat,
+  matchImplementCapability,
   matchClassFeature,
   matchBackground,
   matchHeritage,
@@ -240,6 +241,29 @@ describe('matchFeat', () => {
       { feats: new Set(), classFeatures: new Set(['focus-pool', 'spellstrike']) },
     );
     expect(result.met).toBe(true);
+  });
+});
+
+describe('matchImplementCapability', () => {
+  test.each(['amulet', 'bell', 'shield', 'weapon'])(
+    'matches the reaction capability for %s',
+    (implementSlug) => {
+      const result = matchImplementCapability(
+        { type: 'implementCapability', capability: 'reaction', text: 'An implement that grants a reaction' },
+        { classFeatures: new Set([implementSlug]) },
+      );
+
+      expect(result.met).toBe(true);
+    },
+  );
+
+  test('does not match an implement without a granted reaction', () => {
+    const result = matchImplementCapability(
+      { type: 'implementCapability', capability: 'reaction', text: 'An implement that grants a reaction' },
+      { classFeatures: new Set(['tome']) },
+    );
+
+    expect(result.met).toBe(false);
   });
 });
 

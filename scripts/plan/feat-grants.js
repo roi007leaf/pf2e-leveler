@@ -1,3 +1,5 @@
+import { evaluatePredicate } from '../utils/predicate.js';
+
 const COUNT_WORDS = {
   one: 1,
   two: 2,
@@ -26,22 +28,118 @@ const FEAT_GRANT_KEYS = [
 export async function buildFeatGrantRequirements({ feats = [], classEntries = [], level = null, actor = null, plan = null } = {}) {
   const requirements = [];
   const context = { actor, plan, level };
+  const visited = new Set();
 
   for (const featEntry of feats ?? []) {
-    const feat = await resolveFeat(featEntry?.uuid);
-    if (!feat) continue;
-
-    const text = normalizeDescription(feat.system?.description?.value ?? '');
-    const source = {
-      uuid: featEntry?.uuid ?? feat.uuid,
-      name: featEntry?.name ?? feat.name ?? 'Feat',
-      slug: featEntry?.slug ?? feat.system?.slug ?? feat.slug ?? null,
-    };
-    requirements.push(...detectRequirements(text, source, context));
+    const result = await collectFeatGrantRequirements(featEntry, context, visited);
+    requirements.push(...result.requirements);
   }
 
   requirements.push(...buildClassDefaultGrantRequirements(classEntries, level));
-  return requirements;
+  return dedupeRequirements(requirements);
+}
+
+async function collectFeatGrantRequirements(featEntry, context, visited, grantingSource = null) {
+  const feat = await resolveFeat(featEntry?.uuid);
+  if (!feat) return { requirements: [], source: null };
+
+  const source = {
+    uuid: featEntry?.uuid ?? feat.uuid,
+    name: featEntry?.name ?? feat.name ?? 'Feat',
+    slug: featEntry?.slug ?? feat.system?.slug ?? feat.slug ?? null,
+  };
+  if (!source.uuid || visited.has(source.uuid)) return { requirements: [], source };
+  visited.add(source.uuid);
+
+  const text = normalizeDescription(feat.system?.description?.value ?? '');
+  let directRequirements = detectRequirements(text, source, context)
+    .map((requirement) => attachGrantingSource(requirement, grantingSource));
+  const nestedRequirements = [];
+
+  for (const rule of feat.system?.rules ?? []) {
+    if (!isActiveStaticFeatGrant(rule, context)) continue;
+
+    const granted = await collectFeatGrantRequirements({ uuid: rule.uuid }, context, visited, source);
+    if (!granted.source) continue;
+
+    const reconciled = reconcileDelegatedFormulaRequirement({
+      directRequirements,
+      grantedRequirements: granted.requirements,
+      grantedSource: granted.source,
+      text,
+    });
+    directRequirements = reconciled.directRequirements;
+    nestedRequirements.push(...reconciled.grantedRequirements);
+  }
+
+  return {
+    requirements: [...directRequirements, ...nestedRequirements],
+    source,
+  };
+}
+
+function isActiveStaticFeatGrant(rule, context) {
+  if (rule?.key !== 'GrantItem' || typeof rule.uuid !== 'string' || rule.uuid.includes('{')) return false;
+  return evaluatePredicate(rule.predicate, getContextLevel(context));
+}
+
+function attachGrantingSource(requirement, grantingSource) {
+  if (!grantingSource || requirement.grantingSourceUuid) return requirement;
+  return {
+    ...requirement,
+    grantingSourceUuid: grantingSource.uuid,
+    grantingSourceName: grantingSource.name,
+  };
+}
+
+function reconcileDelegatedFormulaRequirement({ directRequirements, grantedRequirements, grantedSource, text }) {
+  const directFormulaIndex = directRequirements.findIndex((requirement) => requirement.kind === 'formula');
+  const grantedFormulaIndex = grantedRequirements.findIndex((requirement) =>
+    requirement.kind === 'formula' && requirement.sourceFeatUuid === grantedSource.uuid);
+  if (
+    directFormulaIndex < 0
+    || grantedFormulaIndex < 0
+    || !describesGrantedFormulaChoice(text, grantedSource.name)
+  ) {
+    return { directRequirements, grantedRequirements };
+  }
+
+  const directRequirement = directRequirements[directFormulaIndex];
+  const grantedRequirement = grantedRequirements[grantedFormulaIndex];
+  const mergedRequirement = {
+    ...grantedRequirement,
+    filters: mergeDelegatedFormulaFilters(grantedRequirement.filters, directRequirement.filters),
+  };
+
+  return {
+    directRequirements: directRequirements.filter((_, index) => index !== directFormulaIndex),
+    grantedRequirements: grantedRequirements.map((requirement, index) =>
+      index === grantedFormulaIndex ? mergedRequirement : requirement),
+  };
+}
+
+function describesGrantedFormulaChoice(text, grantedName) {
+  const normalizedName = normalizeDescription(grantedName);
+  return splitSentences(text).some((sentence) =>
+    /\bformulas?\b/u.test(sentence)
+    && (
+      (normalizedName && sentence.includes(normalizedName))
+      || /\b(?:for|from|with) (?:that|this|the) feat\b/u.test(sentence)
+    ));
+}
+
+function mergeDelegatedFormulaFilters(grantedFilters = {}, directFilters = {}) {
+  const merged = { ...grantedFilters };
+  for (const [key, value] of Object.entries(directFilters)) {
+    if (Array.isArray(value)) {
+      merged[key] = [...new Set([...(merged[key] ?? []), ...value])];
+    } else if (key === 'maxLevel' && Number.isFinite(value)) {
+      merged[key] = Math.max(Number(merged[key]) || 0, value);
+    } else if (value !== null && value !== undefined) {
+      merged[key] = value;
+    }
+  }
+  return cleanFilters(merged);
 }
 
 export async function buildPlanFormulaProgressionRequirements({ plan = null, level = null, actor = null } = {}) {

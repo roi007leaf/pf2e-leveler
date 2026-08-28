@@ -11,6 +11,7 @@ import {
   matchAbility,
   matchLevel,
   matchFeat,
+  matchImplementCapability,
   matchClassFeature,
   matchBackground,
   matchHeritage,
@@ -216,6 +217,8 @@ function evaluateLeaf(parsed, buildState) {
       return wrapLeafResult(matchLevel(parsed, buildState));
     case 'feat':
       return wrapLeafResult(matchFeat(parsed, buildState));
+    case 'implementCapability':
+      return wrapLeafResult(matchImplementCapability(parsed, buildState));
     case 'classFeature':
       return wrapLeafResult(matchClassFeature(parsed, buildState));
     case 'background':

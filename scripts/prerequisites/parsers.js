@@ -151,6 +151,7 @@ const SENSE_PATTERN =
 const DIVINE_FONT_PATTERN = /^(healing|heal|harming|harmful|harm)\s+font$/i;
 const AGE_REQUIREMENT_PATTERN = /^(?:at\s+least\s+)?\d+\s+years?\s+old$/i;
 const LIVING_CREATURE_PATTERN = /^(?:you\s+are\s+)?(?:a\s+)?living\s+creature$/i;
+const REACTION_IMPLEMENT_PATTERN = /^(?:an?\s+)?implement\s+that\s+grants\s+a\s+reaction$/i;
 
 const PROFICIENCY_SUBJECT_ALIASES = {
   perception: 'perception',
@@ -242,6 +243,10 @@ export function parsePrerequisite(text) {
 
   const livingCreatureMatch = tryParseLivingCreatureRequirement(baseText, trimmed);
   if (livingCreatureMatch) return livingCreatureMatch;
+
+  if (REACTION_IMPLEMENT_PATTERN.test(baseText)) {
+    return { type: 'implementCapability', capability: 'reaction', text: trimmed };
+  }
 
   const sanctificationMatch = tryParseSanctificationRequirement(baseText, trimmed);
   if (sanctificationMatch) return sanctificationMatch;

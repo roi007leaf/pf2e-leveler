@@ -363,6 +363,14 @@ describe('parsePrerequisite', () => {
     expect(result.slug).toBe('fighter-dedication');
   });
 
+  test('parses a reaction-granting implement prerequisite as a capability', () => {
+    const result = parsePrerequisite('An implement that grants a reaction');
+    expect(result).toEqual(expect.objectContaining({
+      type: 'implementCapability',
+      capability: 'reaction',
+    }));
+  });
+
   test('parses feat with apostrophe', () => {
     const result = parsePrerequisite("Alchemist's Fire");
     expect(result.type).toBe('feat');

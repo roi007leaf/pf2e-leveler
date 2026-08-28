@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.7.5
+
+### Fixed
+
+- **Reaction-granting implements now satisfy capability prerequisites** - The Level Planner recognizes amulet, bell, shield, and weapon implements as granting reactions, so feats such as Esoteric Reflexes are no longer blocked by a false missing prerequisite
+- **Formula choices now follow feats granted by other feats** - Character Creation resolves formula grants through nested feat grants, preserving the granted feat's exact formula count and level while honoring any broader rarity or trait access from the granting feat
+
 ## 3.7.4
 
 ### Fixed

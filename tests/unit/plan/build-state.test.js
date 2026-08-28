@@ -99,6 +99,75 @@ describe('computeBuildState', () => {
     expect(checkPrerequisites(sympatheticVulnerabilities, levelSixState).met).toBe(true);
   });
 
+  test.each(['amulet', 'bell', 'shield', 'weapon'])(
+    'satisfies Esoteric Reflexes with the %s implement',
+    (implementSlug) => {
+      plan = createPlan('thaumaturge');
+      mockActor = createMockActor({
+        class: { slug: 'thaumaturge', name: 'Thaumaturge' },
+        items: [
+          {
+            type: 'feat',
+            slug: implementSlug,
+            name: implementSlug,
+            system: {
+              category: 'classfeature',
+              level: { value: 1, taken: 1 },
+              traits: {
+                otherTags: ['thaumaturge-implement'],
+                value: ['thaumaturge'],
+              },
+            },
+          },
+        ],
+      });
+      const esotericReflexes = {
+        name: 'Esoteric Reflexes',
+        system: {
+          traits: { value: ['thaumaturge'] },
+          prerequisites: { value: [{ value: 'An implement that grants a reaction' }] },
+        },
+      };
+
+      const state = computeBuildState(mockActor, plan, 14);
+
+      expect(checkPrerequisites(esotericReflexes, state).met).toBe(true);
+    },
+  );
+
+  test('does not satisfy Esoteric Reflexes with a non-reaction implement', () => {
+    plan = createPlan('thaumaturge');
+    mockActor = createMockActor({
+      class: { slug: 'thaumaturge', name: 'Thaumaturge' },
+      items: [
+        {
+          type: 'feat',
+          slug: 'tome',
+          name: 'Tome',
+          system: {
+            category: 'classfeature',
+            level: { value: 1, taken: 1 },
+            traits: {
+              otherTags: ['thaumaturge-implement'],
+              value: ['thaumaturge'],
+            },
+          },
+        },
+      ],
+    });
+    const esotericReflexes = {
+      name: 'Esoteric Reflexes',
+      system: {
+        traits: { value: ['thaumaturge'] },
+        prerequisites: { value: [{ value: 'An implement that grants a reaction' }] },
+      },
+    };
+
+    const state = computeBuildState(mockActor, plan, 14);
+
+    expect(checkPrerequisites(esotericReflexes, state).met).toBe(false);
+  });
+
   test("satisfies Battle Planner's Warfare Lore prerequisite after Warfare Expertise", () => {
     plan = createPlan('commander');
     mockActor.items = [

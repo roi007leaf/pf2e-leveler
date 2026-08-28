@@ -24,6 +24,7 @@ const RECALL_KNOWLEDGE_SKILLS = new Set([
   'society',
 ]);
 const EXPERT_RANK = 2;
+const REACTION_GRANTING_IMPLEMENT_SLUGS = new Set(['amulet', 'bell', 'shield', 'weapon']);
 
 export function matchRecallKnowledgeSkill(parsed, buildState) {
   const skillMet = Object.entries(buildState.skills ?? {}).some(
@@ -131,6 +132,19 @@ export function matchFeat(parsed, buildState) {
       return { met, text: `${parsed.text} (via ${viaName})` };
     }
   }
+
+  return { met, text: parsed.text };
+}
+
+export function matchImplementCapability(parsed, buildState) {
+  if (parsed.capability !== 'reaction') return { met: null, text: parsed.text };
+
+  const classFeatures = buildState.classFeatures instanceof Set
+    ? buildState.classFeatures
+    : new Set(buildState.classFeatures ?? []);
+  const met = [...classFeatures]
+    .map((feature) => normalizeText(feature))
+    .some((feature) => REACTION_GRANTING_IMPLEMENT_SLUGS.has(feature));
 
   return { met, text: parsed.text };
 }
