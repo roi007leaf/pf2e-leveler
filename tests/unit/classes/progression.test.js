@@ -1,4 +1,4 @@
-import { getChoicesForLevel, getGradualBoostGroupLevels } from '../../../scripts/classes/progression.js';
+import { getAutomaticLoreProficiencies, getChoicesForLevel, getGradualBoostGroupLevels } from '../../../scripts/classes/progression.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
@@ -72,5 +72,16 @@ describe('additional class skill increases', () => {
     expect(choices[1]).toEqual(expect.objectContaining({
       source: 'thaumaturge:thaumaturgic-expertise',
     }));
+  });
+});
+
+describe('Thaumaturge Esoteric Lore progression', () => {
+  test('automatically scales Esoteric Lore at its four class thresholds', () => {
+    expect(getAutomaticLoreProficiencies(THAUMATURGE, 1)).toEqual([
+      expect.objectContaining({ skill: 'esoteric-lore', name: 'Esoteric Lore', rank: 1 }),
+    ]);
+    expect(getAutomaticLoreProficiencies(THAUMATURGE, 3)[0].rank).toBe(2);
+    expect(getAutomaticLoreProficiencies(THAUMATURGE, 7)[0].rank).toBe(3);
+    expect(getAutomaticLoreProficiencies(THAUMATURGE, 15)[0].rank).toBe(4);
   });
 });

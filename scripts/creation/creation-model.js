@@ -773,6 +773,18 @@ export function setLores(data, lores) {
   return data;
 }
 
+export function getCreationLoreSkillNames(data) {
+  const names = new Map();
+  for (const value of [...(data.lores ?? []), ...(data.selectedLoreSkills ?? [])]) {
+    if (typeof value !== 'string') continue;
+    const name = value.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (!names.has(key)) names.set(key, name);
+  }
+  return [...names.values()];
+}
+
 export function setSelectedLoreSkills(data, lores) {
   data.selectedLoreSkills = lores;
   return data;

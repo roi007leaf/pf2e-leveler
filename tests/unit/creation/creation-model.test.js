@@ -1,10 +1,20 @@
 import {
   createCreationData,
+  getCreationLoreSkillNames,
   setClass,
   setDualClass,
   setFeatChoice,
   setSubconsciousMind,
 } from '../../../scripts/creation/creation-model.js';
+
+describe('creation Lore skills', () => {
+  test('combines granted and selected Lore skills without duplicates', () => {
+    expect(getCreationLoreSkillNames({
+      lores: ['Legal Lore'],
+      selectedLoreSkills: ['Sailing Lore', 'legal lore'],
+    })).toEqual(['Legal Lore', 'Sailing Lore']);
+  });
+});
 
 describe('dual class boost state', () => {
   test('clears stale boost selections when either class changes', () => {

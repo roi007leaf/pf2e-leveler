@@ -1,4 +1,5 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
+import { buildSummaryContext } from '../../../scripts/ui/character-wizard/summary.js';
 import { MODULE_ID } from '../../../scripts/constants.js';
 import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from '../../../scripts/access/content-guidance.js';
 
@@ -1529,7 +1530,7 @@ describe('CharacterWizard skills step grants', () => {
     );
   });
 
-  it('does not count ad-hoc lore skills toward the level 1 skills step', async () => {
+  it('counts selected Lore skills toward the level 1 skills step', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.currentStep = 19;
     wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
@@ -1537,7 +1538,81 @@ describe('CharacterWizard skills step grants', () => {
 
     const context = await wizard._getStepContext();
 
+    expect(context.selectedCount).toBe(1);
+    expect(context.selectedLoreSkills).toEqual([
+      expect.objectContaining({ name: 'Underworld Lore', label: 'Underworld Lore' }),
+    ]);
+  });
+
+  it('adds a Lore skill without exceeding the shared starting-skill limit', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.skills = ['acrobatics'];
+    wizard.data.selectedLoreSkills = [];
+    jest.spyOn(wizard, '_getAdditionalSkillCount').mockResolvedValue(2);
+    jest.spyOn(wizard, '_saveAndRender').mockResolvedValue();
+
+    await wizard._toggleLoreSkill('sailing');
+    await wizard._toggleSkill('athletics');
+
+    expect(wizard.data.selectedLoreSkills).toEqual(['Sailing Lore']);
+    expect(wizard.data.skills).toEqual(['acrobatics']);
+  });
+
+  it('removes a selected Lore skill even when it later becomes granted', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.lores = ['Sailing Lore'];
+    wizard.data.selectedLoreSkills = ['Sailing Lore'];
+    jest.spyOn(wizard, '_saveAndRender').mockResolvedValue();
+
+    await wizard._toggleLoreSkill('sailing');
+
+    expect(wizard.data.selectedLoreSkills).toEqual([]);
+  });
+
+  it('drops a starting Lore choice that becomes granted and frees its skill slot', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.currentStep = 19;
+    wizard.data.class = { slug: 'rogue', uuid: 'class-uuid', name: 'Rogue' };
+    wizard.data.background = { uuid: 'background-uuid', name: 'Sailor' };
+    wizard.data.selectedLoreSkills = ['Sailing Lore'];
+    wizard._getBackgroundLores = jest.fn(async () => [{ name: 'Sailing Lore', source: 'Background' }]);
+
+    const context = await wizard._getStepContext();
+
+    expect(wizard.data.selectedLoreSkills).toEqual([]);
+    expect(context.selectedLoreSkills).toEqual([]);
     expect(context.selectedCount).toBe(0);
-    expect(context.selectedLoreSkills).toBeUndefined();
+  });
+
+  it('renders controls for adding and removing starting Lore skills', () => {
+    const template = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../../templates/character-wizard.hbs'),
+      'utf8',
+    );
+
+    expect(template).toContain('data-action="addLoreSkill"');
+    expect(template).toContain('data-action="toggleLoreSkill"');
+  });
+
+  it('includes selected and granted Lore skills in the creation summary', async () => {
+    const noLabels = jest.fn(async () => []);
+    const context = await buildSummaryContext({
+      data: {
+        class: null,
+        dualClass: null,
+        lores: ['Legal Lore'],
+        selectedLoreSkills: ['Sailing Lore'],
+        grantedFeatSections: [],
+      },
+      classHandler: { getExtraSteps: () => [] },
+      _getSelectedSubclassChoiceLabels: noLabels,
+      _getSelectedDualSubclassChoiceLabels: noLabels,
+      _getSelectedFeatChoiceLabels: noLabels,
+      _getPendingChoices: noLabels,
+      _resolveSummaryFocusSpells: noLabels,
+      _resolveSummaryCurriculumSpells: noLabels,
+    });
+
+    expect(context.loreSkillsSummary).toEqual(['Legal Lore', 'Sailing Lore']);
   });
 });

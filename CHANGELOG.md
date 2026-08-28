@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.7.4
+
+### Fixed
+
+- **Thaumaturge vulnerability feats now recognize Exploit Vulnerability correctly** - The Level Planner treats mortal weakness and personal antithesis as modes granted by Exploit Vulnerability, so feats such as Sympathetic Vulnerabilities are no longer blocked by false missing prerequisites
+- **Thaumaturge Esoteric Lore now advances automatically** - Esoteric Lore progresses to expert, master, and legendary at levels 3, 7, and 15, allowing Lore proficiency prerequisites such as Unmistakable Lore to resolve correctly
+- **Lore skills can now be selected during Character Creation** - Custom Lore choices share the normal starting-skill allowance, avoid duplicating granted Lore skills, apply to the actor, and appear in creation summaries
+
 ## 3.7.3
 
 ### Fixed

@@ -1350,6 +1350,26 @@
         {{/each}}
       </div>
 
+      <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
+        <i class="section-header__icon fa-solid fa-book-open"></i>
+        {{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}
+      </div>
+      {{#if selectedLoreSkills.length}}
+      <div class="skill-btn-grid">
+        {{#each selectedLoreSkills}}
+        <button type="button" class="skill-btn skill-btn--stacked selected" data-action="toggleLoreSkill" data-lore="{{this.name}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}">
+          <span class="skill-btn__content">
+            <span class="skill-btn__name">{{this.label}}</span>
+          </span>
+          <span class="skill-btn__rank rank-text-trained"><i class="fa-solid fa-xmark"></i> {{localize "PF2E_LEVELER.UI.REMOVE"}}</span>
+        </button>
+        {{/each}}
+      </div>
+      {{/if}}
+      <button type="button" class="spell-add-btn" data-action="addLoreSkill" style="margin-top: var(--leveler-spacing-sm);" {{#unless canAddLoreSkill}}disabled{{/unless}}>
+        <i class="fa-solid fa-plus"></i> {{localize "PF2E_LEVELER.UI.ADD"}} {{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}
+      </button>
+
       {{#if lores.length}}
       <div class="section-header" style="margin-top: var(--leveler-spacing-md);">
         <i class="section-header__icon fa-solid fa-book-open"></i>
@@ -1897,10 +1917,10 @@
           <span class="wizard-summary__value">{{data.skills}}</span>
         </div>
         {{/if}}
-        {{#if data.lores.length}}
+        {{#if loreSkillsSummary.length}}
         <div class="wizard-summary__row">
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.CREATION.LORE_SKILLS"}}</span>
-          <span class="wizard-summary__value">{{data.lores}}</span>
+          <span class="wizard-summary__value">{{loreSkillsSummary}}</span>
         </div>
         {{/if}}
         {{#if data.ancestryFeat}}

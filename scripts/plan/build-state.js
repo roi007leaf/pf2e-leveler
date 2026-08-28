@@ -1932,6 +1932,10 @@ function computeClassFeatures(actor, plan, classDefs, atLevel) {
       if (feature.level > atLevel) continue;
       if (feature.key) features.add(feature.key);
       if (feature.name) features.add(slugify(feature.name));
+      for (const alias of feature.aliases ?? []) {
+        const normalized = slugify(alias);
+        if (normalized) features.add(normalized);
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { ensureClassItemRegistered } from '../../classes/ensure.js';
-import { createCreationData, getClassSelectionData, normalizeCreationData, setAncestry, setHeritage, setMixedAncestry, setBackground, setClass, setDualClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, addSpell, removeSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setDualClassFeat, setSkillFeat, setFeatChoice, getGrantedFeatChoiceValues, upsertCreationFeatGrant, addEquipment, removeCreationFeatGrantSelection, setPermanentItem } from '../../creation/creation-model.js';
+import { createCreationData, getClassSelectionData, normalizeCreationData, setAncestry, setHeritage, setMixedAncestry, setBackground, setClass, setDualClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, setSelectedLoreSkills, addSpell, removeSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setDualClassFeat, setSkillFeat, setFeatChoice, getGrantedFeatChoiceValues, upsertCreationFeatGrant, addEquipment, removeCreationFeatGrantSelection, setPermanentItem } from '../../creation/creation-model.js';
 import { buildFeatGrantRequirements, getFeatGrantCompletion, getFeatGrantSelections } from '../../plan/feat-grants.js';
 import { getCreationData, saveCreationData, exportCreationData, importCreationData } from '../../creation/creation-store.js';
 import { applyCreation } from '../../creation/apply-creation.js';
@@ -19,7 +19,7 @@ import { createMixedAncestryHeritage, getMixedAncestrySelectedValue, isMixedAnce
 import { buildFeatChoicesContext, buildSubclassChoicesContext, extractChoiceValue, findMatchingChoiceOption, formatChoiceLabel, getPendingChoices, getSelectedChoiceLabels, getSelectedFeatChoiceLabels, getSelectedSubclassChoiceLabels, hydrateChoiceSets, isHandlerManagedFocusSpellChoiceRenderSection, isRawValueChoiceSet, parseChoiceSets, refreshGrantedFeatChoiceSections, buildMixedAncestryChoiceOptions, getSelectedHandlerChoiceSourceItems } from './choice-sets.js';
 import { buildApplyOverlayContext, getApplyPromptRows, getPromptMatchTexts, matchActivePromptRow, normalizePromptText, resolvePromptSelectionLabel } from './apply-overlay.js';
 import { buildSummaryContext } from './summary.js';
-import { buildLanguageContext, buildSkillContext, collectWizardDeitySkillMap, collectFeatLanguageGrants, getBackgroundLores, getBackgroundTrainedSkills, getLanguageMap, getActiveSkillSlugs, getSelectedSubclassChoiceSkillMap, getActiveSkillConfigEntry, parseSubclassLores } from './skills-languages.js';
+import { buildLanguageContext, buildSelectedLoreSkillContext, buildSkillContext, collectWizardDeitySkillMap, collectFeatLanguageGrants, getBackgroundLores, getBackgroundTrainedSkills, getLanguageMap, getActiveSkillSlugs, getSelectedSubclassChoiceSkillMap, getActiveSkillConfigEntry, normalizeLoreSkillName, parseSubclassLores } from './skills-languages.js';
 import { activateCharacterWizardListeners } from './listeners.js';
 import { buildSpellContext, getSanitizedCurriculumSelections, limitCurriculumSelections, resolveFocusSpells, resolveGrantedSpells, resolveSummaryCurriculumSpells, resolveSummaryFocusSpells } from './spells.js';
 import { loadCommanderTactics, loadCompendium, loadCompendiumCategory, loadAncestries, loadBackgrounds, loadClasses, loadDeities, loadExemplarIkons, loadHeritages, loadInventorArmorModifications, loadInventorArmorOptions, loadInventorWeaponModifications, loadInventorWeaponOptions, loadKineticImpulses, loadRawHeritages, loadSubclasses, loadSubclassesForClass, loadTaggedClassFeatures, loadThaumaturgeImplements, loadTheses, parseCurriculum, parseSpellUuidsFromDescription, parseVesselSpell, resolveClassSubclassTag } from './loaders.js';
@@ -945,13 +945,61 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       skills = skills.filter((s) => s !== skill);
     } else {
       const maxSkills = await this._getAdditionalSkillCount();
-      if (skills.length < maxSkills) {
+      const selectedCount = skills.length + (this.data.selectedLoreSkills?.length ?? 0);
+      if (selectedCount < maxSkills) {
         skills.push(skill);
       }
     }
     setSkills(this.data, skills);
     this._featChoiceDataDirty = true;
     this._saveAndRender();
+  }
+
+  async _toggleLoreSkill(name) {
+    const normalized = normalizeLoreSkillName(name);
+    if (!normalized) return;
+
+    let lores = [...(this.data.selectedLoreSkills ?? [])];
+    const existing = lores.find((lore) => normalizeLoreSkillName(lore) === normalized);
+    if (existing) {
+      lores = lores.filter((lore) => lore !== existing);
+    } else {
+      if ((this.data.lores ?? []).some((lore) => normalizeLoreSkillName(lore) === normalized)) return;
+      const maxSkills = await this._getAdditionalSkillCount();
+      const selectedCount = (this.data.skills?.length ?? 0) + lores.length;
+      if (selectedCount >= maxSkills) return;
+      lores.push(normalized);
+    }
+
+    setSelectedLoreSkills(this.data, lores);
+    this._featChoiceDataDirty = true;
+    this._saveAndRender();
+  }
+
+  async _promptLoreSkill() {
+    const dialogClass = foundry?.applications?.api?.DialogV2 ?? globalThis.Dialog;
+    if (!dialogClass?.prompt) return;
+
+    const value = await dialogClass.prompt({
+      window: {
+        title: game.i18n?.localize?.('PF2E_LEVELER.CREATION.LORE_SKILLS') ?? 'Lore Skills',
+      },
+      content: `
+        <div class="form-group">
+          <label>${game.i18n?.localize?.('PF2E_LEVELER.UI.NAME') ?? 'Name'}</label>
+          <input type="text" name="lore-name" autofocus />
+        </div>
+      `,
+      ok: {
+        label: game.i18n?.localize?.('PF2E_LEVELER.UI.ADD') ?? 'Add',
+        callback: (event, button, dialog) => {
+          const root = dialog?.element ?? dialog ?? button?.form ?? event?.currentTarget?.closest?.('.application');
+          return root?.querySelector?.('input[name="lore-name"]')?.value ?? '';
+        },
+      },
+    });
+
+    await this._toggleLoreSkill(value);
   }
 
   async _toggleLanguage(lang) {
@@ -1995,7 +2043,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'languages':
         return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills':
-        return (this.data.skills?.length ?? 0) >= (this._cachedMaxSkills ?? 1);
+        return (
+          (this.data.skills?.length ?? 0) + (this.data.selectedLoreSkills?.length ?? 0)
+        ) >= (this._cachedMaxSkills ?? 1);
       case 'feats':
         return !!this.data.ancestryFeat && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat) && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat) && (!this._needsLevel1DualClassFeatSelection() || !!this.data.dualClassFeat) && (!this._needsLevel1SkillFeatSelection() || !!this.data.skillFeat);
       case 'spells': {
@@ -2180,7 +2230,6 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'skills': {
         const maxSkills = await this._getAdditionalSkillCount();
         this._cachedMaxSkills = maxSkills;
-        const selectedCount = this.data.skills.length;
         const bgLores = await this._getBackgroundLores();
         const subclassLores = (this.data.subclass?.grantedLores ?? []).map((name) => ({
           name,
@@ -2214,6 +2263,14 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           this.data,
           allLores.map((l) => l.name),
         );
+        const grantedLoreNames = new Set(allLores.map((lore) => normalizeLoreSkillName(lore.name)));
+        const availableSelectedLores = (this.data.selectedLoreSkills ?? [])
+          .filter((name) => !grantedLoreNames.has(normalizeLoreSkillName(name)));
+        if (availableSelectedLores.length !== (this.data.selectedLoreSkills?.length ?? 0)) {
+          setSelectedLoreSkills(this.data, availableSelectedLores);
+        }
+        const selectedLoreSkills = buildSelectedLoreSkillContext(this);
+        const selectedCount = (this.data.skills?.length ?? 0) + selectedLoreSkills.length;
         const skills = await this._buildSkillContext();
         annotateGuidanceBySlug(skills, 'skill');
         const visibleSkills = filterDisallowedForCurrentUser(skills);
@@ -2224,6 +2281,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           selectedCount,
           skillsNote: this._getSkillsNote(),
           lores: allLores,
+          selectedLoreSkills,
+          canAddLoreSkill: selectedCount < maxSkills,
         };
       }
       case 'feats':

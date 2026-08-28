@@ -12,6 +12,7 @@ import { NECROMANCER } from '../../../scripts/classes/necromancer.js';
 import { ORACLE } from '../../../scripts/classes/oracle.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, PROFICIENCY_RANKS } from '../../../scripts/constants.js';
 import { computeBuildState, computePlanArchetypeDedicationProgress, computeSkillPickerState, getImportedInitialSkillLimit, syncPlanArchetypeDedicationProgress } from '../../../scripts/plan/build-state.js';
@@ -33,6 +34,7 @@ beforeAll(() => {
   ClassRegistry.register(ORACLE);
   ClassRegistry.register(ROGUE);
   ClassRegistry.register(SORCERER);
+  ClassRegistry.register(THAUMATURGE);
   ClassRegistry.register(WIZARD);
 });
 
@@ -60,6 +62,41 @@ describe('computeBuildState', () => {
     expect(computeBuildState(mockActor, plan, 3).lores['undead-lore']).toBe(2);
     expect(computeBuildState(mockActor, plan, 7).lores['undead-lore']).toBe(3);
     expect(computeBuildState(mockActor, plan, 15).lores['undead-lore']).toBe(4);
+  });
+
+  test('tracks Thaumaturge vulnerability modes and Esoteric Lore progression', () => {
+    plan = createPlan('thaumaturge');
+    mockActor.items = [];
+    const sympatheticVulnerabilities = {
+      name: 'Sympathetic Vulnerabilities',
+      system: {
+        traits: { value: ['thaumaturge'] },
+        prerequisites: {
+          value: [
+            { value: 'Exploit Vulnerability' },
+            { value: 'mortal weakness or personal antithesis' },
+          ],
+        },
+      },
+    };
+    const unmistakableLore = {
+      name: 'Unmistakable Lore',
+      system: {
+        prerequisites: { value: [{ value: 'expert in Lore' }] },
+      },
+    };
+
+    const levelOneState = computeBuildState(mockActor, plan, 1);
+    const levelThreeState = computeBuildState(mockActor, plan, 3);
+    const levelSixState = computeBuildState(mockActor, plan, 6);
+
+    expect(levelOneState.lores['esoteric-lore']).toBe(PROFICIENCY_RANKS.TRAINED);
+    expect(levelThreeState.lores['esoteric-lore']).toBe(PROFICIENCY_RANKS.EXPERT);
+    expect(checkPrerequisites(unmistakableLore, levelThreeState).met).toBe(true);
+    expect(levelSixState.classFeatures.has('exploit-vulnerability')).toBe(true);
+    expect(levelSixState.classFeatures.has('mortal-weakness')).toBe(true);
+    expect(levelSixState.classFeatures.has('personal-antithesis')).toBe(true);
+    expect(checkPrerequisites(sympatheticVulnerabilities, levelSixState).met).toBe(true);
   });
 
   test("satisfies Battle Planner's Warfare Lore prerequisite after Warfare Expertise", () => {

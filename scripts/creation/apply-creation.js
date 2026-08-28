@@ -16,6 +16,7 @@ import { extractCompendiumUuidsByCategory, isCompendiumUuidInCategory } from '..
 import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
 import { resolveSpellcastingTradition } from '../data/subclass-spells.js';
 import { getAutomaticLoreProficiencies } from '../classes/progression.js';
+import { getCreationLoreSkillNames } from './creation-model.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -319,10 +320,7 @@ export async function applyLores(actor, data) {
     .filter(Boolean)
     .map((slug) => ClassRegistry.get(slug))
     .filter(Boolean);
-  const loreRanks = new Map(
-    [...(data.lores ?? []), ...(data.selectedLoreSkills ?? [])]
-      .map((name) => [name, 1]),
-  );
+  const loreRanks = new Map(getCreationLoreSkillNames(data).map((name) => [name, 1]));
   for (const entry of getAutomaticLoreProficiencies(classDefs, 1)) {
     const name = entry.name ?? entry.skill;
     loreRanks.set(name, Math.max(loreRanks.get(name) ?? 0, entry.rank));
@@ -1347,7 +1345,8 @@ async function createCreationMessage(actor, data) {
       label: localize('CREATION.STEPS.LANGUAGES'),
       value: data.languages.map((slug) => localizeLanguageSlug(slug)).join(', '),
     });
-  if (data.lores?.length) training.push({ label: localize('CREATION.LORE_SKILLS'), value: data.lores.join(', ') });
+  const loreSkillNames = getCreationLoreSkillNames(data);
+  if (loreSkillNames.length) training.push({ label: localize('CREATION.LORE_SKILLS'), value: loreSkillNames.join(', ') });
   if (data.devotionSpell) {
     training.push({
       label: localize('CREATION.CHAT.FOCUS_SPELL'),

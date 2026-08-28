@@ -1,5 +1,6 @@
 import { ClassRegistry } from '../../classes/registry.js';
 import { getRunicRepertoireAtLevel } from '../../classes/runesmith.js';
+import { getCreationLoreSkillNames } from '../../creation/creation-model.js';
 
 export async function buildSummaryContext(wizard) {
   const classSummaryLabel = [wizard.data.class?.name, wizard.data.dualClass?.name].filter(Boolean).join(' + ') || null;
@@ -46,6 +47,7 @@ export async function buildSummaryContext(wizard) {
       const limits = getRunicRepertoireAtLevel(definition, 1);
       return limits ? [{ slug: definition.slug, ...limits }] : [];
     });
+  const loreSkillsSummary = getCreationLoreSkillNames(wizard.data);
 
   return {
     pendingChoices: await wizard._getPendingChoices(),
@@ -60,6 +62,7 @@ export async function buildSummaryContext(wizard) {
     skillFeatChoiceLabels,
     grantedFeatChoiceSummaries,
     runicRepertoireReminders,
+    loreSkillsSummary,
     subclassSummaryLabel,
     showSubclassSummary,
     implementLabel: wizard.data.implement?.name ?? null,
