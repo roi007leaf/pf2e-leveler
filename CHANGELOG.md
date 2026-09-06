@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.7.6
+
+### Fixed
+
+- **Planner follows class changes made after character creation** - Replacing a character's class now rebuilds the Level Planner from the current actor instead of retaining the old creation class. Valid dual-class primary selections remain intact
+
 ## 3.7.5
 
 ### Fixed

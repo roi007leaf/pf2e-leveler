@@ -507,6 +507,27 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     }));
   });
 
+  it.each([false, true])('uses the current class after a level-1 class swap (saved plan: %s)', (hasSavedPlan) => {
+    ClassRegistry.register(ALCHEMIST);
+    ClassRegistry.register(INVESTIGATOR);
+    const actor = createMockActor({
+      class: { slug: 'investigator', name: 'Investigator' },
+      system: { details: { level: { value: 1 } } },
+      items: [{ type: 'class', slug: 'investigator', name: 'Investigator' }],
+    });
+    actor.getFlag = jest.fn((scope, key) => (
+      scope === 'pf2e-leveler' && key === 'creation' ? { class: { slug: 'alchemist' } } : null
+    ));
+    if (hasSavedPlan) getPlan.mockReturnValue(createPlan('alchemist'));
+
+    const planner = new LevelPlanner(actor);
+
+    expect(planner.selectedLevel).toBe(2);
+    expect(planner.plan.classSlug).toBe('investigator');
+    expect(computeBuildState(actor, planner.plan, 2).classSlug).toBe('investigator');
+    expect(savePlan).toHaveBeenCalledWith(actor, planner.plan);
+  });
+
   it('prefers the stored primary class from creation data for dual-class characters', () => {
     if (!ClassRegistry.has('witch')) {
       ClassRegistry.register({
@@ -547,6 +568,10 @@ describe('LevelPlanner bootstrap from existing actor', () => {
 
     const actor = createMockActor({
       class: { slug: 'wizard', name: 'Wizard' },
+      items: [
+        { type: 'class', slug: 'witch', name: 'Witch' },
+        { type: 'class', slug: 'wizard', name: 'Wizard' },
+      ],
     });
     actor.getFlag = jest.fn((scope, key) => {
       if (scope === 'pf2e-leveler' && key === 'creation') {

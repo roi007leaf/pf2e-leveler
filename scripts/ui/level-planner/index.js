@@ -909,9 +909,9 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       .trim()
       .toLowerCase();
     if (!primaryClassSlug) return null;
-    if (ClassRegistry.has(primaryClassSlug)) return primaryClassSlug;
 
-    const matchingClassItem = this._getActorClassItems(actor).find(
+    // Creation data only identifies the primary class while that class is still owned.
+    const matchingClassItem = [actor.class, ...this._getActorClassItems(actor)].find(
       (item) =>
         String(item?.slug ?? item?.system?.slug ?? '')
           .trim()
