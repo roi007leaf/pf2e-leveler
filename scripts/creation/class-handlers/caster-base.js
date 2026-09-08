@@ -30,9 +30,9 @@ export class CasterBaseHandler extends BaseClassHandler {
     return (data.subclass?.spellUuids?.length ?? 0) > 0;
   }
 
-  getSpellbookCounts(_data, classDef) {
+  getSpellbookCounts(data, classDef) {
     if (classDef.slug === 'magus') {
-      return { cantrips: 8, rank1: 4 };
+      return { cantrips: 8, rank1: isRemasteredMagus(null, data.class) ? 5 : 4 };
     }
     return null;
   }

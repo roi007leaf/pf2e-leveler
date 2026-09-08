@@ -479,6 +479,18 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]));
   });
 
+  it.each(['class', 'dualClass'])('refreshes saved %s edition from the selected document', async (target) => {
+    const wizard = new CharacterWizard(createMockActor());
+    const classItem = {
+      uuid: 'Compendium.pf2e.classes.Item.Magus', slug: 'magus', type: 'class',
+      system: { publication: { remaster: true, title: 'Pathfinder Impossible Magic' } },
+    };
+    wizard.data[target] = { uuid: classItem.uuid, slug: 'magus', keyAbility: ['str', 'dex'], subclassTag: 'magus-hybrid-study' };
+    wizard._documentCache.set(classItem.uuid, classItem);
+    await wizard[target === 'class' ? '_ensureClassMetadata' : '_ensureDualClassMetadata']();
+    expect(wizard.data[target].publication).toEqual(classItem.system.publication);
+  });
+
   it('registers selected custom world classes into the class registry', async () => {
     const actor = createMockActor();
     const wizard = new CharacterWizard(actor);

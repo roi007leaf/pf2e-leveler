@@ -375,7 +375,7 @@ export function getClassFeaturesForLevel(planner, level) {
 
   const dualClassSlug = String(planner.plan?.dualClassSlug ?? '').trim().toLowerCase();
   const dualClassDef = dualClassSlug && ClassRegistry.has(dualClassSlug)
-    ? ClassRegistry.get(dualClassSlug)
+    ? ClassRegistry.get(dualClassSlug, planner.actor)
     : null;
 
   for (const feature of dualClassDef?.classFeatures ?? []) {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.7.8
+
+### Fixed
+
+- **Necromancer and Runesmith Fortitude progression** - The planner now projects master Fortitude at level 11 from Unnatural Fortitude and Forged Endurance, allowing future prerequisites to evaluate correctly
+- **Remastered Magus starting spellbook** - Character Creation now offers five 1st-rank spells for remastered Magi while retaining four for legacy Magi, preserving class edition for primary and dual-class selections
+- **Remastered Magus class features** - Planner feature names and proficiency progression now follow Reflex Expertise, Perception Expertise, Twofold Will, and Spell-Tempered Body while preserving legacy class features
+
 ## 3.7.7
 
 ### Fixed

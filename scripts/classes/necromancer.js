@@ -50,7 +50,7 @@ export const NECROMANCER = {
       level: 11,
       name: 'Unnatural Fortitude',
       key: 'unnatural-fortitude',
-      proficiencies: { fortitude: 2 },
+      proficiencies: { fortitude: 3 },
     },
     { level: 13, name: 'Weapon Specialization', key: 'weapon-specialization' },
     { level: 13, name: 'Light Armor Expertise', key: 'light-armor-expertise' },

@@ -618,6 +618,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const resolvedClassItem = classItem ?? (await this._getCachedDocument(this.data.class.uuid));
     if (!resolvedClassItem) return;
     ensureClassItemRegistered(resolvedClassItem, this.data.class.slug);
+    this.data.class.publication = resolvedClassItem.system?.publication ?? this.data.class.publication ?? null;
 
     const keyAbility = this._normalizeClassKeyAbilityOptions(resolvedClassItem);
     if (!Array.isArray(this.data.class.keyAbility) || this.data.class.keyAbility.length === 0) {
@@ -634,6 +635,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const resolvedClassItem = classItem ?? (await this._getCachedDocument(this.data.dualClass.uuid));
     if (!resolvedClassItem) return;
     ensureClassItemRegistered(resolvedClassItem, this.data.dualClass.slug);
+    this.data.dualClass.publication = resolvedClassItem.system?.publication ?? this.data.dualClass.publication ?? null;
 
     const keyAbility = this._normalizeClassKeyAbilityOptions(resolvedClassItem);
     if (!Array.isArray(this.data.dualClass.keyAbility) || this.data.dualClass.keyAbility.length === 0) {

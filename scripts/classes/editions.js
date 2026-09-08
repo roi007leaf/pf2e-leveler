@@ -22,11 +22,21 @@ const remasteredSlots = Object.fromEntries(Array.from({ length: 20 }, (_, index)
   return [level, slots];
 }));
 
+const remasteredMagusFeatures = {
+  'lightning-reflexes': { name: 'Reflex Expertise', key: 'reflex-expertise', proficiencies: { reflex: 2 } },
+  alertness: { name: 'Perception Expertise', key: 'perception-expertise', proficiencies: { perception: 2 } },
+  resolve: { name: 'Twofold Will', key: 'twofold-will', proficiencies: { will: 3 } },
+  juggernaut: { name: 'Spell-Tempered Body', key: 'spell-tempered-body', proficiencies: { fortitude: 3 } },
+};
+
 export function resolveClassEdition(classDef, actor, selectedClass = null) {
   if (!['magus', 'summoner'].includes(classDef?.slug) || !isRemasteredClass(actor, classDef.slug, selectedClass)) return classDef;
   return {
     ...classDef,
     classFeatures: (classDef.classFeatures ?? []).map((feature) => {
+      if (classDef.slug === 'magus' && remasteredMagusFeatures[feature.key]) {
+        return { ...feature, ...remasteredMagusFeatures[feature.key] };
+      }
       if (classDef.slug === 'summoner' && feature.key === 'unlimited-signature-spells') {
         return { ...feature, name: 'Signature Spells', key: 'signature-spells' };
       }

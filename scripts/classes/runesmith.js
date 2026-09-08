@@ -39,7 +39,7 @@ export const RUNESMITH = {
       level: 11,
       name: 'Forged Endurance',
       key: 'forged-endurance',
-      proficiencies: { fortitude: 2 },
+      proficiencies: { fortitude: 3 },
     },
     {
       level: 13,
