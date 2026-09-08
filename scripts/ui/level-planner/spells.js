@@ -1,5 +1,6 @@
 import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
+import { resolveClassEdition } from '../../classes/editions.js';
 import { computeBuildState } from '../../plan/build-state.js';
 import { getAllPlannedFeats, getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
@@ -140,6 +141,7 @@ async function buildClassSpellSections(planner, classDef, level) {
 }
 
 async function buildClassSpellSection(planner, classDef, level, entryType, classSlug) {
+  classDef = resolveClassEdition(classDef, planner.actor);
   const slots = classDef?.spellcasting?.slots ?? {};
   const currentSlots = slots[level];
   if (!currentSlots) return null;
@@ -453,6 +455,7 @@ function getSubclassSpellcastingEntry(planner, classSlug = null) {
 }
 
 export async function getGrantedSpellsForLevel(planner, classDef, level, classSlug = null) {
+  classDef = resolveClassEdition(classDef, planner.actor);
   const subclassSlug = getSubclassSlug(planner, classSlug);
   if (!subclassSlug || !classDef?.spellcasting) return [];
   const subclassChoices = getSubclassChoices(planner, classSlug);

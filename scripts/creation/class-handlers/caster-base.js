@@ -4,6 +4,7 @@ import { resolveSpellcastingTradition, resolveSubclassSpells } from '../../data/
 import { ClassRegistry } from '../../classes/registry.js';
 import { capitalize } from '../../utils/pf2e-api.js';
 import { classUsesPhysicalSpellbook, ensureActorHasSpellbook } from '../../utils/spellcasting-support.js';
+import { findMagusPrimaryEntry, isRemasteredMagus } from '../../utils/magus-spellcasting.js';
 
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
@@ -158,7 +159,7 @@ export class CasterBaseHandler extends BaseClassHandler {
     const grantedEntries = [...grantedUuids].map((uuid) => ({ uuid, name: 'Granted' }));
     const allSpells = [...grantedEntries, ...data.spells.cantrips, ...data.spells.rank1];
 
-    const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
+    const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug, actor, data.class) : null;
     if (allSpells.length === 0 && !classDef?.spellcasting) return;
 
     await new Promise((r) => setTimeout(r, 200));
@@ -167,8 +168,8 @@ export class CasterBaseHandler extends BaseClassHandler {
     const entryName = `${capitalize(data.class?.name ?? data.class?.slug ?? 'Class')} Spells`;
     const tradition = sc ? this._resolveTradition(sc.tradition, data.subclass) : 'arcane';
     const prepared = sc ? (sc.type === 'dual' ? 'prepared' : sc.type) : 'prepared';
-    const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
-    let entry = this._findSpellcastingEntry(actor, {
+    const ability = classDef?.slug === 'magus' ? 'int' : classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
+    let entry = classDef?.slug === 'magus' ? findMagusPrimaryEntry(actor) : this._findSpellcastingEntry(actor, {
       name: entryName,
       prepared,
       tradition,
@@ -201,13 +202,14 @@ export class CasterBaseHandler extends BaseClassHandler {
     }
 
     const actorLevel = Number(actor.system?.details?.level?.value ?? 1);
+    const remasteredMagus = classDef?.slug === 'magus' && isRemasteredMagus(actor, data.class);
     const currentSlots = classDef?.spellcasting?.slots?.[actorLevel] ?? classDef?.spellcasting?.slots?.[1] ?? null;
     if (currentSlots) {
       const slotUpdate = this._buildPrimarySlotUpdate(entry, currentSlots, classDef);
       await actor.updateEmbeddedDocuments('Item', [slotUpdate]);
     }
 
-    if (classDef?.slug === 'magus') {
+    if (classDef?.slug === 'magus' && !remasteredMagus) {
       await this._ensureMagusStudiousEntry(actor, data, classDef, actorLevel);
     }
 

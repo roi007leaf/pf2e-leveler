@@ -1493,10 +1493,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
   _getSpellcastingClassForEntryType(entryType = 'primary') {
     if (typeof entryType === 'string' && entryType.startsWith('class:')) {
       const classSlug = entryType.slice('class:'.length);
-      return ClassRegistry.get(classSlug) ?? null;
+      return ClassRegistry.get(classSlug, this.actor) ?? null;
     }
 
-    return ClassRegistry.get(this.plan.classSlug);
+    return ClassRegistry.get(this.plan.classSlug, this.actor);
   }
 
   _isPlannedCantripSpell(spell) {

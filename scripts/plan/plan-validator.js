@@ -11,7 +11,7 @@ import { doesFeatMatchRequiredSecondLevelClassFeat, getRequiredSecondLevelClassF
 import { normalizeSkillSlug } from '../utils/skill-slugs.js';
 
 export function validatePlan(plan, options = {}, actor = null) {
-  const classDef = ClassRegistry.get(plan.classSlug);
+  const classDef = ClassRegistry.get(plan.classSlug, actor);
   if (!classDef) return { valid: false, errors: ['Unknown class'] };
 
   const levelResults = {};

@@ -17,9 +17,9 @@ const SECOND_DEDICATION_EXCEPTION_SLUGS = new Set(['cavalier-dedication']);
 const PLAN_DEDICATION_PROGRESS_VERSION = 1;
 
 export function computeBuildState(actor, plan, atLevel) {
-  const classDef = ClassRegistry.get(plan.classSlug);
+  const classDef = ClassRegistry.get(plan.classSlug, actor);
   const dualClassSlug = getTrackedDualClassSlug(plan);
-  const dualClassDef = dualClassSlug ? ClassRegistry.get(dualClassSlug) : null;
+  const dualClassDef = dualClassSlug ? ClassRegistry.get(dualClassSlug, actor) : null;
   const classes = computeTrackedClasses([
     { classDef, slug: plan.classSlug },
     { classDef: dualClassDef, slug: dualClassSlug },

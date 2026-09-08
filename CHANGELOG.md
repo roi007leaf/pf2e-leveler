@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.7.7
+
+### Fixed
+
+- **Remastered Magus and Summoner spell progression** - Character Creation and Level Planner now use the actor's class edition for spell slots, retaining lower-rank slots and selecting the correct number of new spells for Impossible Magic characters while preserving legacy progression
+- **Magus Studious Spells no longer restores legacy slots on remastered characters** - Studious spell selections use the primary spellbook, and primary spellcasting updates no longer mistake a separate Studious entry for the main entry. Existing spells and preparations are preserved
+- **Remastered Summoner Signature Spells** - Planner prerequisite state uses Signature Spells for remastered Summoners and Unlimited Signature Spells for legacy Summoners
+
 ## 3.7.6
 
 ### Fixed

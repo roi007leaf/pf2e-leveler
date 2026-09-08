@@ -6,6 +6,7 @@ import { warn } from '../utils/logger.js';
 import { classUsesPhysicalSpellbook, collectArchetypeSpellcastingConfigs, ensureActorHasSpellbook, normalizeSpellcastingFeatRecord } from '../utils/spellcasting-support.js';
 import { buildCompendiumUuid, getCompendiumPacksForCategory } from '../system-support/profiles.js';
 import { resolveSf2eSpellcastingTradition } from '../utils/sf2e-spellcasting.js';
+import { findMagusPrimaryEntry, isRemasteredMagus } from '../utils/magus-spellcasting.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
@@ -22,7 +23,7 @@ const SUBCLASS_FOCUS_SPELL_NAME_OVERRIDES = {
 
 export async function applySpells(actor, plan, level) {
   const addedSpells = [];
-  const classDefs = getTrackedSpellcastingClasses(plan);
+  const classDefs = getTrackedSpellcastingClasses(plan, actor);
   const archetypeEntries = await ensureArchetypeSpellcastingEntries(actor, plan, level);
   const customEntries = await ensureCustomPlannedSpellcastingEntries(actor, plan, level);
   const levelData = plan.levels[level];
@@ -59,9 +60,9 @@ export async function applySpells(actor, plan, level) {
   return addedSpells;
 }
 
-function getTrackedSpellcastingClasses(plan) {
+function getTrackedSpellcastingClasses(plan, actor) {
   const classes = [];
-  const primaryClassDef = ClassRegistry.get(plan.classSlug);
+  const primaryClassDef = ClassRegistry.get(plan.classSlug, actor);
   if (primaryClassDef) classes.push(primaryClassDef);
 
   const dualClassSlug = String(plan?.dualClassSlug ?? '')
@@ -74,7 +75,7 @@ function getTrackedSpellcastingClasses(plan) {
         .trim()
         .toLowerCase()
   ) {
-    const dualClassDef = ClassRegistry.get(dualClassSlug);
+    const dualClassDef = ClassRegistry.get(dualClassSlug, actor);
     if (dualClassDef) classes.push(dualClassDef);
   }
 
@@ -156,11 +157,14 @@ async function ensureSpellcastingEntries(actor, classDef) {
   } else {
     entries.primary = await findOrCreateEntry(actor, {
       name: `${capitalize(classDef.slug)} Spells`,
+      magusPrimary: classDef.slug === 'magus',
       tradition,
       prepared: sc.type,
       ability,
     });
-    if (classDef.slug === 'magus') {
+    if (classDef.slug === 'magus' && isRemasteredMagus(actor)) {
+      entries.studious = entries.primary;
+    } else if (classDef.slug === 'magus') {
       entries.studious = await findOrCreateEntry(actor, {
         name: 'Magus Studious Spells',
         tradition,
@@ -210,6 +214,7 @@ function resolveActorTradition(actor, tradition) {
 }
 
 function resolveActorSpellAbility(actor, classDef) {
+  if (classDef.slug === 'magus') return 'int';
   const entry = actor.items?.find((i) => i.type === 'spellcastingEntry');
   if (entry?.system?.ability?.value) return entry.system.ability.value;
 
@@ -218,7 +223,7 @@ function resolveActorSpellAbility(actor, classDef) {
 }
 
 async function findOrCreateEntry(actor, config) {
-  const existing = actor.items.find(
+  const existing = config.magusPrimary ? findMagusPrimaryEntry(actor) : actor.items.find(
     (i) =>
       i.type === 'spellcastingEntry' &&
       (config.flagKey
@@ -363,7 +368,7 @@ async function updateSpellSlots(actor, entries, slots, classDef, level) {
   } else if (entries.primary) {
     if (classDef.slug === 'magus') {
       updates.push(buildBoundedPrimarySlotUpdate(entries.primary, slots));
-      if (entries.studious) updates.push(buildMagusStudiousSlotUpdate(entries.studious, getMagusStudiousRankForLevel(level)));
+      if (entries.studious && entries.studious.id !== entries.primary.id) updates.push(buildMagusStudiousSlotUpdate(entries.studious, getMagusStudiousRankForLevel(level)));
     } else {
       updates.push(buildSlotUpdate(entries.primary, slots, 0));
     }

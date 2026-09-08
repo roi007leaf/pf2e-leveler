@@ -1,3 +1,5 @@
+import { resolveClassEdition } from './editions.js';
+
 const classDefinitions = new Map();
 
 export const ClassRegistry = {
@@ -6,8 +8,8 @@ export const ClassRegistry = {
     classDefinitions.set(classDef.slug, classDef);
   },
 
-  get(slug) {
-    return classDefinitions.get(slug) ?? null;
+  get(slug, actor = null, selectedClass = null) {
+    return resolveClassEdition(classDefinitions.get(slug) ?? null, actor, selectedClass);
   },
 
   getAll() {
