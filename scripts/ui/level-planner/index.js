@@ -32,7 +32,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const FEAT_PLAN_CATEGORIES = new Set(['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats']);
 const FEAT_SKILL_RULES_VERSION = 3;
 const FEAT_ALIASES_VERSION = 1;
-const FEAT_CORE_METADATA_VERSION = 1;
+const FEAT_CORE_METADATA_VERSION = 2;
 const FEAT_SPELLCASTING_VERSION = FEAT_SPELLCASTING_METADATA_VERSION;
 const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 const INVESTIGATOR_SKILLFUL_LESSON_BASE_SKILLS = ['arcana', 'crafting', 'occultism', 'society', 'medicine', 'nature', 'religion', 'survival', 'deception', 'diplomacy', 'intimidation', 'performance'];
@@ -2942,13 +2942,18 @@ function buildStoredFeatSystemData(feat) {
   const prerequisites = feat?.system?.prerequisites?.value;
   const description = String(feat?.system?.description?.value ?? '').trim();
   const rules = (feat?.system?.rules ?? [])
-    .filter((rule) => rule?.key === 'ActiveEffectLike' && rule?.path === 'system.build.languages.max')
-    .map((rule) => ({
-      key: rule.key,
-      path: rule.path,
-      ...(rule.mode ? { mode: rule.mode } : {}),
-      value: rule.value,
-    }));
+    .flatMap((rule) => {
+      if (rule?.key === 'RollOption' && rule?.option === 'change-shape') {
+        return [foundry.utils.deepClone(rule)];
+      }
+      if (rule?.key !== 'ActiveEffectLike' || rule?.path !== 'system.build.languages.max') return [];
+      return [{
+        key: rule.key,
+        path: rule.path,
+        ...(rule.mode ? { mode: rule.mode } : {}),
+        value: rule.value,
+      }];
+    });
   if ((!Array.isArray(prerequisites) || prerequisites.length === 0) && rules.length === 0 && !/\blanguage(?:s)?\b/i.test(description)) {
     return undefined;
   }

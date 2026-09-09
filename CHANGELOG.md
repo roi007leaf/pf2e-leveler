@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.7.9
+
+### Fixed
+
+- **Kitsune fox-form prerequisites** - Heritage-granted fox forms now satisfy prerequisites such as Vulpine Scamper, even when Change Shape is inactive. Planned Myriad Forms retains its form rules when saved, and existing plans refresh that metadata automatically
+- **Multifarious Muse prerequisites** - Muse choices stored as compendium UUIDs now unlock the selected muse's feats at the same level, including the feat granted by Multifarious Muse. Unselected muses and unrelated feat choices do not grant muse access
+
 ## 3.7.8
 
 ### Fixed

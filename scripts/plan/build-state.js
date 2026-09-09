@@ -1860,6 +1860,7 @@ function computeFeats(actor, plan, atLevel) {
   }
 
   if (actor?.system?.resources?.focus?.max > 0) feats.add('focus-pool');
+  if (getFoxFormSources(actor, plan, atLevel).length > 0) feats.add('fox-alternate-form');
 
   return feats;
 }
@@ -1878,12 +1879,12 @@ function getBackgroundGrantedFeatureEntries(background) {
 function computeFeatAliasSources(actor, plan, atLevel) {
   const sources = new Map();
 
-  const addSources = (feat) => {
+  const addSources = (feat, aliases = getFeatAliases(feat)) => {
     const sourceSlug = getPrimaryFeatAlias(feat);
     const sourceName = feat?.name?.trim() || sourceSlug || '';
     if (!sourceSlug && !sourceName) return;
 
-    for (const alias of getFeatAliases(feat)) {
+    for (const alias of aliases) {
       if (!alias) continue;
       if (!sources.has(alias)) sources.set(alias, new Map());
       sources.get(alias).set(sourceSlug || sourceName, sourceName || sourceSlug);
@@ -1895,8 +1896,20 @@ function computeFeatAliasSources(actor, plan, atLevel) {
 
   const plannedFeats = getEffectivePlannedFeats(plan, atLevel);
   for (const feat of plannedFeats) addSources(feat);
+  for (const source of getFoxFormSources(actor, plan, atLevel)) addSources(source, ['fox-alternate-form']);
 
   return sources;
+}
+
+function getFoxFormSources(actor, plan, atLevel) {
+  const items = [actor?.ancestry, ...getEffectiveHeritageItems(actor, plan, atLevel), ...getEffectiveCharacterFeats(actor, plan, atLevel)];
+  const rollOptions = actor?.getRollOptions?.(['all']);
+  return items.filter((item) => (item?.system?.rules ?? []).some((rule) =>
+    rule.key === 'RollOption'
+    && rule.option === 'change-shape'
+    && evaluatePredicate(rule.predicate, atLevel, rollOptions)
+    && Array.isArray(rule.suboptions)
+    && rule.suboptions.some((option) => option.value === 'fox' && evaluatePredicate(option.predicate, atLevel, rollOptions))));
 }
 
 function getOwnedActionItems(actor) {
@@ -2431,10 +2444,30 @@ function getMultifariousMuseChoiceAliases(feat) {
     .toLowerCase();
   if (slug !== 'multifarious-muse' && name !== 'multifarious muse') return [];
 
-  return [...getFeatChoiceSelectionMap(feat).values()]
-    .map((value) => slugify(value))
-    .filter(Boolean)
-    .map((value) => `${value}-muse`);
+  const selection = getFeatChoiceSelectionMap(feat).get('muse');
+  if (!selection) return [];
+
+  let muse = selection;
+  if (selection.startsWith('Compendium.')) {
+    const selectedOption = getStoredChoiceSets(feat)
+      .filter((choiceSet) => choiceSet.flag === 'muse')
+      .flatMap((choiceSet) => choiceSet.options ?? [])
+      .find((option) => choiceOptionMatchesSelection(option, selection));
+    let source = selectedOption;
+    if (!source) {
+      try {
+        source = globalThis.fromUuidSync?.(selection);
+      } catch {
+        return [];
+      }
+    }
+    muse = source?.slug ?? source?.system?.slug ?? source?.value?.slug ?? source?.name ?? source?.label;
+  }
+
+  const alias = slugify(String(muse ?? ''))
+    .replace(/^(?:bard-)?muse-/u, '');
+  if (!alias) return [];
+  return [alias.endsWith('-muse') ? alias : `${alias}-muse`];
 }
 
 function getSubclassAliases(feat) {
