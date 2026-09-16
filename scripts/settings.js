@@ -7,6 +7,7 @@ import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from './acce
 import { invalidateItemCache } from './ui/item-picker.js';
 import { clearSpellPickerCache } from './ui/spell-picker.js';
 import { invalidateCharacterWizardCompendiumCaches } from './ui/character-wizard/loaders.js';
+import { REVIEW_WORKFLOW_MODES } from './access/review-requests.js';
 
 function invalidateContentPickers() {
   invalidateCache();
@@ -77,32 +78,49 @@ export function registerSettings() {
   });
 
   game.settings.register(MODULE_ID, 'enforcePrerequisites', {
-    name: 'Enforce Feat Prerequisites',
-    hint: 'Block selecting feats with unmet prerequisites in planner feat pickers. When disabled, prerequisite results are still shown but selection is allowed.',
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENFORCE_PREREQUISITES.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENFORCE_PREREQUISITES.HINT'),
     scope: 'world',
     config: true,
     type: Boolean,
     default: true,
   });
 
-  game.settings.register(MODULE_ID, 'enableReviewRequests', {
-    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENABLE_REVIEW_REQUESTS.NAME'),
-    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.ENABLE_REVIEW_REQUESTS.HINT'),
+  game.settings.register(MODULE_ID, 'reviewWorkflowMode', {
+    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.NAME'),
+    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.HINT'),
     scope: 'world',
     config: true,
-    type: Boolean,
-    default: false,
+    type: String,
+    default: REVIEW_WORKFLOW_MODES.DISABLED,
+    choices: {
+      [REVIEW_WORKFLOW_MODES.DISABLED]: game.i18n.localize('PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.DISABLED'),
+      [REVIEW_WORKFLOW_MODES.OPTIONAL]: game.i18n.localize('PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.OPTIONAL'),
+      [REVIEW_WORKFLOW_MODES.REQUIRED]: game.i18n.localize('PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.REQUIRED'),
+    },
     onChange: () => refreshOpenLevelerWindows(),
   });
 
-  game.settings.register(MODULE_ID, 'requireReviewApproval', {
-    name: game.i18n.localize('PF2E_LEVELER.SETTINGS.REQUIRE_REVIEW_APPROVAL.NAME'),
-    hint: game.i18n.localize('PF2E_LEVELER.SETTINGS.REQUIRE_REVIEW_APPROVAL.HINT'),
+  // Legacy settings remain registered for one-time migration of existing worlds.
+  game.settings.register(MODULE_ID, 'enableReviewRequests', {
     scope: 'world',
-    config: true,
+    config: false,
     type: Boolean,
     default: false,
-    onChange: () => refreshOpenLevelerWindows(),
+  });
+
+  game.settings.register(MODULE_ID, 'requireReviewApproval', {
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: false,
+  });
+
+  game.settings.register(MODULE_ID, 'reviewWorkflowMigrated', {
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: false,
   });
 
   game.settings.register(MODULE_ID, 'ignoreFreeArchetypeDedicationLock', {
@@ -372,4 +390,20 @@ export async function migrateWealthSettings() {
   if (goldLimit > 0) {
     await game.settings.set(MODULE_ID, 'startingWealthMode', 'CUSTOM');
   }
+}
+
+export async function migrateReviewWorkflowSettings() {
+  if (!game.user.isGM) return;
+  if (game.settings.get(MODULE_ID, 'reviewWorkflowMigrated') === true) return;
+
+  const required = game.settings.get(MODULE_ID, 'requireReviewApproval') === true;
+  const optional = game.settings.get(MODULE_ID, 'enableReviewRequests') === true;
+  const mode = required
+    ? REVIEW_WORKFLOW_MODES.REQUIRED
+    : optional
+      ? REVIEW_WORKFLOW_MODES.OPTIONAL
+      : REVIEW_WORKFLOW_MODES.DISABLED;
+
+  await game.settings.set(MODULE_ID, 'reviewWorkflowMode', mode);
+  await game.settings.set(MODULE_ID, 'reviewWorkflowMigrated', true);
 }

@@ -2,6 +2,7 @@ import { MODULE_ID } from '../constants.js';
 
 export const REVIEW_REQUESTS_SETTING = 'reviewRequests';
 export const REVIEW_REQUEST_STATUS = { PENDING: 'pending', RESOLVED: 'resolved', DISMISSED: 'dismissed' };
+export const REVIEW_WORKFLOW_MODES = { DISABLED: 'disabled', OPTIONAL: 'optional', REQUIRED: 'required' };
 
 // socketlib socket handle, set on the 'socketlib.ready' hook (see registerReviewRequestSocket).
 let socket = null;
@@ -43,25 +44,28 @@ export function getReviewRequests() {
 }
 
 export function isReviewRequestEnabled() {
-  try {
-    return game.settings.get(MODULE_ID, 'enableReviewRequests') === true;
-  } catch {
-    return false;
-  }
+  return getReviewWorkflowMode() !== REVIEW_WORKFLOW_MODES.DISABLED;
 }
 
 export function isReviewApprovalRequired() {
+  return getReviewWorkflowMode() === REVIEW_WORKFLOW_MODES.REQUIRED;
+}
+
+export function getReviewWorkflowMode() {
   try {
-    return game.settings.get(MODULE_ID, 'requireReviewApproval') === true;
+    const mode = game.settings.get(MODULE_ID, 'reviewWorkflowMode');
+    if (Object.values(REVIEW_WORKFLOW_MODES).includes(mode)) return mode;
+
+    if (game.settings.get(MODULE_ID, 'requireReviewApproval') === true) return REVIEW_WORKFLOW_MODES.REQUIRED;
+    if (game.settings.get(MODULE_ID, 'enableReviewRequests') === true) return REVIEW_WORKFLOW_MODES.OPTIONAL;
+    return REVIEW_WORKFLOW_MODES.DISABLED;
   } catch {
-    return false;
+    return REVIEW_WORKFLOW_MODES.DISABLED;
   }
 }
 
-// The review-request UI (buttons, dialog, submit) is active when EITHER the optional-requests
-// setting or the require-approval gate is on — otherwise players could be blocked with no way to ask.
 export function isReviewFeatureActive() {
-  return isReviewRequestEnabled() || isReviewApprovalRequired();
+  return isReviewRequestEnabled();
 }
 
 export function hasApprovedReview(actorId) {

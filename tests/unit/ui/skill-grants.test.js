@@ -1165,7 +1165,7 @@ describe('CharacterWizard skills step grants', () => {
     ]));
   });
 
-  it('shows future skill hints from dual-class granted feat choice sections', async () => {
+  it('moves pre-skill class training choices into the skills step', async () => {
     const originalConfig = global.CONFIG;
     global.CONFIG = {
       ...originalConfig,
@@ -1188,6 +1188,9 @@ describe('CharacterWizard skills step grants', () => {
             trainedSkills: {
               additional: 3,
               value: [],
+            },
+            description: {
+              value: '<p>You are trained in your choice of Acrobatics or Athletics.</p>',
             },
             rules: [
               {
@@ -1225,21 +1228,119 @@ describe('CharacterWizard skills step grants', () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard.data.class = { slug: 'wizard', uuid: 'class-uuid', name: 'Wizard' };
     wizard.data.dualClass = { slug: 'fighter', uuid: 'dual-class-uuid', name: 'Fighter' };
+    wizard.data.skills = ['nature', 'religion'];
+    jest.spyOn(wizard, '_getAdditionalSkillCount').mockResolvedValue(2);
 
     await wizard._refreshGrantedFeatChoiceSections();
-    const context = await wizard._buildSkillContext();
+    wizard.currentStep = 19;
+    const context = await wizard._getStepContext();
 
     try {
-      expect(context.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
-        futureSkillChoices: [
-          expect.objectContaining({ sourceLabel: 'Fighter', prompt: 'Select a skill.' }),
-        ],
+      expect(wizard.data.grantedFeatSections).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          slot: 'dual-class-uuid',
+          choiceStep: 'skills',
+        }),
+      ]));
+      expect(context.skillChoiceSections).toEqual([
+        expect.objectContaining({
+          slot: 'dual-class-uuid',
+          sourceLabel: 'Fighter',
+          choiceSets: [
+            expect.objectContaining({
+              flag: 'fighterSkill',
+              options: expect.arrayContaining([
+                expect.objectContaining({ value: 'acr', label: 'Acrobatics' }),
+                expect.objectContaining({ value: 'ath', label: 'Athletics' }),
+              ]),
+            }),
+          ],
+        }),
+      ]);
+      expect(context.skills.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
+        futureSkillChoices: [],
+        requiredChoiceReserved: true,
       }));
-      expect(context.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({
-        futureSkillChoices: [
-          expect.objectContaining({ sourceLabel: 'Fighter', prompt: 'Select a skill.' }),
-        ],
+      expect(context.skillChoicesComplete).toBe(false);
+      expect(wizard._isStepComplete('skills')).toBe(false);
+
+      wizard.data.grantedFeatChoices['dual-class-uuid'] = { fighterSkill: 'acr' };
+      const selectedContext = await wizard._getStepContext();
+
+      expect(selectedContext.skills.find((entry) => entry.slug === 'acrobatics')).toEqual(expect.objectContaining({
+        autoTrained: true,
+        source: 'Fighter',
       }));
+      expect(selectedContext.skills.find((entry) => entry.slug === 'athletics')).toEqual(expect.objectContaining({
+        autoTrained: false,
+        requiredChoiceReserved: false,
+      }));
+      expect(selectedContext.skillChoiceSections[0].choiceSets[0].options.find((option) => option.selected)).toEqual(
+        expect.objectContaining({
+          autoTrained: false,
+          autoTrainedSource: null,
+          selectedInSkills: false,
+        }),
+      );
+      expect(selectedContext.skillChoicesComplete).toBe(true);
+      expect(wizard._isStepComplete('skills')).toBe(true);
+      await expect(wizard._getPendingChoices()).resolves.toEqual([]);
+    } finally {
+      global.CONFIG = originalConfig;
+    }
+  });
+
+  it('renders required skill choices before additional skills without later hints', () => {
+    const template = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../../templates/character-wizard.hbs'),
+      'utf8',
+    );
+
+    expect(template.indexOf('{{#each skillChoiceSections}}')).toBeLessThan(
+      template.indexOf('<div class="skill-btn-grid">', template.indexOf('{{else if (eq stepId "skills")}}')),
+    );
+    expect(template).not.toContain('Later: {{this.sourceLabel}}');
+  });
+
+  it('routes cached legacy class skill choices to Skills without choice-step metadata', async () => {
+    const originalConfig = global.CONFIG;
+    global.CONFIG = {
+      ...originalConfig,
+      PF2E: {
+        ...(originalConfig?.PF2E ?? {}),
+        skills: {
+          acr: 'Acrobatics',
+          ath: 'Athletics',
+        },
+      },
+    };
+
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
+    wizard.data.grantedFeatSections = [{
+      slot: 'class-uuid',
+      featName: 'Fighter',
+      sourceName: 'Fighter',
+      choiceSets: [{
+        flag: 'fighterSkill',
+        prompt: 'Select a skill.',
+        options: [
+          { value: 'acr', label: 'Acrobatics' },
+          { value: 'ath', label: 'Athletics' },
+        ],
+      }],
+    }];
+    wizard.currentStep = 19;
+
+    try {
+      const skillsContext = await wizard._getStepContext();
+      const featChoicesContext = await wizard._buildFeatChoicesContext();
+
+      expect(skillsContext.skillChoiceSections).toEqual([
+        expect.objectContaining({ slot: 'class-uuid', sourceLabel: 'Fighter' }),
+      ]);
+      expect(featChoicesContext.featChoiceSections).toEqual([]);
+      expect(wizard._isStepComplete('skills')).toBe(false);
     } finally {
       global.CONFIG = originalConfig;
     }

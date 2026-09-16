@@ -281,6 +281,9 @@
         "CREATION_COMPLETE": "Character created successfully!",
       "BOOSTS_HINT": "Choose 4 different ability scores to boost.",
       "SKILLS_HINT": "Choose {count} additional skills to train.",
+      "REQUIRED_SKILL_TRAINING": "Required Skill Training",
+      "REQUIRED_SKILL_TRAINING_HINT": "Resolve these granted skill choices before continuing.",
+      "REQUIRED_SKILL_RESERVED": "Choose this in required training above.",
       "LANGUAGES_HINT": "Choose {count} additional languages.",
       "GRANTED_LANGUAGES": "Granted Languages",
       "GRANTED_LORES": "Granted Lore Skills",
@@ -534,63 +537,66 @@
     },
     "SETTINGS": {
       "SHOW_BUTTON": {
-        "NAME": "Show Plan Button",
-        "HINT": "Show the 'Plan Levels' button on character sheets"
+        "NAME": "Show \"Plan Levels\" on Character Sheets",
+        "HINT": "Shows the Plan Levels button on supported character sheets."
       },
       "AUTO_APPLY": {
-        "NAME": "Auto-Apply on Level Up",
-        "HINT": "Automatically prompt to apply planned selections when a character levels up"
+        "NAME": "Prompt to Apply Plan on Level Up",
+        "HINT": "When a character's level increases, prompts the user to apply planned selections for the newly gained levels."
       },
       "ALLOW_INCOMPLETE_CREATION": {
         "NAME": "Allow Incomplete Character Creation",
-        "HINT": "Let players apply character creation even when not every wizard step is complete."
+        "HINT": "Allows GMs and players to finish Character Creation before every required step is complete."
       },
       "SHOW_PREREQUISITES": {
-        "NAME": "Show Prerequisites",
-        "HINT": "Show prerequisite validation status on feats in the picker"
+        "NAME": "Show Feat Prerequisite Results",
+        "HINT": "Shows which feat prerequisites are met, unmet, or unresolved. This setting does not block selection."
+      },
+      "ENFORCE_PREREQUISITES": {
+        "NAME": "Enforce Feat Prerequisites",
+        "HINT": "Prevents selecting feats with unmet prerequisites. Disable this to show prerequisite results without blocking selection."
       },
       "IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK": {
-        "NAME": "Ignore Free Archetype Dedication Lock",
-        "HINT": "When the Free Archetype variant is in use, allow new dedication feats in free archetype slots without requiring two other feats from the current archetype first."
+        "NAME": "Relax Free Archetype Dedication Limit",
+        "HINT": "Allows a new dedication in Free Archetype slots without first taking two additional feats from the current archetype."
       },
       "ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT": {
         "NAME": "Enforce Subclass Dedication Requirement",
-        "HINT": "When enabled, subclass or class-archetype text such as 'You must select X Dedication as your 2nd-level class feat' restricts the level 2 class feat picker and validation to that dedication."
+        "HINT": "At level 2, requires the dedication specified by the selected subclass or class archetype."
       },
-      "ENABLE_REVIEW_REQUESTS": {
-        "NAME": "Enable player review requests",
-        "HINT": "Adds a \"Request GM review\" button for non-GM players in the Level Planner and Character Creation, letting them send you their build for review. Requests appear in the Player Review Requests panel. Off by default."
-      },
-      "REQUIRE_REVIEW_APPROVAL": {
-        "NAME": "Require GM approval before applying",
-        "HINT": "When on, non-GM players must get a review request approved (Resolved) before they can apply a level-up or finish Character Creation for a character. Approval stays valid until you Reopen or Dismiss the request. Requires the review-request workflow; the request button appears even if 'Enable player review requests' is off. Off by default."
+      "REVIEW_WORKFLOW": {
+        "NAME": "Player Review Workflow",
+        "HINT": "Controls whether players can request GM review and whether approval is required before applying character changes. Approval applies to the character, not a frozen build, and remains valid until the request is reopened or dismissed.",
+        "DISABLED": "Disabled",
+        "OPTIONAL": "Optional Review",
+        "REQUIRED": "Approval Required"
       },
       "HIDE_UNCOMMON": {
-        "NAME": "Hide Uncommon Feats",
-        "HINT": "Hide uncommon and rarer feats from the feat picker by default"
+        "NAME": "Start Feat Pickers with Uncommon Feats Hidden",
+        "HINT": "Disables the Uncommon rarity filter when a feat picker opens. Users with access can turn the filter back on."
       },
       "HIDE_RARE": {
-        "NAME": "Hide Rare Feats",
-        "HINT": "Hide rare feats from the feat picker by default"
+        "NAME": "Start Feat Pickers with Rare Feats Hidden",
+        "HINT": "Disables the Rare rarity filter when a feat picker opens. Users with access can turn the filter back on."
       },
       "PLAYER_RARITY": {
-        "UNCOMMON_NAME": "Players Can Use Uncommon Options",
-        "UNCOMMON_HINT": "Allow non-GM users to see and select uncommon content in character creation and leveling tools.",
-        "RARE_NAME": "Players Can Use Rare Options",
-        "RARE_HINT": "Allow non-GM users to see and select rare content in character creation and leveling tools.",
-        "UNIQUE_NAME": "Players Can Use Unique Options",
-        "UNIQUE_HINT": "Allow non-GM users to see and select unique content in character creation and leveling tools."
+        "UNCOMMON_NAME": "Allow Players to Use Uncommon Content",
+        "UNCOMMON_HINT": "Allows non-GM users to see and select uncommon content in Character Creation and Level Planner.",
+        "RARE_NAME": "Allow Players to Use Rare Content",
+        "RARE_HINT": "Allows non-GM users to see and select rare content in Character Creation and Level Planner.",
+        "UNIQUE_NAME": "Allow Players to Use Unique Content",
+        "UNIQUE_HINT": "Allows non-GM users to see and select unique content in Character Creation and Level Planner."
       },
       "PLAYER_COMPENDIUM_ACCESS": {
-        "NAME": "Player Content Sources",
-        "LABEL": "Configure Player Sources",
-        "HINT": "Choose which compendium sources non-GM users can access in character creation and leveling tools.",
-        "ENABLED_NAME": "Restrict Player Content Sources",
-        "ENABLED_HINT": "Limit non-GM users to the compendium sources selected in Player Content Sources."
+        "NAME": "Allowed Player Content Sources",
+        "LABEL": "Configure Allowed Sources",
+        "HINT": "Choose which compendium sources non-GM users may access when source restrictions are enabled.",
+        "ENABLED_NAME": "Enforce Player Content Source Restrictions",
+        "ENABLED_HINT": "Limits non-GM users to sources selected under Allowed Player Content Sources."
       },
       "FEAT_SORT": {
         "NAME": "Default Feat Sort",
-        "HINT": "How to sort feats in the feat picker by default",
+        "HINT": "Controls how feats are sorted when a feat picker opens.",
         "LEVEL_DESC": "Level (High to Low)",
         "LEVEL_ASC": "Level (Low to High)",
         "ALPHA_ASC": "Alphabetical (A-Z)",
@@ -602,15 +608,15 @@
       },
       "STARTING_WEALTH": {
         "MODE_NAME": "Starting Wealth Mode",
-        "MODE_HINT": "How starting equipment budget is determined. Items + Currency uses Table 10-10 with permanent item slots and a currency allowance. Lump Sum uses the flat gold value from Table 10-10. Custom uses a manual gold limit.",
+        "MODE_HINT": "Controls the starting-equipment budget used by Character Creation. Items + Currency and Lump Sum use PF2e Table 10-10; Custom uses a manual budget.",
         "DISABLED": "Disabled",
         "ITEMS_AND_CURRENCY": "Items + Currency (Table 10-10)",
         "LUMP_SUM": "Lump Sum (Table 10-10)",
         "CUSTOM": "Custom Gold Limit"
       },
       "EQUIPMENT_GOLD_LIMIT": {
-        "NAME": "Custom Gold Limit",
-        "HINT": "Gold piece budget for Custom wealth mode. Only applies when Starting Wealth Mode is set to Custom.",
+        "NAME": "Custom Starting Equipment Budget (gp)",
+        "HINT": "Maximum starting-equipment cost when Starting Wealth Mode is Custom.",
         "EXCEEDED": "This item would exceed the starting equipment budget of {limit} gp.",
         "EXCEEDED_TOOLTIP": "Total cost exceeds the set gold limit."
       },
@@ -620,7 +626,7 @@
       },
       "DUAL_CLASS_SUPPORT": {
         "NAME": "Enable Dual Class Support",
-        "HINT": "Enable PF2E Leveler's dual class planner support when the PF2E dual class variant rule is active."
+        "HINT": "Adds second-class selection and dual-class progression to Character Creation and Level Planner."
       },
       "ADDITIONAL_COMPENDIUMS": {
         "NAME": "Additional Feat Compendiums",
@@ -674,16 +680,16 @@
         "LANGUAGES": "Languages"
       },
       "CONTENT_GUIDANCE": {
-        "NAME": "Suggested Character Options",
-        "LABEL": "Configure Suggestions",
+        "NAME": "Content Guidance and Restrictions",
+        "LABEL": "Configure Guidance",
         "HINT": "Mark character options as allowed, suggested, not recommended, exclusive, free-archetype exclusive, or disallowed for players. Suggested items appear with a star badge and sort to the top. Exclusive items limit player choices to the exclusive list for that tab. Free-archetype exclusive items limit only free archetype picks. Disallowed items can be hidden or shown as unselectable for players.",
         "SAVED": "Content guidance saved.",
         "INTRO": "Mark items as allowed, suggested, not recommended, exclusive, free-archetype exclusive, or disallowed. Suggested items get a star badge and sort to the top in pickers. Exclusive items limit player choices to the exclusive list for that tab. Free-archetype exclusive items limit only free archetype picks. Disallowed items can be hidden or shown as unselectable for non-GM users.",
         "PLAYER_DISALLOWED_MODE": {
-          "NAME": "Player Disallowed Content",
-          "HINT": "Choose whether player-disallowed options are hidden entirely or remain visible but unselectable for non-GM users.",
-          "HIDDEN": "Hide from Players",
-          "UNSELECTABLE": "Show as Unselectable"
+          "NAME": "Display Disallowed Content to Players",
+          "HINT": "Controls whether options marked Disallowed are hidden from non-GM users or shown but disabled.",
+          "HIDDEN": "Hide Completely",
+          "UNSELECTABLE": "Show Disabled"
         },
         "SEARCH": "Search items...",
         "ALLOWED": "Allowed",
@@ -728,8 +734,8 @@
         "MATCHED_COUNT": "{count} items"
       },
       "PUBLICATION_FILTER_VISIBILITY": {
-        "NAME": "Disallowed sources in filters",
-        "HINT": "Controls whether sources you have marked Disallowed in Content Guidance still appear in the publication filter lists. Items from disallowed sources are filtered out regardless; this only affects the filter list itself.",
+        "NAME": "Show Disallowed Sources in Publication Filters",
+        "HINT": "Controls whether sources marked Disallowed appear as filter options. Their items remain unavailable regardless.",
         "SHOW": "Show in filter lists",
         "HIDE": "Hide from filter lists",
         "HIDE_NON_GM": "Hide for players only"
@@ -738,26 +744,26 @@
     "REVIEW_REQUEST": {
       "SENT": "Review request sent to the GM.",
       "RECEIVED": "{name} requested GM review of {item}.",
-      "BUTTON": "Request GM review",
+      "BUTTON": "Request GM Review",
       "DIALOG_TITLE": "Request GM Review",
       "DIALOG_PROMPT": "Ask the GM to review \"{item}\". Add an optional note (reasoning, backstory, etc.):",
-      "SUBMIT": "Send request",
+      "SUBMIT": "Send Request",
       "PANEL_TITLE": "Review Requests",
       "MENU_NAME": "Player Review Requests",
       "MENU_LABEL": "Open Review Requests",
-      "MENU_HINT": "Review item/feat/spell requests your players have sent for approval.",
+      "MENU_HINT": "Review character-creation builds and level-up plans submitted by players.",
       "EMPTY": "No review requests yet.",
-      "INTRO": "Requests your players have sent for GM review. Marking a request resolved or dismissed is informational only — nothing is auto-applied.",
+      "INTRO": "Approve, dismiss, or reopen player review requests. When approval is required, approving a request allows that character to apply changes. Approval remains valid until the request is reopened or dismissed.",
       "STATUS_PENDING": "Pending",
-      "STATUS_RESOLVED": "Resolved",
+      "STATUS_RESOLVED": "Approved",
       "STATUS_DISMISSED": "Dismissed",
-      "ACTION_RESOLVE": "Resolve",
+      "ACTION_RESOLVE": "Approve",
       "ACTION_DISMISS": "Dismiss",
       "ACTION_REOPEN": "Reopen",
-      "ACTION_DELETE": "Delete request",
+      "ACTION_DELETE": "Delete Request",
       "REQUESTED_BY": "Requested by {name}",
       "FOR_CHARACTER": "Character: {actor}",
-      "APPROVAL_REQUIRED": "Your GM must approve a review request for this character before you can apply. Use \"Request GM review\" first."
+      "APPROVAL_REQUIRED": "Your GM must approve a review request for this character before you can apply. Use Request GM Review first."
     },
     "PLAN_COMMENTS": {
       "TITLE": "Comments",

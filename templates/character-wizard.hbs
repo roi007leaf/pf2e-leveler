@@ -1308,6 +1308,37 @@
 
     {{else if (eq stepId "skills")}}
       <h2>{{localize "PF2E_LEVELER.CREATION.STEPS.SKILLS"}}</h2>
+      {{#if skillChoiceSections.length}}
+      <div class="section-header wizard-choice-source">
+        <i class="section-header__icon fa-solid fa-list-check"></i>
+        {{localize "PF2E_LEVELER.CREATION.REQUIRED_SKILL_TRAINING"}}
+      </div>
+      <p class="wizard-hint">{{localize "PF2E_LEVELER.CREATION.REQUIRED_SKILL_TRAINING_HINT"}}</p>
+      {{#each skillChoiceSections}}
+        {{#each this.choiceSets}}
+        <div class="wizard-choice-block">
+          <div class="section-header">
+            <i class="section-header__icon fa-solid fa-graduation-cap"></i>
+            {{../sourceLabel}}: {{this.prompt}}
+          </div>
+          <div class="skill-btn-grid">
+            {{#each this.options}}
+            <button type="button"
+              class="skill-btn wizard-choice-btn {{#if this.selected}}selected{{/if}}"
+              data-action="selectFeatChoice" data-slot="{{../../slot}}" data-target="{{../../target}}" data-flag="{{../flag}}" data-value="{{this.value}}" {{#if this.disabled}}disabled{{/if}}>
+              <span class="skill-btn__content">
+                <span class="skill-btn__name">{{this.label}}</span>
+                {{#if this.selectedInSkills}}<span class="skill-btn__hint">Selected as an additional skill</span>{{/if}}
+                {{#if this.autoTrained}}<span class="skill-btn__hint">Already trained from {{this.autoTrainedSource}}</span>{{/if}}
+              </span>
+              {{#if this.selected}}<span class="skill-btn__rank rank-text-trained">{{localize "PF2E_LEVELER.UI.SELECTED"}}</span>{{/if}}
+            </button>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+      {{/each}}
+      {{/if}}
       <p class="wizard-hint">{{format "PF2E_LEVELER.CREATION.SKILLS_HINT" count=maxSkills}} ({{selectedCount}}/{{maxSkills}})</p>
       {{#if skillsNote}}
       <div class="feat-slot__note" style="margin-bottom: var(--leveler-spacing-md);">
@@ -1328,7 +1359,7 @@
         {{else}}
         <button type="button"
           class="skill-btn skill-btn--stacked {{#if this.selected}}selected{{/if}} {{#if this.isRecommended}}skill-btn--recommended{{/if}}"
-          data-action="toggleSkill" data-skill="{{this.slug}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}} data-tooltip="{{#if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
+          data-action="toggleSkill" data-skill="{{this.slug}}" {{#if this.guidanceSelectionBlocked}}disabled{{/if}}{{#if this.requiredChoiceReserved}}disabled{{/if}} data-tooltip="{{#if this.requiredChoiceReserved}}{{localize 'PF2E_LEVELER.CREATION.REQUIRED_SKILL_RESERVED'}}{{else if this.isDisallowed}}{{this.guidanceSelectionTooltip}}{{/if}}">
           <span class="skill-btn__content">
             <span class="skill-btn__name">{{this.label}}</span>
             <span class="skill-btn__tags">
@@ -1336,13 +1367,7 @@
             {{#if this.isNotRecommended}}<span class="tag tag--muted tag--tiny"><i class="fa-solid fa-triangle-exclamation"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_NOT_RECOMMENDED"}}</span>{{/if}}
             {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
             </span>
-            {{#if this.futureSkillChoices.length}}
-            <span class="skill-btn__hint">
-              {{#each this.futureSkillChoices}}
-              {{#unless @first}} • {{/unless}}Later: {{this.sourceLabel}}
-              {{/each}}
-            </span>
-            {{/if}}
+            {{#if this.requiredChoiceReserved}}<span class="skill-btn__hint">{{localize "PF2E_LEVELER.CREATION.REQUIRED_SKILL_RESERVED"}}</span>{{/if}}
           </span>
           <span class="skill-btn__rank rank-text-trained" style="{{#unless this.selected}}visibility: hidden;{{/unless}}">{{localize "PF2E_LEVELER.SKILLS.TRAINED"}}</span>
         </button>

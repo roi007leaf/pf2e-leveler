@@ -19,6 +19,13 @@ function variantSettings() {
   };
 }
 
+function recoverySettings() {
+  return [
+    ...Object.values(variantSettings()),
+    { namespace: MODULE_ID, key: 'startingWealthMode' },
+  ];
+}
+
 function requireGm() {
   if (!game.user?.isGM) throw Error('QA GM required');
 }
@@ -36,7 +43,7 @@ function requireRegisteredSetting({ namespace, key }) {
 export function snapshotVariantSettings({ world }) {
   requireGm();
   requireWorld(world);
-  return Object.values(variantSettings()).map(({ namespace, key }) => {
+  return recoverySettings().map(({ namespace, key }) => {
     requireRegisteredSetting({ namespace, key });
     return { namespace, key, value: foundry.utils.deepClone(game.settings.get(namespace, key)) };
   });
@@ -49,7 +56,7 @@ export async function restoreVariantSettings({ world, settings }) {
   if (!Array.isArray(settings)) throw Error('Variant settings recovery snapshot is invalid');
   for (const setting of settings) {
     const { namespace, key, value } = setting ?? {};
-    const allowed = Object.values(variantSettings()).some(
+    const allowed = recoverySettings().some(
       (entry) => entry.namespace === namespace && entry.key === key,
     );
     if (!allowed) throw Error(`Refusing to restore unowned setting: ${namespace}.${key}`);
@@ -65,7 +72,7 @@ export function verifyVariantSettings({ world, settings }) {
   if (settings === undefined) return { restored: true };
   if (!Array.isArray(settings)) throw Error('Variant settings recovery snapshot is invalid');
   const mismatches = settings.filter(({ namespace, key, value }) => {
-    const allowed = Object.values(variantSettings()).some(
+    const allowed = recoverySettings().some(
       (entry) => entry.namespace === namespace && entry.key === key,
     );
     if (!allowed) throw Error(`Refusing to verify unowned setting: ${namespace}.${key}`);
@@ -785,6 +792,116 @@ export async function wizardPendingChoiceAudit(data) {
   return {
     conditionalChoiceDetected: Boolean(detected),
     incompleteBeforeChoice: detected ? !wizard._isStepComplete(detected) : false,
+  };
+}
+
+function fighterSkillChoiceBlock(wizard) {
+  return [...(wizard.element?.querySelectorAll('.wizard-choice-block') ?? [])].find((block) => {
+    const heading = block.querySelector('.section-header')?.textContent ?? '';
+    return /fighter/iu.test(heading) && /select a skill/iu.test(heading);
+  });
+}
+
+export async function wizardFighterSkillChoiceAudit(data) {
+  const wizard = await openWizardFor(data);
+  await selectCoreCreation(wizard, 'fighter');
+  await clickWizardStep(wizard, 'skills');
+
+  const skillsBlock = await waitFor(
+    () => fighterSkillChoiceBlock(wizard),
+    'Fighter skill choice did not render in Skills',
+    90000,
+  );
+  const choice = [...skillsBlock.querySelectorAll('[data-action="selectFeatChoice"]')]
+    .find((button) => !button.disabled);
+  if (!choice) throw Error('Fighter skill choice rendered without a selectable option');
+
+  const selected = {
+    slot: choice.dataset.slot,
+    flag: choice.dataset.flag,
+    value: choice.dataset.value,
+  };
+  choice.click();
+  const selectedButton = await waitFor(() => {
+    const block = fighterSkillChoiceBlock(wizard);
+    return [...(block?.querySelectorAll('[data-action="selectFeatChoice"]') ?? [])].find(
+      (button) =>
+        button.dataset.slot === selected.slot &&
+        button.dataset.flag === selected.flag &&
+        button.dataset.value === selected.value &&
+        button.classList.contains('selected'),
+    );
+  }, 'Fighter skill choice did not remain selected after rerender');
+
+  let absentFromFeatChoices = true;
+  if (wizard.visibleSteps.includes('featChoices')) {
+    await clickWizardStep(wizard, 'featChoices');
+    absentFromFeatChoices = !fighterSkillChoiceBlock(wizard);
+  }
+
+  return {
+    shownInSkills: Boolean(skillsBlock),
+    absentFromFeatChoices,
+    selectedWithoutRedundantSourceLabel:
+      /selected/iu.test(selectedButton.textContent ?? '') &&
+      !/already trained from fighter/iu.test(selectedButton.textContent ?? ''),
+  };
+}
+
+export async function creationEquipmentBudgetRemainderAudit(data) {
+  const actor = ownedActor(data);
+  const pack = game.packs.get('pf2e.equipment-srd');
+  if (!pack) throw Error('PF2e equipment compendium unavailable');
+  const index = await pack.getIndex({ fields: ['type'] });
+  const entry = index.find((item) =>
+    ['armor', 'backpack', 'consumable', 'equipment', 'shield', 'weapon'].includes(item.type));
+  if (!entry) throw Error('PF2e equipment compendium has no physical item');
+  const equipment = await pack.getDocument(entry._id);
+  if (!equipment) throw Error('PF2e equipment document could not be loaded');
+
+  const previousMode = game.settings.get(MODULE_ID, 'startingWealthMode');
+  const beforeMessages = new Set(game.messages.keys());
+  const { applyCreation } = await import('/modules/pf2e-leveler/scripts/creation/apply-creation.js');
+  try {
+    await game.settings.set(MODULE_ID, 'startingWealthMode', 'ITEMS_AND_CURRENCY');
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      dualClass: null,
+      subclass: null,
+      dualSubclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [],
+      permanentItems: [],
+      equipment: [{
+        uuid: equipment.uuid,
+        name: equipment.name,
+        quantity: 1,
+        price: { gp: 4, sp: 5 },
+        pricePer: 1,
+      }],
+      spells: { cantrips: [], rank1: [] },
+    });
+  } finally {
+    await game.settings.set(MODULE_ID, 'startingWealthMode', previousMode);
+    await markNewMessages(data.runId, beforeMessages);
+  }
+
+  return {
+    equipmentCreated: actor.items.some((item) => item.sourceId === equipment.uuid),
+    exactRemainderAdded: actor.inventory.coins.copperValue === 1050,
   };
 }
 

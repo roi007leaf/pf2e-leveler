@@ -278,7 +278,7 @@ export async function buildSkillContext(wizard) {
   ];
   const deitySkills = await collectWizardDeitySkillMap(wizard);
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
-  const featChoiceSkillSet = buildResolvedSkillChoiceSet(wizard);
+  const featChoiceSkillMap = buildResolvedSkillChoiceMap(wizard);
   const featChoicesSource = localizeWithFallback('CREATION.FEAT_CHOICES', 'Feat Choices');
   return getActiveSkillSlugs().map((slug) => {
     const fromClass = classSkills.includes(slug);
@@ -287,7 +287,8 @@ export async function buildSkillContext(wizard) {
     const fromHeritage = heritageGrantedSkills.includes(slug);
     const fromDeity = deitySkills.has(slug);
     const fromFeatGrant = featGrantedSkills.includes(slug);
-    const fromFeatChoices = featChoiceSkillSet.has(slug);
+    const featChoice = featChoiceSkillMap.get(slug) ?? null;
+    const fromFeatChoices = !!featChoice;
     const autoTrained = fromClass || fromBg || fromSubclass || fromHeritage || fromDeity || fromFeatGrant || fromFeatChoices;
     const source = fromClass
       ? localizeWithFallback('CREATION.AUTO_TRAINED_CLASS', 'Class')
@@ -305,7 +306,7 @@ export async function buildSkillContext(wizard) {
             : fromFeatGrant
               ? getFeatGrantedSkillSource(wizard, slug)
               : fromFeatChoices
-                ? featChoicesSource
+                ? (featChoice.choiceStep === 'skills' ? featChoice.sourceLabel : featChoicesSource)
                 : null;
     return {
       slug,
@@ -685,12 +686,14 @@ function buildFutureSkillChoiceMap(wizard) {
       : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
+      choiceStep: section.choiceStep ?? 'featChoices',
       choiceSets: section.choiceSets ?? [],
       choices: getGrantedFeatChoiceValues(wizard.data, section.slot),
     }))),
   ].filter(Boolean);
 
   for (const section of sections) {
+    if (section.choiceStep === 'skills') continue;
     for (const choiceSet of section.choiceSets) {
       const selectedSlug = resolveSkillSlugFromValue(choiceSet, section.choices?.[choiceSet.flag]);
       if (selectedSlug) continue;
@@ -721,8 +724,8 @@ function isUnrestrictedSkillChoiceSet(skillSlugs) {
   return activeSkills.every((slug) => set.has(slug));
 }
 
-function buildResolvedSkillChoiceSet(wizard) {
-  const selected = new Set();
+function buildResolvedSkillChoiceMap(wizard) {
+  const selected = new Map();
   const sections = [
     ...getSubclassSkillChoiceSections(wizard.data),
     wizard.data.ancestryFeat
@@ -756,6 +759,8 @@ function buildResolvedSkillChoiceSet(wizard) {
       }
       : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
+      sourceLabel: section.sourceName ?? section.featName ?? 'Skill Training',
+      choiceStep: section.choiceStep ?? 'featChoices',
       choiceSets: section.choiceSets ?? [],
       choices: getGrantedFeatChoiceValues(wizard.data, section.slot),
     }))),
@@ -764,7 +769,12 @@ function buildResolvedSkillChoiceSet(wizard) {
   for (const section of sections) {
     for (const choiceSet of section.choiceSets) {
       const selectedSlug = resolveSkillSlugFromValue(choiceSet, section.choices?.[choiceSet.flag]);
-      if (selectedSlug) selected.add(selectedSlug);
+      if (selectedSlug) {
+        selected.set(selectedSlug, {
+          sourceLabel: section.sourceLabel ?? 'Feat Choices',
+          choiceStep: section.choiceStep ?? 'featChoices',
+        });
+      }
     }
   }
 

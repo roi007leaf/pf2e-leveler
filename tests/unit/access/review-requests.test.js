@@ -10,6 +10,8 @@ import {
   hasApprovedReview,
   isApplyBlockedForActor,
   isReviewFeatureActive,
+  getReviewWorkflowMode,
+  REVIEW_WORKFLOW_MODES,
 } from '../../../scripts/access/review-requests.js';
 
 describe('review-requests', () => {
@@ -121,32 +123,39 @@ describe('review-requests', () => {
 
     it('blocks a non-GM without approval when approval is required', () => {
       global.game.user.isGM = false;
-      mockSettings({ requireReviewApproval: true, reviewRequests: [] });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.REQUIRED, reviewRequests: [] });
       expect(isApplyBlockedForActor({ id: 'a1' })).toBe(true);
     });
 
     it('allows a non-GM once an approval exists', () => {
       global.game.user.isGM = false;
-      mockSettings({ requireReviewApproval: true, reviewRequests: [{ actorId: 'a1', status: 'resolved' }] });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.REQUIRED, reviewRequests: [{ actorId: 'a1', status: 'resolved' }] });
       expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
     });
 
     it('never blocks a GM, and never blocks when approval is not required', () => {
-      mockSettings({ requireReviewApproval: true, reviewRequests: [] });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.REQUIRED, reviewRequests: [] });
       global.game.user.isGM = true;
       expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
       global.game.user.isGM = false;
-      mockSettings({ requireReviewApproval: false, reviewRequests: [] });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.OPTIONAL, reviewRequests: [] });
       expect(isApplyBlockedForActor({ id: 'a1' })).toBe(false);
     });
 
-    it('isReviewFeatureActive is true if either setting is on', () => {
-      mockSettings({ enableReviewRequests: true, requireReviewApproval: false });
+    it('activates review UI in optional and required modes', () => {
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.OPTIONAL });
       expect(isReviewFeatureActive()).toBe(true);
-      mockSettings({ enableReviewRequests: false, requireReviewApproval: true });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.REQUIRED });
       expect(isReviewFeatureActive()).toBe(true);
-      mockSettings({ enableReviewRequests: false, requireReviewApproval: false });
+      mockSettings({ reviewWorkflowMode: REVIEW_WORKFLOW_MODES.DISABLED });
       expect(isReviewFeatureActive()).toBe(false);
+    });
+
+    it('falls back to legacy settings before migration', () => {
+      mockSettings({ reviewWorkflowMode: undefined, requireReviewApproval: true, enableReviewRequests: false });
+      expect(getReviewWorkflowMode()).toBe(REVIEW_WORKFLOW_MODES.REQUIRED);
+      mockSettings({ reviewWorkflowMode: undefined, requireReviewApproval: false, enableReviewRequests: true });
+      expect(getReviewWorkflowMode()).toBe(REVIEW_WORKFLOW_MODES.OPTIONAL);
     });
   });
 });

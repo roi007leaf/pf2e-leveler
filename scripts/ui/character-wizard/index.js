@@ -16,7 +16,7 @@ import { inferSf2eSpellcastingTraditionFromItem } from '../../utils/sf2e-spellca
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
 import { createMixedAncestryHeritage, getMixedAncestrySelectedValue, isMixedAncestryHeritageUuid } from '../../heritages/mixed-ancestry.js';
-import { buildFeatChoicesContext, buildSubclassChoicesContext, extractChoiceValue, findMatchingChoiceOption, formatChoiceLabel, getPendingChoices, getSelectedChoiceLabels, getSelectedFeatChoiceLabels, getSelectedSubclassChoiceLabels, hydrateChoiceSets, isHandlerManagedFocusSpellChoiceRenderSection, isRawValueChoiceSet, parseChoiceSets, refreshGrantedFeatChoiceSections, buildMixedAncestryChoiceOptions, getSelectedHandlerChoiceSourceItems } from './choice-sets.js';
+import { areSkillTrainingChoicesComplete, buildFeatChoicesContext, buildSkillTrainingChoicesContext, buildSubclassChoicesContext, extractChoiceValue, findMatchingChoiceOption, formatChoiceLabel, getPendingChoices, getSelectedChoiceLabels, getSelectedFeatChoiceLabels, getSelectedSubclassChoiceLabels, hydrateChoiceSets, isHandlerManagedFocusSpellChoiceRenderSection, isRawValueChoiceSet, isSkillStepChoiceSet, parseChoiceSets, refreshGrantedFeatChoiceSections, buildMixedAncestryChoiceOptions, getSelectedHandlerChoiceSourceItems } from './choice-sets.js';
 import { buildApplyOverlayContext, getApplyPromptRows, getPromptMatchTexts, matchActivePromptRow, normalizePromptText, resolvePromptSelectionLabel } from './apply-overlay.js';
 import { buildSummaryContext } from './summary.js';
 import { buildLanguageContext, buildSelectedLoreSkillContext, buildSkillContext, collectWizardDeitySkillMap, collectFeatLanguageGrants, getBackgroundLores, getBackgroundTrainedSkills, getLanguageMap, getActiveSkillSlugs, getSelectedSubclassChoiceSkillMap, getActiveSkillConfigEntry, normalizeLoreSkillName, parseSubclassLores } from './skills-languages.js';
@@ -29,6 +29,7 @@ import { filterPublicationsForCurrentUser } from '../../access/source-classifica
 import { renderApplicationInFront, scheduleBringApplicationToFront } from '../shared/window-focus.js';
 import { resolveSpellcastingTradition } from '../../data/subclass-spells.js';
 import { mountPlanComments, collectWizardCommentAnchors } from '../plan-comments-ui.js';
+import { getEquipmentTotalCp, getStartingEquipmentBudgetCp } from '../../creation/starting-wealth.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
@@ -95,18 +96,6 @@ const STEPS = ['ancestry', 'heritage', 'mixedAncestry', 'background', 'class', '
 
 function applyAbilityBoostModifier(modifier) {
   return modifier >= 4 ? modifier + 0.5 : modifier + 1;
-}
-
-function equipmentTotalCp(equipment) {
-  let cp = 0;
-  for (const entry of equipment) {
-    if (!entry.price) continue;
-    const qty = entry.quantity ?? 1;
-    const per = entry.pricePer ?? 1;
-    const unitCp = (entry.price.gp ?? 0) * 100 + (entry.price.sp ?? 0) * 10 + (entry.price.cp ?? 0);
-    cp += Math.ceil((qty / per) * unitCp);
-  }
-  return cp;
 }
 
 function normalizeCp(totalCp) {
@@ -269,6 +258,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const section of data.grantedFeatSections) {
       if (!section?.slot) return false;
       if (!Array.isArray(section.choiceSets)) return false;
+      if (!['skills', 'featChoices'].includes(section.choiceStep)) return false;
     }
 
     return true;
@@ -411,7 +401,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         sourceName: feat?.sourceName,
         choiceSets: feat?.choiceSets ?? [],
       });
-    const visibleGrantedSections = (this.data.grantedFeatSections ?? []).filter((section) => !isHandlerManagedFocusSpellChoiceRenderSection(this, section));
+    const visibleGrantedSections = (this.data.grantedFeatSections ?? []).filter((section) =>
+      !isHandlerManagedFocusSpellChoiceRenderSection(this, section)
+      && (section.choiceSets ?? []).some((choiceSet) => !isSkillStepChoiceSet(section, choiceSet, this.data)));
 
     return hasVisibleChoiceSets('ancestry', this.data.ancestryFeat) || hasVisibleChoiceSets('ancestryParagon', this.data.ancestryParagonFeat) || hasVisibleChoiceSets('class', this.data.classFeat) || hasVisibleChoiceSets('dualClass', this.data.dualClassFeat) || hasVisibleChoiceSets('skill', this.data.skillFeat) || visibleGrantedSections.length > 0 || (this._cachedFeatGrantRequirements?.length ?? 0) > 0 || (this.data.featGrants?.length ?? 0) > 0;
   }
@@ -1393,13 +1385,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getGoldBudgetCp() {
-    const mode = this._getWealthMode();
-    const level = this.actor.system?.details?.level?.value ?? 1;
-    const entry = CHARACTER_WEALTH[level];
-    if (mode === WEALTH_MODES.LUMP_SUM && entry) return entry.lumpSumGp * 100;
-    if (mode === WEALTH_MODES.ITEMS_AND_CURRENCY && entry) return entry.currencyGp * 100;
-    if (mode === WEALTH_MODES.CUSTOM) return (game.settings.get(MODULE_ID, 'startingEquipmentGoldLimit') ?? 0) * 100;
-    return 0;
+    return getStartingEquipmentBudgetCp(this.actor);
   }
 
   _openItemPicker() {
@@ -1409,7 +1395,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         (items) => {
           const selectedItems = Array.isArray(items) ? items : [items];
           const budgetCp = this._getGoldBudgetCp();
-          let currentCp = equipmentTotalCp(this.data.equipment ?? []);
+          let currentCp = getEquipmentTotalCp(this.data.equipment ?? []);
           let changed = false;
           for (const item of selectedItems) {
             if (!item) continue;
@@ -1508,7 +1494,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const entry = CHARACTER_WEALTH[level];
 
     const equipment = this.data.equipment ?? [];
-    const totalCp = equipmentTotalCp(equipment);
+    const totalCp = getEquipmentTotalCp(equipment);
     const totals = normalizeCp(totalCp);
     const totalParts = [];
     if (totals.gp) totalParts.push(`${totals.gp} gp`);
@@ -2021,7 +2007,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat].filter(Boolean).map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
             section,
-            choiceSets: section.choiceSets ?? [],
+            choiceSets: (section.choiceSets ?? []).filter((choiceSet) => !isSkillStepChoiceSet(section, choiceSet, this.data)),
             choices: getGrantedFeatChoiceValues(this.data, section.slot),
           })),
         ].filter((section) => !section.section || !isHandlerManagedFocusSpellChoiceRenderSection(this, section.section));
@@ -2045,7 +2031,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       case 'languages':
         return this.data.languages.length >= (this._cachedMaxLanguages ?? 0);
       case 'skills':
-        return (
+        return areSkillTrainingChoicesComplete(this.data) && (
           (this.data.skills?.length ?? 0) + (this.data.selectedLoreSkills?.length ?? 0)
         ) >= (this._cachedMaxSkills ?? 1);
       case 'feats':
@@ -2274,6 +2260,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const selectedLoreSkills = buildSelectedLoreSkillContext(this);
         const selectedCount = (this.data.skills?.length ?? 0) + selectedLoreSkills.length;
         const skills = await this._buildSkillContext();
+        const skillChoiceContext = await buildSkillTrainingChoicesContext(this);
+        const reservedSkillChoices = new Set(skillChoiceContext.reservedSkillChoiceSlugs);
+        for (const skill of skills) skill.requiredChoiceReserved = reservedSkillChoices.has(skill.slug);
         annotateGuidanceBySlug(skills, 'skill');
         const visibleSkills = filterDisallowedForCurrentUser(skills);
         sortByGuidancePriority(visibleSkills, (a, b) => a.label.localeCompare(b.label));
@@ -2285,6 +2274,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           lores: allLores,
           selectedLoreSkills,
           canAddLoreSkill: selectedCount < maxSkills,
+          ...skillChoiceContext,
         };
       }
       case 'feats':

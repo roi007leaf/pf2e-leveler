@@ -1,6 +1,6 @@
 import { getAdditionalSelectedFormulas, getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
 import { applyCreation, applyLores } from '../../../scripts/creation/apply-creation.js';
-import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID } from '../../../scripts/constants.js';
+import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID, WEALTH_MODES } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
   getClassHandler: jest.fn(() => ({
@@ -2835,6 +2835,69 @@ describe('applyCreation ancestry paragon', () => {
 });
 
 describe('applyCreation equipment sizing', () => {
+  it('adds the unspent starting-equipment budget to actor currency', async () => {
+    game.settings.get = jest.fn((_module, key) => key === 'startingWealthMode'
+      ? WEALTH_MODES.ITEMS_AND_CURRENCY
+      : false);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        details: { level: { value: 1 } },
+        traits: { size: { value: 'med' } },
+      },
+    });
+    actor.inventory = { addCoins: jest.fn(async () => {}) };
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs);
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+
+    global.fromUuid = jest.fn(async (uuid) => uuid === 'equipment-test'
+      ? {
+          uuid,
+          name: 'Test Equipment',
+          toObject: () => ({
+            name: 'Test Equipment',
+            type: 'equipment',
+            system: { size: 'med', quantity: 1 },
+          }),
+        }
+      : null);
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: null,
+      subclass: null,
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      dualClassFeat: null,
+      skillFeat: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+      featGrants: [],
+      permanentItems: [],
+      equipment: [{
+        uuid: 'equipment-test',
+        name: 'Test Equipment',
+        quantity: 1,
+        price: { gp: 4, sp: 5 },
+        pricePer: 1,
+      }],
+      spells: { cantrips: [], rank1: [] },
+    });
+
+    expect(actor.inventory.addCoins).toHaveBeenCalledWith({ gp: 10, sp: 5 });
+  });
+
   it('resizes permanent items and purchased equipment to match a non-Medium actor size', async () => {
     game.settings.get = jest.fn(() => false);
 

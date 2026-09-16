@@ -138,6 +138,36 @@ export const creationCases = [
       },
     ],
   },
+  {
+    name: 'creation-fighter-skill-choice-placement',
+    area: 'creation',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    fixture: true,
+    steps: [
+      {
+        session: 'gm',
+        operation: 'wizardFighterSkillChoiceAudit',
+        expect: {
+          shownInSkills: true,
+          absentFromFeatChoices: true,
+          selectedWithoutRedundantSourceLabel: true,
+        },
+      },
+    ],
+  },
+  {
+    name: 'creation-equipment-budget-remainder',
+    area: 'creation',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    fixture: true,
+    steps: [
+      {
+        session: 'gm',
+        operation: 'creationEquipmentBudgetRemainderAudit',
+        expect: { equipmentCreated: true, exactRemainderAdded: true },
+      },
+    ],
+  },
 ];
 
 export const plannerCases = [

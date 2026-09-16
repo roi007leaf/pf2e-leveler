@@ -14,12 +14,13 @@ jest.mock('../../scripts/ui/character-wizard/loaders.js', () => ({
   invalidateCharacterWizardCompendiumCaches: jest.fn(),
 }));
 
-import { registerSettings } from '../../scripts/settings.js';
+import { migrateReviewWorkflowSettings, registerSettings } from '../../scripts/settings.js';
 import { invalidateCache } from '../../scripts/feats/feat-cache.js';
 import { invalidateItemCache } from '../../scripts/ui/item-picker.js';
 import { clearSpellPickerCache } from '../../scripts/ui/spell-picker.js';
 import { invalidateCharacterWizardCompendiumCaches } from '../../scripts/ui/character-wizard/loaders.js';
 import { PLAYER_DISALLOWED_CONTENT_MODES } from '../../scripts/access/content-guidance.js';
+import { REVIEW_WORKFLOW_MODES } from '../../scripts/access/review-requests.js';
 
 describe('registerSettings', () => {
   beforeEach(() => {
@@ -98,5 +99,75 @@ describe('registerSettings', () => {
     expect(wizardRender).toHaveBeenCalledWith(false);
     expect(featRender).toHaveBeenCalledWith(false);
     expect(unrelatedRender).not.toHaveBeenCalled();
+  });
+
+  test('review workflow registers as one three-state setting and hides legacy settings', () => {
+    registerSettings();
+
+    const registrations = new Map(
+      game.settings.register.mock.calls.map(([, key, options]) => [key, options]),
+    );
+    const workflow = registrations.get('reviewWorkflowMode');
+
+    expect(workflow).toBeTruthy();
+    expect(workflow.scope).toBe('world');
+    expect(workflow.config).toBe(true);
+    expect(workflow.type).toBe(String);
+    expect(workflow.default).toBe(REVIEW_WORKFLOW_MODES.DISABLED);
+    expect(workflow.choices).toEqual({
+      [REVIEW_WORKFLOW_MODES.DISABLED]: 'PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.DISABLED',
+      [REVIEW_WORKFLOW_MODES.OPTIONAL]: 'PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.OPTIONAL',
+      [REVIEW_WORKFLOW_MODES.REQUIRED]: 'PF2E_LEVELER.SETTINGS.REVIEW_WORKFLOW.REQUIRED',
+    });
+    expect(registrations.get('enableReviewRequests').config).toBe(false);
+    expect(registrations.get('requireReviewApproval').config).toBe(false);
+    expect(registrations.get('reviewWorkflowMigrated').config).toBe(false);
+  });
+});
+
+describe('migrateReviewWorkflowSettings', () => {
+  let originalUser;
+
+  beforeEach(() => {
+    originalUser = game.user;
+    game.user = { ...game.user, isGM: true };
+    game.settings.get.mockReset();
+    game.settings.set.mockReset();
+  });
+
+  afterEach(() => {
+    game.user = originalUser;
+  });
+
+  test.each([
+    [true, true, REVIEW_WORKFLOW_MODES.REQUIRED],
+    [false, true, REVIEW_WORKFLOW_MODES.OPTIONAL],
+    [false, false, REVIEW_WORKFLOW_MODES.DISABLED],
+  ])('maps legacy required=%s and enabled=%s to %s', async (required, enabled, expected) => {
+    game.settings.get.mockImplementation((_moduleId, key) => ({
+      reviewWorkflowMigrated: false,
+      requireReviewApproval: required,
+      enableReviewRequests: enabled,
+    })[key]);
+
+    await migrateReviewWorkflowSettings();
+
+    expect(game.settings.set.mock.calls).toEqual([
+      ['pf2e-leveler', 'reviewWorkflowMode', expected],
+      ['pf2e-leveler', 'reviewWorkflowMigrated', true],
+    ]);
+  });
+
+  test('does not migrate twice or from a non-GM client', async () => {
+    game.settings.get.mockReturnValue(true);
+
+    await migrateReviewWorkflowSettings();
+    expect(game.settings.set).not.toHaveBeenCalled();
+
+    game.settings.get.mockReset();
+    game.user = { ...game.user, isGM: false };
+    await migrateReviewWorkflowSettings();
+    expect(game.settings.get).not.toHaveBeenCalled();
+    expect(game.settings.set).not.toHaveBeenCalled();
   });
 });

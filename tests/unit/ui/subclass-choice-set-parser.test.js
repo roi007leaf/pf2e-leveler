@@ -1,5 +1,5 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
-import { hydrateChoiceSets, parseChoiceSets } from '../../../scripts/ui/character-wizard/choice-sets.js';
+import { buildSkillTrainingChoicesContext, hydrateChoiceSets, parseChoiceSets } from '../../../scripts/ui/character-wizard/choice-sets.js';
 import { toggleKineticImpulse } from '../../../scripts/creation/creation-model.js';
 import { MIXED_ANCESTRY_UUID, SUBCLASS_TAGS } from '../../../scripts/constants.js';
 
@@ -1894,15 +1894,15 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
+      const context = await buildSkillTrainingChoicesContext(wizard);
 
-      expect(context.featChoiceSections).toEqual([
+      expect(context.skillChoiceSections).toEqual([
         expect.objectContaining({
           slot: 'Compendium.pf2e.heritages.Item.skilled-human',
           featName: 'Skilled Human',
         }),
       ]);
-      expect(context.featChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
+      expect(context.skillChoiceSections[0].choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'acr', label: 'Acrobatics' }),
         expect.objectContaining({ value: 'arc', label: 'Arcana' }),
       ]));
@@ -1972,13 +1972,13 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
+      const context = await buildSkillTrainingChoicesContext(wizard);
 
-      expect(context.featChoiceSections).toEqual([
+      expect(context.skillChoiceSections).toEqual([
         expect.objectContaining({
           slot: 'class-dual',
           featName: 'Fighter',
-          sourceName: 'Fighter',
+          sourceLabel: 'Fighter',
         }),
       ]);
     } finally {
@@ -4302,10 +4302,10 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
+      const context = await buildSkillTrainingChoicesContext(wizard);
 
-      expect(context.featChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
-      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(context.skillChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
+      const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
       expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'rel', disabled: false }),
@@ -4395,10 +4395,10 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
+      const context = await buildSkillTrainingChoicesContext(wizard);
 
-      expect(context.featChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
-      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(context.skillChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
+      const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'rel', selected: true, disabled: false }),
       ]));
@@ -4494,9 +4494,9 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
-      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
-      const assuranceSection = context.featChoiceSections.find((section) => section.featName === 'Assurance');
+      const context = await buildSkillTrainingChoicesContext(wizard);
+      const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
+      const assuranceSection = context.skillChoiceSections.find((section) => section.featName === 'Assurance');
 
       expect(scholarSection).toBeTruthy();
       expect(assuranceSection).toBeTruthy();
@@ -4609,8 +4609,8 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
-      const assuranceSection = context.featChoiceSections.find((section) => section.featName === 'Assurance');
+      const context = await buildSkillTrainingChoicesContext(wizard);
+      const assuranceSection = context.skillChoiceSections.find((section) => section.featName === 'Assurance');
 
       expect(assuranceSection).toBeTruthy();
       expect(assuranceSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
@@ -4709,8 +4709,8 @@ describe('CharacterWizard subclass choice-set parsing', () => {
 
     try {
       await wizard._refreshGrantedFeatChoiceSections();
-      const context = await wizard._buildFeatChoicesContext();
-      const scholarSection = context.featChoiceSections.find((section) => section.featName === 'Scholar');
+      const context = await buildSkillTrainingChoicesContext(wizard);
+      const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
 
       expect(scholarSection).toBeTruthy();
       expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);

@@ -1,4 +1,4 @@
-import { registerSettings, migrateWealthSettings } from '../settings.js';
+import { registerSettings, migrateReviewWorkflowSettings, migrateWealthSettings } from '../settings.js';
 import { migrateLegacyFeatCompendiumsSetting } from '../compendiums/catalog.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { ensureClassRegistry } from '../classes/ensure.js';
@@ -27,6 +27,7 @@ async function onInit() {
 
 async function onReady() {
   info('Module ready');
+  await migrateReviewWorkflowSettings();
   await migrateWealthSettings();
   registerSheetIntegration();
   registerPlanCommentsHooks();

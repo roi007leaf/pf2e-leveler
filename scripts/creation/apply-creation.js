@@ -17,6 +17,7 @@ import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js
 import { resolveSpellcastingTradition } from '../data/subclass-spells.js';
 import { getAutomaticLoreProficiencies } from '../classes/progression.js';
 import { getCreationLoreSkillNames } from './creation-model.js';
+import { coinsFromCp, getEquipmentTotalCp, getStartingEquipmentBudgetCp } from './starting-wealth.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -398,6 +399,12 @@ async function applyEquipment(actor, data) {
     itemData.system.quantity = entry.quantity ?? 1;
     applyActorSizeToItem(itemData, actorSize);
     await actor.createEmbeddedDocuments('Item', [itemData]);
+  }
+
+  const budgetCp = getStartingEquipmentBudgetCp(actor);
+  const unspentCp = Math.max(0, budgetCp - getEquipmentTotalCp(data.equipment));
+  if (unspentCp > 0) {
+    await actor.inventory.addCoins(coinsFromCp(unspentCp));
   }
 }
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.8.2
+
+### Changed
+
+- **Clearer settings text** - Setting names and descriptions now explain their behavior, scope, and interaction with Character Creation and Level Planner more directly
+- **Player review workflow setting** - The overlapping review-request checkboxes are now one Disabled, Optional Review, or Approval Required setting, with automatic migration for existing worlds
+
+### Fixed
+
+- **Required skill choices during character creation** - Class and other pre-skill training choices now appear in the Skills step instead of Feat Choices, reserve their eligible skills until answered, and avoid redundant "Already trained" text on selected options
+- **Unspent starting equipment budget** - Completing character creation now adds the difference between selected equipment cost and the configured starting budget to the actor's currency
+
 ## 3.8.1
 
 ### Added
