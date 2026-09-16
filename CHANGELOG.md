@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.8.0
+
+### Added
+
+- **Foundry live-test engine** - Playwright now exercises PF2e Leveler in a disposable Foundry world with separate GM and player sessions, exact world and account guards, crash recovery, fixture ownership, automatic cleanup, screenshots, structured reports, source fingerprints, and four supported PF2e/SF2e profile definitions
+- **Character Wizard content qualification** - Live qualification selects and persists every installed ancestry, compatible heritage relationship, background, class, subclass, and rendered subclass-choice value, recording exact per-item evidence so new or broken compendium content cannot pass silently
+- **Level Planner class qualification** - Every installed class opens in the real planner, exposes and classifies levels 2 through 20, and renders low-, mid-, and high-level checkpoints
+- **Variant and spell-preparation coverage** - Live tests isolate and restore Free Archetype, Ancestral Paragon, Mythic, automatic bonus progression, gradual ability boosts, and Dual Class settings, and cover prepared-spell entry points, filtering, selection, and duplicate prevention
+
+### Fixed
+
+- **PF2e 8.5 spell-preparation integration** - Leveler's prepared-spell button now supports the current Svelte Spell Preparation application and group-header markup while retaining compatibility with legacy preparation sheets
+
 ## 3.7.9
 
 ### Fixed
@@ -9,8 +22,13 @@
 
 ## 3.7.8
 
+Combined Impossible Magic fixes, including the spellcasting updates introduced in 3.7.7.
+
 ### Fixed
 
+- **Remastered Magus and Summoner spell progression** - Character Creation and Level Planner use the actor's class edition for spell slots, retaining lower-rank slots and selecting the correct number of new spells for Impossible Magic characters while preserving legacy progression
+- **Magus Studious Spells** - Remastered characters use the primary spellbook instead of legacy Studious slots. Primary spellcasting updates no longer mistake a separate Studious entry for the main entry, preserving existing spells and preparations
+- **Remastered Summoner Signature Spells** - Planner prerequisite state uses Signature Spells for remastered Summoners and Unlimited Signature Spells for legacy Summoners
 - **Necromancer and Runesmith Fortitude progression** - The planner now projects master Fortitude at level 11 from Unnatural Fortitude and Forged Endurance, allowing future prerequisites to evaluate correctly
 - **Remastered Magus starting spellbook** - Character Creation now offers five 1st-rank spells for remastered Magi while retaining four for legacy Magi, preserving class edition for primary and dual-class selections
 - **Remastered Magus class features** - Planner feature names and proficiency progression now follow Reflex Expertise, Perception Expertise, Twofold Will, and Spell-Tempered Body while preserving legacy class features

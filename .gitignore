@@ -1,5 +1,7 @@
 node_modules/
 coverage/
+artifacts/
 *.log
 .DS_Store
 .serena/
+output/

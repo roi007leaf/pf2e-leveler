@@ -14,6 +14,7 @@ const APPLICATION_ROOT_SELECTOR = '.application, .app, .window-app';
 
 export function registerSheetIntegration() {
   Hooks.on('renderCharacterSheetPF2e', onRenderCharacterSheet);
+  Hooks.on('renderSpellPreparationApp', onRenderSpellPreparationSheet);
   Hooks.on('renderSpellPreparationSheet', onRenderSpellPreparationSheet);
   Hooks.on('renderSpellPreparationSheetPF2e', onRenderSpellPreparationSheet);
 }
@@ -349,7 +350,7 @@ function onRenderSpellPreparationSheet(app, html) {
   if (!actor || actor.type !== 'character') return;
 
   const root = html?.jquery ? html : $(html);
-  const entryId = root.find('.spell-list').data('entryId');
+  const entryId = app.entry?.id ?? root.find('.spell-list').data('entryId');
   if (!entryId) return;
 
   const entry = actor.items?.get?.(entryId) ?? actor.items?.find?.((item) => item.id === entryId);
@@ -361,13 +362,12 @@ function onRenderSpellPreparationSheet(app, html) {
 
   root.find('.pf2e-leveler-add-tradition-spell').remove();
 
-  root.find('.header-row').each((_, row) => {
+  root.find('.header-row, .group-header').each((_, row) => {
     const $row = $(row);
     const controls = $row.find('.item-controls').first();
     if (controls.length === 0) return;
 
-    const groupId = $row.find('[data-group-id]').first().data('groupId');
-    const rank = normalizePreparationGroupRank(groupId);
+    const rank = normalizePreparationHeaderRank(row);
     if (rank === null) return;
 
     const button = $(`
@@ -428,6 +428,13 @@ export function normalizePreparationGroupRank(groupId) {
   if (['cantrip', 'cantrips'].includes(normalized)) return 0;
   if (/^\d+$/.test(normalized)) return Number(normalized);
   return null;
+}
+
+export function normalizePreparationHeaderRank(row) {
+  const legacyGroupId = row?.querySelector?.('[data-group-id]')?.dataset?.groupId;
+  const labelId = row?.querySelector?.('.group-label')?.id ?? '';
+  const svelteGroupId = labelId.match(/-group-(cantrips?|\d+)$/i)?.[1];
+  return normalizePreparationGroupRank(legacyGroupId ?? svelteGroupId);
 }
 
 export {

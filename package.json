@@ -1,11 +1,18 @@
 {
   "name": "pf2e-leveler",
-  "version": "3.7.9",
+  "version": "3.8.0",
   "description": "Plan and auto-apply character level-ups for Pathfinder 2E",
   "main": "scripts/main.js",
   "scripts": {
     "test": "jest --maxWorkers=50%",
     "test:watch": "jest --maxWorkers=50% --watch",
+    "test:live": "node tests/live/run.mjs",
+    "test:live:full": "node tests/live/run.mjs --full",
+    "test:live:cleanup": "node tests/live/run.mjs --cleanup-only",
+    "test:live:list": "node tests/live/run.mjs --list",
+    "test:live:coverage": "node tests/live/run.mjs --coverage",
+    "test:live:harness": "node --test tests/live/*.checks.mjs",
+    "test:live:matrix": "node tests/live/matrix.mjs",
     "test:coverage": "jest --coverage --maxWorkers=50%",
     "test:ci": "jest --ci --coverage --watchAll=false --maxWorkers=50%",
     "lint": "eslint .",
@@ -16,6 +23,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@inquirer/prompts": "^8.7.2",
     "husky": "^9.1.7",
     "@babel/core": "^7.28.3",
     "@babel/preset-env": "^7.28.3",
@@ -27,6 +35,7 @@
     "globals": "^16.3.0",
     "jest": "^30.1.3",
     "jest-environment-jsdom": "^30.1.2",
+    "playwright": "^1.63.0",
     "prettier": "^3.6.2"
   },
   "jest": {

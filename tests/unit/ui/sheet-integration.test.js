@@ -4,6 +4,7 @@ import {
   isActorCharacterSheetApplication,
   isSupportedClass,
   normalizePreparationGroupRank,
+  normalizePreparationHeaderRank,
   registerLevelerKeybindings,
   registerSheetIntegration,
   resolveLevelerShortcutActor,
@@ -26,6 +27,20 @@ describe('normalizePreparationGroupRank', () => {
   test('returns null for unsupported group ids', () => {
     expect(normalizePreparationGroupRank('focus')).toBeNull();
     expect(normalizePreparationGroupRank(null)).toBeNull();
+  });
+});
+
+describe('normalizePreparationHeaderRank', () => {
+  test('reads legacy preparation group data attributes', () => {
+    const row = document.createElement('header');
+    row.innerHTML = '<span data-group-id="2"></span>';
+    expect(normalizePreparationHeaderRank(row)).toBe(2);
+  });
+
+  test('reads PF2e 8.5 Svelte preparation label ids', () => {
+    const row = document.createElement('header');
+    row.innerHTML = '<button class="group-label" id="spell-preparation-Actor.test.Item.entry-group-1"></button>';
+    expect(normalizePreparationHeaderRank(row)).toBe(1);
   });
 });
 

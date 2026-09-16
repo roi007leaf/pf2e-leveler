@@ -5,7 +5,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['coverage/**'],
+    ignores: ['coverage/**', 'artifacts/**'],
   },
   js.configs.recommended,
   prettier,
@@ -28,6 +28,7 @@ export default [
         fromUuidSync: 'readonly',
         renderTemplate: 'readonly',
         ChatMessage: 'readonly',
+        Actor: 'readonly',
         $: 'readonly',
         CONST: 'readonly',
         createMockToken: 'readonly',
