@@ -88,6 +88,7 @@ describe('applyPlan', () => {
     const actor = {
       name: 'Alcor',
       testUserPermission: jest.fn(() => true),
+      update: jest.fn(async () => {}),
     };
     const plan = {
       levels: {
@@ -127,6 +128,7 @@ describe('applyPlan', () => {
     expect(ChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({
       content: expect.stringContaining('@UUID[Compendium.pf2e.equipment-srd.Item.formula-5]{formula-5}'),
     }));
+    expect(actor.update).toHaveBeenCalledWith({ 'system.details.level.value': 8 });
   });
 
   test('summarizes class feature choices with labels instead of raw rulesSelection UUIDs', async () => {
@@ -143,6 +145,7 @@ describe('applyPlan', () => {
     const actor = {
       name: 'Alcor',
       testUserPermission: jest.fn(() => true),
+      update: jest.fn(async () => {}),
     };
     const plan = {
       levels: {
@@ -175,6 +178,7 @@ describe('applyPlan', () => {
     const actor = {
       name: 'Alcor',
       testUserPermission: jest.fn(() => true),
+      update: jest.fn(async () => {}),
     };
     const plan = {
       levels: {

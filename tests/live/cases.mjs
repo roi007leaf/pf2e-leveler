@@ -230,7 +230,7 @@ export const applyCases = [
       {
         session: 'gm',
         operation: 'applySingleLevelAudit',
-        expect: { applied: true, messageCount: 1 },
+        expect: { applied: true, messageCount: 1, levelUpdated: true },
       },
     ],
   },
@@ -280,6 +280,45 @@ export const applyCases = [
         operation: 'applyFailureAtomicityAudit',
         expectedBrowserError: 'Injected live-test chat failure',
         expect: { failed: true, actorUnchanged: true, noMessage: true },
+      },
+    ],
+  },
+];
+
+export const issueRegressionCases = [
+  {
+    name: 'issue-104-repertoire-spell-swap',
+    area: 'issues',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    steps: [
+      {
+        session: 'gm',
+        operation: 'issue104RepertoireSwapAudit',
+        expect: { sameRank: true, sameEntry: true, originalRemoved: true, replacementCreated: true },
+      },
+    ],
+  },
+  {
+    name: 'issue-105-undead-advanced-bloodline',
+    area: 'issues',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    steps: [
+      {
+        session: 'gm',
+        operation: 'issue105UndeadAdvancedBloodlineAudit',
+        expect: { drainLifeApplied: true, greaterSpellAbsent: true },
+      },
+    ],
+  },
+  {
+    name: 'issue-106-gradual-intelligence-partial',
+    area: 'issues',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    steps: [
+      {
+        session: 'gm',
+        operation: 'issue106GradualIntelligenceAudit',
+        expect: { noSkillPrompt: true, noLanguagePrompt: true },
       },
     ],
   },
@@ -423,4 +462,5 @@ export const fullCases = [
   ...applyCases,
   ...variantCases,
   ...spellPreparationCases,
+  ...issueRegressionCases,
 ];

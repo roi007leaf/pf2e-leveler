@@ -160,6 +160,9 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
   const highestRank = getHighestRank(currentSlots);
   const hasSpellbook = SPELLBOOK_CLASSES.includes(classDef.slug);
   const isSpontaneous = classDef.spellcasting.type === 'spontaneous';
+  const storedSwap = (levelData.spellSwaps ?? []).find(
+    (entry) => (entry?.entryType ?? 'primary') === entryType,
+  );
   const spellbookSelectionCount = hasSpellbook ? 2 : 0;
   const spellbookCantripSelectionCount = hasSpellbook ? getSpellbookBonusCantripSelectionCount(planner.plan, level) : 0;
 
@@ -170,6 +173,16 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
     spellTradition: resolveSpellTradition(planner, classDef),
     spellType: classDef.spellcasting.type,
     isSpontaneous,
+    canSwapRepertoireSpell: isSpontaneous,
+    spellSwap: storedSwap
+      ? {
+          originalName: storedSwap.original?.name ?? 'Original spell',
+          replacementName: storedSwap.replacement?.name ?? 'Replacement spell',
+          replacementUuid: storedSwap.replacement?.uuid ?? null,
+          rank: storedSwap.replacement?.rank ?? storedSwap.original?.rank ?? null,
+          entryType,
+        }
+      : null,
     hasRankSpellSelections: isSpontaneous,
     hasSpellbook,
     spellbookSelectionCount,

@@ -16,6 +16,8 @@ import {
   getAllPlannedBoosts,
   addLevelSpell,
   removeLevelSpell,
+  setLevelSpellSwap,
+  removeLevelSpellSwap,
   addLevelFeatRetrain,
   removeLevelFeatRetrain,
   addLevelSkillRetrain,
@@ -202,6 +204,29 @@ describe('removeLevelSpell', () => {
     removeLevelSpell(plan, 2, 'spell-rank-2', { entryType: 'primary', rank: 2 });
 
     expect(plan.levels[2].spells).toEqual([]);
+  });
+});
+
+describe('spell repertoire swaps', () => {
+  test('stores at most one swap per spellcasting entry at a level', () => {
+    const plan = createPlan('alchemist');
+    const first = {
+      entryType: 'primary',
+      original: { actorItemId: 'old-a', name: 'Fear', rank: 1 },
+      replacement: { uuid: 'new-a', name: 'Bane', rank: 1 },
+    };
+    const replacement = {
+      entryType: 'primary',
+      original: { actorItemId: 'old-b', name: 'Charm', rank: 1 },
+      replacement: { uuid: 'new-b', name: 'Bless', rank: 1 },
+    };
+
+    setLevelSpellSwap(plan, 2, first);
+    setLevelSpellSwap(plan, 2, replacement);
+
+    expect(plan.levels[2].spellSwaps).toEqual([replacement]);
+    removeLevelSpellSwap(plan, 2, 'primary');
+    expect(plan.levels[2].spellSwaps).toEqual([]);
   });
 });
 

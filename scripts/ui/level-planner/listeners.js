@@ -6,6 +6,7 @@ import {
   removeLevelFeatRetrain,
   removeLevelSkillRetrain,
   removeLevelSpell,
+  removeLevelSpellSwap,
   setLevelSkillIncrease,
   togglePlanApparition,
 } from '../../plan/plan-model.js';
@@ -266,6 +267,20 @@ export function activateLevelPlannerListeners(planner, html) {
       const rank = Number(btn.dataset.rank);
       const entryType = btn.dataset.entryType ?? 'primary';
       planner._openSpellPicker(rank, entryType);
+    });
+  });
+
+  el.querySelectorAll('[data-action="openSpellSwapPicker"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      planner._openSpellSwapPicker(btn.dataset.entryType ?? 'primary');
+    });
+  });
+
+  el.querySelectorAll('[data-action="removeSpellSwap"]').forEach((btn) => {
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      removeLevelSpellSwap(planner.plan, planner.selectedLevel, btn.dataset.entryType ?? 'primary');
+      planner._savePlanAndRender();
     });
   });
 

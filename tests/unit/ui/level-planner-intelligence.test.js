@@ -810,6 +810,33 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     });
   });
 
+  it('does not grant Intelligence benefits for a gradual partial boost from +4 to +4.5', () => {
+    const actor = createMockActor();
+    actor.class.slug = 'alchemist';
+    actor.system.details.level.value = 6;
+    actor.system.abilities.int.mod = 4;
+    actor.abilities = {
+      str: { mod: 0, base: 0 },
+      dex: { mod: 0, base: 0 },
+      con: { mod: 0, base: 0 },
+      int: { mod: 4, base: 4 },
+      wis: { mod: 0, base: 0 },
+      cha: { mod: 0, base: 0 },
+    };
+    global.game = {
+      ...global.game,
+      settings: {
+        get: jest.fn((scope, key) => scope === 'pf2e' && key === 'gradualBoostsVariant'),
+      },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', { gradualBoosts: true });
+    setLevelBoosts(planner.plan, 7, ['int']);
+
+    expect(planner._buildIntelligenceBenefitContext(7)).toBeNull();
+  });
+
   it('counts current-level Intelligence bonus choices when an imported partial completes', () => {
     const actor = createMockActor();
     actor.class.slug = 'alchemist';

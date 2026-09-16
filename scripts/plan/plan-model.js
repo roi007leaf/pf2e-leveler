@@ -223,6 +223,25 @@ export function removeLevelSpell(plan, level, uuid, options = {}) {
   return plan;
 }
 
+export function setLevelSpellSwap(plan, level, swapEntry) {
+  const levelData = ensureLevelData(plan, level);
+  const entryType = swapEntry?.entryType ?? 'primary';
+  levelData.spellSwaps = (levelData.spellSwaps ?? []).filter(
+    (entry) => (entry?.entryType ?? 'primary') !== entryType,
+  );
+  levelData.spellSwaps.push({ ...swapEntry, entryType });
+  return plan;
+}
+
+export function removeLevelSpellSwap(plan, level, entryType = 'primary') {
+  const levelData = plan.levels[level];
+  if (!Array.isArray(levelData?.spellSwaps)) return plan;
+  levelData.spellSwaps = levelData.spellSwaps.filter(
+    (entry) => (entry?.entryType ?? 'primary') !== entryType,
+  );
+  return plan;
+}
+
 export function addLevelCustomFeat(plan, level, featEntry, index = null) {
   const levelData = ensureLevelData(plan, level);
   if (!Array.isArray(levelData.customFeats)) levelData.customFeats = [];
@@ -402,6 +421,7 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.featGrants)) levelData.featGrants = [];
   if (!Array.isArray(levelData.retrainedFeats)) levelData.retrainedFeats = [];
   if (!Array.isArray(levelData.retrainedSkillIncreases)) levelData.retrainedSkillIncreases = [];
+  if (!Array.isArray(levelData.spellSwaps)) levelData.spellSwaps = [];
   return levelData;
 }
 

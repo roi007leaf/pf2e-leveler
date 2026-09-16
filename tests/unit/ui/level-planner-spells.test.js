@@ -131,6 +131,31 @@ describe('level planner spell context', () => {
     expect(context.hasSpellbook).toBe(false);
   });
 
+  test('spontaneous casters expose one planned same-rank repertoire swap', async () => {
+    getLevelData.mockReturnValueOnce({
+      spells: [],
+      spellSwaps: [{
+        entryType: 'primary',
+        original: { name: 'Fear', rank: 1 },
+        replacement: { name: 'Bane', rank: 1, uuid: 'bane' },
+      }],
+    });
+    const planner = {
+      actor: { items: [] },
+      plan: { classSlug: 'sorcerer' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+
+    const context = await buildSpellContext(planner, SORCERER, 2);
+
+    expect(context.classSpellSections[0].canSwapRepertoireSpell).toBe(true);
+    expect(context.classSpellSections[0].spellSwap).toEqual(expect.objectContaining({
+      originalName: 'Fear',
+      replacementName: 'Bane',
+      rank: 1,
+    }));
+  });
+
   test('sorcerer bloodline paragon grants two 10th-rank repertoire picks at level 19', async () => {
     const planner = {
       actor: { items: [] },

@@ -992,10 +992,147 @@ async function markNewMessages(runId, beforeIds) {
 
 export async function applySingleLevelAudit(data) {
   const planner = await openPlannerFor(data);
+  const actor = ownedActor(data);
   const before = new Set(game.messages.keys());
   await withApplyConfirmation(true, () => planner._applySelectedPlan());
   const messages = await markNewMessages(data.runId, before);
-  return { applied: messages.length === 1, messageCount: messages.length };
+  return {
+    applied: messages.length === 1,
+    messageCount: messages.length,
+    levelUpdated: Number(actor.system?.details?.level?.value) === planner.selectedLevel,
+  };
+}
+
+export async function issue104RepertoireSwapAudit() {
+  const pack = game.packs.get('pf2e.spells-srd');
+  if (!pack) throw Error('PF2e spells compendium unavailable');
+  const index = await pack.getIndex({ fields: ['type', 'system.level.value', 'system.traits.value'] });
+  const candidates = index.filter((entry) => (
+    entry.type === 'spell'
+    && Number(entry.system?.level?.value) === 1
+    && !(entry.system?.traits?.value ?? []).includes('cantrip')
+  )).slice(0, 2);
+  if (candidates.length < 2) throw Error('Need two rank-1 PF2e spells for repertoire swap audit');
+  const [originalDoc, replacementDoc] = await Promise.all(
+    candidates.map((entry) => pack.getDocument(entry._id)),
+  );
+  const original = {
+    id: 'live-original-spell',
+    type: 'spell',
+    name: originalDoc.name,
+    sourceId: originalDoc.uuid,
+    system: { location: { value: 'live-spontaneous-entry' }, level: { value: 1 } },
+  };
+  const deleted = [];
+  const created = [];
+  const actor = {
+    items: [original],
+    deleteEmbeddedDocuments: async (_type, ids) => {
+      deleted.push(...ids);
+      return [];
+    },
+    createEmbeddedDocuments: async (_type, docs) => {
+      created.push(...docs);
+      return docs;
+    },
+  };
+  const plan = {
+    levels: {
+      2: {
+        spellSwaps: [{
+          entryType: 'primary',
+          original: {
+            actorItemId: original.id,
+            sourceId: original.sourceId,
+            name: original.name,
+            rank: 1,
+            entryId: 'live-spontaneous-entry',
+          },
+          replacement: { uuid: replacementDoc.uuid, name: replacementDoc.name, rank: 1 },
+        }],
+      },
+    },
+  };
+  const { applySpellSwaps } = await import('/modules/pf2e-leveler/scripts/apply/apply-spell-swaps.js');
+  const [applied] = await applySpellSwaps(actor, plan, 2);
+  const createdSpell = created[0];
+  return {
+    sameRank: Number(applied?.replacement?.rank) === 1,
+    sameEntry: createdSpell?.system?.location?.value === 'live-spontaneous-entry',
+    originalRemoved: deleted.includes(original.id),
+    replacementCreated: createdSpell?.name === replacementDoc.name,
+  };
+}
+
+export async function issue105UndeadAdvancedBloodlineAudit() {
+  const created = [];
+  const actor = {
+    items: [
+      {
+        id: 'live-sorcerer-entry',
+        type: 'spellcastingEntry',
+        name: 'Sorcerer Spells',
+        system: {
+          tradition: { value: 'divine' },
+          prepared: { value: 'spontaneous' },
+          ability: { value: 'cha' },
+        },
+      },
+      {
+        type: 'feat',
+        slug: 'bloodline-undead',
+        system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+      },
+    ],
+    system: { resources: { focus: { max: 1, value: 1 } } },
+    createEmbeddedDocuments: async (_type, docs) => {
+      const results = docs.map((doc, index) => ({ id: `live-created-${index}`, ...doc }));
+      created.push(...results);
+      return results;
+    },
+    updateEmbeddedDocuments: async () => [],
+    update: async () => {},
+  };
+  const plan = {
+    classSlug: 'sorcerer',
+    levels: {
+      8: {
+        classFeats: [{ slug: 'advanced-bloodline', name: 'Advanced Bloodline' }],
+      },
+    },
+  };
+  const { applySpells } = await import('/modules/pf2e-leveler/scripts/apply/apply-spells.js');
+  const applied = await applySpells(actor, plan, 8);
+  return {
+    drainLifeApplied: applied.some((entry) => entry.name === 'Drain Life')
+      && created.some((entry) => entry.name === 'Drain Life'),
+    greaterSpellAbsent: !applied.some((entry) => /greater/iu.test(entry.name))
+      && !created.some((entry) => /greater/iu.test(entry.name)),
+  };
+}
+
+export async function issue106GradualIntelligenceAudit() {
+  const actor = {
+    system: {
+      details: { level: { value: 6 } },
+      abilities: { int: { mod: 4 } },
+      build: { attributes: { boosts: {} } },
+    },
+    abilities: { int: { mod: 4, base: 4 } },
+    items: [],
+  };
+  const plan = {
+    classSlug: 'alchemist',
+    levels: { 7: { abilityBoosts: ['int'], intBonusSkills: [], intBonusLanguages: [] } },
+  };
+  const { buildIntelligenceBenefitContext, buildIntBonusLanguageContext, buildIntBonusSkillContext } =
+    await import('/modules/pf2e-leveler/scripts/ui/level-planner/context.js');
+  const planner = { actor, plan };
+  return {
+    noSkillPrompt: buildIntelligenceBenefitContext(planner, 7) === null
+      && buildIntBonusSkillContext(planner, plan.levels[7], 7) === null,
+    noLanguagePrompt: buildIntBonusLanguageContext(planner, plan.levels[7], 7) === null,
+  };
 }
 
 export async function applyMultipleLevelsAudit(data) {

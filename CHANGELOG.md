@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.8.1
+
+### Added
+
+- **Spontaneous repertoire spell swaps** - Level Planner can replace one known spontaneous spell per level with another spell of the same rank, preserving the original spellcasting entry and heightened rank
+
+### Fixed
+
+- **Applied plans now advance actor level** - Applying selected levels updates the actor to the chosen level and avoids adding the same planned spell twice when a plan is reapplied
+- **Undead Advanced Bloodline spell** - Undead Sorcerers now receive Drain Life from Advanced Bloodline instead of their greater bloodline spell
+- **Gradual Intelligence boosts** - A partial Intelligence boost from +4 to +4.5 no longer requests an extra trained skill or language before the modifier reaches +5
+
 ## 3.8.0
 
 ### Added

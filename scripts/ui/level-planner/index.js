@@ -2,7 +2,7 @@ import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES
 import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
-import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, upsertLevelFeatGrant } from '../../plan/plan-model.js';
+import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, setLevelSpellSwap, upsertLevelFeatGrant } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { buildFeatGrantRequirements, buildPlanFormulaProgressionRequirements } from '../../plan/feat-grants.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
@@ -1473,6 +1473,102 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       );
       picker.render(true);
     });
+  }
+
+  async _openSpellSwapPicker(entryType = 'primary') {
+    const sources = this._getSpellSwapSources(entryType);
+    if (sources.length === 0) {
+      ui.notifications?.warn?.(game.i18n.localize('PF2E_LEVELER.SPELLS.NO_REPERTOIRE_SPELLS'));
+      return;
+    }
+
+    const source = await this._promptRetrainSource({
+      title: game.i18n.localize('PF2E_LEVELER.SPELLS.REPERTOIRE_SWAP'),
+      name: 'spell',
+      sources,
+      getLabel: (entry) => entry.name,
+      getMeta: (entry) => `Rank ${entry.rank} - ${entry.entryName}`,
+      getIcon: (entry) => entry.img,
+      getGroupLabel: (entry) => `Rank ${entry.rank}`,
+    });
+    if (!source) return;
+
+    const { SpellPicker } = await import('../spell-picker.js');
+    const picker = new SpellPicker(
+      this.actor,
+      source.tradition ?? 'any',
+      source.rank,
+      async (spell) => {
+        setLevelSpellSwap(this.plan, this.selectedLevel, {
+          entryType,
+          original: {
+            actorItemId: source.actorItemId,
+            sourceId: source.sourceId,
+            name: source.name,
+            img: source.img,
+            rank: source.rank,
+            entryId: source.entryId,
+          },
+          replacement: {
+            uuid: spell.uuid,
+            name: spell.name,
+            img: spell.img,
+            rank: source.rank,
+            baseRank: Number(spell.system?.level?.value ?? source.rank),
+          },
+        });
+        await this._savePlanAndRender();
+      },
+      {
+        exactRank: true,
+        excludeOwnedByIdentity: true,
+        maxSelect: 1,
+        preset: {
+          selectedRanks: [source.rank],
+          lockedRanks: [source.rank],
+          ...(source.tradition
+            ? { selectedTraditions: [source.tradition], lockedTraditions: [source.tradition] }
+            : {}),
+        },
+        title: game.i18n.format('PF2E_LEVELER.SPELLS.REPLACE', { spell: source.name }),
+      },
+    );
+    picker.render(true);
+  }
+
+  _getSpellSwapSources(entryType = 'primary') {
+    const entries = new Map(
+      (this.actor.items ?? [])
+        .filter((item) => item?.type === 'spellcastingEntry' && item.system?.prepared?.value === 'spontaneous')
+        .map((item) => [item.id ?? item._id, item]),
+    );
+    const classDef = this._getSpellcastingClassForEntryType(entryType);
+    const tradition = classDef?.spellcasting ? this._resolveSpellTradition(classDef) : null;
+
+    return (this.actor.items ?? [])
+      .filter((item) => item?.type === 'spell')
+      .map((item) => {
+        const entryId = item.system?.location?.value;
+        const entry = entries.get(entryId);
+        if (!entry || (tradition && entry.system?.tradition?.value !== tradition)) return null;
+        const rank = Number(
+          item.system?.location?.heightenedLevel
+          ?? item.system?.heightenedLevel
+          ?? item.system?.level?.value,
+        );
+        if (!Number.isFinite(rank)) return null;
+        return {
+          actorItemId: item.id ?? item._id,
+          sourceId: item.sourceId ?? item.flags?.core?.sourceId ?? null,
+          name: item.name,
+          img: item.img,
+          rank,
+          entryId,
+          entryName: entry.name ?? 'Repertoire',
+          tradition: entry.system?.tradition?.value ?? tradition,
+        };
+      })
+      .filter(Boolean);
   }
 
   _getAvailableSpellPickerTraditions(classDef, entryType = 'primary') {

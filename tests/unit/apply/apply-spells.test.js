@@ -184,6 +184,95 @@ describe('applySpells', () => {
     }
   });
 
+  test('adds Drain Life for Undead advanced bloodline when stored focus UUID resolves to the greater spell', async () => {
+    const originalGame = global.game;
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        8: {
+          classFeats: [
+            { uuid: 'feat-advanced-bloodline', name: 'Advanced Bloodline', slug: 'advanced-bloodline' },
+          ],
+        },
+      },
+    };
+
+    actor.items = [
+      actor.items[0],
+      {
+        type: 'feat',
+        slug: 'bloodline-undead',
+        system: { traits: { otherTags: ['sorcerer-bloodline'] } },
+      },
+    ];
+    global.game = {
+      ...(originalGame ?? {}),
+      packs: new Map([
+        ['pf2e.spells-srd', {
+          getIndex: jest.fn(async () => [{
+            uuid: 'Compendium.pf2e.spells-srd.Item.drain-life',
+            name: 'Drain Life',
+          }]),
+        }],
+      ]),
+    };
+    global.fromUuid = jest.fn(async (uuid) => {
+      const name = uuid.endsWith('.drain-life') ? 'Drain Life' : 'Greater Undead Bloodline Spell';
+      return {
+        uuid,
+        name,
+        system: { traits: { value: ['focus'], traditions: [] } },
+        toObject: () => ({ name, type: 'spell', system: { traits: { value: ['focus'], traditions: [] } } }),
+      };
+    });
+
+    try {
+      const added = await applySpells(actor, plan, 8);
+
+      expect(added).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Drain Life' })]));
+      expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+        expect.objectContaining({ name: 'Drain Life' }),
+      ]);
+    } finally {
+      global.game = originalGame;
+    }
+  });
+
+  test('does not add the same planned spell twice when a level is reapplied', async () => {
+    const spellUuid = 'Compendium.pf2e.spells-srd.Item.planned-spell';
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        2: {
+          spells: [{ uuid: spellUuid, name: 'Fear', rank: 1, entryType: 'primary' }],
+        },
+      },
+    };
+    actor.items.push({
+      type: 'spell',
+      sourceId: spellUuid,
+      system: { location: { value: 'primary-entry' } },
+    });
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Fear',
+      system: { level: { value: 1 } },
+      toObject: () => ({
+        name: 'Fear',
+        type: 'spell',
+        flags: { core: { sourceId: uuid } },
+        system: { level: { value: 1 } },
+      }),
+    }));
+
+    const added = await applySpells(actor, plan, 2);
+
+    expect(added).toEqual([]);
+    expect(actor.createEmbeddedDocuments).not.toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Fear' }),
+    ]);
+  });
+
   test('resolves subclass focus spell name overrides from SF2e spell packs', async () => {
     const originalGame = global.game;
     const plan = {

@@ -19,6 +19,9 @@ const SUBCLASS_FOCUS_SPELL_NAME_OVERRIDES = {
   'bloodline-wyrmblessed': {
     advanced: 'Dragon Breath',
   },
+  'bloodline-undead': {
+    advanced: 'Drain Life',
+  },
 };
 
 export async function applySpells(actor, plan, level) {
@@ -447,6 +450,15 @@ async function addPlannedSpells(actor, entries, levelData, classSlug = null, inc
 
     const entry = resolveTargetEntry(actor, entries, spellPlan.entryType);
     if (!entry) continue;
+
+    const sourceUuid = spell.uuid ?? spellPlan.uuid;
+    const existing = sourceUuid
+      ? actor.items?.find((item) =>
+        item.type === 'spell'
+        && (item.sourceId ?? item.flags?.core?.sourceId) === sourceUuid
+        && item.system?.location?.value === entry.id)
+      : null;
+    if (existing) continue;
 
     const spellData = foundry.utils.deepClone(spell.toObject());
     spellData.system.location = { value: entry.id };

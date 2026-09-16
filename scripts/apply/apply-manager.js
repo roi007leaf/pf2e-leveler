@@ -9,6 +9,7 @@ import { applyFeatGrants } from './apply-feat-grants.js';
 import { applyClassFeatureChoices } from './apply-class-feature-choices.js';
 import { applyDualClassFeatures } from './apply-dual-class-features.js';
 import { applySpells } from './apply-spells.js';
+import { applySpellSwaps } from './apply-spell-swaps.js';
 import { applyClassSpecific } from './apply-class-specific.js';
 import { info, error as logError, notify } from '../utils/logger.js';
 import { format } from '../utils/i18n.js';
@@ -78,17 +79,20 @@ export async function applyPlan(actor, plan, level, previousLevel = level - 1) {
       const featGrants = await applyFeatGrants(actor, plan, plannedLevel);
       await applyDualClassFeatures(actor, plan, plannedLevel);
       const classFeatureChoices = await applyClassFeatureChoices(actor, plan, plannedLevel);
+      const spellSwaps = await applySpellSwaps(actor, plan, plannedLevel);
       const spells = await applySpells(actor, plan, plannedLevel);
       const equipment = await applyEquipment(actor, plan, plannedLevel);
       await applyClassSpecific(actor, plan, plannedLevel);
 
-      await createLevelUpMessage(actor, plan, plannedLevel, { boosts, languages, skillRetrains: [], skills, featRetrains: [], feats, spells, equipment, featGrants, classFeatureChoices });
+      await createLevelUpMessage(actor, plan, plannedLevel, { boosts, languages, skillRetrains: [], skills, featRetrains: [], feats, spellSwaps, spells, equipment, featGrants, classFeatureChoices });
 
       const reminders = getRemindersForLevel(plan, plannedLevel);
       if (reminders.length > 0) {
         showReminders(actor, plannedLevel, reminders);
       }
     }
+
+    await actor.update({ 'system.details.level.value': level });
 
     notify(format('NOTIFICATIONS.APPLIED', { actorName: actor.name, level }));
     return true;
@@ -202,6 +206,13 @@ async function createLevelUpMessage(actor, plan, level, applied) {
   spells.push(...featGrantSpells);
   if (spells.length) {
     sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.MESSAGES.SPELLS_ADDED'), spells));
+  }
+
+  const spellSwaps = applied.spellSwaps?.map((entry) => (
+    `${entry.original?.name ?? 'Old Spell'} -> ${formatChatLink(entry.replacement)}`
+  )).filter(Boolean) ?? [];
+  if (spellSwaps.length) {
+    sections.push(buildChatSection(game.i18n.localize('PF2E_LEVELER.SPELLS.REPERTOIRE_SWAP'), spellSwaps));
   }
 
   const equipment = applied.equipment?.map((e) => formatChatLink(e)).filter(Boolean) ?? [];

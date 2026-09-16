@@ -1215,6 +1215,25 @@
                 {{localize "PF2E_LEVELER.UI.CUSTOM_SPELL_RANK_REMINDER"}}
               </div>
               {{/if}}
+              {{#if this.canSwapRepertoireSpell}}
+              <div class="planned-spells" style="margin-bottom: var(--leveler-spacing-sm);">
+                <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                  <i class="section-header__icon fa-solid fa-right-left"></i>
+                  {{localize "PF2E_LEVELER.SPELLS.REPERTOIRE_SWAP"}}
+                </div>
+                {{#if this.spellSwap}}
+                <div class="wizard-spell-chip">
+                  <span>{{this.spellSwap.originalName}} -> <span data-action="viewFeat" data-uuid="{{this.spellSwap.replacementUuid}}">{{this.spellSwap.replacementName}}</span></span>
+                  <span class="tag tag--muted tag--tiny">Rank {{this.spellSwap.rank}}</span>
+                  <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSpellSwap" data-entry-type="{{this.entryType}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                </div>
+                {{else}}
+                <button type="button" class="spell-add-btn" data-action="openSpellSwapPicker" data-entry-type="{{this.entryType}}" style="padding: 4px 12px;">
+                  <i class="fa-solid fa-right-left"></i> {{localize "PF2E_LEVELER.SPELLS.SWAP_KNOWN"}}
+                </button>
+                {{/if}}
+              </div>
+              {{/if}}
               <table class="spell-slot-table">
                 <thead>
                   <tr>
