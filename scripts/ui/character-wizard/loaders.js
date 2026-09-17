@@ -750,6 +750,8 @@ function getWorldItemsForCategory(category) {
 
 function matchesWorldCategory(item, category) {
   const type = String(item?.type ?? '').toLowerCase();
+  if (category === 'ancestries') return type === 'ancestry';
+  if (category === 'heritages') return type === 'heritage';
   if (category === 'classes') return type === 'class';
   if (category === 'spells') return type === 'spell';
   if (category === 'equipment') return EQUIPMENT_TYPES.has(type);

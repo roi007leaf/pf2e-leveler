@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.3
+
+### Fixed
+
+- **Custom world ancestries and heritages** - Character Creation now discovers ancestry and heritage Items created directly in the world, matching the existing automatic support for custom world classes and feats without requiring a compendium
+
 ## 3.8.2
 
 ### Changed

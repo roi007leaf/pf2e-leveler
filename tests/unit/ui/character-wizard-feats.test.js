@@ -919,6 +919,82 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     ]);
   });
 
+  it('loads custom ancestries created as world items', async () => {
+    const originalItems = game.items;
+    game.items = [{
+      uuid: 'Item.world-ancestry',
+      name: 'Worldborn',
+      img: 'worldborn.png',
+      type: 'ancestry',
+      slug: 'worldborn',
+      system: {
+        description: { value: 'A custom world ancestry.' },
+        traits: { value: ['humanoid'], rarity: 'common' },
+      },
+    }];
+
+    try {
+      const wizard = new CharacterWizard(createMockActor());
+      const items = await loadAncestries(wizard);
+
+      expect(items).toEqual([
+        expect.objectContaining({
+          uuid: 'Item.world-ancestry',
+          name: 'Worldborn',
+          type: 'ancestry',
+          slug: 'worldborn',
+        }),
+      ]);
+    } finally {
+      game.items = originalItems;
+    }
+  });
+
+  it('loads matching custom heritages created as world items', async () => {
+    const originalItems = game.items;
+    game.items = [
+      {
+        uuid: 'Item.worldborn-heritage',
+        name: 'Worldborn Heritage',
+        img: 'worldborn-heritage.png',
+        type: 'heritage',
+        slug: 'worldborn-heritage',
+        system: {
+          ancestry: { slug: 'worldborn' },
+          traits: { value: ['worldborn'], rarity: 'common' },
+        },
+      },
+      {
+        uuid: 'Item.elf-heritage',
+        name: 'Elf Heritage',
+        img: 'elf-heritage.png',
+        type: 'heritage',
+        slug: 'elf-heritage',
+        system: {
+          ancestry: { slug: 'elf' },
+          traits: { value: ['elf'], rarity: 'common' },
+        },
+      },
+    ];
+
+    try {
+      const wizard = new CharacterWizard(createMockActor());
+      wizard.data.ancestry = {
+        uuid: 'Item.world-ancestry',
+        name: 'Worldborn',
+        slug: 'worldborn',
+      };
+      const items = await loadHeritages(wizard);
+
+      const uuids = items.map((item) => item.uuid);
+      expect(uuids).toContain('Item.worldborn-heritage');
+      expect(uuids).not.toContain('Item.elf-heritage');
+      expect(uuids).toContain('pf2e-leveler.synthetic.heritage.mixed-ancestry');
+    } finally {
+      game.items = originalItems;
+    }
+  });
+
   it('loadRawHeritages marks loaded entries as heritage type for the step filter', async () => {
     const wizard = new CharacterWizard(createMockActor());
     wizard._compendiumCache = {};
