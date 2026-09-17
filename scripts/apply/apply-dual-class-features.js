@@ -51,6 +51,28 @@ function toItemSource(item) {
   return typeof item?.toObject === 'function' ? item.toObject() : item;
 }
 
+/**
+ * Whether the class still owes this actor a feature at or below the target level.
+ *
+ * Read off the class item's own grant table (`system.items`), where each entry carries the uuid of
+ * the feature it grants and the level it arrives at. `createGrantedItems` re-runs every ChoiceSet on
+ * the features it builds, so calling it when nothing is owed asks the player to re-pick choices they
+ * already made (a rogue's racket, a cleric's doctrine) and then discards the answers.
+ *
+ * Errs toward calling: a class with no readable grant table, or an entry with no uuid, counts as
+ * owing something, so the worst case is the previous behaviour rather than a feature never arriving.
+ */
+function hasUngrantedFeatures(classItem, level, ownedSourceIds) {
+  const table = classItem?.system?.items;
+  if (!table || typeof table !== 'object') return true;
+  const entries = Object.values(table);
+  if (entries.length === 0) return false;
+  return entries.some((entry) => {
+    if (typeof entry?.level === 'number' && entry.level > level) return false;
+    return typeof entry?.uuid !== 'string' || !ownedSourceIds.has(entry.uuid);
+  });
+}
+
 export async function applyDualClassFeatures(actor, plan, level) {
   const primarySlug = normalizeSlug(plan?.classSlug);
   const dualClassSlug = normalizeSlug(plan?.dualClassSlug);
@@ -63,12 +85,11 @@ export async function applyDualClassFeatures(actor, plan, level) {
   const targetLevel = Number(level);
   if (!Number.isInteger(targetLevel) || targetLevel < 1) return [];
 
-  const ownedIdentities = new Set(
-    getActorItemsOfType(actor, 'feat')
-      .filter(isClassFeature)
-      .map(getFeatureIdentity)
-      .filter(Boolean),
-  );
+  const ownedFeatures = getActorItemsOfType(actor, 'feat').filter(isClassFeature);
+  const ownedIdentities = new Set(ownedFeatures.map(getFeatureIdentity).filter(Boolean));
+  const ownedSourceIds = new Set(ownedFeatures.map(getItemSourceId).filter(Boolean));
+  if (!hasUngrantedFeatures(dualClass, targetLevel, ownedSourceIds)) return [];
+
   const granted = await dualClass.createGrantedItems({ level: targetLevel });
   const sources = [];
 
