@@ -1234,6 +1234,31 @@
                 {{/if}}
               </div>
               {{/if}}
+              {{#if this.signatureSpellRows.length}}
+              <div class="planned-spells" style="margin-bottom: var(--leveler-spacing-sm);">
+                <div class="section-header" style="font-size: var(--leveler-font-sm);">
+                  <i class="fa-solid fa-star"></i>
+                  {{localize "PF2E_LEVELER.SPELLS.SIGNATURE_SPELLS"}}
+                </div>
+                {{#each this.signatureSpellRows}}
+                <div class="feat-slot__note" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                  <strong>{{this.label}}</strong>
+                  {{#if this.selected}}
+                  <span class="wizard-spell-chip">
+                    <img src="{{this.selected.img}}" alt="" class="wizard-spell-chip__img">
+                    <span class="wizard-spell-chip__name" data-action="viewFeat" data-uuid="{{this.selected.uuid}}">{{this.selected.name}}</span>
+                    <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSignatureSpell" data-entry-type="{{../entryType}}" data-rank="{{this.rank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                  </span>
+                  {{else}}
+                  <button type="button" class="spell-add-btn" data-action="openSignatureSpellPicker" data-entry-type="{{../entryType}}" data-rank="{{this.rank}}" style="padding: 3px 10px;" {{#unless this.candidates.length}}disabled{{/unless}}>
+                    <i class="fa-regular fa-star"></i> {{localize "PF2E_LEVELER.SPELLS.CHOOSE_SIGNATURE"}}
+                  </button>
+                  {{#unless this.candidates.length}}<span>{{localize "PF2E_LEVELER.SPELLS.NO_SIGNATURE_CANDIDATES"}}</span>{{/unless}}
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+              {{/if}}
               <table class="spell-slot-table">
                 <thead>
                   <tr>
@@ -1266,9 +1291,24 @@
                           <i class="fa-solid fa-plus"></i>
                         </button>
                       {{/if}}
-                    </td>
-                  </tr>
-                  {{/each}}
+                      </td>
+                    </tr>
+                    {{#if (and ../hasRankSpellSelections this.plannedSpells.length)}}
+                    <tr class="spell-slot-planned-row">
+                      <td colspan="3">
+                        <div class="wizard-spell-chips">
+                          {{#each this.plannedSpells}}
+                          <span class="wizard-spell-chip">
+                            <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
+                            <span class="wizard-spell-chip__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
+                            <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.displayRank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
+                          </span>
+                          {{/each}}
+                        </div>
+                      </td>
+                    </tr>
+                    {{/if}}
+                    {{/each}}
                 </tbody>
               </table>
 
@@ -1333,26 +1373,6 @@
               </div>
               {{/if}}
 
-              {{#if this.plannedSpells.length}}
-              {{#unless this.hasSpellbook}}
-              <div class="planned-spells">
-                <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
-                  <i class="section-header__icon fa-solid fa-book-sparkles"></i>
-                  {{localize "PF2E_LEVELER.SPELLS.PLANNED"}}
-                </div>
-                <div class="wizard-spell-chips">
-                  {{#each this.plannedSpells}}
-                  <span class="wizard-spell-chip">
-                    <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-                    <span class="wizard-spell-chip__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                    <span class="tag tag--muted tag--tiny">Rank {{this.rank}}</span>
-                    <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.rank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
-                  </span>
-                  {{/each}}
-                </div>
-              </div>
-              {{/unless}}
-              {{/if}}
             </div>
             {{/each}}
 
@@ -1407,27 +1427,6 @@
               {{/each}}
             </div>
             {{/each}}
-
-            {{#if plannedSpells.length}}
-            {{#unless hasSpellbook}}
-            <div class="planned-spells">
-              <div class="section-header" style="font-size: var(--leveler-font-sm); margin-top: var(--leveler-spacing-sm);">
-                <i class="section-header__icon fa-solid fa-book-sparkles"></i>
-                {{localize "PF2E_LEVELER.SPELLS.PLANNED"}}
-              </div>
-              <div class="wizard-spell-chips">
-                {{#each plannedSpells}}
-                <span class="wizard-spell-chip">
-                  <img src="{{this.img}}" alt="" class="wizard-spell-chip__img">
-                  <span class="wizard-spell-chip__name" data-action="viewFeat" data-uuid="{{this.uuid}}">{{this.name}}</span>
-                  <span class="tag tag--muted tag--tiny">Rank {{this.rank}}</span>
-                  <i class="fa-solid fa-xmark wizard-spell-chip__remove" data-action="removeSpell" data-uuid="{{this.uuid}}" data-entry-type="{{this.entryType}}" data-rank="{{this.rank}}" data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"></i>
-                </span>
-                {{/each}}
-              </div>
-            </div>
-            {{/unless}}
-            {{/if}}
 
             {{#each classFocusSections}}
             <div class="planned-spells" style="margin-top: var(--leveler-spacing-sm);">

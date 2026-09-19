@@ -220,6 +220,14 @@ export function removeLevelSpell(plan, level, uuid, options = {}) {
     removed = true;
     return false;
   });
+  if (removed && Array.isArray(plan.levels[level].signatureSpells)) {
+    plan.levels[level].signatureSpells = plan.levels[level].signatureSpells.filter((spell) => {
+      if (spell?.uuid !== uuid) return true;
+      if (targetEntryType != null && (spell?.entryType ?? 'primary') !== targetEntryType) return true;
+      if (targetRank != null && Number(spell?.rank) !== targetRank) return true;
+      return false;
+    });
+  }
   return plan;
 }
 
@@ -238,6 +246,28 @@ export function removeLevelSpellSwap(plan, level, entryType = 'primary') {
   if (!Array.isArray(levelData?.spellSwaps)) return plan;
   levelData.spellSwaps = levelData.spellSwaps.filter(
     (entry) => (entry?.entryType ?? 'primary') !== entryType,
+  );
+  return plan;
+}
+
+export function setLevelSignatureSpell(plan, level, spellEntry) {
+  const levelData = ensureLevelData(plan, level);
+  const entryType = spellEntry?.entryType ?? 'primary';
+  const rank = Number(spellEntry?.rank);
+  if (!spellEntry?.uuid || !Number.isInteger(rank) || rank <= 0) return plan;
+
+  levelData.signatureSpells = levelData.signatureSpells.filter(
+    (entry) => (entry?.entryType ?? 'primary') !== entryType || Number(entry?.rank) !== rank,
+  );
+  levelData.signatureSpells.push({ ...spellEntry, entryType, rank });
+  return plan;
+}
+
+export function removeLevelSignatureSpell(plan, level, rank, entryType = 'primary') {
+  const levelData = plan.levels[level];
+  if (!Array.isArray(levelData?.signatureSpells)) return plan;
+  levelData.signatureSpells = levelData.signatureSpells.filter(
+    (entry) => (entry?.entryType ?? 'primary') !== entryType || Number(entry?.rank) !== Number(rank),
   );
   return plan;
 }
@@ -422,6 +452,7 @@ function ensureCustomLevelData(levelData) {
   if (!Array.isArray(levelData.retrainedFeats)) levelData.retrainedFeats = [];
   if (!Array.isArray(levelData.retrainedSkillIncreases)) levelData.retrainedSkillIncreases = [];
   if (!Array.isArray(levelData.spellSwaps)) levelData.spellSwaps = [];
+  if (!Array.isArray(levelData.signatureSpells)) levelData.signatureSpells = [];
   return levelData;
 }
 

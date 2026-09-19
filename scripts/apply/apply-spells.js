@@ -7,6 +7,7 @@ import { classUsesPhysicalSpellbook, collectArchetypeSpellcastingConfigs, ensure
 import { buildCompendiumUuid, getCompendiumPacksForCategory } from '../system-support/profiles.js';
 import { resolveSf2eSpellcastingTradition } from '../utils/sf2e-spellcasting.js';
 import { findMagusPrimaryEntry, isRemasteredMagus } from '../utils/magus-spellcasting.js';
+import { getSpellSelectionRank } from '../utils/signature-spells.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
@@ -49,6 +50,8 @@ export async function applySpells(actor, plan, level) {
     const grantedSpells = await addGrantedSpells(actor, entries, classDef, plan, level);
     addedSpells.push(...grantedSpells);
 
+    await applySignatureSpellSelections(actor, entries, levelData, classDef.slug, classDef.slug === plan.classSlug);
+
     const focusSpells = await addSubclassFocusSpells(actor, classDef, plan, level);
     addedSpells.push(...focusSpells);
 
@@ -61,6 +64,30 @@ export async function applySpells(actor, plan, level) {
     addedSpells.push(...planned);
   }
   return addedSpells;
+}
+
+async function applySignatureSpellSelections(actor, entries, levelData, classSlug, includeDefaultPrimary) {
+  const selections = (levelData?.signatureSpells ?? []).filter((selection) => {
+    const entryType = String(selection?.entryType ?? 'primary').toLowerCase();
+    if (entryType === 'primary') return includeDefaultPrimary;
+    return entryType === `class:${String(classSlug ?? '').toLowerCase()}`;
+  });
+  const updates = [];
+
+  for (const selection of selections) {
+    const entry = resolveTargetEntry(actor, entries, selection.entryType);
+    if (!entry) continue;
+    const spell = actor.items?.find?.((item) => {
+      if (item?.type !== 'spell' || item.system?.location?.value !== entry.id) return false;
+      if (selection.actorItemId && (item.id ?? item._id) === selection.actorItemId) return true;
+      const sourceId = item.sourceId ?? item.flags?.core?.sourceId ?? item.uuid;
+      return sourceId === selection.uuid && getSpellSelectionRank(item) === Number(selection.rank);
+    });
+    if (!spell?.id && !spell?._id) continue;
+    updates.push({ _id: spell.id ?? spell._id, 'system.location.signature': true });
+  }
+
+  if (updates.length > 0) await actor.updateEmbeddedDocuments('Item', updates);
 }
 
 function getTrackedSpellcastingClasses(plan, actor) {
@@ -462,6 +489,12 @@ async function addPlannedSpells(actor, entries, levelData, classSlug = null, inc
 
     const spellData = foundry.utils.deepClone(spell.toObject());
     spellData.system.location = { value: entry.id };
+    const isSignature = (levelData?.signatureSpells ?? []).some((selection) =>
+      selection?.uuid === spellPlan.uuid
+      && Number(selection?.rank) === Number(spellPlan.rank)
+      && (selection?.entryType ?? 'primary') === (spellPlan.entryType ?? 'primary'),
+    );
+    if (isSignature) spellData.system.location.signature = true;
     if ((spellPlan.rank ?? 0) > (spell.system?.level?.value ?? 0)) {
       spellData.system.location.heightenedLevel = spellPlan.rank;
       spellData.system.heightenedLevel = spellPlan.rank;

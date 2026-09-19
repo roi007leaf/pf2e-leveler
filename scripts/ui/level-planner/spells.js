@@ -2,12 +2,13 @@ import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../
 import { ClassRegistry } from '../../classes/registry.js';
 import { resolveClassEdition } from '../../classes/editions.js';
 import { computeBuildState } from '../../plan/build-state.js';
-import { getAllPlannedFeats, getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
+import { getAllPlannedFeats, getAllPlannedSpells, getLevelData, getPlanApparitions } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { loadCompendiumCategory } from '../character-wizard/loaders.js';
 import { SUBCLASS_SPELLS, resolveSpellcastingTradition, resolveSubclassSpells } from '../../data/subclass-spells.js';
 import { collectArchetypeSpellcastingConfigs, normalizeSpellcastingFeatRecord } from '../../utils/spellcasting-support.js';
 import { SF2E_VARIABLE_SPELL_TRADITIONS, resolveSf2eSpellcastingTradition } from '../../utils/sf2e-spellcasting.js';
+import { getRequiredSignatureSpellRanks, getSpellSelectionRank } from '../../utils/signature-spells.js';
 
 const VARIABLE_SPELL_TRADITIONS = new Set(['bloodline', 'patron', 'connection', 'paradox']);
 
@@ -140,7 +141,7 @@ async function buildClassSpellSections(planner, classDef, level) {
   return sections;
 }
 
-async function buildClassSpellSection(planner, classDef, level, entryType, classSlug) {
+export async function buildClassSpellSection(planner, classDef, level, entryType, classSlug) {
   classDef = resolveClassEdition(classDef, planner.actor);
   const slots = classDef?.spellcasting?.slots ?? {};
   const currentSlots = slots[level];
@@ -165,6 +166,7 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
   );
   const spellbookSelectionCount = hasSpellbook ? 2 : 0;
   const spellbookCantripSelectionCount = hasSpellbook ? getSpellbookBonusCantripSelectionCount(planner.plan, level) : 0;
+  const signatureSpellRows = buildSignatureSpellRows(planner, classDef, level, entryType, grantedSpells, levelData);
 
   return {
     classSlug,
@@ -174,6 +176,7 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
     spellType: classDef.spellcasting.type,
     isSpontaneous,
     canSwapRepertoireSpell: isSpontaneous,
+    signatureSpellRows,
     spellSwap: storedSwap
       ? {
           originalName: storedSwap.original?.name ?? 'Original spell',
@@ -200,6 +203,80 @@ async function buildClassSpellSection(planner, classDef, level, entryType, class
     grantedSpells,
     showGrantedSpells: grantedSpells.length > 0,
   };
+}
+
+export function buildSignatureSpellRows(planner, classDef, level, entryType, grantedSpells = [], levelData = null) {
+  const requiredRanks = getRequiredSignatureSpellRanks(classDef, level);
+  if (requiredRanks.length === 0) return [];
+
+  const currentLevelData = levelData ?? getLevelData(planner.plan, level) ?? {};
+  const selected = (currentLevelData.signatureSpells ?? []).filter(
+    (spell) => (spell?.entryType ?? 'primary') === entryType,
+  );
+  const candidates = dedupeSignatureCandidates([
+    ...getOwnedSignatureCandidates(planner, classDef, entryType),
+    ...getAllPlannedSpells(planner.plan, level)
+      .filter((spell) => normalizeSectionEntryType(spell, classDef) === entryType)
+      .map((spell) => normalizeSignatureCandidate(spell, entryType)),
+    ...grantedSpells.map((spell) => normalizeSignatureCandidate(spell, entryType)),
+  ]);
+
+  return requiredRanks.map((rank) => ({
+    rank,
+    label: ordinalRank(rank),
+    selected: selected.find((spell) => Number(spell?.rank) === rank) ?? null,
+    candidates: candidates.filter((spell) => spell.rank === rank),
+  }));
+}
+
+function getOwnedSignatureCandidates(planner, classDef, entryType) {
+  const items = [...(planner.actor?.items ?? [])];
+  const tradition = resolveSpellTradition(planner, classDef);
+  let entries = items.filter((item) =>
+    item?.type === 'spellcastingEntry'
+    && item.system?.prepared?.value === 'spontaneous'
+    && (!tradition || tradition === 'any' || item.system?.tradition?.value === tradition),
+  );
+  if (entries.length > 1) {
+    const classSlug = entryType.startsWith('class:') ? entryType.slice('class:'.length) : classDef.slug;
+    const classEntries = entries.filter((entry) => String(entry.name ?? '').toLowerCase().includes(classSlug));
+    if (classEntries.length > 0) entries = classEntries;
+  }
+  const entryIds = new Set(entries.map((entry) => entry.id ?? entry._id).filter(Boolean));
+
+  return items
+    .filter((item) => item?.type === 'spell' && entryIds.has(item.system?.location?.value))
+    .map((spell) => normalizeSignatureCandidate({
+      uuid: spell.sourceId ?? spell.flags?.core?.sourceId ?? spell.uuid,
+      actorItemId: spell.id ?? spell._id,
+      name: spell.name,
+      img: spell.img,
+      rank: getSpellSelectionRank(spell),
+    }, entryType));
+}
+
+function normalizeSignatureCandidate(spell, entryType) {
+  return {
+    uuid: spell?.uuid ?? null,
+    actorItemId: spell?.actorItemId ?? null,
+    name: spell?.name ?? 'Unknown Spell',
+    img: spell?.img ?? 'icons/svg/mystery-man.svg',
+    rank: getSpellSelectionRank(spell),
+    entryType,
+  };
+}
+
+function dedupeSignatureCandidates(candidates) {
+  const seen = new Set();
+  return candidates
+    .filter((spell) => spell.uuid && spell.rank > 0)
+    .filter((spell) => {
+      const key = `${spell.uuid}:${spell.rank}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
 }
 
 function normalizeSectionEntryType(spell, classDef) {
@@ -534,8 +611,12 @@ export function findFeatLevel(planner, slugs) {
 
 export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedSpells, grantedSpells = [], selectionAdjustments = {}, selectionOptions = {}) {
   const plannedByRank = {};
+  const plannedSpellsByRank = {};
   for (const spell of plannedSpells) {
-    plannedByRank[spell.rank] = (plannedByRank[spell.rank] ?? 0) + 1;
+    const rank = Number(spell.displayRank ?? spell.rank ?? spell.baseRank);
+    plannedByRank[rank] = (plannedByRank[rank] ?? 0) + 1;
+    plannedSpellsByRank[rank] ??= [];
+    plannedSpellsByRank[rank].push(spell);
   }
   const grantedByRank = {};
   for (const spell of grantedSpells) {
@@ -560,6 +641,7 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
         total,
         newSlots: newCantrips,
         planned,
+        plannedSpells: plannedSpellsByRank[0] ?? [],
         isFull: newCantrips <= 0 || planned >= newCantrips,
         hasNew: newCantrips > 0,
         isDual,
@@ -590,6 +672,7 @@ export function buildSpellSlotDisplay(planner, currentSlots, prevSlots, plannedS
       gainedSlots,
       grantedCount,
       planned,
+      plannedSpells: plannedSpellsByRank[rankNum] ?? [],
       hasNew: newSlots > 0,
       isFull,
       isDual,

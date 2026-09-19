@@ -2,7 +2,7 @@ import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES
 import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
-import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, setLevelSpellSwap, upsertLevelFeatGrant } from '../../plan/plan-model.js';
+import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, setLevelSpellSwap, setLevelSignatureSpell, upsertLevelFeatGrant } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { buildFeatGrantRequirements, buildPlanFormulaProgressionRequirements } from '../../plan/feat-grants.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
@@ -25,7 +25,7 @@ import { doesFeatMatchRequiredSecondLevelClassFeat, getRequiredSecondLevelClassF
 import { buildAttributeContext, buildImportedInitialSkillContext, buildImportedInitialSkillSummary, buildInitialSkillChoiceSetsAndFallbacks, buildIntBonusLanguageContext, buildIntBonusSkillContext, buildIntelligenceBenefitContext, buildSkillContext, getAvailableLanguages, getPlannedLanguagesBeforeLevel, localizeLanguageLabel } from './context.js';
 import { annotateFeat, buildABPContext, buildFeatGrantPreview, buildLoreSkillIncreaseEntry, buildLevelContext, buildSkillRetrainSources, extractFeat, getClassFeaturesForLevel } from './level-context.js';
 import { activateLevelPlannerListeners, syncPlannedFeatChoiceSkillRules, syncSameLevelSkillIncreaseFromFeatRules } from './listeners.js';
-import { buildSpellContext, buildCustomSpellEntryOptions, buildSpellSlotDisplay, detectNewSpellRank, findFeatLevel, getDedicationSelectionLimitsForPlanner, getActorSpellCounts, getFocusSpellsForLevel, getGrantedSpellsForLevel, getHighestRank, getSubclassSlug, ordinalRank, resolveSpellTradition, shouldExcludeOwnedSpellIdentityForPlanner } from './spells.js';
+import { buildSpellContext, buildClassSpellSection, buildCustomSpellEntryOptions, buildSpellSlotDisplay, detectNewSpellRank, findFeatLevel, getDedicationSelectionLimitsForPlanner, getActorSpellCounts, getFocusSpellsForLevel, getGrantedSpellsForLevel, getHighestRank, getSubclassSlug, ordinalRank, resolveSpellTradition, shouldExcludeOwnedSpellIdentityForPlanner } from './spells.js';
 import { mountPlanComments, collectPlannerCommentAnchors } from '../plan-comments-ui.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -1382,7 +1382,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     this._savePlanAndRender();
   }
 
-  _openSpellPicker(rank, entryType = 'primary') {
+  async _openSpellPicker(rank, entryType = 'primary') {
     const classDef = this._getSpellcastingClassForEntryType(entryType);
     const isArchetypeEntry = typeof entryType === 'string' && entryType.startsWith('archetype:');
     if (!classDef?.spellcasting && !isArchetypeEntry) return;
@@ -1402,14 +1402,23 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     const maxRank = rank === -1 ? this._getHighestRank(currentSlots) : null;
     const currentRankSelections = sectionSpells.filter((spell) => !this._isPlannedCantripSpell(spell));
     const currentCantripSelections = sectionSpells.filter((spell) => this._isPlannedCantripSpell(spell));
-    const maxSelect = this._getSpellPickerMaxSelections(resolvedEntryType, rank, currentRankSelections, currentCantripSelections);
+    const classSpellSection = !isArchetypeEntry && rank > 0
+      ? await buildClassSpellSection(this, classDef, this.selectedLevel, resolvedEntryType, classDef.slug)
+      : null;
+    const maxSelect = this._getSpellPickerMaxSelections(
+      resolvedEntryType,
+      rank,
+      currentRankSelections,
+      currentCantripSelections,
+      classSpellSection?.spellSlots,
+    );
     const selectedSpells = rank === 0 ? currentCantripSelections : rank === -1 ? currentRankSelections : sectionSpells.filter((spell) => Number(spell.rank ?? spell.baseRank ?? -1) === rank);
     const multiSelect = maxSelect != null;
     if (maxSelect != null && maxSelect <= 0) return;
 
-    import('../spell-picker.js').then(({ SpellPicker }) => {
-      const dedicationLimits = typeof resolvedEntryType === 'string' && resolvedEntryType.startsWith('archetype:') ? getDedicationSelectionLimitsForPlanner(this, this.selectedLevel, resolvedEntryType) : null;
-      const picker = new SpellPicker(
+    const { SpellPicker } = await import('../spell-picker.js');
+    const dedicationLimits = typeof resolvedEntryType === 'string' && resolvedEntryType.startsWith('archetype:') ? getDedicationSelectionLimitsForPlanner(this, this.selectedLevel, resolvedEntryType) : null;
+    const picker = new SpellPicker(
         this.actor,
         tradition,
         pickerRank,
@@ -1470,9 +1479,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
               : {}),
           },
         },
-      );
-      picker.render(true);
-    });
+    );
+    picker.render(true);
   }
 
   async _openSpellSwapPicker(entryType = 'primary') {
@@ -1534,6 +1542,31 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       },
     );
     picker.render(true);
+  }
+
+  async _openSignatureSpellPicker(rank, entryType = 'primary') {
+    const classDef = this._getSpellcastingClassForEntryType(entryType);
+    if (!classDef?.spellcasting) return;
+    const resolvedEntryType = entryType === 'primary' && classDef.spellcasting.type === 'dual' ? 'animist' : entryType;
+    const section = await buildClassSpellSection(this, classDef, this.selectedLevel, resolvedEntryType, classDef.slug);
+    const row = section?.signatureSpellRows?.find((entry) => entry.rank === Number(rank));
+    if (!row?.candidates?.length) {
+      ui.notifications?.warn?.(game.i18n.localize('PF2E_LEVELER.SPELLS.NO_SIGNATURE_CANDIDATES'));
+      return;
+    }
+
+    const selected = await this._promptRetrainSource({
+      title: game.i18n.localize('PF2E_LEVELER.SPELLS.CHOOSE_SIGNATURE'),
+      name: 'signature-spell',
+      sources: row.candidates,
+      getLabel: (spell) => spell.name,
+      getMeta: (spell) => `Rank ${spell.rank}`,
+      getIcon: (spell) => spell.img,
+    });
+    if (!selected) return;
+
+    setLevelSignatureSpell(this.plan, this.selectedLevel, selected);
+    await this._savePlanAndRender();
   }
 
   _getSpellSwapSources(entryType = 'primary') {
@@ -1607,7 +1640,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return Math.max(0, getSpellbookBonusCantripSelectionCount(this.plan, this.selectedLevel) - Number(currentCount ?? 0));
   }
 
-  _getSpellPickerMaxSelections(entryType, rank, currentRankSelections, currentCantripSelections) {
+  _getSpellPickerMaxSelections(entryType, rank, currentRankSelections, currentCantripSelections, classSpellSlots = []) {
     if (typeof entryType === 'string' && entryType.startsWith('archetype:')) {
       const limits = getDedicationSelectionLimitsForPlanner(this, this.selectedLevel, entryType);
       if (rank === 0) return Math.max(0, Number(limits.cantripSelectionCount ?? 0) - currentCantripSelections.length);
@@ -1624,6 +1657,11 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     if (rank === -1) {
       return this._getRemainingSpellbookSelections(currentRankSelections.length);
+    }
+
+    if (rank > 0) {
+      const rankSlot = classSpellSlots.find((slot) => Number(slot.rankNum) === rank);
+      if (rankSlot) return Math.max(0, Number(rankSlot.newSlots ?? 0) - Number(rankSlot.planned ?? 0));
     }
 
     return null;

@@ -4,6 +4,8 @@ import { getChoicesForLevel, getGradualBoostGroupLevels, getSkillIncreaseSelecti
 import { resolveSubclassSpells } from '../data/subclass-spells.js';
 import { getIntelligenceBenefitCount } from './build-state.js';
 import { getSpellbookBonusCantripSelectionCount } from './spellbook-feats.js';
+import { resolveClassEdition } from '../classes/editions.js';
+import { getRequiredSignatureSpellRanks } from '../utils/signature-spells.js';
 import { getFeatGrantCompletion } from './feat-grants.js';
 import { getMaxSkillRank } from '../utils/pf2e-api.js';
 import { collectArchetypeSpellcastingConfigs } from '../utils/spellcasting-support.js';
@@ -412,6 +414,21 @@ function validateSpells(levelData, level, classDef, actor, plan) {
   if (planned.length < totalNewSlots) {
     const missing = totalNewSlots - planned.length;
     return { severity: 'error', message: `${missing} spell(s) not yet selected` };
+  }
+
+  const signatureClassDef = resolveClassEdition(classDef, actor);
+  const requiredSignatureRanks = getRequiredSignatureSpellRanks(signatureClassDef, level);
+  const selectedSignatures = (levelData.signatureSpells ?? []).filter(
+    (spell) => (spell?.entryType ?? 'primary') === 'primary',
+  );
+  const missingSignatureRanks = requiredSignatureRanks.filter(
+    (rank) => !selectedSignatures.some((spell) => Number(spell?.rank) === rank),
+  );
+  if (missingSignatureRanks.length > 0) {
+    return {
+      severity: 'error',
+      message: `${missingSignatureRanks.length} signature spell(s) not yet selected`,
+    };
   }
 
   return null;

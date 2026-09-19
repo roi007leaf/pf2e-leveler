@@ -3,12 +3,14 @@ import { PLAN_STATUS } from '../../../scripts/constants.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { INVESTIGATOR } from '../../../scripts/classes/investigator.js';
+import { SORCERER } from '../../../scripts/classes/sorcerer.js';
 import { getPlan, savePlan } from '../../../scripts/plan/plan-store.js';
 import { createPlan } from '../../../scripts/plan/plan-model.js';
 import { computeBuildState } from '../../../scripts/plan/build-state.js';
 import { loadFeats } from '../../../scripts/feats/feat-cache.js';
 import { ItemPicker } from '../../../scripts/ui/item-picker.js';
 import { FeatPicker } from '../../../scripts/ui/feat-picker.js';
+import { SpellPicker } from '../../../scripts/ui/spell-picker.js';
 import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 import { readFileSync } from 'node:fs';
 
@@ -33,11 +35,69 @@ describe('LevelPlanner bootstrap from existing actor', () => {
     ClassRegistry.clear();
     ClassRegistry.register(ALCHEMIST);
     ClassRegistry.register(INVESTIGATOR);
+    ClassRegistry.register(SORCERER);
   });
 
   beforeEach(() => {
     getPlan.mockReturnValue(null);
     loadFeats.mockResolvedValue([]);
+  });
+
+  it('allows all remaining new rank spells to be selected in one picker session', () => {
+    const actor = createMockActor({
+      class: { slug: 'sorcerer', name: 'Sorcerer' },
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+    });
+    actor.items = [];
+    const planner = new LevelPlanner(actor);
+
+    expect(
+      planner._getSpellPickerMaxSelections(
+        'primary',
+        2,
+        [{ uuid: 'spell-1', rank: 2 }],
+        [],
+        [{ rankNum: 2, newSlots: 3, planned: 1 }],
+      ),
+    ).toBe(2);
+  });
+
+  it('opens a new spell rank picker in multi-select mode with the full rank allowance', async () => {
+    const actor = createMockActor({
+      class: { slug: 'sorcerer', name: 'Sorcerer' },
+      system: {
+        details: {
+          level: { value: 2 },
+          xp: { value: 0, max: 1000 },
+        },
+      },
+    });
+    actor.items = [];
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('sorcerer');
+    planner.selectedLevel = 3;
+    let renderedPicker = null;
+    const renderSpy = jest.spyOn(SpellPicker.prototype, 'render').mockImplementation(function render() {
+      renderedPicker = this;
+      return this;
+    });
+
+    try {
+      await planner._openSpellPicker(2, 'primary');
+    } finally {
+      renderSpy.mockRestore();
+    }
+
+    expect(renderedPicker).toEqual(expect.objectContaining({
+      multiSelect: true,
+      maxSelect: 3,
+      rank: 2,
+    }));
   });
 
   it('re-registers default classes when the registry is empty at planner bootstrap', () => {

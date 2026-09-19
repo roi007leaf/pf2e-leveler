@@ -273,6 +273,62 @@ describe('applySpells', () => {
     ]);
   });
 
+  test('applies planned signature spells using native PF2e location metadata', async () => {
+    const spellUuid = 'Compendium.pf2e.spells-srd.Item.fear';
+    actor.items.push({
+      id: 'fear-item',
+      type: 'spell',
+      name: 'Fear',
+      sourceId: spellUuid,
+      system: { level: { value: 1 }, location: { value: 'primary-entry' } },
+    });
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        3: {
+          spells: [],
+          signatureSpells: [{ uuid: spellUuid, actorItemId: 'fear-item', name: 'Fear', rank: 1, entryType: 'primary' }],
+        },
+      },
+    };
+
+    await applySpells(actor, plan, 3);
+
+    expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      { _id: 'fear-item', 'system.location.signature': true },
+    ]);
+  });
+
+  test('creates newly learned signature spells with native PF2e location metadata', async () => {
+    const spellUuid = 'Compendium.pf2e.spells-srd.Item.blur';
+    global.fromUuid = jest.fn(async (uuid) => ({
+      uuid,
+      name: 'Blur',
+      system: { level: { value: 2 } },
+      toObject: () => ({ name: 'Blur', type: 'spell', system: { level: { value: 2 } } }),
+    }));
+    const plan = {
+      classSlug: 'sorcerer',
+      levels: {
+        3: {
+          spells: [{ uuid: spellUuid, name: 'Blur', rank: 2, entryType: 'primary' }],
+          signatureSpells: [{ uuid: spellUuid, name: 'Blur', rank: 2, entryType: 'primary' }],
+        },
+      },
+    };
+
+    await applySpells(actor, plan, 3);
+
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({
+        name: 'Blur',
+        system: expect.objectContaining({
+          location: { value: 'primary-entry', signature: true },
+        }),
+      }),
+    ]);
+  });
+
   test('resolves subclass focus spell name overrides from SF2e spell packs', async () => {
     const originalGame = global.game;
     const plan = {

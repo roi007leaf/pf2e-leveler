@@ -365,6 +365,14 @@
   background: rgba(21, 101, 192, 0.1);
 }
 
+.pf2e-leveler .spell-slot-planned-row td {
+  padding-top: 0;
+}
+
+.pf2e-leveler .spell-slot-planned-row .wizard-spell-chips {
+  margin-bottom: var(--leveler-spacing-xs);
+}
+
 .pf2e-leveler .abp-info {
   display: flex;
   flex-wrap: wrap;

@@ -18,6 +18,8 @@ import {
   removeLevelSpell,
   setLevelSpellSwap,
   removeLevelSpellSwap,
+  setLevelSignatureSpell,
+  removeLevelSignatureSpell,
   addLevelFeatRetrain,
   removeLevelFeatRetrain,
   addLevelSkillRetrain,
@@ -204,6 +206,30 @@ describe('removeLevelSpell', () => {
     removeLevelSpell(plan, 2, 'spell-rank-2', { entryType: 'primary', rank: 2 });
 
     expect(plan.levels[2].spells).toEqual([]);
+  });
+});
+
+describe('signature spells', () => {
+  test('stores one signature spell per entry and rank', () => {
+    const plan = createPlan('alchemist');
+
+    setLevelSignatureSpell(plan, 3, { uuid: 'fear', name: 'Fear', rank: 1, entryType: 'primary' });
+    setLevelSignatureSpell(plan, 3, { uuid: 'bane', name: 'Bane', rank: 1, entryType: 'primary' });
+    setLevelSignatureSpell(plan, 3, { uuid: 'blur', name: 'Blur', rank: 2, entryType: 'primary' });
+
+    expect(plan.levels[3].signatureSpells).toEqual([
+      expect.objectContaining({ uuid: 'bane', rank: 1, entryType: 'primary' }),
+      expect.objectContaining({ uuid: 'blur', rank: 2, entryType: 'primary' }),
+    ]);
+
+    removeLevelSignatureSpell(plan, 3, 1, 'primary');
+    expect(plan.levels[3].signatureSpells).toEqual([
+      expect.objectContaining({ uuid: 'blur', rank: 2 }),
+    ]);
+
+    addLevelSpell(plan, 3, { uuid: 'blur', name: 'Blur', rank: 2, entryType: 'primary' });
+    removeLevelSpell(plan, 3, 'blur', { rank: 2, entryType: 'primary' });
+    expect(plan.levels[3].signatureSpells).toEqual([]);
   });
 });
 

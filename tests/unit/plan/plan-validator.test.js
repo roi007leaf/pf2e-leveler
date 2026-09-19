@@ -12,6 +12,7 @@ import {
   addLevelFeatRetrain,
   addLevelSkillRetrain,
   addLevelSpell,
+  setLevelSignatureSpell,
   setLevelBoosts,
   setLevelFeat,
   setLevelSkillIncrease,
@@ -415,10 +416,31 @@ describe('validateLevel', () => {
     setLevelSkillIncrease(plan, 3, { skill: 'arcana', toRank: 2 });
     addLevelSpell(plan, 3, { uuid: 'spell-1', name: 'Acid Arrow', rank: 2 });
     addLevelSpell(plan, 3, { uuid: 'spell-2', name: 'Acidic Burst', rank: 2 });
+    setLevelSignatureSpell(plan, 3, { uuid: 'owned-rank-1', name: 'Fear', rank: 1, entryType: 'primary' });
+    setLevelSignatureSpell(plan, 3, { uuid: 'spell-1', name: 'Acid Arrow', rank: 2, entryType: 'primary' });
 
     const result = validateLevel(plan, SORCERER, 3, {}, actor);
 
     expect(result.status).toBe(PLAN_STATUS.COMPLETE);
+  });
+
+  test('level 3 spontaneous casters require one signature spell per accessible rank', () => {
+    const actor = { items: [] };
+    const plan = createPlan('sorcerer');
+    setLevelFeat(plan, 3, 'generalFeats', { uuid: 'general-1', name: 'Keen Follower', slug: 'keen-follower' });
+    setLevelSkillIncrease(plan, 3, { skill: 'arcana', toRank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-1', name: 'Fear', rank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-2', name: 'Blur', rank: 2 });
+    addLevelSpell(plan, 3, { uuid: 'spell-3', name: 'Laughing Fit', rank: 2 });
+
+    expect(validateLevel(plan, SORCERER, 3, {}, actor).issues).toContainEqual(expect.objectContaining({
+      message: expect.stringContaining('signature spell'),
+    }));
+
+    setLevelSignatureSpell(plan, 3, { uuid: 'owned-rank-1', name: 'Fear', rank: 1, entryType: 'primary' });
+    setLevelSignatureSpell(plan, 3, { uuid: 'spell-1', name: 'Fear', rank: 2, entryType: 'primary' });
+
+    expect(validateLevel(plan, SORCERER, 3, {}, actor).issues.some((issue) => issue.message.includes('signature spell'))).toBe(false);
   });
 
   test('intelligence bonus selections validate correctly when INT increases from +4 to +5', () => {

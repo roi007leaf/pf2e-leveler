@@ -25,4 +25,24 @@ describe('LevelPlanner template', () => {
     expect(actions).toContain('{{localize "PF2E_LEVELER.UI.EXPORT"}}');
     expect(actions).toContain('{{localize "PF2E_LEVELER.UI.IMPORT"}}');
   });
+
+  it('renders planned class spells beneath their matching rank rows', () => {
+    const template = readTemplate();
+    const classSpellSection = template.slice(
+      template.indexOf('{{#each classSpellSections}}'),
+      template.indexOf('{{#each dedicationSpellSections}}'),
+    );
+
+    expect(classSpellSection).toContain('class="spell-slot-planned-row"');
+    expect(classSpellSection).toContain('{{#each this.plannedSpells}}');
+    expect(classSpellSection).not.toContain('{{localize "PF2E_LEVELER.SPELLS.PLANNED"}}');
+    expect(template).not.toContain('{{#if plannedSpells.length}}');
+  });
+
+  it('renders signature spell selection controls for spontaneous class sections', () => {
+    const template = readTemplate();
+
+    expect(template).toContain('data-action="openSignatureSpellPicker"');
+    expect(template).toContain('data-action="removeSignatureSpell"');
+  });
 });

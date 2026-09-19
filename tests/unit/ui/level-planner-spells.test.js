@@ -12,6 +12,9 @@ jest.mock('../../../scripts/plan/build-state.js', () => ({
 
 jest.mock('../../../scripts/plan/plan-model.js', () => ({
   getLevelData: jest.fn(() => ({ spells: [] })),
+  getAllPlannedSpells: jest.fn((plan, upToLevel = 20) => Object.entries(plan?.levels ?? {})
+    .filter(([level]) => Number(level) <= upToLevel)
+    .flatMap(([, data]) => data?.spells ?? [])),
   getAllPlannedFeats: jest.fn((plan, upToLevel = 20) => {
     const feats = [];
     const featKeys = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
@@ -156,6 +159,47 @@ describe('level planner spell context', () => {
     }));
   });
 
+  test('level 3 spontaneous casters expose signature choices for every accessible rank', async () => {
+    getLevelData.mockReturnValueOnce({
+      spells: [{ uuid: 'blur', name: 'Blur', img: 'blur.webp', rank: 2, entryType: 'primary' }],
+      signatureSpells: [{ uuid: 'fear', name: 'Fear', rank: 1, entryType: 'primary' }],
+    });
+    const planner = {
+      actor: {
+        items: [
+          {
+            id: 'entry',
+            type: 'spellcastingEntry',
+            name: 'Sorcerer Spells',
+            system: { prepared: { value: 'spontaneous' }, tradition: { value: 'arcane' } },
+          },
+          {
+            id: 'fear-item',
+            type: 'spell',
+            name: 'Fear',
+            img: 'fear.webp',
+            sourceId: 'fear',
+            system: { level: { value: 1 }, location: { value: 'entry' } },
+          },
+        ],
+      },
+      plan: {
+        classSlug: 'sorcerer',
+        levels: {
+          3: { spells: [{ uuid: 'blur', name: 'Blur', img: 'blur.webp', rank: 2, entryType: 'primary' }] },
+        },
+      },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+
+    const context = await buildSpellContext(planner, SORCERER, 3);
+
+    expect(context.classSpellSections[0].signatureSpellRows).toEqual([
+      expect.objectContaining({ rank: 1, selected: expect.objectContaining({ uuid: 'fear' }) }),
+      expect.objectContaining({ rank: 2, candidates: [expect.objectContaining({ uuid: 'blur' })] }),
+    ]);
+  });
+
   test('sorcerer bloodline paragon grants two 10th-rank repertoire picks at level 19', async () => {
     const planner = {
       actor: { items: [] },
@@ -261,6 +305,24 @@ describe('level planner spell context', () => {
         newSlots: 2,
       }),
     );
+  });
+
+  test('buildSpellSlotDisplay exposes planned spells on their matching rank row', () => {
+    const planner = { _ordinalRank: (rank) => `${rank}th` };
+    const plannedSpells = [
+      { uuid: 'rank-2-a', name: 'Animate Object', rank: 2, entryType: 'primary' },
+      { uuid: 'rank-2-b', name: 'Augury', rank: 2, entryType: 'primary' },
+    ];
+
+    const display = buildSpellSlotDisplay(
+      planner,
+      { cantrips: 5, 1: 4, 2: 3 },
+      { cantrips: 5, 1: 4 },
+      plannedSpells,
+    );
+
+    expect(display.find((slot) => slot.rankNum === 1).plannedSpells).toEqual([]);
+    expect(display.find((slot) => slot.rankNum === 2).plannedSpells).toEqual(plannedSpells);
   });
 
   test('passes subclass rule selections when resolving genie bloodline spells', async () => {

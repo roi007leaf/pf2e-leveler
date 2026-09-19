@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.8.5
+
+### Added
+
+- **Signature spell planning** - Spontaneous casters can select and remove one signature spell for each available spell rank, including spells already known or planned at that level
+
+### Fixed
+
+- **Spell selection workflow** - Level Planner spell pickers now allow multiple spells to be selected and added together instead of closing after each choice
+- **Planned spell organization** - Spontaneous planned spells now appear beneath their respective rank rows instead of in a separate duplicate summary
+
 ## 3.8.4
 
 ### Fixed
