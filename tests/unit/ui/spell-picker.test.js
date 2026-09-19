@@ -220,7 +220,7 @@ describe('SpellPicker', () => {
     expect(picker.filteredSpells.map((spell) => spell.name).slice(0, 2)).toEqual(['Magic Missile', 'Acid Grip']);
   });
 
-  test('allows same spell at a different rank but blocks same spell and rank', async () => {
+  test('allows same spell at a different rank and marks same-rank ownership already learned', async () => {
     const actor = createMockActor({
       items: [
         {
@@ -236,11 +236,56 @@ describe('SpellPicker', () => {
 
     const picker = new SpellPicker(actor, 'arcane', 2, jest.fn(), { excludedSelections: [] });
     const context = await picker._prepareContext();
-    expect(context.spells.map((spell) => spell.uuid)).toContain('magic-missile');
+    expect(context.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'magic-missile',
+        alreadyTaken: false,
+        selectionBlocked: false,
+      }),
+    ]));
 
     const sameRankPicker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });
     const sameRankContext = await sameRankPicker._prepareContext();
-    expect(sameRankContext.spells.map((spell) => spell.uuid)).not.toContain('magic-missile');
+    expect(sameRankContext.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'magic-missile',
+        alreadyTaken: true,
+        selectionBlocked: true,
+      }),
+    ]));
+  });
+
+  test('keeps actor-owned repertoire spells visible and marks them already learned', async () => {
+    const actor = createMockActor({
+      items: [
+        {
+          type: 'spell',
+          sourceId: 'heal',
+          name: 'Heal',
+          system: {
+            level: { value: 1 },
+            location: { value: 'divine-repertoire', heightenedLevel: 1 },
+          },
+        },
+      ],
+    });
+
+    const picker = new SpellPicker(actor, 'divine', 1, jest.fn(), {
+      exactRank: true,
+      multiSelect: true,
+      excludedSelections: [],
+    });
+
+    const context = await picker._prepareContext();
+
+    expect(context.spells).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        uuid: 'heal',
+        name: 'Heal',
+        alreadyTaken: true,
+        selectionBlocked: true,
+      }),
+    ]));
   });
 
   test('supports exact-rank spell selection for preparation-style picking', async () => {

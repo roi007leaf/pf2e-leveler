@@ -123,6 +123,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this._ownedIdentityKeys = new Set(
       ownedSpells.flatMap((spell) => spell.keys),
     );
+    this._ownedSelectionKeys = ownedSelections;
 
     if (this.allSpells.length === 0) {
       const all = await loadSpells();
@@ -144,14 +145,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
         const spellRank = getSpellRank(s.system ?? {});
         if (this.isCantrip) return isCantrip;
         if (this.rank === -1) {
-          if ((!this.excludeOwnedByIdentity && ownedSelections.has(`${s.uuid}:${spellRank}`)) || this.excludedUuids.has(s.uuid)) return false;
+          if (this.excludedUuids.has(s.uuid)) return false;
           if (this.allowedUuids.size > 0) return true;
           if (isCantrip) return false;
           if (this.maxRank != null) return spellRank >= 1 && spellRank <= this.maxRank;
           return spellRank >= 1;
         }
         if (isCantrip) return false;
-        if ((!this.excludeOwnedByIdentity && ownedSelections.has(`${s.uuid}:${this.rank}`)) || this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
+        if (this.excludedSelections.has(`${s.uuid}:${this.rank}`)) return false;
         if (this.exactRank) return spellRank === this.rank;
         return spellRank <= this.rank;
       });
@@ -890,7 +891,10 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _toTemplateSpell(spell) {
-    const alreadyTaken = this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(spell, this._ownedIdentityKeys ?? new Set());
+    const spellRank = getSpellRank(spell.system ?? {});
+    const selectionRank = !this.isCantrip && this.rank > 0 ? this.rank : spellRank;
+    const alreadyTaken = (this.excludeOwnedByIdentity && this._matchesOwnedSpellIdentity(spell, this._ownedIdentityKeys ?? new Set()))
+      || (this._ownedSelectionKeys ?? new Set()).has(`${spell.uuid}:${selectionRank}`);
     const isDisallowed = spell.isDisallowed === true;
     return {
       uuid: spell.uuid ?? spell.sourceId ?? spell.flags?.core?.sourceId ?? '',

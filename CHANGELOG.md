@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.4
+
+### Fixed
+
+- **Learned spell visibility** - Spell pickers now keep already learned spells visible for prepared and spontaneous casters, clearly label them, prevent duplicate selection, and preserve valid higher-rank repertoire choices
+
 ## 3.8.3
 
 ### Fixed
