@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.7
+
+### Fixed
+
+- **Deity skill training** - Character creation and the level planner now only treat a deity's associated skill as trained for Clerics and Champions, instead of any character with a deity selected (#108)
+
 ## 3.8.6
 
 ### Added

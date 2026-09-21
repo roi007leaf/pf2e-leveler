@@ -13,6 +13,7 @@ export const CHAMPION = {
   },
   skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
   abilityBoostSchedule: [5, 10, 15, 20],
+  deitySkillTraining: true,
 
   classFeatures: [
     { level: 3, name: 'Blessing of the Devoted', key: 'blessing-of-the-devoted' },

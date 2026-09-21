@@ -1670,12 +1670,13 @@ describe('applyCreation ancestry paragon', () => {
     game.users = [{ isGM: true, id: 'gm-user' }];
     ChatMessage.create = jest.fn(async () => {});
     global.fromUuid = jest.fn(async () => null);
+    ClassRegistry.get.mockImplementation((slug) => (slug === 'champion' ? { slug, deitySkillTraining: true } : null));
 
     await applyCreation(actor, {
       ancestry: null,
       heritage: null,
       background: null,
-      class: { uuid: 'class-uuid', name: 'Champion' },
+      class: { uuid: 'class-uuid', name: 'Champion', slug: 'champion' },
       deity: { uuid: 'deity-uuid', name: 'Abadar', skill: 'society' },
       boosts: { free: [] },
       languages: [],
@@ -1725,12 +1726,13 @@ describe('applyCreation ancestry paragon', () => {
     game.users = [{ isGM: true, id: 'gm-user' }];
     ChatMessage.create = jest.fn(async () => {});
     global.fromUuid = jest.fn(async () => null);
+    ClassRegistry.get.mockImplementation((slug) => (slug === 'champion' ? { slug, deitySkillTraining: true } : null));
 
     await applyCreation(actor, {
       ancestry: null,
       heritage: null,
       background: null,
-      class: { uuid: 'class-uuid', name: 'Champion' },
+      class: { uuid: 'class-uuid', name: 'Champion', slug: 'champion' },
       deity: { uuid: 'deity-uuid', name: 'Shelyn', skill: { value: 'performance' } },
       boosts: { free: [] },
       languages: [],
@@ -1745,6 +1747,49 @@ describe('applyCreation ancestry paragon', () => {
     });
 
     expect(actor.update).toHaveBeenCalledWith({ 'system.skills.performance.rank': 1 });
+  });
+
+  it('does not train the deity skill for classes without deity skill training', async () => {
+    game.settings.get = jest.fn(() => false);
+
+    const actor = createMockActor({
+      items: [],
+      system: {
+        skills: {
+          performance: { rank: 0 },
+        },
+        details: {
+          languages: { value: [] },
+        },
+      },
+    });
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc, index) => ({ ...doc, id: `created-${index}` })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async () => null);
+    ClassRegistry.get.mockImplementation((slug) => (slug === 'fighter' ? { slug } : null));
+
+    await applyCreation(actor, {
+      ancestry: null,
+      heritage: null,
+      background: null,
+      class: { uuid: 'class-uuid', name: 'Fighter', slug: 'fighter' },
+      deity: { uuid: 'deity-uuid', name: 'Shelyn', skill: { value: 'performance' } },
+      boosts: { free: [] },
+      languages: [],
+      skills: [],
+      lores: [],
+      ancestryFeat: null,
+      ancestryParagonFeat: null,
+      classFeat: null,
+      subclass: null,
+      grantedFeatSections: [],
+      grantedFeatChoices: {},
+    });
+
+    expect(actor.update).not.toHaveBeenCalledWith({ 'system.skills.performance.rank': 1 });
   });
 
   it('trains a selected synthetic feat fallback skill during creation', async () => {

@@ -1171,8 +1171,8 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const ancestryTraits = [...new Set([...baseAncestryTraits, ...adoptedAncestryTraits, ...mixedAncestryTraits, ...heritageGrantedTraits, ...featGrantedHeritageTraits])];
 
     const senses = await this._collectSenses();
-    const [classSkillsForState, bgSkillsForState] = await Promise.all([this._getClassTrainedSkills(target), this._getBackgroundTrainedSkills()]);
-    const allTrainedSkills = [...classSkillsForState, ...bgSkillsForState, ...(subclassEntry?.grantedSkills ?? []), ...(normalizeSkillSlug(classSelections.deity?.skill) ? [normalizeSkillSlug(classSelections.deity?.skill)] : []), ...(this.data.ancestryFeat?.grantedSkills ?? []), ...(this.data.ancestryParagonFeat?.grantedSkills ?? []), ...(this.data.classFeat?.grantedSkills ?? []), ...(this.data.dualClassFeat?.grantedSkills ?? []), ...(this.data.skillFeat?.grantedSkills ?? []), ...this.data.skills];
+    const [classSkillsForState, bgSkillsForState, deitySkills] = await Promise.all([this._getClassTrainedSkills(target), this._getBackgroundTrainedSkills(), collectWizardDeitySkillMap(this)]);
+    const allTrainedSkills = [...classSkillsForState, ...bgSkillsForState, ...(subclassEntry?.grantedSkills ?? []), ...deitySkills.keys(), ...(this.data.ancestryFeat?.grantedSkills ?? []), ...(this.data.ancestryParagonFeat?.grantedSkills ?? []), ...(this.data.classFeat?.grantedSkills ?? []), ...(this.data.dualClassFeat?.grantedSkills ?? []), ...(this.data.skillFeat?.grantedSkills ?? []), ...this.data.skills];
     const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
     const attributes = await this._buildCreationAbilityModifiers();
     const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;

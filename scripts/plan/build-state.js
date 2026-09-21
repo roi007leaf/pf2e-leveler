@@ -11,6 +11,7 @@ import { isCompendiumUuidInCategory } from '../system-support/profiles.js';
 import { inferSf2eSpellcastingTraditionFromItem, normalizeSpellTradition } from '../utils/sf2e-spellcasting.js';
 import { getRankAfterSkillRetrain } from '../utils/skill-retrains.js';
 import { getAutomaticLoreProficiencies } from '../classes/progression.js';
+import { anyClassGrantsDeitySkill } from '../classes/deity-skill.js';
 
 const VARIABLE_SPELLCASTING_TRADITIONS = new Set(['bloodline', 'patron', 'connection', 'paradox']);
 const SECOND_DEDICATION_EXCEPTION_SLUGS = new Set(['cavalier-dedication']);
@@ -878,7 +879,7 @@ export function computeSkillPickerState(actor, plan, atLevel, classDef, options 
   applyInitialSkillTraining(skills, initialSkillTraining);
   if (includeActorSkillRanks) {
     applyActorSkillRankRules(skills, actor, atLevel);
-    applyActorDeitySkill(skills, actor);
+    applyActorDeitySkill(skills, actor, trackedClassDefs);
   }
   applyInitialSkillRetrains(skills, plan, atLevel);
 
@@ -1516,7 +1517,8 @@ function isInitialSkillRetrainOriginal(original) {
     && Number(original?.toRank) === PROFICIENCY_RANKS.TRAINED;
 }
 
-function applyActorDeitySkill(skills, actor) {
+function applyActorDeitySkill(skills, actor, classDefs) {
+  if (!anyClassGrantsDeitySkill(classDefs)) return skills;
   const deitySkill = resolveActorDeitySkill(actor);
   if (!deitySkill || !isActiveSkillSlug(deitySkill)) return skills;
   skills[deitySkill] = Math.max(skills[deitySkill] ?? PROFICIENCY_RANKS.UNTRAINED, PROFICIENCY_RANKS.TRAINED);

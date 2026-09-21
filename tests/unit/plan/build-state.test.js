@@ -1,6 +1,7 @@
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
 import { ALCHEMIST } from '../../../scripts/classes/alchemist.js';
 import { BARD } from '../../../scripts/classes/bard.js';
+import { CHAMPION } from '../../../scripts/classes/champion.js';
 import { COMMANDER } from '../../../scripts/classes/commander.js';
 import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
@@ -23,6 +24,7 @@ beforeAll(() => {
   ClassRegistry.clear();
   ClassRegistry.register(ALCHEMIST);
   ClassRegistry.register(BARD);
+  ClassRegistry.register(CHAMPION);
   ClassRegistry.register(COMMANDER);
   ClassRegistry.register(DRUID);
   ClassRegistry.register(FIGHTER);
@@ -368,7 +370,8 @@ describe('computeBuildState', () => {
     expect(state.skills.crafting).toBe(PROFICIENCY_RANKS.TRAINED);
   });
 
-  test('trains the actor deity skill for champion-style deity classes', () => {
+  test('trains the actor deity skill for classes with deity skill training', () => {
+    plan.classSlug = 'champion';
     mockActor.items = [
       {
         type: 'deity',
@@ -381,6 +384,21 @@ describe('computeBuildState', () => {
 
     const state = computeBuildState(mockActor, plan, 1);
     expect(state.skills.performance).toBe(PROFICIENCY_RANKS.TRAINED);
+  });
+
+  test('ignores the actor deity skill for classes without deity skill training', () => {
+    mockActor.items = [
+      {
+        type: 'deity',
+        name: 'Upion and Warrik',
+        system: {
+          skill: 'performance',
+        },
+      },
+    ];
+
+    const state = computeBuildState(mockActor, plan, 1);
+    expect(state.skills.performance).toBe(PROFICIENCY_RANKS.UNTRAINED);
   });
 
   test('applies planned skill increases', () => {

@@ -1,4 +1,5 @@
 import { SKILLS } from '../../constants.js';
+import { anyClassGrantsDeitySkill } from '../../classes/deity-skill.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from '../../creation/creation-model.js';
 import {
   getCampaignLanguages,
@@ -560,6 +561,7 @@ function localizeSkillSlug(slug) {
 }
 
 export async function collectWizardDeitySkillMap(wizard) {
+  if (!anyClassGrantsDeitySkill([wizard.data.class?.slug, wizard.data.dualClass?.slug])) return new Map();
   const primarySelections = getClassSelectionData(wizard.data, 'class');
   const dualSelections = getClassSelectionData(wizard.data, 'dualClass');
   const actorItems = wizard.actor?.items?.contents

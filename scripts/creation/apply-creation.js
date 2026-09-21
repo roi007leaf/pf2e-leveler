@@ -1,6 +1,7 @@
 import { getClassHandler } from './class-handlers/registry.js';
 import { getClassSelectionData, getGrantedFeatChoiceValues } from './creation-model.js';
 import { ClassRegistry } from '../classes/registry.js';
+import { anyClassGrantsDeitySkill } from '../classes/deity-skill.js';
 import { ATTRIBUTES, MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { info, warn } from '../utils/logger.js';
@@ -345,6 +346,7 @@ export async function applyLores(actor, data) {
 }
 
 async function applyDeitySkill(actor, data) {
+  if (!anyClassGrantsDeitySkill([data.class?.slug, data.dualClass?.slug])) return;
   const classSelections = getClassSelectionData(data, 'class');
   const deitySkill = await resolveCreationDeitySkill(data.deity ?? classSelections.deity);
   if (!deitySkill) return;

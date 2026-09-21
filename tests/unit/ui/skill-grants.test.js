@@ -1,6 +1,9 @@
 import { CharacterWizard } from '../../../scripts/ui/character-wizard/index.js';
 import { buildSummaryContext } from '../../../scripts/ui/character-wizard/summary.js';
 import { MODULE_ID } from '../../../scripts/constants.js';
+import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { CLERIC } from '../../../scripts/classes/cleric.js';
+import { CHAMPION } from '../../../scripts/classes/champion.js';
 import { invalidateGuidanceCache, PLAYER_DISALLOWED_CONTENT_MODES } from '../../../scripts/access/content-guidance.js';
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -18,6 +21,11 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 }));
 
 describe('CharacterWizard skills step grants', () => {
+  beforeAll(() => {
+    ClassRegistry.register(CLERIC);
+    ClassRegistry.register(CHAMPION);
+  });
+
   beforeEach(() => {
     invalidateGuidanceCache();
     global.fromUuid = jest.fn(async (uuid) => {
@@ -1715,5 +1723,35 @@ describe('CharacterWizard skills step grants', () => {
     });
 
     expect(context.loreSkillsSummary).toEqual(['Legal Lore', 'Sailing Lore']);
+  });
+
+  it('marks the deity skill as auto-trained for classes with deity skill training', async () => {
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'cleric', uuid: 'class-uuid', name: 'Cleric' };
+    wizard.data.background = null;
+    wizard.data.subclass = null;
+    wizard.data.deity = { uuid: 'deity-uuid', name: 'Shelyn', skill: 'performance' };
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'performance', autoTrained: true, source: 'Shelyn' }),
+    ]));
+  });
+
+  it('does not auto-train the deity skill for classes without deity skill training', async () => {
+    const wizard = new CharacterWizard(createMockActor({
+      items: [{ type: 'deity', name: 'Shelyn', system: { skill: 'performance' } }],
+    }));
+    wizard.data.class = { slug: 'fighter', uuid: 'class-uuid', name: 'Fighter' };
+    wizard.data.background = null;
+    wizard.data.subclass = null;
+    wizard.data.deity = { uuid: 'deity-uuid', name: 'Shelyn', skill: 'performance' };
+
+    const context = await wizard._buildSkillContext();
+
+    expect(context).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'performance', autoTrained: false }),
+    ]));
   });
 });
