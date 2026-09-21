@@ -25,7 +25,13 @@ const FEAT_GRANT_KEYS = [
   'customFeats',
 ];
 
-export async function buildFeatGrantRequirements({ feats = [], classEntries = [], level = null, actor = null, plan = null } = {}) {
+export async function buildFeatGrantRequirements({
+  feats = [],
+  classEntries = [],
+  level = null,
+  actor = null,
+  plan = null,
+} = {}) {
   const requirements = [];
   const context = { actor, plan, level };
   const visited = new Set();
@@ -52,14 +58,20 @@ async function collectFeatGrantRequirements(featEntry, context, visited, grantin
   visited.add(source.uuid);
 
   const text = normalizeDescription(feat.system?.description?.value ?? '');
-  let directRequirements = detectRequirements(text, source, context)
-    .map((requirement) => attachGrantingSource(requirement, grantingSource));
+  let directRequirements = detectRequirements(text, source, context).map((requirement) =>
+    attachGrantingSource(requirement, grantingSource),
+  );
   const nestedRequirements = [];
 
   for (const rule of feat.system?.rules ?? []) {
     if (!isActiveStaticFeatGrant(rule, context)) continue;
 
-    const granted = await collectFeatGrantRequirements({ uuid: rule.uuid }, context, visited, source);
+    const granted = await collectFeatGrantRequirements(
+      { uuid: rule.uuid },
+      context,
+      visited,
+      source,
+    );
     if (!granted.source) continue;
 
     const reconciled = reconcileDelegatedFormulaRequirement({
@@ -79,7 +91,8 @@ async function collectFeatGrantRequirements(featEntry, context, visited, grantin
 }
 
 function isActiveStaticFeatGrant(rule, context) {
-  if (rule?.key !== 'GrantItem' || typeof rule.uuid !== 'string' || rule.uuid.includes('{')) return false;
+  if (rule?.key !== 'GrantItem' || typeof rule.uuid !== 'string' || rule.uuid.includes('{'))
+    return false;
   return evaluatePredicate(rule.predicate, getContextLevel(context));
 }
 
@@ -92,14 +105,23 @@ function attachGrantingSource(requirement, grantingSource) {
   };
 }
 
-function reconcileDelegatedFormulaRequirement({ directRequirements, grantedRequirements, grantedSource, text }) {
-  const directFormulaIndex = directRequirements.findIndex((requirement) => requirement.kind === 'formula');
-  const grantedFormulaIndex = grantedRequirements.findIndex((requirement) =>
-    requirement.kind === 'formula' && requirement.sourceFeatUuid === grantedSource.uuid);
+function reconcileDelegatedFormulaRequirement({
+  directRequirements,
+  grantedRequirements,
+  grantedSource,
+  text,
+}) {
+  const directFormulaIndex = directRequirements.findIndex(
+    (requirement) => requirement.kind === 'formula',
+  );
+  const grantedFormulaIndex = grantedRequirements.findIndex(
+    (requirement) =>
+      requirement.kind === 'formula' && requirement.sourceFeatUuid === grantedSource.uuid,
+  );
   if (
-    directFormulaIndex < 0
-    || grantedFormulaIndex < 0
-    || !describesGrantedFormulaChoice(text, grantedSource.name)
+    directFormulaIndex < 0 ||
+    grantedFormulaIndex < 0 ||
+    !describesGrantedFormulaChoice(text, grantedSource.name)
   ) {
     return { directRequirements, grantedRequirements };
   }
@@ -114,18 +136,19 @@ function reconcileDelegatedFormulaRequirement({ directRequirements, grantedRequi
   return {
     directRequirements: directRequirements.filter((_, index) => index !== directFormulaIndex),
     grantedRequirements: grantedRequirements.map((requirement, index) =>
-      index === grantedFormulaIndex ? mergedRequirement : requirement),
+      index === grantedFormulaIndex ? mergedRequirement : requirement,
+    ),
   };
 }
 
 function describesGrantedFormulaChoice(text, grantedName) {
   const normalizedName = normalizeDescription(grantedName);
-  return splitSentences(text).some((sentence) =>
-    /\bformulas?\b/u.test(sentence)
-    && (
-      (normalizedName && sentence.includes(normalizedName))
-      || /\b(?:for|from|with) (?:that|this|the) feat\b/u.test(sentence)
-    ));
+  return splitSentences(text).some(
+    (sentence) =>
+      /\bformulas?\b/u.test(sentence) &&
+      ((normalizedName && sentence.includes(normalizedName)) ||
+        /\b(?:for|from|with) (?:that|this|the) feat\b/u.test(sentence)),
+  );
 }
 
 function mergeDelegatedFormulaFilters(grantedFilters = {}, directFilters = {}) {
@@ -142,7 +165,11 @@ function mergeDelegatedFormulaFilters(grantedFilters = {}, directFilters = {}) {
   return cleanFilters(merged);
 }
 
-export async function buildPlanFormulaProgressionRequirements({ plan = null, level = null, actor = null } = {}) {
+export async function buildPlanFormulaProgressionRequirements({
+  plan = null,
+  level = null,
+  actor = null,
+} = {}) {
   const normalizedLevel = getContextLevel({ level });
   if (!plan || normalizedLevel <= 1) return [];
 
@@ -180,7 +207,9 @@ export function getFeatGrantCompletion(levelData, requirements = []) {
 }
 
 export function getFeatGrantSelections(levelData, requirement) {
-  const stored = (levelData?.featGrants ?? []).find((entry) => entry?.requirementId === requirement?.id);
+  const stored = (levelData?.featGrants ?? []).find(
+    (entry) => entry?.requirementId === requirement?.id,
+  );
   return dedupeGrantSelections([
     ...(requirement?.fixedSelections ?? []),
     ...(stored?.selections ?? []),
@@ -189,7 +218,10 @@ export function getFeatGrantSelections(levelData, requirement) {
 
 export function getAutomaticFeatGrantEntries(requirements = []) {
   return (requirements ?? [])
-    .filter((requirement) => Array.isArray(requirement?.fixedSelections) && requirement.fixedSelections.length > 0)
+    .filter(
+      (requirement) =>
+        Array.isArray(requirement?.fixedSelections) && requirement.fixedSelections.length > 0,
+    )
     .map((requirement) => ({
       requirementId: requirement.id,
       sourceFeatUuid: requirement.sourceFeatUuid,
@@ -234,28 +266,46 @@ function detectRequirements(text, source, context = {}) {
 
   const requirements = [];
   const spellGrant = inferSpellGrant(text);
-  if (spellGrant) requirements.push(buildRequirement(source, 'spell', spellGrant.count, 'inferred', spellGrant.filters));
+  if (spellGrant)
+    requirements.push(
+      buildRequirement(source, 'spell', spellGrant.count, 'inferred', spellGrant.filters),
+    );
 
   requirements.push(...inferFixedFormulaRequirements(text, source));
   requirements.push(...inferFormulaRequirements(text, source, context));
 
-  if (/\balchemical crafting\b/.test(text) && /\bitems?\s+you\s+choose\b/.test(text) && !hasFixedAlchemicalCraftingFormulaOverride(text)) {
-    requirements.push(buildRequirement(source, 'formula', 4, 'inferred', {
-      maxLevel: inferMaxLevel(text) ?? 1,
-      rarity: inferRarity(text),
-      traits: inferTraits(text),
-    }, { sourceName: 'Alchemical Crafting' }));
+  if (
+    /\balchemical crafting\b/.test(text) &&
+    /\bitems?\s+you\s+choose\b/.test(text) &&
+    !hasFixedAlchemicalCraftingFormulaOverride(text)
+  ) {
+    requirements.push(
+      buildRequirement(
+        source,
+        'formula',
+        4,
+        'inferred',
+        {
+          maxLevel: inferMaxLevel(text) ?? 1,
+          rarity: inferRarity(text),
+          traits: inferTraits(text),
+        },
+        { sourceName: 'Alchemical Crafting' },
+      ),
+    );
   }
 
   const itemGrant = inferItemGrant(text);
   if (itemGrant) {
     const { itemType, count } = itemGrant;
     if (itemType && count) {
-      requirements.push(buildRequirement(source, 'item', count, 'inferred', {
-        maxLevel: inferLevel(text),
-        rarity: inferRarity(text),
-        itemTypes: [itemType],
-      }));
+      requirements.push(
+        buildRequirement(source, 'item', count, 'inferred', {
+          maxLevel: inferLevel(text),
+          rarity: inferRarity(text),
+          itemTypes: [itemType],
+        }),
+      );
     }
   }
 
@@ -273,10 +323,12 @@ function buildRequirement(source, kind, count, confidence, filters, options = {}
     id,
     sourceFeatUuid: source.uuid,
     sourceFeatName,
-    ...(hasDistinctGrantingSource ? {
-      grantingSourceUuid: source.uuid,
-      grantingSourceName: source.name,
-    } : {}),
+    ...(hasDistinctGrantingSource
+      ? {
+          grantingSourceUuid: source.uuid,
+          grantingSourceName: source.name,
+        }
+      : {}),
     kind,
     count,
     confidence,
@@ -303,17 +355,23 @@ function normalizeDescription(html) {
 }
 
 function inferCount(text) {
-  const match = String(text ?? '').match(/\b(one|two|three|four|five|six|seven|eight|nine|[1-9])\b/);
+  const match = String(text ?? '').match(
+    /\b(one|two|three|four|five|six|seven|eight|nine|[1-9])\b/,
+  );
   if (!match) return null;
   return COUNT_WORDS[match[1]] ?? Number(match[1]);
 }
 
 function inferSpellGrant(text) {
-  const sentences = splitSentences(text).filter((sentence) => /\b(?:spell|spells|cantrip|cantrips)\b/.test(sentence));
+  const sentences = splitSentences(text).filter((sentence) =>
+    /\b(?:spell|spells|cantrip|cantrips)\b/.test(sentence),
+  );
   for (const sentence of sentences) {
     const count = inferCount(sentence);
     if (!count) continue;
-    const grantsSpellChoice = /\b(?:add|adds|gain|gains|learn|learns|choose|select)\b/.test(sentence);
+    const grantsSpellChoice = /\b(?:add|adds|gain|gains|learn|learns|choose|select)\b/.test(
+      sentence,
+    );
     const targetSpellList = /\b(?:spellbook|repertoire)\b|\bof your choice\b/.test(sentence);
     if (!grantsSpellChoice || !targetSpellList) continue;
     return {
@@ -343,12 +401,19 @@ function inferFormulaRequirements(text, source, context = {}) {
   }
   if (/\balchemical crafting\b/.test(text) && /\bformula book\b/.test(text)) {
     return [
-      buildFormulaRequirement(source, 4, text, { idKind: 'alchemical-crafting-formula', sourceName: 'Alchemical Crafting' }),
-      buildFormulaRequirement(source, 2, text, { idKind: 'formula-book-formula', sourceName: 'Formula Book' }),
+      buildFormulaRequirement(source, 4, text, {
+        idKind: 'alchemical-crafting-formula',
+        sourceName: 'Alchemical Crafting',
+      }),
+      buildFormulaRequirement(source, 2, text, {
+        idKind: 'formula-book-formula',
+        sourceName: 'Formula Book',
+      }),
     ];
   }
 
-  const count = inferScalingFormulaCount(text, context) ?? inferFormulaCount(text) ?? inferCount(text);
+  const count =
+    inferScalingFormulaCount(text, context) ?? inferFormulaCount(text) ?? inferCount(text);
   if (hasFixedSelections && !count) return [];
   return [buildFormulaRequirement(source, count, text)];
 }
@@ -358,10 +423,17 @@ function inferFixedFormulaRequirements(text, source) {
   const selections = inferFixedFormulaSelections(text);
   if (selections.length === 0) return [];
   return [
-    buildRequirement(source, 'formula', selections.length, 'fixed', {}, {
-      idKind: 'fixed-formula',
-      fixedSelections: selections,
-    }),
+    buildRequirement(
+      source,
+      'formula',
+      selections.length,
+      'fixed',
+      {},
+      {
+        idKind: 'fixed-formula',
+        fixedSelections: selections,
+      },
+    ),
   ];
 }
 
@@ -392,27 +464,41 @@ function inferFixedFormulaSelections(text) {
 }
 
 function hasFixedAlchemicalCraftingFormulaOverride(text) {
-  return /\blesser\s+antidote\b/.test(text)
-    || /\blesser\s+antiplague\b/.test(text)
-    || /\bminor\s+elixir\s+of\s+life\b/.test(text);
+  return (
+    /\blesser\s+antidote\b/.test(text) ||
+    /\blesser\s+antiplague\b/.test(text) ||
+    /\bminor\s+elixir\s+of\s+life\b/.test(text)
+  );
 }
 
 function buildFormulaRequirement(source, count, text, options = {}) {
-  return buildRequirement(source, 'formula', count, count ? 'inferred' : 'manual-required', inferFormulaFilters(text), options);
+  return buildRequirement(
+    source,
+    'formula',
+    count,
+    count ? 'inferred' : 'manual-required',
+    inferFormulaFilters(text),
+    options,
+  );
 }
 
 function isPassiveFormulaKnowledgeGrant(text) {
   const normalized = String(text ?? '');
-  return /\bknow\s+the\s+formulas?\s+for\s+all\b/.test(normalized)
-    || /\bformulas?\s+for\s+all\b/.test(normalized)
-    || /\bdon'?t\s+need\s+a\s+formula\s+book\b/.test(normalized);
+  return (
+    /\bknow\s+the\s+formulas?\s+for\s+all\b/.test(normalized) ||
+    /\bformulas?\s+for\s+all\b/.test(normalized) ||
+    /\bdon'?t\s+need\s+a\s+formula\s+book\b/.test(normalized)
+  );
 }
 
 function inferSpecialFormulaRequirements(text, source, context = {}) {
   if (isCauldronFormulaGrant(text)) return buildCauldronFormulaRequirements(source, context);
-  if (isImprobableElixirsFormulaGrant(text)) return [buildImprobableElixirsFormulaRequirement(source, context)];
-  if (isBrastlewarkSnareEngineeringGrant(text)) return [buildBrastlewarkSnareFormulaRequirement(source, context)];
-  if (isAlchemicalScholarFormulaGrant(text)) return [buildAlchemicalScholarFormulaRequirement(source, context)];
+  if (isImprobableElixirsFormulaGrant(text))
+    return [buildImprobableElixirsFormulaRequirement(source, context)];
+  if (isBrastlewarkSnareEngineeringGrant(text))
+    return [buildBrastlewarkSnareFormulaRequirement(source, context)];
+  if (isAlchemicalScholarFormulaGrant(text))
+    return [buildAlchemicalScholarFormulaRequirement(source, context)];
   return null;
 }
 
@@ -431,8 +517,10 @@ function inferFormulaProgressionRequirements(text, source, context = {}) {
 }
 
 function isCauldronFormulaGrant(text) {
-  return /\bcauldron\b/.test(text)
-    || (/\boils?\s+or\s+potions?\b/.test(text) && /\bat\s+4th\s+level\b/.test(text));
+  return (
+    /\bcauldron\b/.test(text) ||
+    (/\boils?\s+or\s+potions?\b/.test(text) && /\bat\s+4th\s+level\b/.test(text))
+  );
 }
 
 function buildCauldronFormulaRequirements(source, context = {}) {
@@ -452,17 +540,27 @@ function buildCauldronFormulaRequirements(source, context = {}) {
 function buildCauldronProgressionRequirement(source, context = {}) {
   const level = getContextLevel(context);
   if (level < 4 || level % 2 !== 0) return null;
-  return buildRequirement(source, 'formula', 1, 'inferred', {
-    maxLevel: level,
-    rarity: ['common'],
-    traits: ['oil', 'potion'],
-    traitLogic: 'or',
-  }, { idKind: `cauldron-level-${level}-formula` });
+  return buildRequirement(
+    source,
+    'formula',
+    1,
+    'inferred',
+    {
+      maxLevel: level,
+      rarity: ['common'],
+      traits: ['oil', 'potion'],
+      traitLogic: 'or',
+    },
+    { idKind: `cauldron-level-${level}-formula` },
+  );
 }
 
 function isImprobableElixirsFormulaGrant(text) {
-  return /\bimprobable\s+elixirs\b/.test(text)
-    || (/\bpotions?\s+equal\s+to\s+your\s+intelligence\s+modifier\b/.test(text) && /\b9th\s+level\s+or\s+lower\b/.test(text));
+  return (
+    /\bimprobable\s+elixirs\b/.test(text) ||
+    (/\bpotions?\s+equal\s+to\s+your\s+intelligence\s+modifier\b/.test(text) &&
+      /\b9th\s+level\s+or\s+lower\b/.test(text))
+  );
 }
 
 function buildImprobableElixirsFormulaRequirement(source, context = {}) {
@@ -473,8 +571,10 @@ function buildImprobableElixirsFormulaRequirement(source, context = {}) {
 }
 
 function isBrastlewarkSnareEngineeringGrant(text) {
-  return /\bbrastlewark\s+snare\s+engineering\b/.test(text)
-    || (/\bpit\s+illusion\s+snare\b/.test(text) && /\bshadow\s+cloak\s+snare\b/.test(text));
+  return (
+    /\bbrastlewark\s+snare\s+engineering\b/.test(text) ||
+    (/\bpit\s+illusion\s+snare\b/.test(text) && /\bshadow\s+cloak\s+snare\b/.test(text))
+  );
 }
 
 function buildBrastlewarkSnareFormulaRequirement(source, context = {}) {
@@ -487,19 +587,28 @@ function buildBrastlewarkSnareFormulaRequirement(source, context = {}) {
 }
 
 function isAlchemicalScholarFormulaGrant(text) {
-  return /\balchemical\s+scholar\b/.test(text)
-    || (/\ban\s+additional\s+common\s+1st-level\s+alchemical\s+formula\b/.test(text)
-      && /\beach\s+time\s+you\s+gain\s+a\s+level\s+beyond\s+1st\b/.test(text));
+  return (
+    /\balchemical\s+scholar\b/.test(text) ||
+    (/\ban\s+additional\s+common\s+1st-level\s+alchemical\s+formula\b/.test(text) &&
+      /\beach\s+time\s+you\s+gain\s+a\s+level\s+beyond\s+1st\b/.test(text))
+  );
 }
 
 function buildAlchemicalScholarFormulaRequirement(source, context = {}) {
   const level = getContextLevel(context);
   const isProgression = level > 1;
-  return buildRequirement(source, 'formula', 1, 'inferred', {
-    maxLevel: isProgression ? level : 1,
-    rarity: ['common'],
-    traits: ['alchemical'],
-  }, isProgression ? { idKind: `alchemical-scholar-level-${level}-formula` } : {});
+  return buildRequirement(
+    source,
+    'formula',
+    1,
+    'inferred',
+    {
+      maxLevel: isProgression ? level : 1,
+      rarity: ['common'],
+      traits: ['alchemical'],
+    },
+    isProgression ? { idKind: `alchemical-scholar-level-${level}-formula` } : {},
+  );
 }
 
 function getContextLevel(context = {}) {
@@ -517,9 +626,8 @@ function inferFormulaFilters(text) {
   const formulaText = getFormulaFilterText(text);
   const traits = inferTraits(formulaText);
   const requiredTraits = inferRequiredFormulaTraits(formulaText, traits);
-  const selectableTraits = requiredTraits.length > 0
-    ? traits.filter((trait) => !requiredTraits.includes(trait))
-    : traits;
+  const selectableTraits =
+    requiredTraits.length > 0 ? traits.filter((trait) => !requiredTraits.includes(trait)) : traits;
   const traitLogic = inferFormulaTraitLogic(formulaText, selectableTraits);
 
   return {
@@ -532,7 +640,9 @@ function inferFormulaFilters(text) {
 }
 
 function getFormulaFilterText(text) {
-  const formulaSentences = splitSentences(text).filter((sentence) => /\bformulas?\b/.test(sentence));
+  const formulaSentences = splitSentences(text).filter((sentence) =>
+    /\bformulas?\b/.test(sentence),
+  );
   return formulaSentences.length > 0 ? formulaSentences.join(' ') : text;
 }
 
@@ -544,24 +654,31 @@ function splitSentences(text) {
 }
 
 function hasFormulaGrantIntent(text) {
-  const grantVerb = /\b(?:add|adds|choose|chooses|gain|gains|have|include|includes|know|learn|learns|obtain|obtains|receive|receives|select|selects)\b/u;
-  const countedFormulaSection = /\bformulas?\s+(?:one|two|three|four|five|six|seven|eight|nine|[1-9])\b/u;
-  return splitSentences(text).some((sentence) =>
-    /\bformulas?\b/u.test(sentence)
-    && (
-      grantVerb.test(sentence)
-      || countedFormulaSection.test(sentence)
-      || /\bformula book\b.*\b(?:begins?|contains?|starts?)\b/u.test(sentence)
-    ));
+  const grantVerb =
+    /\b(?:add|adds|choose|chooses|gain|gains|have|include|includes|know|learn|learns|obtain|obtains|receive|receives|select|selects)\b/u;
+  const countedFormulaSection =
+    /\bformulas?\s+(?:one|two|three|four|five|six|seven|eight|nine|[1-9])\b/u;
+  return splitSentences(text).some(
+    (sentence) =>
+      /\bformulas?\b/u.test(sentence) &&
+      !/\binvent(?:s|ed|ing)?\b/u.test(sentence) &&
+      (grantVerb.test(sentence) ||
+        countedFormulaSection.test(sentence) ||
+        /\bformula book\b.*\b(?:begins?|contains?|starts?)\b/u.test(sentence)),
+  );
 }
 
 function inferFormulaCount(text) {
   const normalized = String(text ?? '');
   const countPattern = '(one|two|three|four|five|six|seven|eight|nine|[1-9])';
-  const formulaItemPattern = '(?:items?|mutagens?|elixirs?|poisons?|bombs?|gadgets?|oils?|potions?|talismans?|snares?|tattoos?|grafts?|ammunition|ammo)';
+  const formulaItemPattern =
+    '(?:items?|mutagens?|elixirs?|poisons?|bombs?|gadgets?|oils?|potions?|talismans?|snares?|tattoos?|grafts?|ammunition|ammo)';
   const patterns = [
     new RegExp(`\\bformulas?\\s+(?:for\\s+)?${countPattern}\\b`, 'u'),
-    new RegExp(`\\b${countPattern}\\s+(?:common|uncommon|rare|unique|or\\s+uncommon|common\\s+or\\s+uncommon|magical)?\\s*(?:\\d+(?:st|nd|rd|th)?[-\\s]*level\\s+)?(?:types?\\s+of\\s+)?(?:common\\s+or\\s+uncommon\\s+)?(?:alchemical\\s+)?${formulaItemPattern}\\b`, 'u'),
+    new RegExp(
+      `\\b${countPattern}\\s+(?:common|uncommon|rare|unique|or\\s+uncommon|common\\s+or\\s+uncommon|magical)?\\s*(?:\\d+(?:st|nd|rd|th)?[-\\s]*level\\s+)?(?:types?\\s+of\\s+)?(?:common\\s+or\\s+uncommon\\s+)?(?:alchemical\\s+)?${formulaItemPattern}\\b`,
+      'u',
+    ),
   ];
 
   for (const pattern of patterns) {
@@ -584,8 +701,13 @@ function inferScalingFormulaCount(text, context = {}) {
     if (craftingRank >= 3) return 6;
     return 3;
   }
-  if (/\bsnare\s+specialist\b/.test(text)
-    || (/\bsnares?\b/.test(text) && /\bexpert\b/.test(text) && /\bmaster\b/.test(text) && /\blegendary\b/.test(text))) {
+  if (
+    /\bsnare\s+specialist\b/.test(text) ||
+    (/\bsnares?\b/.test(text) &&
+      /\bexpert\b/.test(text) &&
+      /\bmaster\b/.test(text) &&
+      /\blegendary\b/.test(text))
+  ) {
     if (craftingRank >= 4) return 9;
     if (craftingRank >= 3) return 6;
     return 3;
@@ -630,7 +752,8 @@ function inferFirstLevel(text) {
 
 function inferRarity(text) {
   const rarities = ['common', 'uncommon', 'rare', 'unique'].filter((rarity) =>
-    new RegExp(`\\b${rarity}\\b`).test(text));
+    new RegExp(`\\b${rarity}\\b`).test(text),
+  );
   return rarities;
 }
 
@@ -657,9 +780,7 @@ function inferTraits(text) {
     ['graft', /\bgrafts?\b/],
     ['ammunition', /\b(?:ammunition|ammo)\b/],
   ];
-  return patterns
-    .filter(([, pattern]) => pattern.test(text))
-    .map(([trait]) => trait);
+  return patterns.filter(([, pattern]) => pattern.test(text)).map(([trait]) => trait);
 }
 
 function inferRequiredFormulaTraits(text, traits) {
@@ -686,22 +807,49 @@ export function buildClassDefaultGrantRequirements(classEntries, level) {
       name: classEntry?.name ?? 'Alchemist',
     };
     if (normalizedLevel === 1) {
-      requirements.push(buildRequirement(source, 'formula', 4, 'inferred', {
-        maxLevel: 1,
-        rarity: ['common'],
-        traits: ['alchemical'],
-      }, { idKind: 'alchemical-crafting-formula', sourceName: 'Alchemical Crafting' }));
-      requirements.push(buildRequirement(source, 'formula', 2, 'inferred', {
-        maxLevel: 1,
-        rarity: ['common'],
-        traits: ['alchemical'],
-      }, { idKind: 'formula-book-formula', sourceName: 'Formula Book' }));
+      requirements.push(
+        buildRequirement(
+          source,
+          'formula',
+          4,
+          'inferred',
+          {
+            maxLevel: 1,
+            rarity: ['common'],
+            traits: ['alchemical'],
+          },
+          { idKind: 'alchemical-crafting-formula', sourceName: 'Alchemical Crafting' },
+        ),
+      );
+      requirements.push(
+        buildRequirement(
+          source,
+          'formula',
+          2,
+          'inferred',
+          {
+            maxLevel: 1,
+            rarity: ['common'],
+            traits: ['alchemical'],
+          },
+          { idKind: 'formula-book-formula', sourceName: 'Formula Book' },
+        ),
+      );
     } else if (normalizedLevel > 1) {
-      requirements.push(buildRequirement(source, 'formula', 2, 'inferred', {
-        maxLevel: normalizedLevel,
-        rarity: ['common'],
-        traits: ['alchemical'],
-      }, { idKind: `formula-book-level-${normalizedLevel}-formula`, sourceName: 'Formula Book' }));
+      requirements.push(
+        buildRequirement(
+          source,
+          'formula',
+          2,
+          'inferred',
+          {
+            maxLevel: normalizedLevel,
+            rarity: ['common'],
+            traits: ['alchemical'],
+          },
+          { idKind: `formula-book-level-${normalizedLevel}-formula`, sourceName: 'Formula Book' },
+        ),
+      );
     }
   }
   return requirements;
@@ -714,9 +862,18 @@ function inferItemGrant(text) {
   const levelPattern = '(?:(?:\\d+)(?:st|nd|rd|th)?[-\\s]*level(?:\\s+or\\s+lower)?\\s+)?';
   const typePattern = `(${PHYSICAL_ITEM_TYPES.map((type) => `${type}s?`).join('|')})`;
   const patterns = [
-    new RegExp(`\\b(?:gain|receive|obtain)\\s+${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\b`, 'u'),
-    new RegExp(`\\b(?:choose|select)\\s+${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\b`, 'u'),
-    new RegExp(`\\b${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\s+of\\s+your\\s+choice\\b`, 'u'),
+    new RegExp(
+      `\\b(?:gain|receive|obtain)\\s+${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\b`,
+      'u',
+    ),
+    new RegExp(
+      `\\b(?:choose|select)\\s+${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\b`,
+      'u',
+    ),
+    new RegExp(
+      `\\b${countPattern}\\s+${rarityPattern}${levelPattern}${typePattern}\\s+of\\s+your\\s+choice\\b`,
+      'u',
+    ),
   ];
 
   for (const pattern of patterns) {

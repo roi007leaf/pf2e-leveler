@@ -27,7 +27,8 @@ describe('feat grant requirements', () => {
           name: 'Spell Grant',
           system: {
             description: {
-              value: '<p>You add two common 1st-rank arcane spells of your choice to your spellbook.</p>',
+              value:
+                '<p>You add two common 1st-rank arcane spells of your choice to your spellbook.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -49,7 +50,8 @@ describe('feat grant requirements', () => {
           name: 'Formula Grant',
           system: {
             description: {
-              value: '<p>You gain formulas for four common alchemical items of 1st level or lower.</p>',
+              value:
+                '<p>You gain formulas for four common alchemical items of 1st level or lower.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -82,7 +84,8 @@ describe('feat grant requirements', () => {
           name: 'Demonbane Warrior',
           system: {
             description: {
-              value: '<p>You gain a +1 circumstance bonus to damage with weapons and unarmed attacks against demons.</p>',
+              value:
+                '<p>You gain a +1 circumstance bonus to damage with weapons and unarmed attacks against demons.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -93,7 +96,8 @@ describe('feat grant requirements', () => {
           name: 'Wandering Chef Dedication',
           system: {
             description: {
-              value: '<p>You gain the Alchemical Crafting and Quick Alchemy feats. Any items you choose with Alchemical Crafting must be alchemical food, but they can be 1st level or 2nd level instead of only 1st level.</p>',
+              value:
+                '<p>You gain the Alchemical Crafting and Quick Alchemy feats. Any items you choose with Alchemical Crafting must be alchemical food, but they can be 1st level or 2nd level instead of only 1st level.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -104,7 +108,8 @@ describe('feat grant requirements', () => {
           name: 'Mutagenist',
           system: {
             description: {
-              value: '<p>You focus on bizarre mutagenic transformations that sacrifice one aspect of a creature. <strong>Formulas</strong> Two common 1st-level alchemical mutagens.</p>',
+              value:
+                '<p>You focus on bizarre mutagenic transformations that sacrifice one aspect of a creature. <strong>Formulas</strong> Two common 1st-level alchemical mutagens.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -115,7 +120,8 @@ describe('feat grant requirements', () => {
           name: 'Bomber',
           system: {
             description: {
-              value: '<p>You specialize in explosions and other violent magical reactions. <strong>Formulas</strong> Two common 1st-level alchemical bombs.</p>',
+              value:
+                '<p>You specialize in explosions and other violent magical reactions. <strong>Formulas</strong> Two common 1st-level alchemical bombs.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -126,7 +132,8 @@ describe('feat grant requirements', () => {
           name: 'Chirurgeon',
           system: {
             description: {
-              value: '<p><strong>Formulas</strong> Two common 1st-level alchemical elixirs with the healing trait.</p>',
+              value:
+                '<p><strong>Formulas</strong> Two common 1st-level alchemical elixirs with the healing trait.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -148,7 +155,8 @@ describe('feat grant requirements', () => {
           name: 'Munitions Crafter',
           system: {
             description: {
-              value: '<p>You gain a formula book that includes the formula for black powder and four 1st-level types of common or uncommon alchemical ammunition or bombs of your choice.</p>',
+              value:
+                '<p>You gain a formula book that includes the formula for black powder and four 1st-level types of common or uncommon alchemical ammunition or bombs of your choice.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -159,7 +167,8 @@ describe('feat grant requirements', () => {
           name: 'Cauldron',
           system: {
             description: {
-              value: '<p>You immediately gain the formulas for four common 1st-level oils or potions. At 4th level and every 2 levels beyond that, you gain the formula for a common oil or potion of that level or lower.</p>',
+              value:
+                '<p>You immediately gain the formulas for four common 1st-level oils or potions. At 4th level and every 2 levels beyond that, you gain the formula for a common oil or potion of that level or lower.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -170,7 +179,8 @@ describe('feat grant requirements', () => {
           name: 'Improbable Elixirs',
           system: {
             description: {
-              value: '<p>Select a number of potions equal to your Intelligence modifier (minimum 1); these potions must be of 9th level or lower. You gain formulas to create these potions as alchemical consumables with the elixir trait.</p>',
+              value:
+                '<p>Select a number of potions equal to your Intelligence modifier (minimum 1); these potions must be of 9th level or lower. You gain formulas to create these potions as alchemical consumables with the elixir trait.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -181,7 +191,8 @@ describe('feat grant requirements', () => {
           name: 'Brastlewark Snare Engineering',
           system: {
             description: {
-              value: '<p>You learn the formulas for crafting the pit illusion snare and the shadow cloak snare or two uncommon magical snares of your level or lower that you have access to.</p>',
+              value:
+                '<p>You learn the formulas for crafting the pit illusion snare and the shadow cloak snare or two uncommon magical snares of your level or lower that you have access to.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -192,7 +203,8 @@ describe('feat grant requirements', () => {
           name: 'Alchemical Scholar',
           system: {
             description: {
-              value: '<p>Add an additional common 1st-level alchemical formula to your formula book when you take this feat. Each time you gain a level beyond 1st, add one common alchemical formula of that level to your formula book.</p>',
+              value:
+                '<p>Add an additional common 1st-level alchemical formula to your formula book when you take this feat. Each time you gain a level beyond 1st, add one common alchemical formula of that level to your formula book.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -203,7 +215,8 @@ describe('feat grant requirements', () => {
           name: 'Snare Crafting',
           system: {
             description: {
-              value: '<p>You add the formulas for four common 1st-level snares to your formula book.</p>',
+              value:
+                '<p>You add the formulas for four common 1st-level snares to your formula book.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -214,7 +227,8 @@ describe('feat grant requirements', () => {
           name: 'Tattoo Artist',
           system: {
             description: {
-              value: '<p>When you select this feat, you gain the formulas for four common magical tattoos of 2nd level or lower.</p>',
+              value:
+                '<p>When you select this feat, you gain the formulas for four common magical tattoos of 2nd level or lower.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -225,7 +239,8 @@ describe('feat grant requirements', () => {
           name: 'Graft Technician',
           system: {
             description: {
-              value: '<p>When you select this feat, you gain the formulas for four common grafts of 3rd level or lower.</p>',
+              value:
+                '<p>When you select this feat, you gain the formulas for four common grafts of 3rd level or lower.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -236,7 +251,8 @@ describe('feat grant requirements', () => {
           name: 'Skilled Herbalist',
           system: {
             description: {
-              value: '<p>You gain the Alchemical Crafting feat, except you must select the following items to add to your formula book: lesser antidote, lesser antiplague, and minor elixir of life, as well as a fourth 1st-level common alchemical formula of your choice.</p>',
+              value:
+                '<p>You gain the Alchemical Crafting feat, except you must select the following items to add to your formula book: lesser antidote, lesser antiplague, and minor elixir of life, as well as a fourth 1st-level common alchemical formula of your choice.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -258,7 +274,8 @@ describe('feat grant requirements', () => {
           name: 'Gadget Specialist',
           system: {
             description: {
-              value: "<p>You gain the formulas for three common or uncommon gadgets. If you're a master in Crafting, you gain three additional common or uncommon gadget formulas. If you're legendary in Crafting, you gain another additional three common or uncommon gadget formulas, for a total of nine.</p>",
+              value:
+                "<p>You gain the formulas for three common or uncommon gadgets. If you're a master in Crafting, you gain three additional common or uncommon gadget formulas. If you're legendary in Crafting, you gain another additional three common or uncommon gadget formulas, for a total of nine.</p>",
             },
             rules: [],
             traits: { value: [] },
@@ -269,7 +286,8 @@ describe('feat grant requirements', () => {
           name: 'Snare Specialist',
           system: {
             description: {
-              value: '<p>If your proficiency rank in Crafting is expert, you gain the formulas for three common or uncommon snares. If your rank is master, you gain 6. If your rank is legendary, you gain 9.</p>',
+              value:
+                '<p>If your proficiency rank in Crafting is expert, you gain the formulas for three common or uncommon snares. If your rank is master, you gain 6. If your rank is legendary, you gain 9.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -280,7 +298,8 @@ describe('feat grant requirements', () => {
           name: 'Talisman Dabbler Dedication',
           system: {
             description: {
-              value: '<p>You can craft talismans and know the formulas for all common talismans of your level or lower.</p>',
+              value:
+                '<p>You can craft talismans and know the formulas for all common talismans of your level or lower.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -291,7 +310,8 @@ describe('feat grant requirements', () => {
           name: 'Poisoner Dedication',
           system: {
             description: {
-              value: "<p>You remember alchemical poison formulas and don't need a formula book for them.</p>",
+              value:
+                "<p>You remember alchemical poison formulas and don't need a formula book for them.</p>",
             },
             rules: [],
             traits: { value: [] },
@@ -302,7 +322,8 @@ describe('feat grant requirements', () => {
           name: 'Firework Technician Dedication',
           system: {
             description: {
-              value: '<p>You gain the Alchemical Crafting skill feat. You can create magical or alchemical fireworks and choose their colors.</p>',
+              value:
+                '<p>You gain the Alchemical Crafting skill feat. You can create magical or alchemical fireworks and choose their colors.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -313,7 +334,8 @@ describe('feat grant requirements', () => {
           name: 'Protective Screen',
           system: {
             description: {
-              value: '<p>Choose one ally. Until your next turn, that ally gains a bonus against spells and other effects.</p>',
+              value:
+                '<p>Choose one ally. Until your next turn, that ally gains a bonus against spells and other effects.</p>',
             },
             rules: [],
             traits: { value: [] },
@@ -483,18 +505,20 @@ describe('feat grant requirements', () => {
       feats: [{ uuid: 'feat-graft-technician', name: 'Graft Technician' }],
     });
 
-    expect(munitions).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        count: 4,
-        filters: expect.objectContaining({
-          maxLevel: 1,
-          rarity: ['common', 'uncommon'],
-          requiredTraits: ['alchemical'],
-          traits: ['bomb', 'ammunition'],
-          traitLogic: 'or',
+    expect(munitions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          count: 4,
+          filters: expect.objectContaining({
+            maxLevel: 1,
+            rarity: ['common', 'uncommon'],
+            requiredTraits: ['alchemical'],
+            traits: ['bomb', 'ammunition'],
+            traitLogic: 'or',
+          }),
         }),
-      }),
-    ]));
+      ]),
+    );
     expect(cauldron).toEqual([
       expect.objectContaining({
         count: 4,
@@ -507,13 +531,26 @@ describe('feat grant requirements', () => {
       }),
     ]);
     expect(snare).toEqual([
-      expect.objectContaining({ count: 4, filters: expect.objectContaining({ maxLevel: 1, traits: ['snare'] }) }),
+      expect.objectContaining({
+        count: 4,
+        filters: expect.objectContaining({ maxLevel: 1, traits: ['snare'] }),
+      }),
     ]);
     expect(tattoo).toEqual([
-      expect.objectContaining({ count: 4, filters: expect.objectContaining({ maxLevel: 2, traits: ['magical', 'tattoo'], traitLogic: 'and' }) }),
+      expect.objectContaining({
+        count: 4,
+        filters: expect.objectContaining({
+          maxLevel: 2,
+          traits: ['magical', 'tattoo'],
+          traitLogic: 'and',
+        }),
+      }),
     ]);
     expect(graft).toEqual([
-      expect.objectContaining({ count: 4, filters: expect.objectContaining({ maxLevel: 3, traits: ['graft'] }) }),
+      expect.objectContaining({
+        count: 4,
+        filters: expect.objectContaining({ maxLevel: 3, traits: ['graft'] }),
+      }),
     ]);
   });
 
@@ -531,21 +568,36 @@ describe('feat grant requirements', () => {
       expect.objectContaining({
         id: 'feat-cauldron:formula',
         count: 4,
-        filters: expect.objectContaining({ maxLevel: 1, traits: ['oil', 'potion'], traitLogic: 'or' }),
+        filters: expect.objectContaining({
+          maxLevel: 1,
+          traits: ['oil', 'potion'],
+          traitLogic: 'or',
+        }),
       }),
     ]);
-    expect(progression).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: 'feat-cauldron:formula',
-        count: 4,
-        filters: expect.objectContaining({ maxLevel: 1, traits: ['oil', 'potion'], traitLogic: 'or' }),
-      }),
-      expect.objectContaining({
-        id: 'feat-cauldron:cauldron-level-4-formula',
-        count: 1,
-        filters: expect.objectContaining({ maxLevel: 4, rarity: ['common'], traits: ['oil', 'potion'], traitLogic: 'or' }),
-      }),
-    ]));
+    expect(progression).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'feat-cauldron:formula',
+          count: 4,
+          filters: expect.objectContaining({
+            maxLevel: 1,
+            traits: ['oil', 'potion'],
+            traitLogic: 'or',
+          }),
+        }),
+        expect.objectContaining({
+          id: 'feat-cauldron:cauldron-level-4-formula',
+          count: 1,
+          filters: expect.objectContaining({
+            maxLevel: 4,
+            rarity: ['common'],
+            traits: ['oil', 'potion'],
+            traitLogic: 'or',
+          }),
+        }),
+      ]),
+    );
   });
 
   test('detects Improbable Elixirs from Intelligence modifier without empty elixir filter', async () => {
@@ -564,35 +616,41 @@ describe('feat grant requirements', () => {
         }),
       }),
     ]);
-    expect(requirements[0].filters.traits).not.toEqual(expect.arrayContaining(['alchemical', 'elixir']));
+    expect(requirements[0].filters.traits).not.toEqual(
+      expect.arrayContaining(['alchemical', 'elixir']),
+    );
   });
 
   test('detects Brastlewark fixed snares and alternate uncommon magical snare choices', async () => {
     const requirements = await buildFeatGrantRequirements({
       level: 4,
-      feats: [{ uuid: 'feat-brastlewark-snare-engineering', name: 'Brastlewark Snare Engineering' }],
+      feats: [
+        { uuid: 'feat-brastlewark-snare-engineering', name: 'Brastlewark Snare Engineering' },
+      ],
     });
 
-    expect(requirements).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: 'feat-brastlewark-snare-engineering:fixed-formula',
-        count: 2,
-        fixedSelections: [
-          expect.objectContaining({ slug: 'pit-illusion-snare', name: 'Pit Illusion Snare' }),
-          expect.objectContaining({ slug: 'shadow-cloak-snare', name: 'Shadow Cloak Snare' }),
-        ],
-      }),
-      expect.objectContaining({
-        id: 'feat-brastlewark-snare-engineering:formula',
-        count: 2,
-        filters: expect.objectContaining({
-          maxLevel: 4,
-          rarity: ['uncommon'],
-          traits: ['magical', 'snare'],
-          traitLogic: 'and',
+    expect(requirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'feat-brastlewark-snare-engineering:fixed-formula',
+          count: 2,
+          fixedSelections: [
+            expect.objectContaining({ slug: 'pit-illusion-snare', name: 'Pit Illusion Snare' }),
+            expect.objectContaining({ slug: 'shadow-cloak-snare', name: 'Shadow Cloak Snare' }),
+          ],
         }),
-      }),
-    ]));
+        expect.objectContaining({
+          id: 'feat-brastlewark-snare-engineering:formula',
+          count: 2,
+          filters: expect.objectContaining({
+            maxLevel: 4,
+            rarity: ['uncommon'],
+            traits: ['magical', 'snare'],
+            traitLogic: 'and',
+          }),
+        }),
+      ]),
+    );
   });
 
   test('detects Alchemical Scholar initial and later-level formula progression', async () => {
@@ -608,14 +666,22 @@ describe('feat grant requirements', () => {
     expect(initial).toEqual([
       expect.objectContaining({
         count: 1,
-        filters: expect.objectContaining({ maxLevel: 1, rarity: ['common'], traits: ['alchemical'] }),
+        filters: expect.objectContaining({
+          maxLevel: 1,
+          rarity: ['common'],
+          traits: ['alchemical'],
+        }),
       }),
     ]);
     expect(progression).toEqual([
       expect.objectContaining({
         id: 'feat-alchemical-scholar:alchemical-scholar-level-5-formula',
         count: 1,
-        filters: expect.objectContaining({ maxLevel: 5, rarity: ['common'], traits: ['alchemical'] }),
+        filters: expect.objectContaining({
+          maxLevel: 5,
+          rarity: ['common'],
+          traits: ['alchemical'],
+        }),
       }),
     ]);
   });
@@ -638,18 +704,28 @@ describe('feat grant requirements', () => {
       },
     });
 
-    expect(requirements).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: 'feat-alchemical-scholar:alchemical-scholar-level-4-formula',
-        count: 1,
-        filters: expect.objectContaining({ maxLevel: 4, rarity: ['common'], traits: ['alchemical'] }),
-      }),
-      expect.objectContaining({
-        id: 'feat-cauldron:cauldron-level-4-formula',
-        count: 1,
-        filters: expect.objectContaining({ maxLevel: 4, rarity: ['common'], traits: ['oil', 'potion'] }),
-      }),
-    ]));
+    expect(requirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'feat-alchemical-scholar:alchemical-scholar-level-4-formula',
+          count: 1,
+          filters: expect.objectContaining({
+            maxLevel: 4,
+            rarity: ['common'],
+            traits: ['alchemical'],
+          }),
+        }),
+        expect.objectContaining({
+          id: 'feat-cauldron:cauldron-level-4-formula',
+          count: 1,
+          filters: expect.objectContaining({
+            maxLevel: 4,
+            rarity: ['common'],
+            traits: ['oil', 'potion'],
+          }),
+        }),
+      ]),
+    );
   });
 
   test('detects fixed formulas without turning them into user choices', async () => {
@@ -663,39 +739,41 @@ describe('feat grant requirements', () => {
       feats: [{ uuid: 'feat-philosophers-stone', name: "Craft Philosopher's Stone" }],
     });
 
-    expect(munitions).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: 'feat-munitions-crafter:fixed-formula',
-        kind: 'formula',
-        count: 1,
-        confidence: 'fixed',
-        fixedSelections: [
-          expect.objectContaining({ slug: 'black-powder', name: 'Black Powder' }),
-        ],
-      }),
-      expect.objectContaining({ id: 'feat-munitions-crafter:formula', count: 4 }),
-    ]));
-    expect(herbalist).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        id: 'feat-skilled-herbalist:fixed-formula',
-        count: 3,
-        confidence: 'fixed',
-        fixedSelections: [
-          expect.objectContaining({ slug: 'lesser-antidote' }),
-          expect.objectContaining({ slug: 'lesser-antiplague' }),
-          expect.objectContaining({ slug: 'minor-elixir-of-life' }),
-        ],
-      }),
-      expect.objectContaining({ id: 'feat-skilled-herbalist:formula', count: 1 }),
-    ]));
+    expect(munitions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'feat-munitions-crafter:fixed-formula',
+          kind: 'formula',
+          count: 1,
+          confidence: 'fixed',
+          fixedSelections: [
+            expect.objectContaining({ slug: 'black-powder', name: 'Black Powder' }),
+          ],
+        }),
+        expect.objectContaining({ id: 'feat-munitions-crafter:formula', count: 4 }),
+      ]),
+    );
+    expect(herbalist).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'feat-skilled-herbalist:fixed-formula',
+          count: 3,
+          confidence: 'fixed',
+          fixedSelections: [
+            expect.objectContaining({ slug: 'lesser-antidote' }),
+            expect.objectContaining({ slug: 'lesser-antiplague' }),
+            expect.objectContaining({ slug: 'minor-elixir-of-life' }),
+          ],
+        }),
+        expect.objectContaining({ id: 'feat-skilled-herbalist:formula', count: 1 }),
+      ]),
+    );
     expect(philosopher).toEqual([
       expect.objectContaining({
         id: 'feat-philosophers-stone:fixed-formula',
         count: 1,
         confidence: 'fixed',
-        fixedSelections: [
-          expect.objectContaining({ slug: 'philosophers-stone' }),
-        ],
+        fixedSelections: [expect.objectContaining({ slug: 'philosophers-stone' })],
       }),
     ]);
   });
@@ -756,11 +834,23 @@ describe('feat grant requirements', () => {
     });
 
     expect(starting).toEqual([
-      expect.objectContaining({ id: 'class-alchemist:alchemical-crafting-formula', sourceFeatName: 'Alchemical Crafting', count: 4 }),
-      expect.objectContaining({ id: 'class-alchemist:formula-book-formula', sourceFeatName: 'Formula Book', count: 2 }),
+      expect.objectContaining({
+        id: 'class-alchemist:alchemical-crafting-formula',
+        sourceFeatName: 'Alchemical Crafting',
+        count: 4,
+      }),
+      expect.objectContaining({
+        id: 'class-alchemist:formula-book-formula',
+        sourceFeatName: 'Formula Book',
+        count: 2,
+      }),
     ]);
     expect(levelUp).toEqual([
-      expect.objectContaining({ id: 'class-alchemist:formula-book-level-2-formula', sourceFeatName: 'Formula Book', count: 2 }),
+      expect.objectContaining({
+        id: 'class-alchemist:formula-book-level-2-formula',
+        sourceFeatName: 'Formula Book',
+        count: 2,
+      }),
     ]);
   });
 
@@ -783,6 +873,18 @@ describe('feat grant requirements', () => {
         }),
       }),
     ]);
+  });
+
+  test('does not grant formulas invented through downtime', async () => {
+    const description = `<p>You are a genius at Crafting, easily able to determine how things are made and create new inventions. You can spend downtime to invent a common formula that you don't know. This works just like the Craft activity: you spend half the Price of the formula up front, attempt a Crafting check, and on a success either finish the formula by paying the difference or work for longer to decrease the Price. The difference is that you spend the additional time in research, design, and development, rather than in creating an item. Once it's complete, you add the new formula you invented to your formula book.</p><p>The GM might allow you to invent uncommon or rare formulas, typically with an increased DC. You need the Alchemical Crafting feat to invent alchemical formulas and the Magical Crafting feat to invent magical formulas.</p>`;
+    const feat = createFeat({
+      uuid: 'feat-inventor',
+      name: 'Inventor',
+      system: { description: { value: description }, rules: [] },
+    });
+    global.fromUuid = jest.fn(async () => feat);
+
+    expect(await buildFeatGrantRequirements({ feats: [{ uuid: feat.uuid }] })).toEqual([]);
   });
 
   test('does not treat damage bonuses mentioning weapons as item grants', async () => {
@@ -868,9 +970,7 @@ describe('feat grant requirements', () => {
         featGrants: [
           {
             requirementId: 'req-a',
-            selections: [
-              { uuid: 'item-a', name: 'A' },
-            ],
+            selections: [{ uuid: 'item-a', name: 'A' }],
           },
         ],
       },
@@ -882,7 +982,12 @@ describe('feat grant requirements', () => {
 
     expect(completion).toEqual({
       'req-a': expect.objectContaining({ selected: 1, required: 2, missing: 1, complete: false }),
-      'req-b': expect.objectContaining({ selected: 0, required: null, missing: null, complete: false }),
+      'req-b': expect.objectContaining({
+        selected: 0,
+        required: null,
+        missing: null,
+        complete: false,
+      }),
     });
   });
 });

@@ -1,0 +1,847 @@
+{
+  "PF2E_LEVELER": {
+    "MODULE_TITLE": "PF2e Leveler",
+    "KEYBINDINGS": {
+      "OPEN_LEVELER": {
+        "NAME": "PF2e Leveler öffnen",
+        "HINT": "Öffnet den Stufenplaner für einen ausgewählten Token oder den dir zugewiesenen Charakter."
+      },
+      "NO_ACTOR": "Wähle zuerst einen Charakter-Token aus, den du besitzt, oder weise deinem Benutzer einen Charakter zu."
+    },
+    "UI": {
+      "OPEN_PLANNER": "Stufen planen",
+      "LEVEL": "Stufe {level}",
+      "COMPLETE": "Vollständig",
+      "WARNING": "Mit Warnungen",
+      "INCOMPLETE": "Unvollständig",
+      "EMPTY": "Keine Auswahl",
+      "NO_PLAN": "Noch kein Plan erstellt. Wähle eine Klasse, um zu beginnen.",
+      "NO_CLASS": "Weise deinem Charakter eine Klasse zu, um mit der Planung zu beginnen.",
+      "UNSUPPORTED_CLASS": "{className} wird noch nicht unterstützt.",
+      "SAVE": "Plan speichern",
+      "CLEAR": "Plan leeren",
+      "CLEAR_LEVEL": "Stufe leeren",
+      "EXPORT": "Plan exportieren",
+      "IMPORT": "Plan importieren",
+      "IMPORTING_PLAN_TITLE": "Plan wird importiert",
+      "IMPORTING_PLAN_HINT": "PF2E Leveler lädt und überprüft deine gespeicherten Planerdaten.",
+      "LOADING_PLANNER_DATA": "PF2E Leveler lädt die Planerdaten.",
+      "LOADING_LEVEL_DATA": "Stufendaten werden geladen …",
+      "CONFIRM_CLEAR": "Möchtest du diesen Plan wirklich leeren? Alle Auswahlen gehen verloren.",
+      "CONFIRM_CLEAR_LEVEL": "Möchtest du Stufe {level} wirklich leeren? Alle Auswahlen auf dieser Stufe gehen verloren.",
+      "SELECT_CLASS": "Klasse wählen",
+      "SECOND_CLASS": "Zweite Klasse",
+      "SELECT_SECOND_CLASS": "Zweite Klasse wählen",
+      "SELECT_SUBCLASS": "Unterklasse wählen",
+      "APPLY": "Auswahlen anwenden",
+      "CONFIRM_APPLY_TITLE": "Stufenaufstiegsplan anwenden",
+      "CONFIRM_APPLY": "Geplante Auswahlen für Stufe {level} anwenden?",
+      "UNSET": "Zum Auswählen klicken",
+      "PLANNED": "Geplant",
+      "MANUAL_SPELL_NOTE": "Dieses Talent verleiht einen Fokuszauber — nach dem Anwenden musst du den Zauber auf deinem Charakterbogen auswählen.",
+      "APPLIED": "Angewendet",
+      "CURRENT": "Aktuell",
+      "CHANGE": "Ändern",
+      "REMOVE": "Entfernen",
+      "SHOW": "Anzeigen",
+      "HIDE": "Ausblenden",
+      "SELECTED": "Ausgewählt",
+      "PRIMARY": "Primär",
+      "MAKE_PRIMARY": "Als primär festlegen",
+      "GRANTED_BY_FEAT": "Verliehen durch {featName}",
+      "SET_BY_FEAT": "Festgelegt durch: {featName}",
+      "UNKNOWN_FEAT_SOURCE": "Talent",
+      "SELECT_ADOPTED_ANCESTRY": "Wähle die Abstammung, die durch dieses Talent verliehen wird.",
+      "SELECT_ANCESTRY": "Abstammung wählen",
+      "CUSTOM_LEVEL_PLAN_HINT": "Nutze diesen Abschnitt für zusätzliche Planungen außerhalb des normalen Klassenfortschritts. Benutzerdefinierte Auswahlen werden weiterhin bei Planerlogik, Voraussetzungen und angewendeten Stufenaufstiegen berücksichtigt.",
+      "ADD_CUSTOM_FEAT": "Benutzerdefiniertes Talent hinzufügen",
+      "ADD_CUSTOM_SPELL": "Benutzerdefinierten Zauber hinzufügen",
+      "ADD_CUSTOM_CANTRIP": "Benutzerdefinierten Zaubertrick hinzufügen",
+      "GRANTED_ITEMS": "Verliehene Gegenstände:",
+      "PARTIALLY_APPLIED": "Teilweise angewendet",
+      "PARTIAL_BOOST_PENDING": "Teilweise Verbesserung: Zwei Verbesserungen sind für +1 erforderlich",
+      "PARTIAL_BOOST_COMPLETING": "Dies schließt eine ausstehende teilweise Verbesserung zu +1 ab",
+      "PARTIAL_BOOST_SELECTED": "Schließt eine teilweise Verbesserung zu +1 ab",
+      "CUSTOM_SPELL_RANK_REMINDER": "Diese Klasse erhält hier einen neuen Zaubergrad. Nutze den benutzerdefinierten Plan, um die Zauber zu notieren, die du auf diesem Grad voraussichtlich benötigst.",
+      "LOCKED_FILTER_HINT": "Dieser Filter ist für diese Auswahl gesperrt und kann nicht geändert werden.",
+      "PUBLICATIONS": "Publikationen",
+      "SEARCH_PUBLICATIONS": "Publikationen suchen …",
+      "FILTER_OPTIONS": "Optionen",
+      "REMASTER_ONLY": "Nur Remaster",
+      "HIDE_GUNS_TECH": "Schusswaffen & Technik ausblenden",
+      "GUIDANCE_FILTER": "Vorgaben",
+      "PUB_GROUP_AP": "Abenteuerpfade",
+      "PUB_GROUP_AP_GUIDE": "AP-Spielerleitfäden",
+      "PUB_GROUP_STANDALONE": "Einzelabenteuer",
+      "PUB_GROUP_BLOG": "Blogs",
+      "PUB_GROUP_LOST_OMENS": "Lost Omens",
+      "NOT_SELECTED": "Nicht ausgewählt",
+      "BROWSE": "Durchsuchen …",
+      "ADD": "Hinzufügen",
+      "NAME": "Name",
+      "KEY_ABILITY": "Schlüsselattribut",
+      "TRADITION": "Tradition",
+      "SPELLCASTING_TYPE": "Art des Zauberwirkens",
+      "ADD_SPELLCASTING_ENTRY": "Zauberwirk-Eintrag hinzufügen",
+      "PLANNED_ENTRY": "Geplanter Eintrag",
+      "NEXT_LEVEL": "Nächste Stufe",
+      "FINISH_PLANNING": "Planung abschließen",
+      "SEQUENTIAL_PROGRESS": "Planung von Stufe {current} von {target}"
+    },
+    "SECTIONS": {
+      "CLASS_FEATURES": "Klassenmerkmale",
+      "DUAL_CLASS": "Doppelklasse",
+      "ABILITY_BOOSTS": "Attributsverbesserungen",
+      "CLASS_FEAT": "Klassentalent",
+      "SKILL_FEAT": "Fertigkeitstalent",
+      "GENERAL_FEAT": "Allgemeines Talent",
+      "ANCESTRY_FEAT": "Abstammungstalent",
+      "SKILL_INCREASE": "Fertigkeitssteigerung",
+      "ARCHETYPE_FEAT": "Talent des Freien Archetyps",
+      "MYTHIC_FEAT": "Mythisches Talent",
+      "SPELLCASTING": "Zauberwirken",
+      "DUAL_CLASS_FEAT": "Doppelklassen-Talent",
+      "ABP_POTENCY": "Fertigkeitspotenz (ABP)",
+      "CLASS_SPECIFIC": "Klassenoptionen",
+      "CUSTOM_LEVEL_PLAN": "Benutzerdefinierter Stufenplan",
+      "CUSTOM_FEATS": "Benutzerdefinierte Talente",
+      "CUSTOM_SKILL_INCREASES": "Benutzerdefinierte Fertigkeitssteigerungen",
+      "CUSTOM_SPELLS": "Benutzerdefinierte Zauber",
+      "CUSTOM_EQUIPMENT": "Benutzerdefinierte Ausrüstung",
+      "EQUIPMENT": "Ausrüstung (Tabelle 10-10)"
+    },
+    "EQUIPMENT": {
+      "ADD": "Ausrüstung hinzufügen",
+      "CURRENCY_BUDGET": "Münzbudget: {gp} GM",
+      "SLOT_EMPTY": "Gegenstandsplatz bis Stufe {max} (leer)"
+    },
+    "ITEM_PICKER": {
+      "EQUIPMENT": "Ausrüstung",
+      "CATEGORY": "Kategorie",
+      "QUANTITY": "Anz.",
+      "SEARCH": "Ausrüstung suchen …",
+      "SORT": "Sortieren",
+      "SORT_DEFAULT": "Standard",
+      "SORT_LEVEL_ASC": "Stufe (niedrig nach hoch)",
+      "SORT_LEVEL_DESC": "Stufe (hoch nach niedrig)",
+      "SORT_ALPHA_ASC": "Alphabetisch (A-Z)",
+      "SORT_ALPHA_DESC": "Alphabetisch (Z-A)",
+      "TOTAL": "Gesamt",
+      "REMAINING": "verbleibend",
+      "TAKEN": "Gewählt",
+      "ALREADY_TAKEN": "Diese Formel wurde bereits ausgewählt",
+      "SHOWING_PARTIAL": "200 von"
+    },
+    "STARTING_WEALTH": {
+      "PERMANENT_ITEMS": "Permanente Gegenstände",
+      "SLOT_LABEL": "Gegenstandsplatz bis Stufe {maxLevel} (leer)",
+      "ITEM_LEVEL": "St.",
+      "CURRENCY_BUDGET": "Münzen ({gp} GM)",
+      "NOT_PERMANENT": "Nur permanente Gegenstände (Waffen, Rüstungen, Schilde, Ausrüstung) können diesen Platz belegen.",
+      "LEVEL_TOO_HIGH": "Dieser Gegenstand ist Stufe {item}, der Platz erlaubt jedoch höchstens Stufe {max}."
+    },
+    "FEAT_PICKER": {
+      "OPTIONS": "Optionen",
+      "TITLE": "Talent wählen",
+      "SEARCH": "Talente suchen …",
+      "ALL_SKILLS": "Alle Fertigkeiten",
+      "SKILL_FILTER": "Nach Fertigkeit filtern …",
+      "NO_RESULTS": "Keine Talente gefunden",
+      "FILTER_LEVEL": "Max. Stufe",
+      "LEVEL_RANGE": "Stufenbereich",
+      "ANY_LEVEL": "Beliebige Stufe",
+      "MIN_LEVEL": "Min. {level}",
+      "MAX_LEVEL": "Max. {level}",
+      "FILTER_RARITY": "Seltenheit",
+      "SORT": "Sortieren",
+      "PREREQUISITES": "Voraussetzungen",
+      "PREREQ_MET": "Voraussetzung erfüllt",
+      "PREREQ_UNMET": "Voraussetzung nicht erfüllt",
+      "PREREQ_UNKNOWN": "Voraussetzung kann nicht überprüft werden",
+      "PREREQ_UNVERIFIED": "Nicht überprüft",
+      "PREREQ_UNVERIFIED_HINT": "Diese Voraussetzung konnte nicht automatisch überprüft werden. Du kannst das Talent trotzdem auswählen, sofern nicht eine andere Voraussetzung ausdrücklich nicht erfüllt ist.",
+      "PREREQ_UNMET_BLOCKED": "Dieses Talent ist gesperrt, weil eine oder mehrere Voraussetzungen ausdrücklich nicht erfüllt sind.",
+      "ARCHETYPE_DEDICATION_LOCK": "Schließe zuerst deinen aktuellen Archetypen ab, indem du zwei weitere Talente dieses Archetyps wählst",
+      "ARCHETYPE_UNLOCK": "Zugang St. {level}+",
+      "ARCHETYPE_UNLOCK_HINT": "Über das Zugangstalent ab Stufe {level} auswählbar.",
+      "TRAIT_EXCLUDE": "Kategorie ausschließen",
+      "TRAIT_INCLUDE": "Kategorie einschließen",
+      "TRAIT_REMOVE": "Kategorienfilter entfernen",
+      "SUBCLASS_LIMITATION": "Beschränkung durch Unterklasse/Archetyp",
+      "SUBCLASS_LIMITATION_HINT": "Dieses Talent ist aufgrund deiner gewählten Unterklasse oder Klassenarchetyp-Beschränkung erforderlich.",
+      "SEND_TO_CHAT": "An Chat senden",
+      "SELECT": "Auswählen",
+      "LEVEL": "St. {level}",
+      "TAKEN": "Gewählt",
+      "TAKEN_AT_LEVEL": "Auf Stufe {level} gewählt",
+      "ALREADY_TAKEN": "Dieses Talent kann nicht mehrfach ausgewählt werden",
+      "ELIGIBLE_ONLY": "Nur verfügbare",
+      "HIDE_UNMET": "Talente mit ausdrücklich nicht erfüllten Voraussetzungen ausblenden",
+      "DEDICATIONS": "Zugangstalente",
+      "SKILL_FEATS": "Fertigkeitstalente",
+      "SHOW_ARCHETYPE": "Archetyptalente anzeigen",
+      "HIDE_SKILL_FEATS": "Fertigkeitstalente ausblenden",
+      "FEAT_TYPES": "Talentarten",
+      "TYPE_CLASS": "Klasse",
+      "TYPE_ANCESTRY": "Abstammung",
+      "TYPE_BONUS": "Bonus",
+      "TYPE_GENERAL": "Allgemein",
+      "TYPE_SKILL": "Fertigkeit",
+      "TYPE_ARCHETYPE": "Archetyp",
+      "TYPE_MYTHIC": "Mythisch",
+      "TYPE_OTHER": "Sonstige",
+      "SELECT_ALL": "Alle auswählen",
+      "DESELECT_ALL": "Alle abwählen",
+      "ADD_SELECTED": "Auswahl hinzufügen",
+      "SELECTED_COUNT": "{count} ausgewählt"
+    },
+    "BOOSTS": {
+      "TITLE": "Wähle {count} Attributsverbesserungen",
+      "CURRENT": "Aktuell: +{mod}",
+      "PARTIAL": "Teilweise Verbesserung (+0,5)",
+      "ALREADY_SELECTED": "Bereits verbessert"
+    },
+    "SKILLS": {
+      "TITLE": "Fertigkeitssteigerung wählen",
+      "UNTRAINED": "Ungeübt",
+      "TRAINED": "Geübt",
+      "EXPERT": "Experte",
+      "MASTER": "Meister",
+      "LEGENDARY": "Legende",
+      "MAX_RANK": "Maximaler Kompetenzgrad für diese Stufe",
+      "BOOSTED_BY_FEAT": "Durch Talent verbessert"
+    },
+    "SPELLS": {
+      "RANK": "Grad",
+      "SLOTS": "Zauberplätze",
+      "NEW_RANK": "Neu: Zauber des {rank}. Grades!",
+      "TRADITION_FILTER": "Traditionen",
+      "ATTUNEMENT_SLOTS": "{selected}/{count} Erscheinungen",
+      "FOCUS_POOL": "Fokusvorrat: {count}",
+      "ADD": "Zauber hinzufügen",
+      "PLANNED": "Geplante Zauber",
+      "REPERTOIRE_SWAP": "Zauberrepertoire austauschen",
+      "SWAP_KNOWN": "Einen bekannten Zauber austauschen",
+      "NO_REPERTOIRE_SPELLS": "Keine Zauber aus dem Repertoire zum Austauschen verfügbar.",
+      "SIGNATURE_SPELLS": "Signaturzauber",
+      "CHOOSE_SIGNATURE": "Signaturzauber wählen",
+      "NO_SIGNATURE_CANDIDATES": "Wähle zuerst Repertoirezauber für diesen Grad.",
+      "REPLACE": "{spell} ersetzen",
+      "SEARCH": "Zauber suchen …",
+      "NO_RESULTS": "Keine Zauber gefunden",
+      "FILTER_RARITY": "Seltenheit",
+      "SORT": "Sortieren",
+      "TRAIT_FILTER": "Kategorie zum Filtern eingeben …",
+      "GRANTED": "Verliehene Zauber",
+      "SPELLBOOK": "Zauberbuch ({selected}/{count} neue Zauber)",
+      "SPELLBOOK_CANTRIPS": "Erweiterung der Zaubertricks ({selected}/{count} zusätzliche Zaubertricks)",
+      "ADD_TO_SPELLBOOK": "Zauber hinzufügen",
+      "ADD_TO_SPELLBOOK_HINT": "Zauber zum Zauberbuch hinzufügen",
+      "ADD_CANTRIP_TO_SPELLBOOK": "Zaubertricks hinzufügen",
+      "ADD_CANTRIP_TO_SPELLBOOK_HINT": "Zaubertrick zum Zauberbuch hinzufügen",
+      "ADD_SELECTED": "Auswahl hinzufügen",
+      "SELECT": "Auswählen",
+      "TAKEN": "BEREITS ERLERNT",
+      "SELECT_ALL": "Alle auswählen",
+      "DESELECT_ALL": "Alle abwählen",
+      "SELECTED_COUNT": "{count} ausgewählt",
+      "ALREADY_SELECTED": "Bereits ausgewählt",
+      "ALREADY_TAKEN": "Dieser Zauber wurde bereits erlernt",
+      "FOCUS": "Fokuszauber",
+      "FOCUS_CANTRIPS": "Fokus-Zaubertricks",
+      "NEW_FOCUS": "Neu!",
+      "SORT_RANK_DESC": "Grad (höchster zuerst)",
+      "SORT_RANK_ASC": "Grad (niedrigster zuerst)",
+      "SORT_ALPHA_ASC": "Alphabetisch (A-Z)",
+      "SORT_ALPHA_DESC": "Alphabetisch (Z-A)",
+      "RANK_FILTER": "Zaubergrade",
+      "RANK_NUMBER": "Grad {rank}",
+      "CANTRIP": "Zaubertrick",
+      "CATEGORY_FILTER": "Kategorie",
+      "CATEGORY_SPELL": "Zauber",
+      "CATEGORY_CANTRIP": "Zaubertrick",
+      "CATEGORY_FOCUS": "Fokus",
+      "CATEGORY_RITUAL": "Ritual"
+    },
+    "CREATION": {
+      "TITLE": "Charaktererschaffung",
+      "LOADING": "Daten der Charaktererschaffung werden geladen …",
+      "BUTTON": "Charakter erstellen",
+      "EDIT_BUTTON": "Charaktererschaffung bearbeiten",
+      "SEARCH": "Suchen …",
+      "HERITAGE_GROUP_ANCESTRY": "Abstammungsherkünfte",
+      "HERITAGE_GROUP_VERSATILE": "Vielseitige Herkünfte",
+      "CHANGE": "Ändern",
+      "BACK": "Zurück",
+      "NEXT": "Weiter",
+      "CREATE": "Charakter erstellen",
+      "EXPORT": "Exportieren",
+      "IMPORT": "Importieren",
+      "CONFIRM_TITLE": "Charakter erstellen",
+      "CONFIRM_BODY": "Alle Auswahlen auf diesen Charakter anwenden? Dadurch werden Abstammung, Herkunft, Hintergrund, Klasse, Talente und weitere Auswahlen hinzugefügt.",
+      "HIGHER_LEVEL_REDIRECT_TITLE": "Stufenplaner öffnen",
+      "HIGHER_LEVEL_REDIRECT_BODY": "Dieser höherstufige Charakter hat bereits eine Abstammung und Klasse ausgewählt. Nutze statt der Charaktererschaffung den Stufenplaner.",
+      "CREATION_COMPLETE": "Charakter erfolgreich erstellt!",
+      "BOOSTS_HINT": "Wähle 4 unterschiedliche Attribute für Verbesserungen.",
+      "SKILLS_HINT": "Wähle {count} zusätzliche Fertigkeiten, in denen du Geübt wirst.",
+      "REQUIRED_SKILL_TRAINING": "Erforderliches Fertigkeitstraining",
+      "REQUIRED_SKILL_TRAINING_HINT": "Triff diese verliehenen Fertigkeitsauswahlen, bevor du fortfährst.",
+      "REQUIRED_SKILL_RESERVED": "Wähle dies oben beim erforderlichen Training aus.",
+      "LANGUAGES_HINT": "Wähle {count} zusätzliche Sprachen.",
+      "GRANTED_LANGUAGES": "Verliehene Sprachen",
+      "GRANTED_LORES": "Verliehene Kenntnisse",
+      "ADDITIONAL_LANGUAGES": "Zusätzliche Sprachen",
+      "NO_LANGUAGES": "Keine zusätzlichen Sprachen zur Auswahl verfügbar.",
+      "LORE_SKILLS": "Kenntnisse",
+      "SPELLS_HINT": "Wähle deine anfänglichen Zauber.",
+      "AUTO_TRAINED": "Klasse",
+      "DIVINE_FONT_HEAL": "Heilung",
+      "DIVINE_FONT_HARM": "Schaden",
+      "KEY_ABILITY": "SCHLÜSSEL",
+      "TOTAL": "Gesamt",
+      "ANCESTRY_SUGGESTION": "Abstammungsvorschlag",
+      "SELECTED_TACTICS": "Ausgewählte Taktiken ({selected}/{count})",
+      "SELECTED_IKONS": "Ausgewählte Ikonen ({selected}/{count})",
+      "SELECTED_IMPULSES": "Ausgewählte Impulse ({selected}/{count})",
+      "SELECTED_APPARITIONS": "Ausgewählte Erscheinungen ({selected}/{count})",
+      "WIZARD": {
+        "IMPLEMENT": "Implement",
+        "TACTICS": "Taktiken",
+        "TACTICS_HINT": "Wähle fünf Starttaktiken für dein Kompendium.",
+        "AVAILABLE_TACTICS": "Verfügbare Taktiken ({selected}/{count})",
+        "IKONS": "Ikonen",
+        "IKONS_HINT": "Wähle drei Startikonen.",
+        "AVAILABLE_IKONS": "Verfügbare Ikonen ({selected}/{count})",
+        "INNOVATION_DETAILS": "Innovationsdetails",
+        "INNOVATION_DETAILS_HINT": "Wähle den Basisgegenstand deiner Innovation und die erste Modifikation.",
+        "INNOVATION_BASE_FIRST": "Wähle zuerst den Basisgegenstand der Innovation.",
+        "INNOVATION_ITEM": "Innovationsgegenstand",
+        "INNOVATION_MODIFICATION": "Innovationsmodifikation",
+        "KINETIC_GATE": "Kinetisches Tor",
+        "KINETIC_GATE_HINT": "Wähle, ob du mit einem einzelnen oder einem doppelten Tor beginnst, und wähle anschließend deine Startimpulse.",
+        "GATE_MODE": "Tormodus",
+        "SECOND_ELEMENT": "Zweites Element",
+        "IMPULSES": "Impulse ({selected}/{count})",
+        "IMPULSES_LABEL": "Impulse",
+        "SUBCONSCIOUS_MIND": "Unterbewusstsein",
+        "ARCANE_THESIS": "Arkane These",
+        "APPARITIONS": "Erscheinungen",
+        "APPARITIONS_HINT": "Wähle zwei Erscheinungen, auf die du dich einstimmst, und markiere anschließend eine davon als deine primäre Erscheinung.",
+        "AVAILABLE_APPARITIONS": "Verfügbare Erscheinungen ({selected}/{count})",
+        "SANCTIFICATION": "Heiligung",
+        "REQUIRES": "erfordert",
+        "ALLOWS": "erlaubt",
+        "SANCTIFICATION_SUFFIX": "folgende Heiligung:",
+        "DIVINE_FONT": "Göttlicher Quell",
+        "DIVINE_FONT_HINT": "Wähle deinen Göttlichen Quell. Dadurch wird festgelegt, ob du Heilungs- oder Schadenszauber kanalisierst.",
+        "GRANTED_FEAT_CHOICE": "Verliehene Talentauswahl",
+        "CURRICULUM_SPELLS": "Lehrplanzauber",
+        "FOCUS_SPELLS": "Fokuszauber",
+        "REMINDER_PREFIX": "Wenn du nach der Erstellung dazu aufgefordert wirst, wähle unbedingt",
+        "REMINDER_SUBCLASS_SUFFIX": "als Auswahl deiner Unterklasse.",
+        "REMINDER_IMPLEMENT_SUFFIX": "als dein Implement.",
+        "REMINDER_TACTICS_PREFIX": "Wenn du nach der Erstellung dazu aufgefordert wirst, wähle unbedingt deine gewählten Kommandeurstaktiken:",
+        "REMINDER_IKONS_PREFIX": "Wenn du nach der Erstellung dazu aufgefordert wirst, wähle unbedingt deine gewählten Ikonen:",
+        "REMINDER_INNOVATION_PREFIX": "Wenn du nach der Erstellung dazu aufgefordert wirst, wähle unbedingt die gewählten Details deiner Erfinder-Innovation:",
+        "REMINDER_KINETIC_PREFIX": "Wenn du nach der Erstellung dazu aufgefordert wirst, wähle unbedingt deine Optionen für das kinetische Tor:",
+        "REMINDER_SUBCONSCIOUS_SUFFIX": "als dein Unterbewusstsein.",
+        "REMINDER_THESIS_SUFFIX": "als deine Arkane These.",
+        "REMINDER_WITH": "mit",
+        "REMINDER_PERIOD": "."
+      },
+      "APPLY_OVERLAY": {
+        "EYEBROW": "Charakter wird erstellt",
+        "CURRENT_PROMPT": "Aktuelle PF2E-Abfrage",
+        "PROMPT": "Abfrage",
+        "USE": "Verwenden",
+        "SOURCE": "Quelle",
+        "USE_IN_PROMPTS": "Diese in PF2E-Abfragen verwenden",
+        "WIZARD_SELECTION_MISSING": "Zauberer-Auswahl fehlt"
+      },
+      "PENDING_TITLE": "Zusätzliche Auswahlen nach der Erstellung",
+      "PENDING_HINT": "Das PF2e-System wird dich nach der Charaktererschaffung zu folgenden Auswahlen auffordern:",
+      "FEAT_CHOICES": "Talentauswahlen",
+      "AUTO_TRAINED_CLASS": "Klasse",
+      "AUTO_TRAINED_BACKGROUND": "Hintergrund",
+      "INTELLIGENCE_BONUS_HINT_SINGLE": "Intelligenz erhöht deinen Modifikator auf dieser Stufe. Wähle unten 1 zusätzliche Fertigkeit, in der du Geübt wirst, sowie 1 zusätzliche Sprache.",
+      "INTELLIGENCE_BONUS_HINT_MULTI": "Intelligenz erhöht deinen Modifikator auf dieser Stufe. Wähle unten {count} zusätzliche Fertigkeiten, in denen du Geübt wirst, sowie {count} zusätzliche Sprachen.",
+      "INTELLIGENCE_BONUS_SKILLS": "Bonusfertigkeiten durch Intelligenz ({selected}/{count})",
+      "INTELLIGENCE_BONUS_LANGUAGES": "Bonussprachen durch Intelligenz ({selected}/{count})",
+      "STEPS": {
+        "ANCESTRY": "Abstammung",
+        "HERITAGE": "Herkunft",
+        "MIXED_ANCESTRY": "Gemischte Abstammung",
+        "BACKGROUND": "Hintergrund",
+        "CLASS": "Klasse",
+        "SUBCLASS": "Unterklasse",
+        "SUBCLASSCHOICES": "Optionen",
+        "DEITY": "Gottheit",
+        "SANCTIFICATION": "Heiligung",
+        "BOOSTS": "Attributsverbesserungen",
+        "LANGUAGES": "Sprachen",
+        "SKILLS": "Fertigkeiten",
+        "FEATS": "Talente",
+        "SPELLS": "Zauber",
+        "EQUIPMENT": "Ausrüstung",
+        "SUMMARY": "Zusammenfassung"
+      },
+      "CHAT": {
+        "CHARACTER": "Charakter",
+        "CHOICES": "Auswahlen",
+        "STARTING_BENEFITS": "Startvorteile",
+        "CHARACTER_CREATED": "Charakter erstellt",
+        "CHARACTER_READY": "{actorName} ist bereit",
+        "IMPLEMENT": "Implement",
+        "TACTICS": "Taktiken",
+        "IKONS": "Ikonen",
+        "INNOVATION_ITEM": "Innovationsgegenstand",
+        "INNOVATION_MOD": "Innovationsmodifikation",
+        "KINETIC_GATE": "Kinetisches Tor",
+        "DUAL_GATE": "Doppeltes Tor",
+        "SINGLE_GATE": "Einzelnes Tor",
+        "SECOND_ELEMENT": "Zweites Element",
+        "IMPULSES": "Impulse",
+        "SUBCONSCIOUS_MIND": "Unterbewusstsein",
+        "ARCANE_THESIS": "Arkane These",
+        "APPARITIONS": "Erscheinungen",
+        "NONE": "Keine",
+        "FOCUS_SPELL": "Fokuszauber",
+        "FOCUS_SPELLS": "Fokuszauber",
+        "GRANTED_FEAT_CHOICE": "Verliehene Talentauswahl",
+        "EQUIPMENT": "Startausrüstung"
+      }
+    },
+    "SUMMARY": {
+      "BOOSTS": "Verbesserungen",
+      "CLASS": "Klasse",
+      "SKILL": "Fertigkeit",
+      "GENERAL": "Allgemein",
+      "ANCESTRY": "Abstammung",
+      "SKILL_INCREASE": "Fertigkeit+",
+      "ARCHETYPE": "Archetyp",
+      "MYTHIC": "Mythisch",
+      "POTENCY": "Potenz",
+      "DUAL_CLASS": "Doppelklasse",
+      "SPELLS": "Zauber"
+    },
+    "ABP": {
+      "NEW_POTENCY": "Neue Fertigkeitspotenz +1",
+      "UPGRADE_TO_2": "Eine Fertigkeitspotenz auf +2 erhöhen",
+      "UPGRADE_TO_3": "Eine Fertigkeitspotenz auf +3 erhöhen",
+      "NOTE": "Fertigkeitspotenz-Boni werden vom ABP-System automatisch angewendet, wenn du Fertigkeiten auf dem Charakterbogen auswählst."
+    },
+    "REMINDERS": {
+      "TITLE": "Aktion erforderlich",
+      "HEADER": "{actorName} (Stufe {level}) hat Auswahlen, die manuell bearbeitet werden müssen:",
+      "OK": "Verstanden"
+    },
+    "MESSAGES": {
+      "GLOBAL_HEADER": "{actorName} hat Stufe {targetLevel} erreicht!",
+      "FEATS_SELECTED": "Ausgewählte Talente:",
+      "NO_FEATS": "Keine",
+      "SKILL_INCREASE": "Fertigkeitssteigerung:",
+      "BOOSTS_APPLIED": "Attributsverbesserungen: {boosts}",
+      "SPELLS_ADDED": "Hinzugefügte Zauber:"
+    },
+    "ALCHEMIST": {
+      "NAME": "Alchemist",
+      "RESEARCH_FIELD": "Forschungsfeld",
+      "SUBCLASS": {
+        "BOMBER": "Bombenwerfer",
+        "CHIRURGEON": "Feldscher",
+        "MUTAGENIST": "Mutagenist",
+        "TOXICOLOGIST": "Toxikologe"
+      }
+    },
+    "ANIMIST": {
+      "NAME": "Animist",
+      "PRACTICE": "Animistische Praxis",
+      "APPARITIONS": "Einstimmung auf Erscheinungen",
+      "PRIMARY_APPARITION": "Primäre Erscheinung",
+      "SUBCLASS": {
+        "LITURGIST": "Liturgist",
+        "MEDIUM": "Medium",
+        "SEER": "Seher",
+        "SHAMAN": "Schamane"
+      },
+      "APPARITION": {
+        "CRAFTER": "Handwerker im Gewölbe",
+        "CUSTODIAN": "Hüter der Haine und Gärten",
+        "ECHO": "Echo verlorener Augenblicke",
+        "IMPOSTOR": "Betrüger an verborgenen Orten",
+        "LURKER": "Lauerer in der verschlingenden Dunkelheit",
+        "MONARCH": "Monarch der Feenhöfe",
+        "REVELER": "Zecher verlorener Freude",
+        "STALKER": "Pirscher in verdunkelten Zweigen",
+        "STEWARD": "Bewahrer von Stein und Feuer",
+        "VANGUARD": "Vorhut tosender Wasser",
+        "WITNESS": "Zeuge uralter Schlachten",
+        "SHEPHERD": "Hirte verirrter Winde",
+        "SPEAKER": "Sprecher im Zischen"
+      }
+    },
+    "SORCERER": {
+      "NAME": "Zauberer"
+    },
+    "BARBARIAN": {
+      "NAME": "Barbar"
+    },
+    "BARD": {
+      "NAME": "Barde"
+    },
+    "CHAMPION": {
+      "NAME": "Streiter"
+    },
+    "CLERIC": {
+      "NAME": "Kleriker"
+    },
+    "COMMANDER": {
+      "NAME": "Kommandeur"
+    },
+    "DAREDEVIL": {
+      "NAME": "Draufgänger"
+    },
+    "DRUID": {
+      "NAME": "Druide"
+    },
+    "EXEMPLAR": {
+      "NAME": "Exemplar"
+    },
+    "FIGHTER": {
+      "NAME": "Kämpfer"
+    },
+    "GUARDIAN": {
+      "NAME": "Wächter"
+    },
+    "GUNSLINGER": {
+      "NAME": "Schütze"
+    },
+    "INVENTOR": {
+      "NAME": "Erfinder"
+    },
+    "INVESTIGATOR": {
+      "NAME": "Ermittler"
+    },
+    "KINETICIST": {
+      "NAME": "Kinetiker"
+    },
+    "MAGUS": {
+      "NAME": "Magus"
+    },
+    "MONK": {
+      "NAME": "Mönch"
+    },
+    "NECROMANCER": {
+      "NAME": "Nekromant"
+    },
+    "ORACLE": {
+      "NAME": "Orakel"
+    },
+    "PSYCHIC": {
+      "NAME": "Mentalist"
+    },
+    "RANGER": {
+      "NAME": "Waldläufer"
+    },
+    "ROGUE": {
+      "NAME": "Schurke"
+    },
+    "RUNESMITH": {
+      "NAME": "Runenschmied",
+      "RUNIC_REPERTOIRE": "Runenrepertoire",
+      "REPERTOIRE_LIMITS": "{known} Runen bekannt; {etched} Runen eingraviert.",
+      "RECORD_INITIAL_RUNES": "Notiere nach der Erstellung deine {known} bekannten Runen und {etched} eingravierten Runen auf dem Charakterbogen."
+    },
+    "SLAYER": {
+      "NAME": "Schlächter"
+    },
+    "SUMMONER": {
+      "NAME": "Beschwörer"
+    },
+    "SWASHBUCKLER": {
+      "NAME": "Draufgänger"
+    },
+    "THAUMATURGE": {
+      "NAME": "Thaumaturg"
+    },
+    "WITCH": {
+      "NAME": "Hexe"
+    },
+    "WIZARD": {
+      "NAME": "Magier"
+    },
+    "PREREQUISITES": {
+      "MET": "Alle Voraussetzungen erfüllt",
+      "UNMET": "Voraussetzungen nicht erfüllt",
+      "DETAILS": "Voraussetzungen: {details}"
+    },
+    "NOTIFICATIONS": {
+      "APPLIED": "Auswahlen für {actorName} auf Stufe {level} erfolgreich angewendet",
+      "APPLY_FAILED": "Auswahlen konnten nicht angewendet werden: {error}",
+      "NO_PLAN_FOR_LEVEL": "Kein Plan für Stufe {level} gefunden",
+      "PLAN_SAVED": "Stufenaufstiegsplan gespeichert",
+      "PLAN_CLEARED": "Stufenaufstiegsplan geleert",
+      "PLAN_EXPORTED": "Plan erfolgreich exportiert",
+      "PLAN_IMPORTED": "Plan erfolgreich importiert",
+      "CREATION_EXPORTED": "Plan zur Charaktererschaffung erfolgreich exportiert",
+      "CREATION_IMPORTED": "Plan zur Charaktererschaffung erfolgreich importiert",
+      "IMPORT_FAILED": "Plan konnte nicht importiert werden: {error}",
+      "INVALID_BOOST_COUNT": "Bitte wähle genau {count} Attributsverbesserungen",
+      "MISSING_CLASS": "Dem Charakter muss eine Klasse zugewiesen sein",
+      "LEVEL_UP_START": "{actorName} steigt auf Stufe {targetLevel} auf …",
+      "LEVEL_UP_COMPLETE": "Stufenaufstieg von {actorName} abgeschlossen!",
+      "DUAL_CLASS_REQUIRED": "Wähle eine zweite Klasse, bevor du Doppelklassen-Talente auswählst."
+    },
+    "SETTINGS": {
+      "SHOW_BUTTON": {
+        "NAME": "„Stufen planen“ auf Charakterbögen anzeigen",
+        "HINT": "Zeigt auf unterstützten Charakterbögen die Schaltfläche „Stufen planen“ an."
+      },
+      "AUTO_APPLY": {
+        "NAME": "Beim Stufenaufstieg zum Anwenden des Plans auffordern",
+        "HINT": "Wenn die Stufe eines Charakters steigt, wird der Benutzer aufgefordert, die geplanten Auswahlen für die neu erreichten Stufen anzuwenden."
+      },
+      "ALLOW_INCOMPLETE_CREATION": {
+        "NAME": "Unvollständige Charaktererschaffung erlauben",
+        "HINT": "Erlaubt SL und Spielern, die Charaktererschaffung abzuschließen, bevor alle erforderlichen Schritte vollständig sind."
+      },
+      "SHOW_PREREQUISITES": {
+        "NAME": "Ergebnisse der Talentvoraussetzungen anzeigen",
+        "HINT": "Zeigt an, welche Talentvoraussetzungen erfüllt, nicht erfüllt oder ungeklärt sind. Diese Einstellung verhindert keine Auswahl."
+      },
+      "ENFORCE_PREREQUISITES": {
+        "NAME": "Talentvoraussetzungen erzwingen",
+        "HINT": "Verhindert die Auswahl von Talenten mit nicht erfüllten Voraussetzungen. Deaktiviere dies, um die Ergebnisse nur anzuzeigen, ohne die Auswahl zu blockieren."
+      },
+      "IGNORE_FREE_ARCHETYPE_DEDICATION_LOCK": {
+        "NAME": "Zugangsbegrenzung für Freien Archetyp lockern",
+        "HINT": "Erlaubt in Plätzen des Freien Archetyps ein neues Zugangstalent, ohne zuvor zwei weitere Talente des aktuellen Archetyps wählen zu müssen."
+      },
+      "ENFORCE_SUBCLASS_DEDICATION_REQUIREMENT": {
+        "NAME": "Unterklassen-Anforderung für Zugangstalente erzwingen",
+        "HINT": "Verlangt auf Stufe 2 das Zugangstalent, das durch die ausgewählte Unterklasse oder den Klassenarchetyp vorgegeben ist."
+      },
+      "REVIEW_WORKFLOW": {
+        "NAME": "Prüfablauf für Spieler",
+        "HINT": "Legt fest, ob Spieler eine Prüfung durch den SL anfordern können und ob vor dem Anwenden von Charakteränderungen eine Genehmigung erforderlich ist. Die Genehmigung gilt für den Charakter, nicht für einen eingefrorenen Build, und bleibt gültig, bis die Anfrage erneut geöffnet oder verworfen wird.",
+        "DISABLED": "Deaktiviert",
+        "OPTIONAL": "Optionale Prüfung",
+        "REQUIRED": "Genehmigung erforderlich"
+      },
+      "HIDE_UNCOMMON": {
+        "NAME": "Talentauswahl mit ausgeblendeten ungewöhnlichen Talenten starten",
+        "HINT": "Deaktiviert beim Öffnen einer Talentauswahl den Seltenheitsfilter „Ungewöhnlich“. Benutzer mit Zugriff können den Filter wieder aktivieren."
+      },
+      "HIDE_RARE": {
+        "NAME": "Talentauswahl mit ausgeblendeten seltenen Talenten starten",
+        "HINT": "Deaktiviert beim Öffnen einer Talentauswahl den Seltenheitsfilter „Selten“. Benutzer mit Zugriff können den Filter wieder aktivieren."
+      },
+      "PLAYER_RARITY": {
+        "UNCOMMON_NAME": "Spielern ungewöhnliche Inhalte erlauben",
+        "UNCOMMON_HINT": "Erlaubt Benutzern ohne SL-Rechte, ungewöhnliche Inhalte in Charaktererschaffung und Stufenplaner zu sehen und auszuwählen.",
+        "RARE_NAME": "Spielern seltene Inhalte erlauben",
+        "RARE_HINT": "Erlaubt Benutzern ohne SL-Rechte, seltene Inhalte in Charaktererschaffung und Stufenplaner zu sehen und auszuwählen.",
+        "UNIQUE_NAME": "Spielern einzigartige Inhalte erlauben",
+        "UNIQUE_HINT": "Erlaubt Benutzern ohne SL-Rechte, einzigartige Inhalte in Charaktererschaffung und Stufenplaner zu sehen und auszuwählen."
+      },
+      "PLAYER_COMPENDIUM_ACCESS": {
+        "NAME": "Erlaubte Inhaltsquellen für Spieler",
+        "LABEL": "Erlaubte Quellen konfigurieren",
+        "HINT": "Wähle, auf welche Kompendiumsquellen Benutzer ohne SL-Rechte zugreifen dürfen, wenn Quellenbeschränkungen aktiviert sind.",
+        "ENABLED_NAME": "Quellenbeschränkungen für Spieler erzwingen",
+        "ENABLED_HINT": "Beschränkt Benutzer ohne SL-Rechte auf die unter „Erlaubte Inhaltsquellen für Spieler“ ausgewählten Quellen."
+      },
+      "FEAT_SORT": {
+        "NAME": "Standardsortierung für Talente",
+        "HINT": "Legt fest, wie Talente beim Öffnen einer Talentauswahl sortiert werden.",
+        "LEVEL_DESC": "Stufe (hoch nach niedrig)",
+        "LEVEL_ASC": "Stufe (niedrig nach hoch)",
+        "ALPHA_ASC": "Alphabetisch (A-Z)",
+        "ALPHA_DESC": "Alphabetisch (Z-A)"
+      },
+      "DEFAULT_ELIGIBLE_ONLY": {
+        "NAME": "Talentauswahl standardmäßig auf „Nur verfügbare“ setzen",
+        "HINT": "Öffnet Talentauswahlen standardmäßig mit aktiviertem Filter „Nur verfügbare“."
+      },
+      "STARTING_WEALTH": {
+        "MODE_NAME": "Modus für Startvermögen",
+        "MODE_HINT": "Legt das Budget für die Startausrüstung in der Charaktererschaffung fest. „Gegenstände + Münzen“ und „Pauschalsumme“ verwenden PF2e-Tabelle 10-10; „Benutzerdefiniert“ verwendet ein manuelles Budget.",
+        "DISABLED": "Deaktiviert",
+        "ITEMS_AND_CURRENCY": "Gegenstände + Münzen (Tabelle 10-10)",
+        "LUMP_SUM": "Pauschalsumme (Tabelle 10-10)",
+        "CUSTOM": "Benutzerdefiniertes Goldlimit"
+      },
+      "EQUIPMENT_GOLD_LIMIT": {
+        "NAME": "Benutzerdefiniertes Budget für Startausrüstung (GM)",
+        "HINT": "Maximale Kosten der Startausrüstung, wenn der Modus für Startvermögen auf „Benutzerdefiniert“ steht.",
+        "EXCEEDED": "Dieser Gegenstand würde das Budget für Startausrüstung von {limit} GM überschreiten.",
+        "EXCEEDED_TOOLTIP": "Die Gesamtkosten überschreiten das festgelegte Goldlimit."
+      },
+      "ANCESTRAL_PARAGON": {
+        "NAME": "Variantenregel „Abstammungsparagon“",
+        "HINT": "Aktiviert die Variantenregel „Abstammungsparagon“. Charaktere beginnen mit 2 Abstammungstalenten und erhalten auf jeder ungeraden Stufe (3, 5, 7, 9, 11, 13, 15, 17, 19) ein zusätzliches Abstammungstalent. Dies ist vom Allgemeinen Talent „Abstammungsparagon“ getrennt."
+      },
+      "DUAL_CLASS_SUPPORT": {
+        "NAME": "Doppelklassen-Unterstützung aktivieren",
+        "HINT": "Fügt der Charaktererschaffung und dem Stufenplaner die Auswahl einer zweiten Klasse sowie den Doppelklassen-Fortschritt hinzu."
+      },
+      "ADDITIONAL_COMPENDIUMS": {
+        "NAME": "Zusätzliche Talentkompendien",
+        "HINT": "Kommagetrennte Liste zusätzlicher Kompendiumsschlüssel, die nach Talenten durchsucht werden sollen (z. B. „my-module.my-feats“)"
+      },
+      "COMPENDIUM_MANAGER": {
+        "NAME": "Benutzerdefinierte Kompendiumskategorien",
+        "LABEL": "Kategorien konfigurieren",
+        "HINT": "Wähle zusätzliche Kompendien aus, die für jede vom Planer und Charakterassistenten verwendete PF2E-Inhaltskategorie durchsucht werden sollen.",
+        "BUILT_IN": "Integriertes Standard-Kompendium",
+        "NO_PACKS": "Für diese Kategorie wurden keine passenden Kompendien gefunden.",
+        "ALL": "Alle",
+        "DESELECT_ALL": "Alle abwählen",
+        "ALL_DISABLED": "In dieser Kategorie sind keine benutzerdefinierten Kompendien verfügbar.",
+        "PACKAGE": "Paket",
+        "SEARCH": "Quellen filtern …",
+        "SUMMARY": "Inhaltsquellen",
+        "CATEGORIES_VIEW": "Nach Kategorie durchsuchen",
+        "PACK_ASSIGNMENTS_VIEW": "Kompendien zuweisen",
+        "PACK_ASSIGNMENTS_TITLE": "Zuordnung von Kompendiumskategorien",
+        "PACK_ASSIGNMENTS_HINT": "In dieser Ansicht legst du genau fest, welche Kompendien die einzelnen PF2E-Inhaltskategorien speisen. Ein einzelnes Kompendium kann mehreren Kategorien angehören. Integrierte Standardzuordnungen bleiben gesperrt; automatisch erkannte Treffer sind nur ein Ausgangsvorschlag.",
+        "APPLY_AUTO_ASSIGNMENTS": "Automatik anwenden",
+        "APPLY_AUTO_CONFIRM_TITLE": "Automatische Zuordnungen anwenden",
+        "APPLY_AUTO_CONFIRM_BODY": "Die aktuellen Entwurfszuordnungen der Kompendien durch die automatisch erkannten Kategorietreffer ersetzen?",
+        "APPLY_AUTO_CONFIRM_YES": "Automatik anwenden",
+        "PACK_SEARCH_PLACEHOLDER": "Kompendien oder Kategorien suchen …",
+        "SOURCE_COLUMN": "Kompendium",
+        "CATEGORY_COLUMN": "Kategorien",
+        "AUTO_DETECTED": "Automatisch",
+        "NO_PACK_ASSIGNMENTS": "Keine Kompendien entsprechen dieser Suche.",
+        "CANCEL": "Abbrechen",
+        "SAVE": "Änderungen speichern",
+        "SAVING": "Wird gespeichert …",
+        "SAVED": "Benutzerdefinierte Kompendiumskategorien gespeichert",
+        "INDEXING_TITLE": "Kompendien werden neu indiziert",
+        "INDEXING_HINT": "PF2E Leveler erstellt die Indizes für Talente, Gegenstände und Zauber anhand der aktualisierten Quellenauswahl neu."
+      },
+      "COMPENDIUM_CATEGORIES": {
+        "ANCESTRIES": "Abstammungen",
+        "HERITAGES": "Herkünfte",
+        "BACKGROUNDS": "Hintergründe",
+        "CLASSES": "Klassen",
+        "CLASS_ARCHETYPES": "Klassenarchetypen",
+        "FEATS": "Talente",
+        "CLASS_FEATURES": "Klassenmerkmale",
+        "SPELLS": "Zauber",
+        "EQUIPMENT": "Gegenstände und Ausrüstung",
+        "ACTIONS": "Aktionen",
+        "DEITIES": "Gottheiten",
+        "SKILLS": "Fertigkeiten",
+        "LANGUAGES": "Sprachen"
+      },
+      "CONTENT_GUIDANCE": {
+        "NAME": "Inhaltsvorgaben und Beschränkungen",
+        "LABEL": "Vorgaben konfigurieren",
+        "HINT": "Markiere Charakteroptionen für Spieler als erlaubt, vorgeschlagen, nicht empfohlen, exklusiv, exklusiv für den Freien Archetyp oder nicht erlaubt. Vorgeschlagene Einträge erhalten ein Sternsymbol und werden oben einsortiert. Exklusive Einträge begrenzen die Auswahl der Spieler in diesem Reiter auf die exklusive Liste. Exklusive Einträge für den Freien Archetyp begrenzen nur Auswahlen des Freien Archetyps. Nicht erlaubte Einträge können ausgeblendet oder für Spieler als nicht auswählbar angezeigt werden.",
+        "SAVED": "Inhaltsvorgaben gespeichert.",
+        "INTRO": "Markiere Einträge als erlaubt, vorgeschlagen, nicht empfohlen, exklusiv, exklusiv für den Freien Archetyp oder nicht erlaubt. Vorgeschlagene Einträge erhalten in Auswahlfenstern ein Sternsymbol und werden oben einsortiert. Exklusive Einträge begrenzen die Auswahl der Spieler in diesem Reiter auf die exklusive Liste. Exklusive Einträge für den Freien Archetyp begrenzen nur Auswahlen des Freien Archetyps. Nicht erlaubte Einträge können für Benutzer ohne SL-Rechte ausgeblendet oder als nicht auswählbar angezeigt werden.",
+        "PLAYER_DISALLOWED_MODE": {
+          "NAME": "Nicht erlaubte Inhalte Spielern anzeigen",
+          "HINT": "Legt fest, ob als „Nicht erlaubt“ markierte Optionen für Benutzer ohne SL-Rechte vollständig ausgeblendet oder deaktiviert angezeigt werden.",
+          "HIDDEN": "Vollständig ausblenden",
+          "UNSELECTABLE": "Deaktiviert anzeigen"
+        },
+        "SEARCH": "Einträge suchen …",
+        "ALLOWED": "Erlaubt",
+        "RECOMMENDED": "Vorgeschlagen",
+        "NOT_RECOMMENDED": "Nicht empfohlen",
+        "DISALLOWED": "Nicht erlaubt",
+        "DEFAULT": "Standard",
+        "DEFAULT_POLICY": "Unmarkierte Einträge",
+        "DEFAULT_ALLOWED": "Erlaubt",
+        "DEFAULT_DISALLOWED": "Nicht erlaubt",
+        "CLASS_ARCHETYPE_VIEW": "Ansicht",
+        "CLASS_ARCHETYPE_DEDICATIONS": "Zugangstalente",
+        "CLASS_ARCHETYPE_ALL_FEATS": "Alle Talente",
+        "BADGE_ALLOWED": "Erlaubt",
+        "BADGE_SUGGESTED": "Vorgeschlagen",
+        "BADGE_EXCLUSIVE": "Exklusiv",
+        "BADGE_FREE_ARCHETYPE_EXCLUSIVE": "Exklusiv für Freien Archetyp",
+        "BADGE_EXCLUSIVE_REQUIRED": "Nicht in der exklusiven Liste",
+        "BADGE_NOT_RECOMMENDED": "Nicht empfohlen",
+        "BADGE_DISALLOWED": "Nicht erlaubt",
+        "DISALLOWED_ITEM_REASON": "Vom SL als nicht verfügbar markiert",
+        "DISALLOWED_SOURCE_REASON": "Nicht verfügbar: Die Quelle ({source}) wurde vom SL nicht erlaubt",
+        "GM_OVERRIDE_ALLOWED": "Erlaubt, weil du SL bist",
+        "OPEN_SETTINGS": "Einstellungen für Inhaltsvorgaben öffnen",
+        "BADGE_INHERITED": "Geerbt",
+        "BULK_SPECIAL": "Sammelfilter",
+        "BULK_RARITY": "Sammelaktion nach Seltenheit",
+        "BULK_GROUP": "Sammelaktion nach Gruppe",
+        "BULK_ARCHETYPE_ONLY_NO_PREREQS": "Nur Archetyp-Talente ohne Voraussetzungen",
+        "BULK_ALLOWED": "Erlauben",
+        "BULK_RECOMMENDED": "Vorschlagen",
+        "BULK_NOT_RECOMMENDED": "Warnen",
+        "BULK_DISALLOWED": "Sperren",
+        "BULK_EXCLUSIVE": "Exklusiv",
+        "BULK_CLEAR_EXCLUSIVE": "Exklusiv-Markierungen löschen",
+        "BULK_FREE_ARCHETYPE_EXCLUSIVE": "Exklusiv für Freien Archetyp",
+        "BULK_CLEAR_FREE_ARCHETYPE_EXCLUSIVE": "Exklusiv-Markierungen für Freien Archetyp löschen",
+        "BULK_DEFAULT": "Löschen",
+        "CLEAR_ALL": "Reiter leeren",
+        "COUNT": "{count} markiert",
+        "SOURCES": "Quellen",
+        "MATCHED_COUNT": "{count} Einträge"
+      },
+      "PUBLICATION_FILTER_VISIBILITY": {
+        "NAME": "Nicht erlaubte Quellen in Publikationsfiltern anzeigen",
+        "HINT": "Legt fest, ob als „Nicht erlaubt“ markierte Quellen als Filteroptionen erscheinen. Ihre Einträge bleiben unabhängig davon nicht verfügbar.",
+        "SHOW": "In Filterlisten anzeigen",
+        "HIDE": "Aus Filterlisten ausblenden",
+        "HIDE_NON_GM": "Nur für Spieler ausblenden"
+      }
+    },
+    "REVIEW_REQUEST": {
+      "SENT": "Prüfanfrage an den SL gesendet.",
+      "RECEIVED": "{name} hat eine SL-Prüfung für {item} angefordert.",
+      "BUTTON": "SL-Prüfung anfordern",
+      "DIALOG_TITLE": "SL-Prüfung anfordern",
+      "DIALOG_PROMPT": "Bitte den SL, „{item}“ zu prüfen. Füge optional eine Notiz hinzu (Begründung, Hintergrundgeschichte usw.):",
+      "SUBMIT": "Anfrage senden",
+      "PANEL_TITLE": "Prüfanfragen",
+      "MENU_NAME": "Prüfanfragen von Spielern",
+      "MENU_LABEL": "Prüfanfragen öffnen",
+      "MENU_HINT": "Prüfe von Spielern eingereichte Charaktererschaffungen und Stufenaufstiegspläne.",
+      "EMPTY": "Noch keine Prüfanfragen.",
+      "INTRO": "Genehmige, verwerfe oder öffne Prüfanfragen von Spielern erneut. Wenn eine Genehmigung erforderlich ist, kann der Charakter nach der Genehmigung Änderungen anwenden. Die Genehmigung bleibt gültig, bis die Anfrage erneut geöffnet oder verworfen wird.",
+      "STATUS_PENDING": "Ausstehend",
+      "STATUS_RESOLVED": "Genehmigt",
+      "STATUS_DISMISSED": "Verworfen",
+      "ACTION_RESOLVE": "Genehmigen",
+      "ACTION_DISMISS": "Verwerfen",
+      "ACTION_REOPEN": "Erneut öffnen",
+      "ACTION_DELETE": "Anfrage löschen",
+      "REQUESTED_BY": "Angefordert von {name}",
+      "FOR_CHARACTER": "Charakter: {actor}",
+      "APPROVAL_REQUIRED": "Dein SL muss eine Prüfanfrage für diesen Charakter genehmigen, bevor du Änderungen anwenden kannst. Nutze zuerst „SL-Prüfung anfordern“."
+    },
+    "PLAN_COMMENTS": {
+      "TITLE": "Kommentare",
+      "EMPTY": "Noch keine Kommentare.",
+      "COMPOSER_PLACEHOLDER": "Kommentar schreiben …",
+      "REPLY_PLACEHOLDER": "Antworten …",
+      "POST": "Veröffentlichen",
+      "RESOLVE": "Erledigen",
+      "REOPEN": "Erneut öffnen",
+      "RESOLVED_BADGE": "Erledigt",
+      "DELETE": "Kommentar löschen",
+      "DROP_HINT": "Ziehe einen Gegenstand, Zauber oder ein Talent hierher, um ihn anzuhängen",
+      "PASTE_HINT": "… oder füge eine Gegenstands-UUID / einen @UUID-Link ein und drücke Enter",
+      "ATTACH_INVALID": "Für diese UUID wurde kein Gegenstand gefunden.",
+      "ATTACH_REMOVE": "Anhang entfernen",
+      "READ_ONLY": "Du kannst Kommentare ansehen, aber für diesen Charakter keine Beiträge verfassen.",
+      "MARKER_TOOLTIP": "Kommentare",
+      "AWAITING_TOOLTIP": "Wartet auf deine Antwort",
+      "CLOSE": "Schließen",
+      "NOTIFY": "{author} hat „{part}“ kommentiert",
+      "BADGE_AWAITING": "{count} Kommentar-Thread(s) warten auf deine Antwort"
+    }
+  }
+}

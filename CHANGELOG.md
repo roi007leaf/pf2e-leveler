@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.8.6
+
+### Added
+
+- **German localization** - Added a full German (Deutsch) translation
+
+### Fixed
+
+- **Inventor skill feat** - No longer detected as a formula grant; formulas invented through downtime are not planner choices
+
 ## 3.8.5
 
 ### Added
