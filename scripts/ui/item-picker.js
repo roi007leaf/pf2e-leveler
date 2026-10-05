@@ -444,7 +444,7 @@ export class ItemPicker extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _commitTraitInput(input) {
-    const trait = String(input?.value ?? '').trim().toLowerCase();
+    const trait = String(input?.value ?? '').trim().toLowerCase().replace(/[^a-z0-9\s-]/g, '');
     if (!trait) return;
     this.selectedTraits.add(trait);
     if (input) input.value = '';
