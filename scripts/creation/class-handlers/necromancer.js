@@ -32,10 +32,6 @@ export class NecromancerHandler extends CasterBaseHandler {
     return { cantrips: 8, rank1: 5 };
   }
 
-  getFocusPoolMinimum(data) {
-    return getSelectedWidespreadGraveSpellUuid(data) ? 3 : 2;
-  }
-
   async resolveGrantedSpells() {
     const harm = await resolveSpell(HARM_UUID, 'Necromancer Spellcasting');
     return {

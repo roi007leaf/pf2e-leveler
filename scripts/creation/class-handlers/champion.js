@@ -2,6 +2,7 @@ import { BaseClassHandler } from './base.js';
 import { CHAMPION_DEVOTION_SPELLS } from '../../data/subclass-spells.js';
 import { applyItem } from '../apply-creation.js';
 import { capitalize } from '../../utils/pf2e-api.js';
+import { refillFocusPool } from '../../utils/focus-pool.js';
 
 const CAUSE_SANCTIFICATION = {
   justice: 'holy',
@@ -111,7 +112,10 @@ export class ChampionHandler extends BaseClassHandler {
     if (data.devotionSpell) {
       const spell = await fromUuid(data.devotionSpell.uuid).catch(() => null);
       if (spell) {
-        if (actorHasSpellSource(actor, spell.uuid)) return;
+        if (actorHasSpellSource(actor, spell.uuid)) {
+          await refillFocusPool(actor);
+          return;
+        }
 
         const focusEntryName = `${capitalize(data.class?.name ?? 'Champion')} Focus Spells`;
         let focusEntry = actor.items?.find((i) =>
@@ -135,14 +139,7 @@ export class ChampionHandler extends BaseClassHandler {
         const spellData = foundry.utils.deepClone(spell.toObject());
         spellData.system.location = { value: focusEntry.id };
         await actor.createEmbeddedDocuments('Item', [spellData]);
-        const currentMax = actor.system?.resources?.focus?.max ?? 0;
-        const currentValue = actor.system?.resources?.focus?.value ?? 0;
-        if (currentMax < 1 || currentValue < 1) {
-          await actor.update({
-            'system.resources.focus.max': Math.max(1, currentMax),
-            'system.resources.focus.value': Math.max(1, currentValue),
-          });
-        }
+        await refillFocusPool(actor);
       }
     }
   }

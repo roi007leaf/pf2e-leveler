@@ -22,13 +22,7 @@ export class BardHandler extends CasterBaseHandler {
     const subSlug = data.subclass?.slug;
     if (subSlug) {
       const { resolveSubclassSpells } = await import('../../data/subclass-spells.js');
-      const rawChoices = data.subclass?.choices ?? {};
-      const choices = {};
-      for (const [k, v] of Object.entries(rawChoices)) {
-        if (typeof v === 'string' && v !== '[object Object]') choices[k] = v;
-      }
-
-      const resolved = resolveSubclassSpells(subSlug, choices);
+      const resolved = resolveSubclassSpells(subSlug, data.subclass?.choices ?? {});
       if (resolved) {
         const src = data.subclass.name;
 

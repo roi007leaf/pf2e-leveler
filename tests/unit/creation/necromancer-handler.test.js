@@ -49,7 +49,7 @@ describe('NecromancerHandler', () => {
     ]);
   });
 
-  test('sets a two-point focus pool for necrotic bomb and grim fascination', async () => {
+  test('refills native two-point focus pool for necrotic bomb and grim fascination', async () => {
     global.foundry = {
       utils: {
         deepClone: (value) => JSON.parse(JSON.stringify(value)),
@@ -72,7 +72,15 @@ describe('NecromancerHandler', () => {
     const actor = {
       items: [],
       system: { resources: { focus: { max: 0, value: 0 } } },
-      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc, index) => ({ id: `created-${index}`, ...doc }))),
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => {
+        const created = docs.map((doc, index) => ({ id: `created-${index}`, ...doc }));
+        actor.items.push(...created);
+        actor.system.resources.focus.max = Math.min(3, actor.items.filter((item) => {
+          const traits = item.system?.traits?.value ?? [];
+          return item.type === 'spell' && traits.includes('focus') && !traits.includes('cantrip');
+        }).length);
+        return created;
+      }),
       update: jest.fn(async () => {}),
     };
     const handler = new NecromancerHandler();
@@ -87,12 +95,11 @@ describe('NecromancerHandler', () => {
     });
 
     expect(actor.update).toHaveBeenCalledWith({
-      'system.resources.focus.max': 2,
       'system.resources.focus.value': 2,
     });
   });
 
-  test('adds Widespread Fascination grave spell and raises focus pool minimum to three', async () => {
+  test('adds Widespread Fascination grave spell', async () => {
     const handler = new NecromancerHandler();
     const data = {
       grantedFeatChoices: {
@@ -114,6 +121,5 @@ describe('NecromancerHandler', () => {
       'Compendium.pf2e.spells-srd.Item.tFWa3ouvMC5Zz3P0',
       'Compendium.pf2e.spells-srd.Item.4JXxqBXigKECcpTm',
     ]);
-    expect(handler.getFocusPoolMinimum(data)).toBe(3);
   });
 });

@@ -1,5 +1,5 @@
 import { getAdditionalSelectedFormulas, getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
-import { applyCreation, applyLores } from '../../../scripts/creation/apply-creation.js';
+import { applyCreation, applyItem, applyLores } from '../../../scripts/creation/apply-creation.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID, WEALTH_MODES } from '../../../scripts/constants.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
@@ -34,6 +34,88 @@ jest.mock('../../../scripts/utils/logger.js', () => ({
 
 const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
 const { ClassRegistry } = jest.requireMock('../../../scripts/classes/registry.js');
+
+describe('applyItem native ChoiceSet preselections', () => {
+  it('preserves native elemental choice objects in rule selections and merges saved flags', async () => {
+    const selected = { damageType: 'fire', slug: 'fire' };
+    global.fromUuid = jest.fn(async () => ({
+      toObject: () => ({
+        name: 'Bloodline: Elemental', type: 'feat',
+        flags: {
+          pf2e: { rulesSelections: { existing: 'kept' } },
+        },
+        system: { rules: [{ key: 'ChoiceSet', flag: 'elementalBloodline', choices: [{ value: selected }] }] },
+      }),
+    }));
+    const actor = { createEmbeddedDocuments: jest.fn(async () => []) };
+
+    await applyItem(actor, { uuid: 'elemental-bloodline' }, 'subclass', { elementalBloodline: selected });
+
+    const applied = actor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(applied.system.rules[0].selection).toEqual(selected);
+    expect(applied.flags.pf2e.rulesSelections).toEqual({ existing: 'kept', elementalBloodline: selected });
+    expect(applied.flags.system).toBeUndefined();
+  });
+
+  it.each([
+    ['elementalBloodline', 'fire', { damageType: 'fire', slug: 'fire' }],
+    ['dragonBloodline', 'forest', { damageType: 'fire', skill: 'nature', slug: 'forest', tradition: 'primal' }],
+    ['numeric', '0', 0],
+  ])('restores native %s values from flattened wizard selections', async (flag, wizardValue, nativeValue) => {
+    global.fromUuid = jest.fn(async () => ({
+      toObject: () => ({
+        name: 'Native Choices', type: 'feat',
+        system: { rules: [{ key: 'ChoiceSet', flag, choices: [{ label: 'Selected', value: nativeValue }] }] },
+      }),
+    }));
+    const actor = { createEmbeddedDocuments: jest.fn(async () => []) };
+
+    await applyItem(actor, { uuid: 'native-choices' }, 'subclass', { [flag]: wizardValue });
+
+    const applied = actor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(applied.system.rules[0].selection).toEqual(nativeValue);
+    expect(applied.flags.pf2e.rulesSelections[flag]).toEqual(nativeValue);
+  });
+
+  it('does not choose arbitrarily between native objects sharing a flattened identity', async () => {
+    global.fromUuid = jest.fn(async () => ({
+      toObject: () => ({
+        name: 'Ambiguous Choices', type: 'feat',
+        system: { rules: [{ key: 'ChoiceSet', flag: 'element', choices: [
+          { label: 'Fire', value: { slug: 'fire', damageType: 'fire' } },
+          { label: 'Fire', value: { slug: 'fire', damageType: 'spirit' } },
+        ] }] },
+      }),
+    }));
+    const actor = { createEmbeddedDocuments: jest.fn(async () => []) };
+
+    await applyItem(actor, { uuid: 'ambiguous-choices' }, 'subclass', { element: 'fire' });
+
+    expect(actor.createEmbeddedDocuments.mock.calls[0][1][0].system.rules[0].selection).toBe('fire');
+  });
+
+  it('preselects native numeric values and rejects unsupported boolean or array values', async () => {
+    global.fromUuid = jest.fn(async () => ({
+      toObject: () => ({
+        name: 'Choices', type: 'feat',
+        system: { rules: [
+          { key: 'ChoiceSet', flag: 'numeric', choices: [{ value: 0 }, { value: 1 }] },
+          { key: 'ChoiceSet', flag: 'boolean', choices: [] },
+          { key: 'ChoiceSet', flag: 'array', choices: [] },
+        ] },
+      }),
+    }));
+    const actor = { createEmbeddedDocuments: jest.fn(async () => []) };
+
+    await applyItem(actor, { uuid: 'choices' }, 'feat', { numeric: 0, boolean: false, array: ['invalid'] });
+
+    const applied = actor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(applied.system.rules[0].selection).toBe(0);
+    expect(applied.system.rules[1].selection).toBeUndefined();
+    expect(applied.system.rules[2].selection).toBeUndefined();
+    expect(applied.flags.pf2e.rulesSelections).toEqual({ numeric: 0 });
+  });
+});
 
 describe('applyLores automatic class training', () => {
   afterEach(() => {
@@ -186,6 +268,17 @@ describe('getAdditionalSelectedItems', () => {
     });
 
     expect(items).toEqual([]);
+  });
+
+  it.each(['subclass', 'dualSubclass', 'classFeat', 'dualClassFeat'])('includes selected spells from %s choices', (slot) => {
+    const uuid = 'Compendium.pf2e.spells-srd.Item.electric-arc';
+    const items = getAdditionalSelectedItems({
+      [slot]: {
+        choiceSets: [{ flag: 'selectedSpell', options: [{ value: uuid, label: 'Electric Arc', type: 'spell' }] }],
+        choices: { selectedSpell: uuid },
+      },
+    });
+    expect(items).toEqual([{ uuid, name: 'Electric Arc', _type: 'spell' }]);
   });
 
   it('manually adds selected spell choice results from choice sets', () => {
@@ -596,6 +689,88 @@ describe('applyCreation formula grants', () => {
 });
 
 describe('applyCreation granted item choices', () => {
+  it('preserves secondary subclass spell choices when applying its item', async () => {
+    game.settings.get = jest.fn(() => false);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    const actor = createMockActor({ items: [] });
+    actor.testUserPermission = jest.fn(() => true);
+    actor.update = jest.fn(async () => {});
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc) => ({ ...doc, id: 'created' })));
+    const handler = {
+      applyExtras: jest.fn(async () => {}),
+      resolveFocusSpells: jest.fn(async () => []),
+      getExtraSteps: jest.fn(() => []),
+      shouldApplySubclassItem: jest.fn(() => true),
+    };
+    getClassHandler.mockImplementationOnce(() => handler).mockImplementationOnce(() => handler);
+    const uuid = 'Compendium.pf2e.classfeatures.Item.secondary-subclass';
+    global.fromUuid = jest.fn(async (sourceUuid) => sourceUuid === uuid ? {
+      uuid,
+      toObject: () => ({ name: 'Secondary Subclass', type: 'feat', system: { rules: [] } }),
+    } : null);
+    await applyCreation(actor, {
+      class: { slug: 'fighter' }, dualClass: { slug: 'sorcerer' },
+      dualSubclass: { uuid, choices: { selectedSpell: 'Compendium.pf2e.spells-srd.Item.electric-arc' } },
+      boosts: { free: [] }, languages: [], skills: [], lores: [],
+      grantedFeatSections: [], grantedFeatChoices: {},
+      equipment: [], spells: { cantrips: [], rank1: [] },
+    });
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [expect.objectContaining({
+      name: 'Secondary Subclass',
+      flags: expect.objectContaining({ pf2e: { rulesSelections: { selectedSpell: 'Compendium.pf2e.spells-srd.Item.electric-arc' } } }),
+    })]);
+  });
+
+  it.each(['__cleric-domain-initiate__', 'Compendium.pf2e.feats-srd.Item.domain-initiate'])('adds the cleric domain focus spell from granted section %s', async (slot) => {
+    game.settings.get = jest.fn(() => false);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    const actor = createMockActor({
+      items: [],
+      system: {
+        resources: { focus: { max: 0, value: 0 } },
+        skills: {},
+        details: { languages: { value: [] }, level: { value: 1 } },
+      },
+    });
+    actor.testUserPermission = jest.fn(() => true);
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const created = docs.map((doc) => ({ ...doc, id: `created-${actor.items.length}` }));
+      actor.items.push(...created);
+      actor.system.resources.focus.max = actor.items.filter((item) => item.type === 'spell' && item.system?.traits?.value?.includes('focus') && !item.system.traits.value.includes('cantrip')).length;
+      return created;
+    });
+    actor.update = jest.fn(async () => {});
+    const spellUuid = 'Compendium.pf2e.spells-srd.Item.zul5cBTfr7NXHBZf';
+    global.fromUuid = jest.fn(async (uuid) => {
+      const document = uuid === spellUuid
+        ? { name: 'Dazzling Flash', type: 'spell', system: { traits: { value: ['cleric', 'focus'], traditions: [] } } }
+        : uuid === 'Compendium.pf2e.feats-srd.Item.domain-initiate'
+          ? { name: 'Domain Initiate', type: 'feat', system: { slug: 'domain-initiate', rules: [] } }
+          : null;
+      return document ? { ...document, uuid, toObject: () => document } : null;
+    });
+    await applyCreation(actor, {
+      class: { slug: 'cleric', name: 'Cleric' },
+      subclass: { slug: 'cloistered-cleric' },
+      boosts: { free: [] }, languages: [], skills: [], lores: [],
+      grantedFeatSections: [{ slot, featName: 'Domain Initiate', choiceSets: [{ flag: 'domainInitiate', options: [{ value: 'sun', label: 'Sun' }] }] }],
+      grantedFeatChoices: { [slot]: { domainInitiate: 'sun' } },
+      featGrants: [], permanentItems: [], equipment: [],
+      spells: { cantrips: [], rank1: [] },
+    });
+    const entry = actor.items.find((item) => item.type === 'spellcastingEntry');
+    expect(entry).toEqual(expect.objectContaining({
+      name: 'Cleric Focus Spells',
+      system: expect.objectContaining({ prepared: { value: 'focus' }, tradition: { value: 'divine' } }),
+    }));
+    expect(actor.items.filter((item) => item.type === 'spell')).toEqual([
+      expect.objectContaining({ name: 'Dazzling Flash', system: expect.objectContaining({ location: { value: entry.id } }) }),
+    ]);
+    expect(actor.update).toHaveBeenCalledWith({ 'system.resources.focus.value': 1 });
+  });
+
   it('adds the selected Deity Domain initial domain spell as a second devotion spell', async () => {
     game.settings.get = jest.fn(() => false);
     game.users = [{ isGM: true, id: 'gm-user' }];
@@ -614,8 +789,10 @@ describe('applyCreation granted item choices', () => {
       },
     });
     actor.testUserPermission = jest.fn(() => true);
-    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) =>
-      docs.map((doc, index) => ({ ...doc, id: doc.type === 'spellcastingEntry' ? 'focus-entry' : `created-${index}` })));
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      actor.system.resources.focus.max += docs.filter((doc) => doc.type === 'spell' && doc.system?.traits?.value?.includes('focus')).length;
+      return docs.map((doc, index) => ({ ...doc, id: doc.type === 'spellcastingEntry' ? 'focus-entry' : `created-${index}` }));
+    });
     actor.update = jest.fn(async () => {});
 
     global.fromUuid = jest.fn(async (uuid) => {
@@ -715,7 +892,6 @@ describe('applyCreation granted item choices', () => {
       }),
     ]);
     expect(actor.update).toHaveBeenCalledWith({
-      'system.resources.focus.max': 2,
       'system.resources.focus.value': 2,
     });
   });
@@ -868,9 +1044,6 @@ describe('applyCreation Qi spell choices', () => {
     });
     actor.testUserPermission = jest.fn(() => true);
     actor.update = jest.fn(async (updates) => {
-      if (updates['system.resources.focus.max'] != null) {
-        actor.system.resources.focus.max = updates['system.resources.focus.max'];
-      }
       if (updates['system.resources.focus.value'] != null) {
         actor.system.resources.focus.value = updates['system.resources.focus.value'];
       }
@@ -882,6 +1055,7 @@ describe('applyCreation Qi spell choices', () => {
         id: doc.type === 'spellcastingEntry' ? 'focus-entry-id' : `created-${++createdCount}`,
       }));
       actor.items.push(...created);
+      actor.system.resources.focus.max = actor.items.filter((item) => item.type === 'spell' && item.system?.traits?.value?.includes('focus') && !item.system.traits.value.includes('cantrip')).length;
       return created;
     });
 
@@ -2472,6 +2646,7 @@ describe('applyCreation ancestry paragon', () => {
     });
     actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
       createdDocs.push(...docs);
+      actor.system.resources.focus.max = createdDocs.filter((doc) => doc.type === 'spell' && doc.system?.traits?.value?.includes('focus') && !doc.system.traits.value.includes('cantrip')).length;
       return docs.map((doc, index) => ({ ...doc, id: `created-${index}` }));
     });
     actor.update = jest.fn(async () => {});
@@ -2568,7 +2743,6 @@ describe('applyCreation ancestry paragon', () => {
       }),
     ]));
     expect(actor.update).toHaveBeenCalledWith({
-      'system.resources.focus.max': 1,
       'system.resources.focus.value': 1,
     });
   });
@@ -2664,7 +2838,7 @@ describe('applyCreation ancestry paragon', () => {
       expect.objectContaining({ name: 'Light', type: 'spell' }),
     ]));
     expect(actor.update).not.toHaveBeenCalledWith(expect.objectContaining({
-      'system.resources.focus.max': expect.any(Number),
+      'system.resources.focus.value': expect.any(Number),
     }));
   });
 

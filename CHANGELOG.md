@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.8.8
+
+### Fixed
+
+- **Cleric domain focus spells** - Cloistered Clerics now receive the initial focus spell for the domain selected during character creation (#109)
+- **Ranger focus spells** - Vindicator Rangers now receive Vindicator's Mark in a divine spellcasting entry using Wisdom
+- **Subclass and granted feat choices** - Character creation preserves native object and numeric choices, applies them to PF2e rule selections, and retains choices for granted feats and secondary classes
+- **Focus pools** - Character creation refills the pool calculated by PF2e instead of overriding its maximum, preserving cantrip exclusions, psychic rules, and the three-point cap
+
 ## 3.8.7
 
 ### Fixed

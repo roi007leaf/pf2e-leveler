@@ -43,6 +43,24 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     });
   });
 
+  it('preserves object-valued elemental bloodline choices when resolving granted spells', async () => {
+    const handler = new CasterBaseHandler();
+    const subclass = { slug: 'bloodline-elemental', name: 'Elemental' };
+    const expected = await handler.resolveGrantedSpells({
+      subclass: { ...subclass, choices: { elementalBloodline: 'fire' } },
+    });
+
+    expect(expected.cantrips.map((spell) => spell.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.6DfLZBl8wKIV03Iq',
+    ]);
+    expect(expected.rank1s.map((spell) => spell.uuid)).toEqual([
+      'Compendium.pf2e.spells-srd.Item.y6rAdMK6EFlV6U0t',
+    ]);
+    expect(await handler.resolveGrantedSpells({
+      subclass: { ...subclass, choices: { elementalBloodline: { damageType: 'fire', slug: 'fire' } } },
+    })).toEqual(expected);
+  });
+
   it('adds only selected or granted spells for prepared non-spellbook casters', async () => {
     const createdDocs = [];
     const actor = {

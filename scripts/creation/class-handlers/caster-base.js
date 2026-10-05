@@ -5,6 +5,7 @@ import { ClassRegistry } from '../../classes/registry.js';
 import { capitalize } from '../../utils/pf2e-api.js';
 import { classUsesPhysicalSpellbook, ensureActorHasSpellbook } from '../../utils/spellcasting-support.js';
 import { findMagusPrimaryEntry, isRemasteredMagus } from '../../utils/magus-spellcasting.js';
+import { refillFocusPool } from '../../utils/focus-pool.js';
 
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
@@ -92,13 +93,7 @@ export class CasterBaseHandler extends BaseClassHandler {
     const subSlug = data.subclass?.slug;
     if (!subSlug) return;
 
-    const rawChoices = data.subclass?.choices ?? {};
-    const choices = {};
-    for (const [k, v] of Object.entries(rawChoices)) {
-      if (typeof v === 'string' && v !== '[object Object]') choices[k] = v;
-    }
-
-    const resolved = resolveSubclassSpells(subSlug, choices);
+    const resolved = resolveSubclassSpells(subSlug, data.subclass?.choices ?? {});
     if (!resolved) return;
 
     const src = data.subclass.name;
@@ -133,8 +128,12 @@ export class CasterBaseHandler extends BaseClassHandler {
     await this._applyFocusSpells(actor, data);
   }
 
-  getFocusPoolMinimum(_data, _focusSpells) {
-    return 1;
+  getFocusSpellcastingConfig(data) {
+    const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
+    return {
+      tradition: classDef?.spellcasting ? this._resolveTradition(classDef.spellcasting.tradition, data.subclass) : 'arcane',
+      ability: classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha',
+    };
   }
 
   async _applySpellcasting(actor, data) {
@@ -244,18 +243,12 @@ export class CasterBaseHandler extends BaseClassHandler {
     const focusSpellsToCreate = focusSpells.filter((spell) =>
       !getItemSourceIds(spell).some((id) => existingSpellSources.has(id)),
     );
-    const minimumFocusPoints = Math.min(
-      3,
-      Math.max(1, Number(this.getFocusPoolMinimum(data, focusSpells)) || 1),
-    );
     if (focusSpellsToCreate.length === 0) {
-      await ensureFocusResource(actor, minimumFocusPoints);
+      await refillFocusPool(actor);
       return;
     }
 
-    const classDef = data.class?.slug ? ClassRegistry.get(data.class.slug) : null;
-    const tradition = classDef?.spellcasting ? this._resolveTradition(classDef.spellcasting.tradition, data.subclass) : 'arcane';
-    const ability = classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
+    const { tradition, ability } = this.getFocusSpellcastingConfig(data);
     const focusEntryName = `${capitalize(data.class?.name ?? 'Focus')} Focus Spells`;
 
     let focusEntry = this._findSpellcastingEntry(actor, {
@@ -287,7 +280,7 @@ export class CasterBaseHandler extends BaseClassHandler {
       for (const id of spellSourceIds) existingSpellSources.add(id);
     }
 
-    await ensureFocusResource(actor, minimumFocusPoints);
+    await refillFocusPool(actor);
   }
 
   _resolveTradition(tradition, subclass) {
@@ -432,17 +425,6 @@ function getItemSourceIds(item) {
   ]
     .map((value) => String(value ?? '').trim())
     .filter(Boolean);
-}
-
-async function ensureFocusResource(actor, minimumMax = 1) {
-  const currentMax = actor.system?.resources?.focus?.max ?? 0;
-  const currentValue = actor.system?.resources?.focus?.value ?? 0;
-  if (currentMax < minimumMax || currentValue < minimumMax) {
-    await actor.update({
-      'system.resources.focus.max': Math.max(minimumMax, currentMax),
-      'system.resources.focus.value': Math.max(minimumMax, currentValue),
-    });
-  }
 }
 
 function getMagusStudiousRank(level) {

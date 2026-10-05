@@ -19,6 +19,7 @@ import { resolveSpellcastingTradition } from '../data/subclass-spells.js';
 import { getAutomaticLoreProficiencies } from '../classes/progression.js';
 import { getCreationLoreSkillNames } from './creation-model.js';
 import { coinsFromCp, getEquipmentTotalCp, getStartingEquipmentBudgetCp } from './starting-wealth.js';
+import { refillFocusPool } from '../utils/focus-pool.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
   info(`Applying character creation for ${actor.name}`);
@@ -496,12 +497,14 @@ async function applyMissingGrantedFeatSection(actor, data, section) {
 export function getAdditionalSelectedItems(data) {
   const containers = [
     { choiceSets: data.subclass?.choiceSets ?? [], choices: data.subclass?.choices ?? {} },
+    { choiceSets: data.dualSubclass?.choiceSets ?? [], choices: data.dualSubclass?.choices ?? {} },
     { choiceSets: data.ancestryFeat?.choiceSets ?? [], choices: data.ancestryFeat?.choices ?? {} },
     {
       choiceSets: data.ancestryParagonFeat?.choiceSets ?? [],
       choices: data.ancestryParagonFeat?.choices ?? {},
     },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
+    { choiceSets: data.dualClassFeat?.choiceSets ?? [], choices: data.dualClassFeat?.choices ?? {} },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
     ...(data.grantedFeatSections ?? [])
       .filter((section) => !isHandlerManagedFocusSpellChoiceSection(data, section))
@@ -565,22 +568,48 @@ export function getAdditionalSelectedSkills(data) {
 
 function applyStoredChoices(itemData, choices = {}, choiceSets = []) {
   const entries = Object.entries(choices)
-    .filter(([, value]) => typeof value === 'string' && value !== '[object Object]')
+    .filter(([, value]) =>
+      (typeof value === 'string' && value !== '[object Object]')
+      || (typeof value === 'number' && Number.isFinite(value))
+      || (value !== null && typeof value === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(value))),
+    )
     .map(([flag, value]) => [flag, normalizeStoredChoiceValue(itemData, flag, value, choiceSets)])
     .filter(([flag, value]) => isApplicableStoredChoice(itemData, flag, value));
   if (entries.length === 0) return;
 
   itemData.flags ??= {};
   itemData.flags.pf2e ??= {};
-  itemData.flags.pf2e.rulesSelections = Object.fromEntries(entries);
+  itemData.flags.pf2e.rulesSelections = {
+    ...itemData.flags.pf2e.rulesSelections,
+    ...Object.fromEntries(entries),
+  };
+  for (const [flag, value] of entries) {
+    const choiceRule = findChoiceRuleByFlag(itemData, flag);
+    if (choiceRule) choiceRule.selection = value;
+  }
 }
 
 function normalizeStoredChoiceValue(itemData, flag, value, choiceSets = []) {
+  if (typeof value !== 'string') return value;
   const choiceRule = findChoiceRuleByFlag(itemData, flag);
   if (!choiceRule) return value;
 
   const matchingChoiceSet = (choiceSets ?? []).find((choiceSet) => choiceSet?.flag === flag);
   const matchingOption = findMatchingChoiceOption(matchingChoiceSet?.options ?? [], value);
+  const identities = [value, matchingOption?.value, matchingOption?.slug]
+    .filter((identity) => typeof identity === 'string')
+    .map(normalizeChoiceValue);
+  const nativeOptions = getRuleChoiceOptions(choiceRule).filter((option) => {
+    const nativeValue = option?.value;
+    const candidates = nativeValue && typeof nativeValue === 'object'
+      ? [nativeValue.uuid, nativeValue.slug, nativeValue.value]
+      : [nativeValue];
+    return candidates.some((candidate) =>
+      (typeof candidate === 'string' || typeof candidate === 'number')
+      && identities.includes(normalizeChoiceValue(candidate)),
+    );
+  });
+  if (nativeOptions.length === 1) return nativeOptions[0].value;
   if (!matchingOption) return value;
 
   const ruleValues = getRuleChoiceOptions(choiceRule)
@@ -609,9 +638,12 @@ async function getDirectFeatGrantedSpellEntries(data) {
   const entries = [];
 
   for (const featEntry of featEntries) {
-    const feat = await fromUuid(featEntry.uuid).catch(() => null);
-    if (!feat) continue;
-    const featData = typeof feat.toObject === 'function' ? feat.toObject() : feat;
+    const syntheticDomain = featEntry.uuid === '__cleric-domain-initiate__';
+    const feat = syntheticDomain ? null : await fromUuid(featEntry.uuid).catch(() => null);
+    const featData = syntheticDomain
+      ? { slug: 'domain-initiate' }
+      : typeof feat?.toObject === 'function' ? feat.toObject() : feat;
+    if (!featData) continue;
 
     for (const uuid of extractSpellUuidsFromFeat(featData, featEntry.choices ?? {})) {
       if (seen.has(uuid)) continue;
@@ -680,7 +712,7 @@ export function getAdditionalSelectedFormulas(data) {
 }
 
 function getSelectedFeatEntries(data) {
-  return [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat, ...(data.grantedFeatSections ?? []).map((section) => (section?.slot && section?.featName ? { uuid: section.slot, name: section.featName } : null)).filter(Boolean)].filter((entry) => !!entry?.uuid);
+  return [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat, ...(data.grantedFeatSections ?? []).map((section) => (section?.slot && section?.featName ? { uuid: section.slot, name: section.featName, choices: getGrantedFeatChoiceValues(data, section.slot) } : null)).filter(Boolean)].filter((entry) => !!entry?.uuid);
 }
 
 function getClassSelectionSourceEntries(data, target) {
@@ -843,9 +875,11 @@ function getRuleChoiceOptions(rule) {
 function getStoredChoiceSelections(data, uuid) {
   if (!uuid) return {};
   if (data.subclass?.uuid === uuid) return data.subclass.choices ?? {};
+  if (data.dualSubclass?.uuid === uuid) return data.dualSubclass.choices ?? {};
   if (data.ancestryFeat?.uuid === uuid) return data.ancestryFeat.choices ?? {};
   if (data.ancestryParagonFeat?.uuid === uuid) return data.ancestryParagonFeat.choices ?? {};
   if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
+  if (data.dualClassFeat?.uuid === uuid) return data.dualClassFeat.choices ?? {};
   if (data.skillFeat?.uuid === uuid) return data.skillFeat.choices ?? {};
   if (uuid === MIXED_ANCESTRY_UUID) {
     const selected = getMixedAncestrySelectedValue(data.mixedAncestry) ?? getMixedAncestrySelectedValue(getGrantedFeatChoiceValues(data, MIXED_ANCESTRY_UUID));
@@ -1166,7 +1200,7 @@ async function applySelectedSpell(actor, entry, data) {
   await actor.createEmbeddedDocuments('Item', [spellData]);
 
   if (focusLike) {
-    await ensureFocusPool(actor);
+    await refillFocusPool(actor);
   }
 }
 
@@ -1220,17 +1254,6 @@ function resolveSpellTradition(spell, data, classDef, focusLike) {
 function isDivineFocusSpell(spell, data) {
   const traits = spell.system?.traits?.value ?? [];
   return ['cleric', 'champion'].some((trait) => traits.includes(trait)) || ['cleric', 'champion'].includes(data.class?.slug);
-}
-
-async function ensureFocusPool(actor) {
-  const currentMax = actor.system?.resources?.focus?.max ?? 0;
-  const currentValue = actor.system?.resources?.focus?.value ?? 0;
-  const newMax = Math.min(3, Math.max(1, currentMax + 1));
-  const newValue = Math.max(currentValue, newMax);
-  await actor.update({
-    'system.resources.focus.max': newMax,
-    'system.resources.focus.value': newValue,
-  });
 }
 
 function waitForSystem() {

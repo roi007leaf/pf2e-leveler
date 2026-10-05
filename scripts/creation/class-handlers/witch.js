@@ -1,5 +1,6 @@
 import { CasterBaseHandler } from './caster-base.js';
 import { capitalize } from '../../utils/pf2e-api.js';
+import { refillFocusPool } from '../../utils/focus-pool.js';
 
 const WITCH_HEX_SPELLS = {
   patronsPuppet: 'Compendium.pf2e.spells-srd.Item.aq1yonHeYpbaj3XI',
@@ -77,13 +78,6 @@ export class WitchHandler extends CasterBaseHandler {
     spellData.system.location = { value: focusEntry.id };
     await actor.createEmbeddedDocuments('Item', [spellData]);
 
-    const currentMax = actor.system?.resources?.focus?.max ?? 0;
-    const currentValue = actor.system?.resources?.focus?.value ?? 0;
-    if (currentMax < 1 || currentValue < 1) {
-      await actor.update({
-        'system.resources.focus.max': Math.max(1, currentMax),
-        'system.resources.focus.value': Math.max(1, currentValue),
-      });
-    }
+    await refillFocusPool(actor);
   }
 }

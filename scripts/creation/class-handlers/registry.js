@@ -7,6 +7,7 @@ import { ClericHandler } from './cleric.js';
 import { CommanderHandler } from './commander.js';
 import { OracleHandler } from './oracle.js';
 import { PsychicHandler } from './psychic.js';
+import { RangerHandler } from './ranger.js';
 import { RogueHandler } from './rogue.js';
 import { SummonerHandler } from './summoner.js';
 import { ThaumaturgeHandler } from './thaumaturge.js';
@@ -38,6 +39,7 @@ const handlers = {
   druid: caster,
   magus: caster,
   psychic: new PsychicHandler(),
+  ranger: new RangerHandler(),
   rogue: new RogueHandler(),
   thaumaturge: new ThaumaturgeHandler(),
 };
