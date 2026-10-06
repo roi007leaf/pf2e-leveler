@@ -1341,10 +1341,75 @@ export async function variantAncestralParagonAudit(data) {
 
 export async function variantMythicAudit(data) {
   const planner = await openIsolatedVariantPlanner(data, 'mythic', 2);
-  return {
+  const result = {
     enabled: planner._getVariantOptions().mythic === true,
     level2SlotVisible: hasPlannerPart(planner, 2, 'mythicFeat'),
   };
+  await planner.close();
+
+  const fixture = await createFixture({ runId: data.runId, playerId: game.user.id });
+  const creationFixture = { ...data, ...fixture };
+  const actor = ownedActor(creationFixture);
+  let wizard = await openWizardFor(creationFixture);
+  await clickWizardStep(wizard, 'feats');
+  const browse = wizard.element.querySelector('[data-action="browseFeat"][data-slot="mythicCalling"]');
+  result.level1CallingSlotVisible = Boolean(browse);
+  if (!browse) throw Error('Level 1 Mythic Calling slot did not render');
+  browse.click();
+  const picker = await waitFor(
+    () => [...openApplications()].find((app) =>
+      app.actor?.id === actor.id && app.category === 'mythic' &&
+      app.element?.querySelector('[data-action="selectFeat"]') && app.filteredFeats?.length),
+    'Mythic Calling picker did not render native calling choices',
+    90000,
+  );
+  result.onlyNativeCallings = picker.filteredFeats.every((feat) =>
+    feat.system?.category === 'calling' && feat.system?.traits?.value?.includes('calling') &&
+    Number(feat.system?.level?.value ?? 0) <= 1);
+  const selections = [...picker.element.querySelectorAll('[data-action="selectFeat"]')]
+    .filter((button) => !button.disabled);
+  const selection = selections.find((button) => {
+    const feat = picker.filteredFeats.find((entry) => picker._getFeatUuid(entry) === button.dataset.uuid);
+    return !(feat?.system?.rules ?? []).some((rule) => rule.key === 'ChoiceSet');
+  }) ?? selections[0];
+  if (!selection) throw Error('Mythic Calling picker has no selectable calling');
+  const uuid = selection.dataset.uuid;
+  selection.click();
+  await waitFor(
+    () => actor.getFlag(MODULE_ID, 'creation')?.mythicCalling?.uuid === uuid,
+    'Selected Mythic Calling did not persist',
+  );
+  const creationData = foundry.utils.deepClone(wizard.data);
+  result.callingSelectedAndSaved = wizard.data.mythicCalling?.uuid === uuid;
+  await clickWizardStep(wizard, 'summary');
+  result.callingSummaryVisible = [...wizard.element.querySelectorAll('.wizard-summary__value')]
+    .some((entry) => entry.textContent.includes(creationData.mythicCalling.name));
+  await wizard.close();
+  wizard = await openWizardFor(creationFixture);
+  result.callingSurvivesReopen = wizard.data.mythicCalling?.uuid === uuid;
+  await clickWizardStep(wizard, 'feats');
+  const clear = wizard.element.querySelector('[data-action="clearMythicCalling"]');
+  if (!clear) throw Error('Mythic Calling clear action did not render');
+  clear.click();
+  await waitFor(
+    () => !wizard.data.mythicCalling && !actor.getFlag(MODULE_ID, 'creation')?.mythicCalling,
+    'Mythic Calling clear action did not persist',
+  );
+  result.callingClearedAndSaved = true;
+  await wizard.close();
+
+  const beforeMessages = new Set(game.messages.keys());
+  const { applyCreation } = await import('/modules/pf2e-leveler/scripts/creation/apply-creation.js');
+  try {
+    await applyCreation(actor, creationData);
+  } finally {
+    await markNewMessages(data.runId, beforeMessages);
+  }
+  const calling = actor.items.find((item) => item.sourceId === uuid);
+  result.callingAppliedToNativeSlot = calling?.system?.location === 'mythic-calling';
+  result.callingNativeCategory = calling?.system?.category === 'calling';
+  result.level1Actor = Number(actor.system?.details?.level?.value) === 1;
+  return result;
 }
 
 export async function variantAbpAudit(data) {

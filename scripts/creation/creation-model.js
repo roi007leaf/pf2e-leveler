@@ -216,6 +216,7 @@ export function createCreationData() {
     classFeat: null,
     dualClassFeat: null,
     skillFeat: null,
+    mythicCalling: null,
     grantedFeatSections: [],
     grantedFeatChoices: {},
     featGrants: [],
@@ -884,6 +885,22 @@ export function setSkillFeat(data, feat, choiceSets = [], grantedSkills = [], gr
   return data;
 }
 
+export function setMythicCalling(data, feat, choiceSets = [], grantedSkills = [], grantedLores = []) {
+  data.mythicCalling = feat
+    ? {
+        uuid: feat.uuid,
+        name: feat.name,
+        slug: feat.slug,
+        img: feat.img,
+        choiceSets,
+        grantedSkills,
+        grantedLores,
+        choices: {},
+      }
+    : null;
+  return data;
+}
+
 export function setFeatChoice(data, slot, flag, value, metadata = {}) {
   const target =
     slot === 'ancestry'
@@ -896,7 +913,9 @@ export function setFeatChoice(data, slot, flag, value, metadata = {}) {
             ? data.dualClassFeat
           : slot === 'skill'
             ? data.skillFeat
-            : null;
+            : slot === 'mythicCalling'
+              ? data.mythicCalling
+              : null;
   if (target) {
     if (!target.choices) target.choices = {};
     target.choices[flag] = value;

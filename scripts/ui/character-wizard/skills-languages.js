@@ -91,6 +91,7 @@ function getLanguageGrantSources(wizard) {
     wizard.data.classFeat,
     wizard.data.dualClassFeat,
     wizard.data.skillFeat,
+    wizard.data.mythicCalling,
     ...(wizard.data.grantedFeatSections ?? []).map((section) => ({ uuid: section.slot })),
   ].filter(Boolean);
 }
@@ -276,6 +277,7 @@ export async function buildSkillContext(wizard) {
     ...(Array.isArray(wizard.data.classFeat?.grantedSkills) ? wizard.data.classFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.dualClassFeat?.grantedSkills) ? wizard.data.dualClassFeat.grantedSkills : []),
     ...(Array.isArray(wizard.data.skillFeat?.grantedSkills) ? wizard.data.skillFeat.grantedSkills : []),
+    ...(Array.isArray(wizard.data.mythicCalling?.grantedSkills) ? wizard.data.mythicCalling.grantedSkills : []),
   ];
   const deitySkills = await collectWizardDeitySkillMap(wizard);
   const futureSkillChoiceMap = buildFutureSkillChoiceMap(wizard);
@@ -321,7 +323,7 @@ export async function buildSkillContext(wizard) {
 }
 
 function getFeatGrantedSkillSource(wizard, slug) {
-  for (const feat of [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.dualClassFeat, wizard.data.skillFeat]) {
+  for (const feat of [wizard.data.ancestryFeat, wizard.data.ancestryParagonFeat, wizard.data.classFeat, wizard.data.dualClassFeat, wizard.data.skillFeat, wizard.data.mythicCalling]) {
     if ((feat?.grantedSkills ?? []).includes(slug)) return feat.name ?? null;
   }
   return null;
@@ -686,6 +688,13 @@ function buildFutureSkillChoiceMap(wizard) {
         choices: wizard.data.skillFeat.choices ?? {},
       }
       : null,
+    wizard.data.mythicCalling
+      ? {
+        sourceLabel: wizard.data.mythicCalling.name ?? 'Mythic Calling',
+        choiceSets: wizard.data.mythicCalling.choiceSets ?? [],
+        choices: wizard.data.mythicCalling.choices ?? {},
+      }
+      : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({
       sourceLabel: section.sourceName ?? section.featName ?? 'Choice Set',
       choiceStep: section.choiceStep ?? 'featChoices',
@@ -758,6 +767,12 @@ function buildResolvedSkillChoiceMap(wizard) {
       ? {
         choiceSets: wizard.data.skillFeat.choiceSets ?? [],
         choices: wizard.data.skillFeat.choices ?? {},
+      }
+      : null,
+    wizard.data.mythicCalling
+      ? {
+        choiceSets: wizard.data.mythicCalling.choiceSets ?? [],
+        choices: wizard.data.mythicCalling.choices ?? {},
       }
       : null,
     ...((wizard.data.grantedFeatSections ?? []).map((section) => ({

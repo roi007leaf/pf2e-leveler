@@ -5,7 +5,7 @@ import { anyClassGrantsDeitySkill } from '../classes/deity-skill.js';
 import { ATTRIBUTES, MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID } from '../constants.js';
 import { getCompendiumKeysForCategory } from '../compendiums/catalog.js';
 import { info, warn } from '../utils/logger.js';
-import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled } from '../utils/pf2e-api.js';
+import { capitalize, getCampaignFeatSectionIds, isAncestralParagonEnabled, isMythicEnabled } from '../utils/pf2e-api.js';
 import { format, localize } from '../utils/i18n.js';
 import { findMatchingChoiceOption } from '../ui/character-wizard/choice-sets.js';
 import { getMixedAncestrySelectedValue } from '../heritages/mixed-ancestry.js';
@@ -22,6 +22,7 @@ import { coinsFromCp, getEquipmentTotalCp, getStartingEquipmentBudgetCp } from '
 import { refillFocusPool } from '../utils/focus-pool.js';
 
 export async function applyCreation(actor, data, onProgress = null) {
+  if (!isMythicEnabled() && data.mythicCalling) data = { ...data, mythicCalling: null };
   info(`Applying character creation for ${actor.name}`);
   const reportProgress = (progress, message) => {
     if (typeof onProgress === 'function') onProgress({ progress, message });
@@ -65,6 +66,7 @@ export async function applyCreation(actor, data, onProgress = null) {
   if (data.classFeat) await applyFeat(actor, data.classFeat, 'class', 1);
   if (data.dualClassFeat) await applyFeat(actor, data.dualClassFeat, getCreationDualClassFeatGroup(), 1);
   if (data.skillFeat) await applyFeat(actor, data.skillFeat, 'skill', 1);
+  if (data.mythicCalling) await applyFeat(actor, data.mythicCalling, 'mythic-calling', 1);
 
   reportProgress(0.72, 'Waiting for PF2E class option prompts...');
   await applySelectedItems(actor, data);
@@ -228,9 +230,25 @@ async function applyFeat(actor, entry, group, level) {
   const item = await fromUuid(entry.uuid).catch(() => null);
   if (!item) return;
   const itemData = foundry.utils.deepClone(item.toObject());
-  itemData.system.location = `${group}-${level}`;
+  itemData.system.location = group === 'mythic-calling' ? group : `${group}-${level}`;
   itemData.system.level = { ...itemData.system.level, taken: level };
   applyStoredChoices(itemData, entry.choices ?? {});
+  if (group === 'mythic-calling') {
+    const existing = getActorItems(actor).find((owned) => owned.type === 'feat' && (
+      getActorItemSourceId(owned) === entry.uuid || owned.uuid === entry.uuid
+    ));
+    if (existing) {
+      const existingData = typeof existing.toObject === 'function' ? foundry.utils.deepClone(existing.toObject()) : itemData;
+      applyStoredChoices(existingData, entry.choices ?? {});
+      await existing.update({
+        'system.location': group,
+        'system.level.taken': level,
+        'system.rules': existingData.system.rules ?? [],
+        ...(existingData.flags?.pf2e?.rulesSelections ? { 'flags.pf2e.rulesSelections': existingData.flags.pf2e.rulesSelections } : {}),
+      });
+      return;
+    }
+  }
   await actor.createEmbeddedDocuments('Item', [itemData]);
 }
 
@@ -506,6 +524,7 @@ export function getAdditionalSelectedItems(data) {
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
     { choiceSets: data.dualClassFeat?.choiceSets ?? [], choices: data.dualClassFeat?.choices ?? {} },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...(isMythicEnabled() && data.mythicCalling ? [data.mythicCalling] : []),
     ...(data.grantedFeatSections ?? [])
       .filter((section) => !isHandlerManagedFocusSpellChoiceSection(data, section))
       .map((section) => ({
@@ -546,6 +565,7 @@ export function getAdditionalSelectedSkills(data) {
     },
     { choiceSets: data.classFeat?.choiceSets ?? [], choices: data.classFeat?.choices ?? {} },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...(isMythicEnabled() && data.mythicCalling ? [data.mythicCalling] : []),
     ...(data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
       choices: getGrantedFeatChoiceValues(data, section.slot),
@@ -682,6 +702,7 @@ export function getAdditionalSelectedFormulas(data) {
       choices: data.dualClassFeat?.choices ?? {},
     },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...(isMythicEnabled() && data.mythicCalling ? [data.mythicCalling] : []),
     ...(data.grantedFeatSections ?? []).map((section) => ({
       choiceSets: section.choiceSets ?? [],
       choices: getGrantedFeatChoiceValues(data, section.slot),
@@ -712,7 +733,7 @@ export function getAdditionalSelectedFormulas(data) {
 }
 
 function getSelectedFeatEntries(data) {
-  return [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat, ...(data.grantedFeatSections ?? []).map((section) => (section?.slot && section?.featName ? { uuid: section.slot, name: section.featName, choices: getGrantedFeatChoiceValues(data, section.slot) } : null)).filter(Boolean)].filter((entry) => !!entry?.uuid);
+  return [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat, data.mythicCalling, ...(data.grantedFeatSections ?? []).map((section) => (section?.slot && section?.featName ? { uuid: section.slot, name: section.featName, choices: getGrantedFeatChoiceValues(data, section.slot) } : null)).filter(Boolean)].filter((entry) => !!entry?.uuid);
 }
 
 function getClassSelectionSourceEntries(data, target) {
@@ -735,6 +756,7 @@ function getSelectedChoiceSourceEntries(data) {
       choices: data.dualClassFeat?.choices ?? {},
     },
     { choiceSets: data.skillFeat?.choiceSets ?? [], choices: data.skillFeat?.choices ?? {} },
+    ...(isMythicEnabled() && data.mythicCalling ? [data.mythicCalling] : []),
     ...(data.grantedFeatSections ?? [])
       .filter((section) => !isHandlerManagedFocusSpellChoiceSection(data, section))
       .map((section) => ({
@@ -881,6 +903,7 @@ function getStoredChoiceSelections(data, uuid) {
   if (data.classFeat?.uuid === uuid) return data.classFeat.choices ?? {};
   if (data.dualClassFeat?.uuid === uuid) return data.dualClassFeat.choices ?? {};
   if (data.skillFeat?.uuid === uuid) return data.skillFeat.choices ?? {};
+  if (data.mythicCalling?.uuid === uuid) return data.mythicCalling.choices ?? {};
   if (uuid === MIXED_ANCESTRY_UUID) {
     const selected = getMixedAncestrySelectedValue(data.mixedAncestry) ?? getMixedAncestrySelectedValue(getGrantedFeatChoiceValues(data, MIXED_ANCESTRY_UUID));
     return selected ? { [MIXED_ANCESTRY_CHOICE_FLAG]: selected } : {};
@@ -918,6 +941,7 @@ function formatManualGrantedSourceSuffix(data, sourceName) {
     ['Ancestry Paragon', data?.ancestryParagonFeat?.name],
     ['Class Feat', data?.classFeat?.name],
     ['Skill Feat', data?.skillFeat?.name],
+    ['Mythic Calling', data?.mythicCalling?.name],
   ].find(([, name]) => String(name ?? '').trim() === primary);
 
   if (typedSource) return `${typedSource[0]}: ${typedSource[1]}`;
@@ -970,7 +994,7 @@ function isSelectedFeatGrantChain(data, section) {
     .filter(Boolean);
   if (!primarySource) return false;
 
-  return [data?.ancestryFeat, data?.ancestryParagonFeat, data?.classFeat, data?.dualClassFeat, data?.skillFeat].some((feat) => String(feat?.name ?? '').trim() === primarySource);
+  return [data?.ancestryFeat, data?.ancestryParagonFeat, data?.classFeat, data?.dualClassFeat, data?.skillFeat, data?.mythicCalling].some((feat) => String(feat?.name ?? '').trim() === primarySource);
 }
 
 function getActorItems(actor) {
@@ -1418,6 +1442,13 @@ async function createCreationMessage(actor, data) {
     training.push({
       label: localize('SECTIONS.SKILL_FEAT'),
       value: labels.length ? `${formatChatLink(data.skillFeat)} (${labels.join(', ')})` : formatChatLink(data.skillFeat),
+    });
+  }
+  if (data.mythicCalling) {
+    const labels = await getSelectedSubclassChoiceLabels(data.mythicCalling);
+    training.push({
+      label: game.i18n.localize('PF2E.Actor.Character.FeatSlot.MythicCallingPlaceholder'),
+      value: labels.length ? `${formatChatLink(data.mythicCalling)} (${labels.join(', ')})` : formatChatLink(data.mythicCalling),
     });
   }
   for (const section of data.grantedFeatSections ?? []) {

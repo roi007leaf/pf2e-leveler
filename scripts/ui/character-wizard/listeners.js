@@ -32,6 +32,7 @@ import {
   setDualSubclassChoice,
   setSubconsciousMind,
   setSkillFeat,
+  setMythicCalling,
   setThesis,
   toggleApparition,
   toggleIkon,
@@ -326,7 +327,7 @@ export function activateCharacterWizardListeners(wizard, el) {
     });
   });
 
-  ['clearAncestry', 'clearHeritage', 'clearMixedAncestry', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat'].forEach((action) => {
+  ['clearAncestry', 'clearHeritage', 'clearMixedAncestry', 'clearBackground', 'clearClass', 'clearSubclass', 'clearImplement', 'clearInnovationItem', 'clearInnovationModification', 'clearSecondElement', 'clearSubconsciousMind', 'clearThesis', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearSkillFeat', 'clearMythicCalling'].forEach((action) => {
     el.querySelectorAll(`[data-action="${action}"]`).forEach((button) => button.addEventListener('click', async () => {
       const target = button?.dataset?.target ?? 'class';
       const clearMap = {
@@ -362,9 +363,10 @@ export function activateCharacterWizardListeners(wizard, el) {
         clearClassFeat: () => setClassFeat(wizard.data, null),
         clearDualClassFeat: () => setDualClassFeat(wizard.data, null),
         clearSkillFeat: () => setSkillFeat(wizard.data, null),
+        clearMythicCalling: () => setMythicCalling(wizard.data, null),
       };
       clearMap[action]?.();
-      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearDualClassFeat', 'clearSkillFeat']);
+      const refreshActions = new Set(['clearAncestry', 'clearHeritage', 'clearBackground', 'clearClass', 'clearDeity', 'clearAncestryFeat', 'clearAncestryParagonFeat', 'clearClassFeat', 'clearDualClassFeat', 'clearSkillFeat', 'clearMythicCalling']);
       if (refreshActions.has(action)) {
         await wizard._refreshGrantedFeatChoiceSections();
       }

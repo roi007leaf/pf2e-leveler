@@ -4,8 +4,26 @@ import {
   setClass,
   setDualClass,
   setFeatChoice,
+  setMythicCalling,
   setSubconsciousMind,
 } from '../../../scripts/creation/creation-model.js';
+
+describe('Mythic Calling state', () => {
+  test('stores Calling metadata and choices, resets choices on replacement, and clears selection', () => {
+    const data = createCreationData();
+    expect(data.mythicCalling).toBeNull();
+    const feat = { uuid: 'calling', name: 'Sage', slug: 'sage', img: 'sage.webp' };
+    const choices = [{ flag: 'skill', grantsSkillTraining: true }];
+    setMythicCalling(data, feat, choices, ['arcana'], ['Mythic Lore']);
+    setFeatChoice(data, 'mythicCalling', 'skill', 'arcana');
+    expect(data.mythicCalling).toEqual({ ...feat, choiceSets: choices, grantedSkills: ['arcana'], grantedLores: ['Mythic Lore'], choices: { skill: 'arcana' } });
+    expect(data.grantedFeatChoices.mythicCalling).toBeUndefined();
+    setMythicCalling(data, { ...feat, uuid: 'other-calling' });
+    expect(data.mythicCalling.choices).toEqual({});
+    setMythicCalling(data, null);
+    expect(data.mythicCalling).toBeNull();
+  });
+});
 
 describe('creation Lore skills', () => {
   test('combines granted and selected Lore skills without duplicates', () => {

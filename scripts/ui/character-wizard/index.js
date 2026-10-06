@@ -10,7 +10,8 @@ import { evaluatePredicate } from '../../utils/predicate.js';
 import { getBuildStateAncestryFeatTraits } from '../../utils/ancestry-feat-traits.js';
 import { registerHandlebarsHelpers } from '../../hooks/lifecycle.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
-import { isAncestralParagonEnabled, isDualClassEnabled, slugify } from '../../utils/pf2e-api.js';
+import { isAncestralParagonEnabled, isDualClassEnabled, isMythicEnabled, slugify } from '../../utils/pf2e-api.js';
+import { setMythicCalling } from '../../creation/creation-model.js';
 import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { inferSf2eSpellcastingTraditionFromItem } from '../../utils/sf2e-spellcasting.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
@@ -158,6 +159,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this.actor = actor;
     const storedCreationData = getCreationData(actor);
     this.data = storedCreationData ? normalizeCreationData(storedCreationData) : createCreationData();
+    if (!isMythicEnabled()) this.data.mythicCalling = null;
     this.currentStep = 0;
     this.featSubStep = 'ancestry';
     this.spellSubStep = 'cantrips';
@@ -245,7 +247,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   _hasReusableFeatChoiceData(data = this.data) {
     if (!data || typeof data !== 'object') return false;
 
-    const directFeatContainers = [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat];
+    const directFeatContainers = [data.ancestryFeat, data.ancestryParagonFeat, data.classFeat, data.dualClassFeat, data.skillFeat, data.mythicCalling];
 
     for (const feat of directFeatContainers) {
       if (!feat?.uuid) continue;
@@ -405,7 +407,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       !isHandlerManagedFocusSpellChoiceRenderSection(this, section)
       && (section.choiceSets ?? []).some((choiceSet) => !isSkillStepChoiceSet(section, choiceSet, this.data)));
 
-    return hasVisibleChoiceSets('ancestry', this.data.ancestryFeat) || hasVisibleChoiceSets('ancestryParagon', this.data.ancestryParagonFeat) || hasVisibleChoiceSets('class', this.data.classFeat) || hasVisibleChoiceSets('dualClass', this.data.dualClassFeat) || hasVisibleChoiceSets('skill', this.data.skillFeat) || visibleGrantedSections.length > 0 || (this._cachedFeatGrantRequirements?.length ?? 0) > 0 || (this.data.featGrants?.length ?? 0) > 0;
+    return hasVisibleChoiceSets('mythicCalling', this.data.mythicCalling) || hasVisibleChoiceSets('ancestry', this.data.ancestryFeat) || hasVisibleChoiceSets('ancestryParagon', this.data.ancestryParagonFeat) || hasVisibleChoiceSets('class', this.data.classFeat) || hasVisibleChoiceSets('dualClass', this.data.dualClassFeat) || hasVisibleChoiceSets('skill', this.data.skillFeat) || visibleGrantedSections.length > 0 || (this._cachedFeatGrantRequirements?.length ?? 0) > 0 || (this.data.featGrants?.length ?? 0) > 0;
   }
 
   async _prepareContext() {
@@ -726,6 +728,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     await this._recoverFeatSlotFromActor(recoveredData, 'ancestryFeat', ['ancestry-1']);
     await this._recoverFeatSlotFromActor(recoveredData, 'ancestryParagonFeat', ['ancestryparagon-1', 'xdy_ancestryparagon-1']);
+    if (isMythicEnabled()) await this._recoverFeatSlotFromActor(recoveredData, 'mythicCalling', ['mythic-calling']);
     await this._recoverFeatSlotFromActor(recoveredData, 'classFeat', ['class-1']);
     await this._recoverFeatSlotFromActor(recoveredData, 'dualClassFeat', ['xdy_dualclass-1', 'dualclass-1', 'dual_class-1']);
     await this._recoverFeatSlotFromActor(recoveredData, 'skillFeat', ['skill-1']);
@@ -767,6 +770,9 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         break;
       case 'skillFeat':
         setSkillFeat(data, feat, choiceSets, grantedSkills, grantedLores);
+        break;
+      case 'mythicCalling':
+        setMythicCalling(data, feat, choiceSets, grantedSkills, grantedLores);
         break;
       default:
         break;
@@ -1011,12 +1017,22 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _openFeatPicker(slot) {
+    if (slot === 'mythicCalling' && !isMythicEnabled()) return;
     const target = slot === 'dualClass' ? 'dualClass' : 'class';
     const buildState = await this._buildCreationFeatBuildState(target);
 
     const classSlug = String((target === 'dualClass' ? this.data.dualClass?.slug : this.data.class?.slug) ?? '').toLowerCase();
     const ancestryTraits = getBuildStateAncestryFeatTraits(buildState);
     const presets = {
+      mythicCalling: {
+        selectedFeatTypes: ['mythic'],
+        lockedFeatTypes: ['mythic'],
+        selectedTraits: ['calling'],
+        lockedTraits: ['calling'],
+        traitLogic: 'and',
+        maxLevel: 1,
+        lockMaxLevel: true,
+      },
       ancestry: {
         selectedFeatTypes: ['ancestry'],
         lockedFeatTypes: ['ancestry'],
@@ -1064,6 +1080,15 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     const callbacks = {
+      mythicCalling: async (feat) => {
+        if (!isMythicEnabled()) return;
+        const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
+        const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        const grantedLores = this._parseSubclassLores(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
+        setMythicCalling(this.data, feat, choiceSets, grantedSkills, grantedLores);
+        await this._refreshGrantedFeatChoiceSections();
+        await this._saveAndRender();
+      },
       ancestry: async (feat) => {
         const choiceSets = await this._parseChoiceSets(feat.system?.rules ?? [], {}, feat);
         const grantedSkills = this._parseGrantedSkills(feat.system?.rules ?? [], feat.system?.description?.value ?? '');
@@ -1107,6 +1132,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
 
     const categoryBySlot = {
+      mythicCalling: 'mythic',
       ancestry: 'ancestry',
       paragon: 'ancestry',
       class: 'class',
@@ -1163,7 +1189,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const adoptedAncestryTraits = await getAdoptedAncestryFeatTraits(this);
     const mixedAncestryTraits = await getMixedAncestryFeatTraits(this);
     const heritageGrantedTraits = await this._collectHeritageGrantedTraits();
-    const featEntries = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, ...(this.data.grantedFeatSections ?? [])];
+    const featEntries = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling, ...(this.data.grantedFeatSections ?? [])];
     const featGrantedHeritageTraits = collectGrantedHeritageTraitsFromFeats(featEntries);
     const heritageAliases = collectHeritageAliasesForCreation(this.data.heritage, featEntries);
     const baseAncestryTraits = collectAncestryTraitTokens(this.data.ancestry, this.data.heritage);
@@ -1172,7 +1198,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const senses = await this._collectSenses();
     const [classSkillsForState, bgSkillsForState, deitySkills] = await Promise.all([this._getClassTrainedSkills(target), this._getBackgroundTrainedSkills(), collectWizardDeitySkillMap(this)]);
-    const allTrainedSkills = [...classSkillsForState, ...bgSkillsForState, ...(subclassEntry?.grantedSkills ?? []), ...deitySkills.keys(), ...(this.data.ancestryFeat?.grantedSkills ?? []), ...(this.data.ancestryParagonFeat?.grantedSkills ?? []), ...(this.data.classFeat?.grantedSkills ?? []), ...(this.data.dualClassFeat?.grantedSkills ?? []), ...(this.data.skillFeat?.grantedSkills ?? []), ...this.data.skills];
+    const allTrainedSkills = [...classSkillsForState, ...bgSkillsForState, ...(subclassEntry?.grantedSkills ?? []), ...deitySkills.keys(), ...(this.data.ancestryFeat?.grantedSkills ?? []), ...(this.data.ancestryParagonFeat?.grantedSkills ?? []), ...(this.data.classFeat?.grantedSkills ?? []), ...(this.data.dualClassFeat?.grantedSkills ?? []), ...(this.data.skillFeat?.grantedSkills ?? []), ...(this.data.mythicCalling?.grantedSkills ?? []), ...this.data.skills];
     const skillsMap = Object.fromEntries(allTrainedSkills.map((s) => [s, 1]));
     const attributes = await this._buildCreationAbilityModifiers();
     const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;
@@ -1182,7 +1208,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     };
     const classes = classState.slug ? [classState] : [];
     const passiveGrantedFeats = await this._collectCreationGrantedFeatEntries([this.data.ancestry, this.data.heritage, this.data.background, this.data.class, this.data.dualClass, subclassEntry, target === 'dualClass' ? this.data.subclass : this.data.dualSubclass]);
-    const featState = this._buildCreationSelectedFeatState([subclassEntry, target === 'dualClass' ? this.data.subclass : this.data.dualSubclass, this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, ...(this.data.grantedFeatSections ?? []), ...passiveGrantedFeats], classState);
+    const featState = this._buildCreationSelectedFeatState([subclassEntry, target === 'dualClass' ? this.data.subclass : this.data.dualSubclass, this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling, ...(this.data.grantedFeatSections ?? []), ...passiveGrantedFeats], classState);
 
     const classDef = classSlug ? ClassRegistry.get(classSlug) : null;
     const classFeatures = new Set();
@@ -1305,6 +1331,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getFeatChoiceContainer(slot) {
+    if (slot === 'mythicCalling') return this.data.mythicCalling;
     if (slot === 'ancestry') return this.data.ancestryFeat;
     if (slot === 'ancestryParagon') return this.data.ancestryParagonFeat;
     if (slot === 'class') return this.data.classFeat;
@@ -1314,6 +1341,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getFeatChoiceValues(slot) {
+    if (slot === 'mythicCalling') return this.data.mythicCalling?.choices ?? {};
     if (slot === 'ancestry') return this.data.ancestryFeat?.choices ?? {};
     if (slot === 'ancestryParagon') return this.data.ancestryParagonFeat?.choices ?? {};
     if (slot === 'class') return this.data.classFeat?.choices ?? {};
@@ -1425,10 +1453,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _openSpellChoicePicker(slot, flag) {
-    const choiceContainer = slot === 'ancestry' ? this.data.ancestryFeat : slot === 'ancestryParagon' ? this.data.ancestryParagonFeat : slot === 'class' ? this.data.classFeat : slot === 'skill' ? this.data.skillFeat : (this.data.grantedFeatSections ?? []).find((section) => section.slot === slot);
+    const choiceContainer = this._getFeatChoiceContainer(slot);
     if (!choiceContainer) return;
 
-    const currentChoices = slot === 'ancestry' ? (this.data.ancestryFeat?.choices ?? {}) : slot === 'ancestryParagon' ? (this.data.ancestryParagonFeat?.choices ?? {}) : slot === 'class' ? (this.data.classFeat?.choices ?? {}) : slot === 'skill' ? (this.data.skillFeat?.choices ?? {}) : getGrantedFeatChoiceValues(this.data, slot);
+    const currentChoices = this._getFeatChoiceValues(slot);
     const choiceSets = await this._hydrateChoiceSets(choiceContainer.choiceSets ?? [], currentChoices);
     const choiceSet = choiceSets.find((entry) => entry.flag === flag);
     if (!choiceSet?.isSpellChoice) return;
@@ -2004,7 +2032,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
         const grantCompletion = getFeatGrantCompletion({ featGrants: this.data.featGrants ?? [] }, this._cachedFeatGrantRequirements ?? []);
         const grantsComplete = Object.values(grantCompletion).every((entry) => entry.complete);
         const sections = [
-          ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat].filter(Boolean).map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
+          ...[this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling].filter(Boolean).map((feat) => ({ choiceSets: feat.choiceSets ?? [], choices: feat.choices ?? {} })),
           ...(this.data.grantedFeatSections ?? []).map((section) => ({
             section,
             choiceSets: (section.choiceSets ?? []).filter((choiceSet) => !isSkillStepChoiceSet(section, choiceSet, this.data)),
@@ -2035,7 +2063,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           (this.data.skills?.length ?? 0) + (this.data.selectedLoreSkills?.length ?? 0)
         ) >= (this._cachedMaxSkills ?? 1);
       case 'feats':
-        return !!this.data.ancestryFeat && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat) && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat) && (!this._needsLevel1DualClassFeatSelection() || !!this.data.dualClassFeat) && (!this._needsLevel1SkillFeatSelection() || !!this.data.skillFeat);
+        return !!this.data.ancestryFeat && (!isMythicEnabled() || !!this.data.mythicCalling) && (!isAncestralParagonEnabled() || !!this.data.ancestryParagonFeat) && (!this._needsLevel1ClassFeatSelection() || !!this.data.classFeat) && (!this._needsLevel1DualClassFeatSelection() || !!this.data.dualClassFeat) && (!this._needsLevel1SkillFeatSelection() || !!this.data.skillFeat);
       case 'spells': {
         if (!this._needsSpellSelection()) return true;
         const spellHandlerResult = this.classHandler.isStepComplete('spells', this.data);
@@ -2242,6 +2270,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
             : null,
           this.data.classFeat ? { source: this.data.classFeat.name, lores: this.data.classFeat.grantedLores ?? [] } : null,
           this.data.skillFeat ? { source: this.data.skillFeat.name, lores: this.data.skillFeat.grantedLores ?? [] } : null,
+          this.data.mythicCalling ? { source: this.data.mythicCalling.name, lores: this.data.mythicCalling.grantedLores ?? [] } : null,
         ]
           .filter(Boolean)
           .flatMap((entry) => entry.lores.map((name) => ({ name, source: entry.source })));
@@ -2716,7 +2745,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   _getCreationFeatGrantSources() {
-    const sources = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, ...(this.data.grantedFeatSections ?? []).map((section) => (section?.slot ? { uuid: section.slot, name: section.featName } : null)), this.data.subclass, this.data.dualSubclass, ...this._getSelectedChoiceGrantSources(), ...getSelectedHandlerChoiceSourceItems(this)];
+    const sources = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling, ...(this.data.grantedFeatSections ?? []).map((section) => (section?.slot ? { uuid: section.slot, name: section.featName } : null)), this.data.subclass, this.data.dualSubclass, ...this._getSelectedChoiceGrantSources(), ...getSelectedHandlerChoiceSourceItems(this)];
     const seen = new Set();
     return sources.filter((entry) => {
       if (!entry?.uuid || seen.has(entry.uuid)) return false;
@@ -2754,6 +2783,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       {
         choiceSets: this.data.skillFeat?.choiceSets ?? [],
         choices: this.data.skillFeat?.choices ?? {},
+      },
+      {
+        choiceSets: this.data.mythicCalling?.choiceSets ?? [],
+        choices: this.data.mythicCalling?.choices ?? {},
       },
       ...(this.data.grantedFeatSections ?? []).map((section) => ({
         choiceSets: section.choiceSets ?? [],
@@ -2982,7 +3015,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _refreshAllFeatChoiceData() {
-    for (const feat of [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat]) {
+    for (const feat of [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling]) {
       if (!feat?.uuid) continue;
       const item = await this._getCachedDocument(feat.uuid);
       if (!item) continue;
@@ -3119,7 +3152,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     this._cachedHasDualClassFeatAtLevel1 = hasDualClassFeat;
     const hasSkillFeat = this._needsLevel1SkillFeatSelection();
 
-    const featSlots = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat];
+    const featSlots = [this.data.ancestryFeat, this.data.ancestryParagonFeat, this.data.classFeat, this.data.dualClassFeat, this.data.skillFeat, this.data.mythicCalling];
     for (const feat of featSlots) {
       if (feat?.uuid) feat.grantedItems = await this._collectGrantedItems(feat.uuid);
     }
@@ -3129,6 +3162,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       hasDualClassFeat,
       hasSkillFeat,
       ancestralParagonEnabled,
+      mythicEnabled: isMythicEnabled(),
       dualClassFeatLabel: this.data.dualClass?.name ? `${this.data.dualClass.name} Class Feat` : 'Dual Class Feat',
     };
   }

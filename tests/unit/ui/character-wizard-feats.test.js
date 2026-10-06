@@ -41,6 +41,51 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 }));
 
 describe('CharacterWizard feat step ancestry filtering', () => {
+  it.each(['enabled', 'disabled'])('exposes the mythic calling slot only with mythic %s', async (setting) => {
+    game.settings.get = jest.fn((scope, key) => key === 'mythic' ? setting : false);
+    const wizard = new CharacterWizard(createMockActor());
+    const context = await wizard._buildFeatContext();
+    expect(context.mythicEnabled).toBe(setting === 'enabled');
+  });
+
+  it('requires a calling for mythic creation and saves the picker selection', async () => {
+    game.settings.get = jest.fn((scope, key) => key === 'mythic' ? 'enabled' : false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestryFeat = { uuid: 'ancestry-feat' };
+    expect(wizard._isStepComplete('feats')).toBe(false);
+    wizard._buildCreationFeatBuildState = jest.fn(async () => ({ feats: new Set(), skills: {} }));
+    wizard._renderPickerInFront = jest.fn();
+    wizard._parseChoiceSets = jest.fn(async () => []);
+    wizard._parseGrantedSkills = jest.fn(() => []);
+    wizard._parseSubclassLores = jest.fn(() => []);
+    wizard._refreshGrantedFeatChoiceSections = jest.fn(async () => {});
+    wizard._saveAndRender = jest.fn(async () => {});
+    await wizard._openFeatPicker('mythicCalling');
+    const picker = wizard._renderPickerInFront.mock.calls[0][0];
+    expect(picker.category).toBe('mythic');
+    expect([...picker.lockedTraitValues]).toEqual(['calling']);
+    picker.allFeats = [
+      { uuid: 'calling', name: 'Guardian’s Calling', system: { level: { value: 1 }, traits: { value: ['mythic', 'calling'], rarity: 'common' }, prerequisites: { value: [] } } },
+      { uuid: 'ordinary', name: 'Ordinary mythic feat', system: { level: { value: 1 }, traits: { value: ['mythic'], rarity: 'common' }, prerequisites: { value: [] } } },
+    ];
+    picker._enrichWithPrerequisites = jest.fn();
+    expect(picker._applyFilters().map((feat) => feat.uuid)).toEqual(['calling']);
+    await picker.onSelect({ uuid: 'calling', name: 'Guardian’s Calling', slug: 'guardians-calling', system: { rules: [] } });
+    expect(wizard.data.mythicCalling?.uuid).toBe('calling');
+    expect(wizard._saveAndRender).toHaveBeenCalled();
+    expect(wizard._isStepComplete('feats')).toBe(true);
+  });
+
+  it('does not require or open a calling picker when mythic is disabled', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.ancestryFeat = { uuid: 'ancestry-feat' };
+    wizard._renderPickerInFront = jest.fn();
+    expect(wizard._isStepComplete('feats')).toBe(true);
+    await wizard._openFeatPicker('mythicCalling');
+    expect(wizard._renderPickerInFront).not.toHaveBeenCalled();
+  });
+
   async function flushAsyncListeners() {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));

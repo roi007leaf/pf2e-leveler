@@ -1,6 +1,7 @@
 import { ClassRegistry } from '../../classes/registry.js';
 import { getRunicRepertoireAtLevel } from '../../classes/runesmith.js';
 import { getCreationLoreSkillNames } from '../../creation/creation-model.js';
+import { isMythicEnabled } from '../../utils/pf2e-api.js';
 
 export async function buildSummaryContext(wizard) {
   const classSummaryLabel = [wizard.data.class?.name, wizard.data.dualClass?.name].filter(Boolean).join(' + ') || null;
@@ -11,6 +12,7 @@ export async function buildSummaryContext(wizard) {
   const classFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('class');
   const dualClassFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('dualClass');
   const skillFeatChoiceLabels = await wizard._getSelectedFeatChoiceLabels('skill');
+  const mythicCallingChoiceLabels = await wizard._getSelectedFeatChoiceLabels('mythicCalling');
   const grantedFeatChoiceSummaries = [];
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
     const labels = await wizard._getSelectedFeatChoiceLabels(section.slot);
@@ -60,6 +62,8 @@ export async function buildSummaryContext(wizard) {
     classFeatChoiceLabels,
     dualClassFeatChoiceLabels,
     skillFeatChoiceLabels,
+    mythicCallingChoiceLabels,
+    mythicEnabled: isMythicEnabled(),
     grantedFeatChoiceSummaries,
     runicRepertoireReminders,
     loreSkillsSummary,

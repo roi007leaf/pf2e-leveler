@@ -94,6 +94,13 @@ export async function buildFeatChoicesContext(wizard) {
       choiceSets: await hydrateChoiceSets(wizard, wizard.data.skillFeat.choiceSets, wizard.data.skillFeat.choices ?? {}),
     });
   }
+  if (wizard.data.mythicCalling?.choiceSets?.length) {
+    sections.push({
+      slot: 'mythicCalling',
+      featName: await resolveChoiceSectionName(wizard, wizard.data.mythicCalling),
+      choiceSets: await hydrateChoiceSets(wizard, wizard.data.mythicCalling.choiceSets, wizard.data.mythicCalling.choices ?? {}),
+    });
+  }
   for (const section of (wizard.data.grantedFeatSections ?? [])) {
     const choiceSets = (section.choiceSets ?? []).filter((choiceSet) =>
       !isSkillStepChoiceSet(section, choiceSet, wizard.data));
@@ -290,6 +297,7 @@ export async function getSelectedFeatChoiceLabels(wizard, slot) {
       : slot === 'class' ? wizard.data.classFeat
         : slot === 'dualClass' ? wizard.data.dualClassFeat
         : slot === 'skill' ? wizard.data.skillFeat
+          : slot === 'mythicCalling' ? wizard.data.mythicCalling
           : grantedSection
             ? { choiceSets: grantedSection.choiceSets ?? [], choices: getGrantedFeatChoiceValues(wizard.data, slot) }
             : null;
@@ -314,6 +322,7 @@ export async function refreshGrantedFeatChoiceSections(wizard) {
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name, skipDirectSection: true, choiceSource: wizard.data.classFeat },
     { uuid: wizard.data.dualClassFeat?.uuid, label: wizard.data.dualClassFeat?.name, skipDirectSection: true, choiceSource: wizard.data.dualClassFeat },
     { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name, skipDirectSection: true, choiceSource: wizard.data.skillFeat },
+    { uuid: wizard.data.mythicCalling?.uuid, label: wizard.data.mythicCalling?.name, skipDirectSection: true, choiceSource: wizard.data.mythicCalling },
     ...getSelectedHandlerChoiceSourceItems(wizard),
   ];
 
@@ -851,6 +860,7 @@ export async function getPendingChoices(wizard) {
     { uuid: wizard.data.classFeat?.uuid, label: wizard.data.classFeat?.name },
     { uuid: wizard.data.dualClassFeat?.uuid, label: wizard.data.dualClassFeat?.name },
     { uuid: wizard.data.skillFeat?.uuid, label: wizard.data.skillFeat?.name },
+    { uuid: wizard.data.mythicCalling?.uuid, label: wizard.data.mythicCalling?.name, optionSource: wizard.data.mythicCalling },
     ...getSelectedHandlerChoiceSourceItems(wizard).map((entry) => ({ uuid: entry.uuid, label: entry.label, optionSource: entry })),
   ];
 
@@ -870,6 +880,7 @@ export async function getPendingChoices(wizard) {
         : uuid === wizard.data.classFeat?.uuid ? wizard.data.classFeat
           : uuid === wizard.data.dualClassFeat?.uuid ? wizard.data.dualClassFeat
           : uuid === wizard.data.skillFeat?.uuid ? wizard.data.skillFeat
+            : uuid === wizard.data.mythicCalling?.uuid ? wizard.data.mythicCalling
             : null);
     await scanItem(item, label, sourceChoices);
 
@@ -1627,6 +1638,7 @@ function collectAssuranceSelectedSkills(wizard, excludeFlag = null, currentChoic
   maybeCollectFromChoiceSource(wizard?.data?.classFeat);
   maybeCollectFromChoiceSource(wizard?.data?.dualClassFeat);
   maybeCollectFromChoiceSource(wizard?.data?.skillFeat);
+  maybeCollectFromChoiceSource(wizard?.data?.mythicCalling);
 
   for (const section of (wizard?.data?.grantedFeatSections ?? [])) {
     if (!isAssuranceChoiceSource(section)) continue;
@@ -2204,6 +2216,7 @@ function getSelectedFeatRollOptionSlugs(wizard) {
     wizard?.data?.classFeat,
     wizard?.data?.dualClassFeat,
     wizard?.data?.skillFeat,
+    wizard?.data?.mythicCalling,
     ...(wizard?.data?.grantedFeatSections ?? []).map((section) => ({
       slug: section?.slug,
       name: section?.featName,

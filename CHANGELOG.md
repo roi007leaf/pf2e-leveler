@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.8.10
+
+### Fixed
+
+- **Mythic character creation** - Characters created with mythic rules enabled can now select their Mythic Calling at level 1, with saved choices, granted abilities, and placement in the native character sheet slot
+
+## 3.8.9
+
+### Fixed
+
+- **Item picker security** - Sanitize custom trait input before rendering it in the picker (#110)
+
 ## 3.8.8
 
 ### Fixed

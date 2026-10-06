@@ -1,6 +1,7 @@
 import { getAdditionalSelectedFormulas, getAdditionalSelectedItems, getAdditionalSelectedSkills } from '../../../scripts/creation/apply-creation.js';
 import { applyCreation, applyItem, applyLores } from '../../../scripts/creation/apply-creation.js';
 import { MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, MODULE_ID, WEALTH_MODES } from '../../../scripts/constants.js';
+import { createCreationData, setMythicCalling } from '../../../scripts/creation/creation-model.js';
 
 jest.mock('../../../scripts/creation/class-handlers/registry.js', () => ({
   getClassHandler: jest.fn(() => ({
@@ -34,6 +35,83 @@ jest.mock('../../../scripts/utils/logger.js', () => ({
 
 const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
 const { ClassRegistry } = jest.requireMock('../../../scripts/classes/registry.js');
+
+describe('applyCreation Mythic Calling', () => {
+  function setupCalling(mythic = 'enabled', existing = null) {
+    game.settings.get = jest.fn((scope, key) => scope === 'pf2e' && key === 'mythic' ? mythic : false);
+    const actor = createMockActor({ items: [] });
+    if (existing) actor.items = [existing];
+    actor.createEmbeddedDocuments = jest.fn(async (_type, docs) => docs.map((doc) => ({ ...doc, id: 'created-calling' })));
+    actor.update = jest.fn(async () => {});
+    actor.testUserPermission = jest.fn(() => true);
+    game.users = [{ isGM: true, id: 'gm-user' }];
+    ChatMessage.create = jest.fn(async () => {});
+    global.fromUuid = jest.fn(async (uuid) => uuid === 'calling-uuid' ? {
+      uuid,
+      name: 'Sage',
+      toObject: () => ({
+        name: 'Sage', type: 'feat', flags: { core: { sourceId: uuid } },
+        system: { slug: 'sage', level: { value: 1 }, description: { value: '' }, rules: [{ key: 'ChoiceSet', flag: 'skill', choices: [{ value: 'arcana' }] }] },
+      }),
+    } : null);
+    const data = createCreationData();
+    setMythicCalling(data, { uuid: 'calling-uuid', name: 'Sage', slug: 'sage' });
+    data.mythicCalling.choices.skill = 'arcana';
+    return { actor, data };
+  }
+
+  it('creates Calling in the native level-1 slot with stored choices', async () => {
+    const { actor, data } = setupCalling();
+    await applyCreation(actor, data);
+    const calling = actor.createEmbeddedDocuments.mock.calls.flatMap(([, docs]) => docs).find((doc) => doc.name === 'Sage');
+    expect(calling.system.location).toBe('mythic-calling');
+    expect(calling.system.level.taken).toBe(1);
+    expect(calling.system.rules[0].selection).toBe('arcana');
+    expect(calling.flags.pf2e.rulesSelections.skill).toBe('arcana');
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('Sage');
+  });
+
+  it('ignores stale Calling selection when mythic rules are disabled', async () => {
+    const { actor, data } = setupCalling('disabled');
+    await applyCreation(actor, data);
+    expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(data.mythicCalling.name).toBe('Sage');
+  });
+
+  it.each(['mythic-calling', null])('reuses an owned Calling at location %s and repairs its native slot', async (location) => {
+    const existing = {
+      type: 'feat', sourceId: 'calling-uuid', system: { location }, update: jest.fn(async () => {}),
+      toObject: () => ({ system: { rules: [{ key: 'ChoiceSet', flag: 'skill', choices: [{ value: 'arcana' }] }, { key: 'GrantItem', uuid: 'granted-uuid', flag: 'grantedFeature' }] }, flags: { pf2e: { rulesSelections: { existing: 'preserved' } } } }),
+    };
+    const { actor, data } = setupCalling('enabled', existing);
+    await applyCreation(actor, data);
+    expect(actor.createEmbeddedDocuments).not.toHaveBeenCalled();
+    expect(existing.update).toHaveBeenCalledWith(expect.objectContaining({
+      'system.location': 'mythic-calling',
+      'system.level.taken': 1,
+      'flags.pf2e.rulesSelections': { existing: 'preserved', skill: 'arcana' },
+      'system.rules': expect.arrayContaining([expect.objectContaining({ key: 'GrantItem', flag: 'grantedFeature' })]),
+    }));
+  });
+
+  it('includes Calling skill, spell, and formula choices only when mythic rules are enabled', () => {
+    const { data } = setupCalling();
+    data.mythicCalling.choiceSets = [
+      { flag: 'skill', grantsSkillTraining: true, options: [{ value: 'arcana', label: 'Arcana' }] },
+      { flag: 'spell', options: [{ value: 'Compendium.pf2e.spells-srd.Item.callingSpell', uuid: 'Compendium.pf2e.spells-srd.Item.callingSpell', label: 'Calling Spell', type: 'spell' }] },
+      { flag: 'formula', syntheticType: 'formula-choice', options: [{ value: 'Compendium.pf2e.equipment-srd.Item.callingFormula', uuid: 'Compendium.pf2e.equipment-srd.Item.callingFormula', label: 'Calling Formula' }] },
+    ];
+    data.mythicCalling.choices.spell = 'Compendium.pf2e.spells-srd.Item.callingSpell';
+    data.mythicCalling.choices.formula = 'Compendium.pf2e.equipment-srd.Item.callingFormula';
+    expect(getAdditionalSelectedSkills(data)).toEqual(['arcana']);
+    expect(getAdditionalSelectedItems(data)).toEqual([expect.objectContaining({ name: 'Calling Spell' })]);
+    expect(getAdditionalSelectedFormulas(data)).toEqual([expect.objectContaining({ name: 'Calling Formula' })]);
+    game.settings.get.mockReturnValue('disabled');
+    expect(getAdditionalSelectedSkills(data)).toEqual([]);
+    expect(getAdditionalSelectedItems(data)).toEqual([]);
+    expect(getAdditionalSelectedFormulas(data)).toEqual([]);
+  });
+});
 
 describe('applyItem native ChoiceSet preselections', () => {
   it('preserves native elemental choice objects in rule selections and merges saved flags', async () => {

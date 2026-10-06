@@ -1484,6 +1484,24 @@
         </div>
         {{/if}}
 
+        {{#if mythicEnabled}}
+        <div class="wizard-feat-slot-card">
+          <div class="wizard-feat-slot-card__label">{{localize "PF2E.Actor.Character.FeatSlot.MythicCallingPlaceholder"}}</div>
+          <div class="wizard-feat-slot-card__body">
+            {{#if data.mythicCalling}}
+              <span class="wizard-feat-slot-card__value" data-action="viewItem" data-uuid="{{data.mythicCalling.uuid}}">{{data.mythicCalling.name}}</span>
+              <button type="button" class="wizard-feat-slot-card__clear" data-action="clearMythicCalling" data-tooltip="{{localize 'PF2E_LEVELER.UI.CLEAR'}}"><i class="fa-solid fa-xmark"></i></button>
+              {{#if data.mythicCalling.grantedItems.length}}
+              <div class="wizard-feat-slot-card__grants"><i class="fa-solid fa-link"></i> {{localize "PF2E_LEVELER.UI.GRANTED_ITEMS"}} {{#each data.mythicCalling.grantedItems}}<button type="button" class="wizard-feat-slot-card__grant-link" data-action="viewItem" data-uuid="{{this.uuid}}">{{this.name}}</button>{{#unless @last}}, {{/unless}}{{/each}}</div>
+              {{/if}}
+            {{else}}
+              <span class="wizard-feat-slot-card__empty">{{localize "PF2E_LEVELER.UI.NOT_SELECTED"}}</span>
+            {{/if}}
+            <button type="button" class="wizard-feat-slot-card__browse" data-action="browseFeat" data-slot="mythicCalling">{{localize "PF2E_LEVELER.UI.BROWSE"}}</button>
+          </div>
+        </div>
+        {{/if}}
+
         {{#if hasSkillFeat}}
         <div class="wizard-feat-slot-card">
           <div class="wizard-feat-slot-card__label">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</div>
@@ -1977,6 +1995,14 @@
           <span class="wizard-summary__label">{{localize "PF2E_LEVELER.SECTIONS.SKILL_FEAT"}}</span>
           <span class="wizard-summary__value">{{data.skillFeat.name}}{{#if skillFeatChoiceLabels.length}} ({{#each skillFeatChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
         </div>
+        {{/if}}
+        {{#if mythicEnabled}}
+        {{#if data.mythicCalling}}
+        <div class="wizard-summary__row">
+          <span class="wizard-summary__label">{{localize "PF2E.Actor.Character.FeatSlot.MythicCallingPlaceholder"}}</span>
+          <span class="wizard-summary__value">{{data.mythicCalling.name}}{{#if mythicCallingChoiceLabels.length}} ({{#each mythicCallingChoiceLabels}}{{#unless @first}}, {{/unless}}{{this}}{{/each}}){{/if}}</span>
+        </div>
+        {{/if}}
         {{/if}}
         {{#each grantedFeatChoiceSummaries}}
         <div class="wizard-summary__row">
