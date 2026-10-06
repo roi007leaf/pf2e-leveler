@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.12
+
+### Fixed
+
+- **Player rarity filters** - Character creation now hides Uncommon and Rare checkboxes when those rarities are disabled for players, hides empty rarity filter groups, and preserves both options for GMs
+
 ## 3.8.11
 
 ### Fixed

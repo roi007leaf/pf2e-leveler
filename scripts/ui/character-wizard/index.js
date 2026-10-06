@@ -16,6 +16,7 @@ import { normalizeSkillSlug } from '../../utils/skill-slugs.js';
 import { inferSf2eSpellcastingTraditionFromItem } from '../../utils/sf2e-spellcasting.js';
 import { captureScrollState, restoreScrollState } from '../shared/scroll-state.js';
 import { getCompendiumKeysForCategory } from '../../compendiums/catalog.js';
+import { getAllowedRaritiesForCurrentUser } from '../../access/player-content.js';
 import { createMixedAncestryHeritage, getMixedAncestrySelectedValue, isMixedAncestryHeritageUuid } from '../../heritages/mixed-ancestry.js';
 import { areSkillTrainingChoicesComplete, buildFeatChoicesContext, buildSkillTrainingChoicesContext, buildSubclassChoicesContext, extractChoiceValue, findMatchingChoiceOption, formatChoiceLabel, getPendingChoices, getSelectedChoiceLabels, getSelectedFeatChoiceLabels, getSelectedSubclassChoiceLabels, hydrateChoiceSets, isHandlerManagedFocusSpellChoiceRenderSection, isRawValueChoiceSet, isSkillStepChoiceSet, parseChoiceSets, refreshGrantedFeatChoiceSections, buildMixedAncestryChoiceOptions, getSelectedHandlerChoiceSourceItems } from './choice-sets.js';
 import { buildApplyOverlayContext, getApplyPromptRows, getPromptMatchTexts, matchActivePromptRow, normalizePromptText, resolvePromptSelectionLabel } from './apply-overlay.js';
@@ -466,6 +467,12 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const publicationFilter = buildPublicationFilterState(publicationOptions, this._publicationFilterCollapsed);
     const stepContext = filterStepContextByPublication(rawStepContext, publicationOptions);
     const browserStep = buildBrowserStepContext(this.stepId, this.data, stepContext);
+    const allowedRarities = getAllowedRaritiesForCurrentUser();
+    const rarityFilters = [
+      { value: 'uncommon', label: 'PF2E.TraitUncommon' },
+      { value: 'rare', label: 'PF2E.TraitRare' },
+    ].filter((entry) => allowedRarities.has(entry.value));
+    if (browserStep) browserStep.showRarityFilters &&= rarityFilters.length > 0;
     if (browserStep?.stepId === 'background') {
       browserStep.backgroundSkillFilters = (browserStep.backgroundSkillFilters ?? []).map((entry) => ({
         ...entry,
@@ -493,6 +500,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       allComplete,
       canApplyCreation,
       browserStep,
+      rarityFilters,
       publicationOptions,
       publicationFilter,
       hasPublicationFilter: publicationOptions.length > 0,

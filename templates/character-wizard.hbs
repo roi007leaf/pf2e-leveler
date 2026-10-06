@@ -99,8 +99,9 @@
         <div class="wizard-browser-filter">
           <div class="wizard-browser-filter__label">{{localize "PF2E_LEVELER.FEAT_PICKER.FILTER_RARITY"}}</div>
           <div class="wizard-rarity-filters wizard-rarity-filters--stacked">
-            <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-            <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
+            {{#each rarityFilters}}
+            <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="{{this.value}}" checked> {{localize this.label}}</label>
+            {{/each}}
           </div>
         </div>
         {{/if}}
@@ -734,10 +735,13 @@
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      {{#if rarityFilters.length}}
       <div class="wizard-rarity-filters">
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
+        {{#each rarityFilters}}
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="{{this.value}}" checked> {{localize this.label}}</label>
+        {{/each}}
       </div>
+      {{/if}}
       <div class="wizard-item-grid">
         {{#each items}}
         <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
@@ -1014,10 +1018,13 @@
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      {{#if rarityFilters.length}}
       <div class="wizard-rarity-filters">
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
+        {{#each rarityFilters}}
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="{{this.value}}" checked> {{localize this.label}}</label>
+        {{/each}}
       </div>
+      {{/if}}
       <div class="wizard-item-grid">
         {{#each items}}
         <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">
@@ -1048,10 +1055,13 @@
         </div>
       {{/if}}
       <input type="text" class="picker__search" placeholder="{{localize 'PF2E_LEVELER.CREATION.SEARCH'}}" data-action="searchItems">
+      {{#if rarityFilters.length}}
       <div class="wizard-rarity-filters">
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="uncommon" checked> {{localize "PF2E.TraitUncommon"}}</label>
-        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="rare" checked> {{localize "PF2E.TraitRare"}}</label>
+        {{#each rarityFilters}}
+        <label class="wizard-rarity-toggle"><input type="checkbox" data-action="toggleRarity" data-rarity="{{this.value}}" checked> {{localize this.label}}</label>
+        {{/each}}
       </div>
+      {{/if}}
       <div class="wizard-item-grid">
         {{#each items}}
         <div class="wizard-item" data-name="{{this.name}}" data-rarity="{{this.rarity}}">

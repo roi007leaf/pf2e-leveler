@@ -43,6 +43,36 @@ jest.mock('../../../scripts/utils/i18n.js', () => ({
 }));
 
 describe('CharacterWizard feat step ancestry filtering', () => {
+  it.each([
+    [false, false, false, []],
+    [false, true, false, ['uncommon']],
+    [false, false, true, ['rare']],
+    [false, true, true, ['uncommon', 'rare']],
+    [true, false, false, ['uncommon', 'rare']],
+  ])('limits wizard rarity controls for GM=%s, uncommon=%s, rare=%s', async (isGM, uncommon, rare, expected) => {
+    game.user.isGM = isGM;
+    game.settings.get = jest.fn((scope, key) => ({ playerAllowUncommon: uncommon, playerAllowRare: rare })[key] ?? false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard._getStepContext = jest.fn(async () => ({ items: [] }));
+    const context = await wizard._prepareContext();
+    expect(context.rarityFilters.map((entry) => entry.value)).toEqual(expected);
+    expect(context.browserStep.showRarityFilters).toBe(expected.length > 0);
+  });
+
+  it('refreshes wizard rarity controls after player settings and role change', async () => {
+    game.user.isGM = true;
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard._isBooting = false;
+    wizard._getStepContext = jest.fn(async () => ({ items: [] }));
+    expect((await wizard._prepareContext()).rarityFilters.map((entry) => entry.value)).toEqual(['uncommon', 'rare']);
+    game.user.isGM = false;
+    expect((await wizard._prepareContext()).rarityFilters).toEqual([]);
+    game.settings.get = jest.fn((scope, key) => key === 'playerAllowRare');
+    expect((await wizard._prepareContext()).rarityFilters.map((entry) => entry.value)).toEqual(['rare']);
+  });
+
   it.each(['enabled', 'disabled'])('exposes the mythic calling slot only with mythic %s', async (setting) => {
     game.settings.get = jest.fn((scope, key) => key === 'mythic' ? setting : false);
     const wizard = new CharacterWizard(createMockActor());
