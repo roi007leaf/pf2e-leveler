@@ -1943,6 +1943,7 @@ function computeClassFeatures(actor, plan, classDefs, atLevel) {
   const features = new Set();
 
   for (const classDef of trackedClassDefs) {
+    if (classDef?.spellcasting && atLevel >= 1) features.add('spellcasting');
     for (const feature of classDef?.classFeatures ?? []) {
       if (feature.level > atLevel) continue;
       if (feature.key) features.add(feature.key);

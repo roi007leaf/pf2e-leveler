@@ -24,6 +24,8 @@ import { MIXED_ANCESTRY_UUID } from '../../../scripts/constants.js';
 import { invalidateGuidanceCache } from '../../../scripts/access/content-guidance.js';
 import { SWASHBUCKLER } from '../../../scripts/classes/swashbuckler.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
+import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { FIGHTER } from '../../../scripts/classes/fighter.js';
 const { getCreationData } = jest.requireMock('../../../scripts/creation/creation-store.js');
 
 jest.mock('../../../scripts/creation/creation-store.js', () => ({
@@ -2906,6 +2908,42 @@ describe('CharacterWizard feat step ancestry filtering', () => {
 
     expect(buildState.classFeatures).toBeInstanceOf(Set);
     expect(buildState.classFeatures.has('precise-strike')).toBe(true);
+  });
+
+  it.each([SORCERER, MAGUS, FIGHTER])('checks Adapted Cantrip for a level 1 $slug before spells are applied', async (classDef) => {
+    game.settings.get = jest.fn((scope, key) => scope === 'pf2e-leveler' && ['enforcePrerequisites', 'showPrerequisites'].includes(key));
+    ClassRegistry.register(classDef);
+    const actor = createMockActor({ items: [] });
+    const wizard = new CharacterWizard(actor);
+    wizard.data.ancestry = { slug: 'human', name: 'Human', system: { traits: { value: ['human'] } } };
+    wizard.data.class = { slug: classDef.slug, name: classDef.slug };
+    wizard._getClassTrainedSkills = jest.fn(async () => []);
+    wizard._getBackgroundTrainedSkills = jest.fn(async () => []);
+    wizard._buildCreationAbilityModifiers = jest.fn(async () => ({}));
+    wizard._collectHeritageGrantedTraits = jest.fn(async () => []);
+    wizard._collectSenses = jest.fn(async () => []);
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+    const feat = {
+      uuid: 'Compendium.pf2e.feats-srd.Item.adapted-cantrip',
+      slug: 'adapted-cantrip',
+      name: 'Adapted Cantrip',
+      system: {
+        level: { value: 1 },
+        maxTakable: 1,
+        traits: { value: ['human'], rarity: 'common' },
+        prerequisites: { value: [{ value: 'spellcasting class feature' }] },
+      },
+    };
+    const picker = new FeatPicker(actor, 'ancestry', 1, buildState, jest.fn());
+    picker.allFeats = [feat];
+    const [result] = picker._applyFilters();
+
+    expect(result).toBeDefined();
+    expect(result.prereqResults).toEqual([
+      expect.objectContaining({ met: classDef !== FIGHTER, text: 'spellcasting class feature' }),
+    ]);
+    expect(result.selectionBlocked).toBe(classDef === FIGHTER);
   });
 
   it("allows Magus's Analysis through Natural Ambition when creating a level 1 Magus", async () => {

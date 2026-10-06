@@ -56,6 +56,15 @@ describe('computeBuildState', () => {
     expect(state.classSlug).toBe('alchemist');
   });
 
+  test.each(['sorcerer', 'wizard', 'magus', 'fighter', 'champion'])('checks spellcasting class feature from the planned %s class', (classSlug) => {
+    mockActor.items = [];
+    plan = createPlan(classSlug);
+    const state = computeBuildState(mockActor, plan, 1);
+    const feat = { system: { prerequisites: { value: [{ value: 'spellcasting class feature' }] } } };
+    const result = checkPrerequisites(feat, state);
+    expect(result.met).toBe(['sorcerer', 'wizard', 'magus'].includes(classSlug));
+  });
+
   test('includes automatic Necromancer Undead Lore progression', () => {
     plan = createPlan('necromancer');
     mockActor.items = [];

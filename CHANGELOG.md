@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.11
+
+### Fixed
+
+- **Spellcasting prerequisites** - Character creation and the level planner now recognize the spellcasting class feature for Sorcerers and other spellcasting classes, allowing eligible characters to select Adapted Cantrip while keeping non-casters restricted
+
 ## 3.8.10
 
 ### Fixed

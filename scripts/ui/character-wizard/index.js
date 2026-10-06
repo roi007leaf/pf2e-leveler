@@ -1212,6 +1212,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const classDef = classSlug ? ClassRegistry.get(classSlug) : null;
     const classFeatures = new Set();
+    if (classDef?.spellcasting && level >= 1) classFeatures.add('spellcasting');
     for (const feature of classDef?.classFeatures ?? []) {
       if (feature.level > level) continue;
       if (feature.key) classFeatures.add(feature.key);
