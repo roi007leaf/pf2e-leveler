@@ -339,6 +339,7 @@
             }
         },
         "SKILLS": {
+            "INCREASE_TO": "提升至{rank}",
             "UNTRAINED": "未受训",
             "TRAINED": "受训",
             "EXPERT": "专家",

@@ -5,7 +5,7 @@
     class="rank-{{this.rankName}}"
     {{#if this.selected}}selected{{/if}}
     {{#if this.maxed}}disabled{{/if}}>
-    {{this.label}} ({{this.rankName}} → {{this.nextRankName}})
+    {{this.label}} ({{format "PF2E_LEVELER.SKILLS.INCREASE_TO" rank=(titleCase this.nextRankName)}})
   </option>
   {{/each}}
 </select>

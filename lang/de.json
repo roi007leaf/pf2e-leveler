@@ -202,6 +202,7 @@
       "ALREADY_SELECTED": "Bereits verbessert"
     },
     "SKILLS": {
+      "INCREASE_TO": "Steigern auf {rank}",
       "TITLE": "Fertigkeitssteigerung wählen",
       "UNTRAINED": "Ungeübt",
       "TRAINED": "Geübt",

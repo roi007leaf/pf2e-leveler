@@ -451,6 +451,21 @@
   padding-right: 0;
 }
 
+.pf2e-leveler .skill-btn[data-action='selectSkillIncrease'],
+.pf2e-leveler .skill-btn[data-action='addCustomSkillIncrease'] {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pf2e-leveler .skill-btn[data-action='selectSkillIncrease'] .skill-btn__rank,
+.pf2e-leveler .skill-btn[data-action='addCustomSkillIncrease'] .skill-btn__rank {
+  position: static;
+  transform: none;
+  white-space: normal;
+  text-align: left;
+  padding: 0;
+}
+
 .pf2e-leveler .skill-btn.rank-bg-untrained {
   border-left-color: var(--leveler-rank-untrained);
 }

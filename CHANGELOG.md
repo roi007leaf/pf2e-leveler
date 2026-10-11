@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.8.13
+
+### Fixed
+
+- **Skill increase clarity** - Skill choices now say "Increase to Expert" (or the appropriate rank) instead of showing only an arrow, with labels below skill names to avoid overlap; applies to regular and custom skill increases
+
 ## 3.8.12
 
 ### Fixed

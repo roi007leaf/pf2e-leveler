@@ -653,7 +653,7 @@
                 {{#if this.lockedByFeat}}
                 <span class="skill-btn__rank rank-text-{{this.rankName}}">{{titleCase this.rankName}}</span>
                 {{else}}
-                <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>
+                <span class="skill-btn__rank rank-text-{{this.nextRankName}}">{{format "PF2E_LEVELER.SKILLS.INCREASE_TO" rank=(titleCase this.nextRankName)}}</span>
                 {{/if}}
               </button>
               {{/each}}
@@ -1045,7 +1045,7 @@
                   data-index="{{this.index}}"
                   data-tooltip="{{localize 'PF2E_LEVELER.UI.REMOVE'}}"
                   style="display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 10px; cursor: pointer;">
-                  <span>{{this.label}} <span class="rank-text-{{this.rankName}}">→ {{titleCase this.rankName}}</span></span>
+                  <span>{{this.label}} <span class="rank-text-{{this.rankName}}">{{format "PF2E_LEVELER.SKILLS.INCREASE_TO" rank=(titleCase this.rankName)}}</span></span>
                   <i class="fa-solid fa-xmark"></i>
                 </button>
                 {{/each}}
@@ -1062,7 +1062,7 @@
                       {{#if this.isDisallowed}}<span class="tag tag--disallowed tag--tiny" data-tooltip="{{this.guidanceDisallowedTooltip}}"><i class="fa-solid fa-ban"></i> {{localize "PF2E_LEVELER.SETTINGS.CONTENT_GUIDANCE.BADGE_DISALLOWED"}}</span>{{/if}}
                     </span>
                   </span>
-                  <span class="skill-btn__rank rank-text-{{this.nextRankName}}">→ {{titleCase this.nextRankName}}</span>
+                  <span class="skill-btn__rank rank-text-{{this.nextRankName}}">{{format "PF2E_LEVELER.SKILLS.INCREASE_TO" rank=(titleCase this.nextRankName)}}</span>
                 </button>
                 {{/each}}
               </div>

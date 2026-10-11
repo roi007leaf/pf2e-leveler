@@ -203,6 +203,7 @@
     },
     "SKILLS": {
       "TITLE": "Choose Skill Increase",
+      "INCREASE_TO": "Increase to {rank}",
       "UNTRAINED": "Untrained",
       "TRAINED": "Trained",
       "EXPERT": "Expert",

@@ -164,6 +164,7 @@
       "ALREADY_SELECTED": "Deja augmente"
     },
     "SKILLS": {
+      "INCREASE_TO": "Augmenter au rang {rank}",
       "TITLE": "Choisir une augmentation de competence",
       "UNTRAINED": "Non forme",
       "TRAINED": "Forme",
