@@ -4227,7 +4227,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('does not surface manual Assurance when an authored Scholar skill is still available', async () => {
+  it('allows Scholar to choose class-trained Arcana for Assurance and grants a replacement skill', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -4258,6 +4258,13 @@ describe('CharacterWizard subclass choice-set parsing', () => {
           system: {
             slug: 'scholar',
             rules: [
+              {
+                key: 'ActiveEffectLike',
+                mode: 'upgrade',
+                path: 'system.skills.arcana.rank',
+                value: 1,
+                predicate: ['scholar:arc'],
+              },
               {
                 key: 'ChoiceSet',
                 flag: 'skill',
@@ -4308,8 +4315,24 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
       expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'arc', autoTrained: true, disabled: false }),
+        expect.objectContaining({ value: 'nat', selectedInSkills: true, disabled: false }),
         expect.objectContaining({ value: 'rel', disabled: false }),
       ]));
+
+      wizard.data.grantedFeatChoices = { 'background-scholar': { skill: 'arc' } };
+      expect(await wizard._getBackgroundTrainedSkills()).toContain('arcana');
+      expect(await wizard._getDuplicateAutoTrainedSkillCount([
+        { system: { trainedSkills: { value: ['arcana'], additional: 2 } } },
+      ])).toBe(1);
+
+      await wizard._refreshGrantedFeatChoiceSections();
+      const selectedContext = await buildSkillTrainingChoicesContext(wizard);
+      const selectedScholar = selectedContext.skillChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(selectedScholar.choiceSets[0].options).toEqual(expect.arrayContaining([
+        expect.objectContaining({ value: 'arc', selected: true, disabled: false }),
+      ]));
+      expect(selectedContext.skillChoiceSections.some((section) => section.featName === 'Assurance')).toBe(false);
     } finally {
       global.CONFIG = originalConfig;
     }
@@ -4407,7 +4430,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('widens the Scholar training choice when all authored Scholar skills are already trained while keeping Assurance constrained', async () => {
+  it('keeps authored Scholar choices when all four skills are already trained', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -4499,15 +4522,10 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       const assuranceSection = context.skillChoiceSections.find((section) => section.featName === 'Assurance');
 
       expect(scholarSection).toBeTruthy();
-      expect(assuranceSection).toBeTruthy();
+      expect(assuranceSection).toBeUndefined();
 
+      expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
-        expect.objectContaining({ value: 'acr', disabled: false }),
-        expect.objectContaining({ value: 'ath', disabled: false }),
-      ]));
-
-      expect(assuranceSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
-      expect(assuranceSection.choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'arc', disabled: false, autoTrained: true }),
         expect.objectContaining({ value: 'nat', disabled: false, selectedInSkills: true }),
         expect.objectContaining({ value: 'occ', disabled: false, selectedInSkills: true }),
@@ -4517,7 +4535,7 @@ describe('CharacterWizard subclass choice-set parsing', () => {
     }
   });
 
-  it('surfaces manual Assurance when Scholar widens to an off-list replacement skill', async () => {
+  it('restores authored Scholar choices for an old off-list replacement selection', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -4612,14 +4630,15 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       const context = await buildSkillTrainingChoicesContext(wizard);
       const assuranceSection = context.skillChoiceSections.find((section) => section.featName === 'Assurance');
 
-      expect(assuranceSection).toBeTruthy();
-      expect(assuranceSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
+      expect(assuranceSection).toBeUndefined();
+      const scholarSection = context.skillChoiceSections.find((section) => section.featName === 'Scholar');
+      expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
     } finally {
       global.CONFIG = originalConfig;
     }
   });
 
-  it('falls back to the remaining authored Scholar skill instead of preserving an off-list widened selection', async () => {
+  it('restores all authored Scholar skills instead of preserving an off-list widened selection', async () => {
     const wizard = new CharacterWizard(createMockActor());
     const originalConfig = global.CONFIG;
     global.CONFIG = {
@@ -4716,9 +4735,9 @@ describe('CharacterWizard subclass choice-set parsing', () => {
       expect(scholarSection.choiceSets[0].options.map((option) => option.value)).toEqual(['arc', 'nat', 'occ', 'rel']);
       expect(scholarSection.choiceSets[0].options).toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'rel', selected: false, disabled: false }),
-        expect.objectContaining({ value: 'arc', disabled: true }),
-        expect.objectContaining({ value: 'nat', disabled: true }),
-        expect.objectContaining({ value: 'occ', disabled: true }),
+        expect.objectContaining({ value: 'arc', disabled: false }),
+        expect.objectContaining({ value: 'nat', disabled: false }),
+        expect.objectContaining({ value: 'occ', disabled: false }),
       ]));
       expect(scholarSection.choiceSets[0].options).not.toEqual(expect.arrayContaining([
         expect.objectContaining({ value: 'ath' }),

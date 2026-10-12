@@ -636,6 +636,55 @@ export async function wizardAncestryHeritageCatalogAudit(data) {
   };
 }
 
+export async function wizardScholarSkillChoiceAudit(data) {
+  const wizard = await openWizardFor(data);
+  await selectClass(wizard, 'wizard');
+  if (wizard.data.class?.slug !== 'wizard') throw Error('Wizard class missing from catalog');
+  await clickWizardStep(wizard, 'background');
+  const backgrounds = await waitForCatalogEntries(wizard, 'background');
+  const documents = await Promise.all(
+    backgrounds.map(async (entry) => ({
+      ...entry,
+      document: await fromUuid(entry.uuid),
+    })),
+  );
+  const scholar = documents.find((entry) => entry.document?.slug === 'scholar');
+  if (!scholar) throw Error('Scholar background missing from catalog');
+  await clickItemByUuid(wizard, scholar.uuid);
+  await clickWizardStep(wizard, 'skills');
+  const maxBefore = await wizard._getAdditionalSkillCount();
+  const arcana = await waitFor(
+    () =>
+      [...wizard.element.querySelectorAll('[data-action="selectFeatChoice"]')].find(
+        (button) =>
+          button.closest('.wizard-choice-block')?.textContent.includes('Scholar') &&
+          ['arc', 'arcana'].includes(button.dataset.value),
+      ),
+    'Scholar Arcana choice did not render',
+  );
+  if (arcana.disabled)
+    throw Error('Scholar Arcana is disabled despite Wizard duplicate-training replacement');
+  const flag = arcana.dataset.flag;
+  const value = arcana.dataset.value;
+  arcana.click();
+  await waitFor(
+    () => wizard.data.grantedFeatChoices?.[scholar.uuid]?.[flag] === value,
+    'Scholar Arcana selection did not persist',
+  );
+  await waitFor(
+    () =>
+      [...wizard.element.querySelectorAll('[data-action="selectFeatChoice"]')].some(
+        (button) => button.dataset.value === value && button.classList.contains('selected'),
+      ),
+    'Selected Scholar Arcana did not render',
+  );
+  return {
+    arcanaSelectable: true,
+    arcanaSelected: true,
+    replacementSkillGranted: (await wizard._getAdditionalSkillCount()) === maxBefore + 1,
+  };
+}
+
 export async function wizardBackgroundCatalogAudit(data) {
   const wizard = await openWizardFor(data);
   await clickWizardStep(wizard, 'background');

@@ -1666,7 +1666,7 @@ function shouldAllowAutoTrainedSkillSelection(sourceItem, rule) {
   const sourceName = String(sourceItem?.name ?? '').toLowerCase();
   const sourceType = String(sourceItem?.type ?? '').toLowerCase();
   if (!isSkillChoiceSet(rule)) return false;
-  return (sourceType === 'background' && !sourceGrantsAssurance(sourceItem))
+  return sourceType === 'background'
     || sourceSkillChoiceUpgradesExistingTraining(sourceItem)
     || sourceSlug === 'assurance'
     || sourceName === 'assurance';
@@ -1677,12 +1677,6 @@ function sourceSkillChoiceUpgradesExistingTraining(sourceItem) {
   if (!description) return false;
   return /already trained in (?:the skill you chose|that skill|the chosen skill|it),? you become (?:an )?expert/u.test(description)
     || /already trained in (?:the skill you chose|that skill|the chosen skill|it),? you become trained in it at expert/u.test(description);
-}
-
-function sourceGrantsAssurance(sourceItem) {
-  return (sourceItem?.system?.rules ?? []).some((rule) =>
-    rule?.key === 'GrantItem'
-    && /(?:w6gl9epmitfdhji0|assurance)/u.test(String(rule?.uuid ?? '').toLowerCase()));
 }
 
 function isAssuranceGrant(item) {

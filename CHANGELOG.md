@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.9.1
+
+### Fixed
+
+- **Scholar skill choice** - Characters can now select an already-trained skill from the Scholar background for Assurance, including Arcana for Wizards; duplicate class training grants an additional skill choice
+
 ## 3.9.0
 
 ### Added

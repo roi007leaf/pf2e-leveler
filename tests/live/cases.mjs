@@ -139,6 +139,19 @@ export const creationCases = [
     ],
   },
   {
+    name: 'creation-scholar-wizard-skill-overlap',
+    area: 'creation',
+    profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
+    fixture: true,
+    steps: [
+      {
+        session: 'gm',
+        operation: 'wizardScholarSkillChoiceAudit',
+        expect: { arcanaSelectable: true, arcanaSelected: true, replacementSkillGranted: true },
+      },
+    ],
+  },
+  {
     name: 'creation-fighter-skill-choice-placement',
     area: 'creation',
     profiles: ['foundry14-pf2e', 'foundry14-pf2e-sf2e-anachronism'],
