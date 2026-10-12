@@ -215,6 +215,15 @@
       </aside>
 
       <section class="wizard-browser__results">
+        {{#each flexiblePreparationOptions}}
+        <div class="wizard-feat-slot-card">
+          <label class="wizard-feat-slot-card__label">
+            <input type="checkbox" data-action="setFlexiblePreparation" data-target="{{this.target}}" {{#if this.enabled}}checked{{/if}}>
+            {{this.className}}: {{localize "PF2E_LEVELER.CREATION.FLEXIBLE_PREPARATION"}}
+          </label>
+          <p>{{localize "PF2E_LEVELER.CREATION.FLEXIBLE_PREPARATION_HINT"}}</p>
+        </div>
+        {{/each}}
         <div class="wizard-browser__results-header">
           <div class="wizard-browser__eyebrow">{{browserStep.resultsLabel}}</div>
           <div class="wizard-browser__count">{{browserStep.items.length}}</div>

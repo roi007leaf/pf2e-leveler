@@ -5,7 +5,7 @@ const CURRICULUM_ENTRY_FLAG = 'curriculumEntry';
 
 /**
  * Wizard: prepared arcane caster with arcane school.
- * Main spellbook: 10 cantrips (player selects) + 5 rank-1 (player selects).
+ * Main spellbook: 10 cantrips + 5 rank-1 spells (6 for Unified Magical Theory).
  * Curriculum spellbook additions: 1 cantrip + 2 rank-1 spells of your choice.
  * Curriculum entry: 1 cantrip slot + 1 rank-1 slot (separate from the main spellbook entry).
  */
@@ -20,8 +20,9 @@ export class WizardHandler extends CasterBaseHandler {
     ];
   }
 
-  getSpellbookCounts(_data, _classDef) {
-    return { cantrips: 10, rank1: 5 };
+  getSpellbookCounts(data, _classDef) {
+    const extraSpell = data.subclass?.slug === 'school-of-unified-magical-theory';
+    return { cantrips: 10, rank1: extraSpell ? 6 : 5 };
   }
 
   async resolveGrantedSpells(_data) {

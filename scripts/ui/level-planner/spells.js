@@ -9,6 +9,7 @@ import { SUBCLASS_SPELLS, resolveSpellcastingTradition, resolveSubclassSpells } 
 import { collectArchetypeSpellcastingConfigs, normalizeSpellcastingFeatRecord } from '../../utils/spellcasting-support.js';
 import { SF2E_VARIABLE_SPELL_TRADITIONS, resolveSf2eSpellcastingTradition } from '../../utils/sf2e-spellcasting.js';
 import { getRequiredSignatureSpellRanks, getSpellSelectionRank } from '../../utils/signature-spells.js';
+import { findClassSpellcastingEntry, isFlexibleClassEntry, getFlexibleSpellSlots } from '../../utils/flexible-spellcasting.js';
 
 const VARIABLE_SPELL_TRADITIONS = new Set(['bloodline', 'patron', 'connection', 'paradox']);
 
@@ -144,10 +145,15 @@ async function buildClassSpellSections(planner, classDef, level) {
 export async function buildClassSpellSection(planner, classDef, level, entryType, classSlug) {
   classDef = resolveClassEdition(classDef, planner.actor);
   const slots = classDef?.spellcasting?.slots ?? {};
-  const currentSlots = slots[level];
+  const entry = findClassSpellcastingEntry(planner.actor, { classSlug: classDef.slug, tradition: resolveSpellTradition(planner, classDef), prepared: classDef.spellcasting.type, name: classDef.name });
+  const flexible = isFlexibleClassEntry(entry, classDef);
+  const displaySlots = (counts, atLevel) => flexible && counts
+    ? { ...getFlexibleSpellSlots(counts, atLevel), ...(counts[10] ? { 10: counts[10] } : {}) }
+    : counts;
+  const currentSlots = displaySlots(slots[level], level);
   if (!currentSlots) return null;
 
-  const prevSlots = slots[level - 1] ?? getActorSpellCounts(planner);
+  const prevSlots = displaySlots(slots[level - 1], level - 1) ?? getActorSpellCounts(planner);
   const levelData = getLevelData(planner.plan, level) ?? {};
   const allPlannedSpells = normalizePlannedSpellsForDisplay(levelData.spells ?? []);
   const sectionPlannedSpells = allPlannedSpells.filter((spell) => normalizeSectionEntryType(spell, classDef) === entryType);

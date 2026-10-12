@@ -1,5 +1,6 @@
 import { SUBCLASS_TAGS } from '../constants.js';
 import { slugify } from '../utils/pf2e-api.js';
+import { findClassSpellcastingEntry, supportsFlexiblePreparation } from '../utils/flexible-spellcasting.js';
 
 const REQUIRED_SECOND_LEVEL_CLASS_FEAT_PATTERN = /must\s+select\s+(.+?)\s+as\s+your\s+(?:2nd|second)\s*-\s*level\s+class\s+feat/i;
 
@@ -49,6 +50,17 @@ export function parseRequiredSecondLevelClassFeat(value) {
 }
 
 export function getRequiredSecondLevelClassFeatForActor(actor, classSlug = actor?.class?.slug ?? null) {
+  if (actor && supportsFlexiblePreparation(classSlug)) {
+    const entry = findClassSpellcastingEntry(actor, { classSlug, prepared: 'prepared' });
+    if (entry?.system?.prepared?.flexible === true) {
+      return {
+        uuid: 'Compendium.pf2e.feats-srd.Item.CrS0iDwHmjKqvKti',
+        name: 'Flexible Spellcaster Dedication',
+        slug: 'flexible-spellcaster-dedication',
+        text: 'Flexible Spellcaster Dedication',
+      };
+    }
+  }
   const subclassItem = getSelectedSubclassItem(actor, classSlug);
   const requirementSources = extractRequirementSourceStrings(subclassItem);
   const requirement = requirementSources

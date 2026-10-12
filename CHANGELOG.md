@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.9.0
+
+### Added
+
+- **Flexible spell preparation** - Character creation now offers flexible preparation for Wizards, Druids, Clerics, and Witches, with independent dual-class choices, native spell collections, reduced daily slots and cantrips, and the required level-2 Flexible Spellcaster Dedication
+- **Flexible casting progression** - The level planner preserves flexible casting on existing characters while keeping spellbook learning, curriculum and divine font slots, and restricted 10th-rank spells separate
+
+### Fixed
+
+- **Unified Magical Theory spellbook** - Wizards selecting the School of Unified Magical Theory can now choose six starting 1st-rank spells instead of five, including dual-class Wizards
+
 ## 3.8.13
 
 ### Fixed

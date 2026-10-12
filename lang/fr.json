@@ -220,6 +220,8 @@
       "CATEGORY_RITUAL": "Rituel"
     },
     "CREATION": {
+      "FLEXIBLE_PREPARATION": "Préparation flexible des sorts",
+      "FLEXIBLE_PREPARATION_HINT": "À choisir au niveau 1. Préparez une collection de sorts à lancer librement, avec moins d'emplacements et de tours de magie. Flexible Spellcaster Dedication est requis comme don de classe au niveau 2. L'apprentissage des sorts du grimoire reste inchangé.",
       "TITLE": "Creation de personnage",
       "BUTTON": "Creer le personnage",
       "SEARCH": "Rechercher...",

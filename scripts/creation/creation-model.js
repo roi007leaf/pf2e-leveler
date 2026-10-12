@@ -1,4 +1,5 @@
 import { normalizeSkillSlug } from '../utils/skill-slugs.js';
+import { supportsFlexiblePreparation } from '../utils/flexible-spellcasting.js';
 
 const CURRENT_VERSION = 1;
 const HANDLER_SELECTION_KEYS = [
@@ -181,6 +182,8 @@ export function createCreationData() {
     background: null,
     class: null,
     dualClass: null,
+    flexiblePreparation: false,
+    dualFlexiblePreparation: false,
     subclass: null,
     dualSubclass: null,
     classSelections: {
@@ -324,6 +327,8 @@ export function setClass(data, item) {
       }
     : null;
   data.dualClass = null;
+  data.flexiblePreparation = false;
+  data.dualFlexiblePreparation = false;
   data.subclass = null;
   data.dualSubclass = null;
   resetHandlerSelections(data, 'class');
@@ -343,6 +348,7 @@ export function setClass(data, item) {
 }
 
 export function setDualClass(data, item) {
+  data.dualFlexiblePreparation = false;
   data.dualClass = item
     ? {
         uuid: item.uuid,
@@ -362,6 +368,14 @@ export function setDualClass(data, item) {
   data.dualSpells = { cantrips: [], rank1: [] };
   data.dualCurriculumSpells = { cantrips: [], rank1: [] };
   clearBoostsForPrefix(data, 'dualClass');
+  return data;
+}
+
+export function setFlexiblePreparation(data, enabled, target = 'primary') {
+  const secondary = target === 'secondary';
+  const classEntry = secondary ? data.dualClass : data.class;
+  const key = secondary ? 'dualFlexiblePreparation' : 'flexiblePreparation';
+  data[key] = enabled === true && supportsFlexiblePreparation(classEntry?.slug);
   return data;
 }
 

@@ -21,6 +21,49 @@ const { ClassRegistry } = jest.requireMock('../../../scripts/classes/registry.js
 const { getClassHandler } = jest.requireMock('../../../scripts/creation/class-handlers/registry.js');
 
 describe('buildSpellContext', () => {
+  it.each(['primary', 'secondary'])('requires six starting rank-1 spells for Unified Magical Theory in the %s class', async (target) => {
+    const classDef = {
+      slug: 'wizard',
+      spellcasting: { tradition: 'arcane', type: 'prepared', slots: { 1: { cantrips: 5, 1: 2 } } },
+    };
+    ClassRegistry.get.mockImplementation((slug) => slug === 'wizard' ? classDef : null);
+    const handler = new WizardHandler();
+    getClassHandler.mockReturnValue(handler);
+    const wizard = {
+      data: {
+        class: { slug: 'wizard' },
+        subclass: { slug: 'school-of-unified-magical-theory' },
+        flexiblePreparation: true,
+        dualFlexiblePreparation: true,
+        spells: {
+          cantrips: Array.from({ length: 10 }, (_, index) => ({ uuid: `cantrip-${index}` })),
+          rank1: Array.from({ length: 5 }, (_, index) => ({ uuid: `rank1-${index}` })),
+        },
+      },
+      classHandler: handler,
+      _loadCompendiumCategory: async () => [],
+    };
+    global.fromUuid = jest.fn(async () => null);
+    if (target === 'secondary') {
+      wizard.data.dualClass = wizard.data.class;
+      wizard.data.dualSubclass = wizard.data.subclass;
+      wizard.data.dualSpells = wizard.data.spells;
+      wizard.data.class = { slug: 'fighter' };
+      wizard.data.subclass = null;
+      wizard.data.spells = { cantrips: [], rank1: [] };
+    }
+
+    const context = await buildSpellContext(wizard);
+    expect(context.maxCantrips).toBe(10);
+    expect(context.maxRank1).toBe(6);
+    expect(context.rank1Full).toBe(false);
+    const spells = target === 'secondary' ? wizard.data.dualSpells : wizard.data.spells;
+    expect(handler.isSpellsComplete({ spells }, context.maxCantrips, context.maxRank1)).toBe(false);
+
+    spells.rank1.push({ uuid: 'bonus-rank1' });
+    expect((await buildSpellContext(wizard)).rank1Full).toBe(true);
+  });
+
   it('renders champion devotion spells in the non-caster spell step', async () => {
     ClassRegistry.get.mockReturnValue(null);
 

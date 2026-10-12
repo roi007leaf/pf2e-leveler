@@ -265,6 +265,8 @@
       "CATEGORY_RITUAL": "Ritual"
     },
     "CREATION": {
+      "FLEXIBLE_PREPARATION": "Flexible spell preparation",
+      "FLEXIBLE_PREPARATION_HINT": "Choose at level 1. Prepare a spell collection and cast its spells flexibly, with fewer spell slots and cantrips. Requires Flexible Spellcaster Dedication as your level-2 class feat. Spellbook learning is unchanged.",
       "TITLE": "Character Creation",
       "LOADING": "Loading character builder data...",
       "BUTTON": "Create Character",

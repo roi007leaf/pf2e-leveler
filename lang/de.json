@@ -265,6 +265,8 @@
       "CATEGORY_RITUAL": "Ritual"
     },
     "CREATION": {
+      "FLEXIBLE_PREPARATION": "Flexible Zaubervorbereitung",
+      "FLEXIBLE_PREPARATION_HINT": "Auf Stufe 1 wählen. Bereite eine Zaubersammlung vor und wirke ihre Zauber flexibel, mit weniger Zauberplätzen und Zaubertricks. Erfordert Flexible Spellcaster Dedication als Klassentalent auf Stufe 2. Das Erlernen von Zaubern im Zauberbuch bleibt unverändert.",
       "TITLE": "Charaktererschaffung",
       "LOADING": "Daten der Charaktererschaffung werden geladen …",
       "BUTTON": "Charakter erstellen",

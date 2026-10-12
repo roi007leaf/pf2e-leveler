@@ -62,6 +62,19 @@ beforeAll(() => {
 });
 
 describe('level planner spell context', () => {
+  test('displays imported flexible slots without reducing spellbook learning or rank 10', async () => {
+    const planner = {
+      actor: { items: [{ type: 'spellcastingEntry', name: 'Wizard Spells', system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared', flexible: true } } }] },
+      plan: { classSlug: 'wizard' },
+      _ordinalRank: (rank) => `${rank}th`,
+    };
+    const context = await buildSpellContext(planner, WIZARD, 2);
+    expect(context.spellbookSelectionCount).toBe(2);
+    expect(context.spellSlots.find((slot) => slot.rankNum === 1).total).toBe(2);
+    const topLevel = await buildSpellContext(planner, WIZARD, 19);
+    expect(topLevel.highestRank).toBe(10);
+  });
+
   test('wizard uses spellbook selections instead of spontaneous slot picks', async () => {
     const planner = {
       actor: { items: [] },

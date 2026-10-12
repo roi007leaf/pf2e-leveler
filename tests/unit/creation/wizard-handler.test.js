@@ -1,6 +1,16 @@
 import { WizardHandler } from '../../../scripts/creation/class-handlers/wizard.js';
 import { CasterBaseHandler } from '../../../scripts/creation/class-handlers/caster-base.js';
 
+describe('WizardHandler.getSpellbookCounts', () => {
+  it.each([
+    ['school-of-unified-magical-theory', 6],
+    ['school-of-battle-magic', 5],
+    [undefined, 5],
+  ])('uses the starting spell allowance for %s', (slug, rank1) => {
+    expect(new WizardHandler().getSpellbookCounts({ subclass: slug ? { slug } : null }, {})).toEqual({ cantrips: 10, rank1 });
+  });
+});
+
 describe('WizardHandler.getSpellContext', () => {
   it('treats selected Runelord sin spell lists like curriculum choices', async () => {
     const spells = {

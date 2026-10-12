@@ -399,6 +399,8 @@
             "TAKEN": "已选"
         },
         "CREATION": {
+            "FLEXIBLE_PREPARATION": "灵活法术准备",
+            "FLEXIBLE_PREPARATION_HINT": "在1级选择。准备法术集合并灵活施放其中的法术，但法术位和戏法数量减少。必须在2级选择Flexible Spellcaster Dedication作为职业专长。法术书学习数量不变。",
             "TITLE": "角色创建",
             "LOADING": "角色构筑器数据加载中…",
             "BUTTON": "创建角色",

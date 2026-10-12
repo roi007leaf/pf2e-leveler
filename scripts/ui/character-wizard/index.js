@@ -23,7 +23,7 @@ import { buildApplyOverlayContext, getApplyPromptRows, getPromptMatchTexts, matc
 import { buildSummaryContext } from './summary.js';
 import { buildLanguageContext, buildSelectedLoreSkillContext, buildSkillContext, collectWizardDeitySkillMap, collectFeatLanguageGrants, getBackgroundLores, getBackgroundTrainedSkills, getLanguageMap, getActiveSkillSlugs, getSelectedSubclassChoiceSkillMap, getActiveSkillConfigEntry, normalizeLoreSkillName, parseSubclassLores } from './skills-languages.js';
 import { activateCharacterWizardListeners } from './listeners.js';
-import { buildSpellContext, getSanitizedCurriculumSelections, limitCurriculumSelections, resolveFocusSpells, resolveGrantedSpells, resolveSummaryCurriculumSpells, resolveSummaryFocusSpells } from './spells.js';
+import { buildFlexiblePreparationOptions, buildSpellContext, getSanitizedCurriculumSelections, limitCurriculumSelections, resolveFocusSpells, resolveGrantedSpells, resolveSummaryCurriculumSpells, resolveSummaryFocusSpells } from './spells.js';
 import { loadCommanderTactics, loadCompendium, loadCompendiumCategory, loadAncestries, loadBackgrounds, loadClasses, loadDeities, loadExemplarIkons, loadHeritages, loadInventorArmorModifications, loadInventorArmorOptions, loadInventorWeaponModifications, loadInventorWeaponOptions, loadKineticImpulses, loadRawHeritages, loadSubclasses, loadSubclassesForClass, loadTaggedClassFeatures, loadThaumaturgeImplements, loadTheses, parseCurriculum, parseSpellUuidsFromDescription, parseVesselSpell, resolveClassSubclassTag } from './loaders.js';
 import { promptReviewRequest, isReviewFeatureActive, isApplyBlockedForActor } from '../../access/review-requests.js';
 import { annotateGuidance, annotateGuidanceBySlug, filterDisallowedForCurrentUser, sortByGuidancePriority } from '../../access/content-guidance.js';
@@ -500,6 +500,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
       allComplete,
       canApplyCreation,
       browserStep,
+      flexiblePreparationOptions: this.stepId === 'class' ? buildFlexiblePreparationOptions(this.data) : [],
       rarityFilters,
       publicationOptions,
       publicationFilter,
@@ -871,6 +872,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           await this._ensureDualClassMetadata(item);
         } else if (this._isDualClassCreationEnabled() && target === 'class') {
           const previousDualClass = this.data.dualClass;
+          const previousDualFlexiblePreparation = this.data.dualFlexiblePreparation;
           const previousDualSubclass = this.data.dualSubclass;
           const previousDualSelections = foundry.utils.deepClone(getClassSelectionData(this.data, 'dualClass'));
           const previousDualSpells = foundry.utils.deepClone(this.data.dualSpells ?? { cantrips: [], rank1: [] });
@@ -878,6 +880,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
           setClass(this.data, item);
           if (previousDualClass && previousDualClass.uuid !== item.uuid) {
             this.data.dualClass = previousDualClass;
+            this.data.dualFlexiblePreparation = previousDualFlexiblePreparation === true;
             this.data.dualSubclass = previousDualSubclass;
             this.data.classSelections.dualClass = previousDualSelections;
             this.data.dualSpells = previousDualSpells;

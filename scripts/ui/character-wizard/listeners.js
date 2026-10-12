@@ -12,6 +12,7 @@ import {
   setBackground,
   setClass,
   setDualClass,
+  setFlexiblePreparation,
   setClassFeat,
   setDualClassFeat,
   setDeity,
@@ -44,6 +45,12 @@ import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { bindRarityToggles } from '../shared/rarity-filters.js';
 
 export function activateCharacterWizardListeners(wizard, el) {
+  el.querySelectorAll('[data-action="setFlexiblePreparation"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      setFlexiblePreparation(wizard.data, input.checked, input.dataset.target);
+      wizard._saveAndRender();
+    });
+  });
   el.querySelector('[data-action="exportCreationData"]')?.addEventListener('click', () => wizard._exportCreationData());
   el.querySelector('[data-action="requestCreationReview"]')?.addEventListener('click', () => wizard._requestReview());
   el.querySelector('[data-action="importCreationData"]')?.addEventListener('click', () => wizard._importCreationData());

@@ -2,6 +2,15 @@ import { ClassRegistry } from '../../classes/registry.js';
 import { getClassHandler } from '../../creation/class-handlers/registry.js';
 import { getEffectiveSubclassCurriculum } from '../../creation/creation-model.js';
 import { resolveSpellcastingTradition } from '../../data/subclass-spells.js';
+import { supportsFlexiblePreparation, getFlexibleSpellSlots } from '../../utils/flexible-spellcasting.js';
+
+export function buildFlexiblePreparationOptions(data) {
+  return [
+    { target: 'primary', classEntry: data.class, enabled: data.flexiblePreparation === true },
+    { target: 'secondary', classEntry: data.dualClass, enabled: data.dualFlexiblePreparation === true },
+  ].filter(({ classEntry }) => supportsFlexiblePreparation(classEntry?.slug))
+    .map(({ target, classEntry, enabled }) => ({ target, className: classEntry.name, enabled }));
+}
 
 export async function resolveGrantedSpells(wizard) {
   return wizard.classHandler.resolveGrantedSpells(wizard.data);
@@ -122,7 +131,10 @@ async function buildCasterSpellSection(wizard, { target, classEntry, subclassEnt
   const sectionData = projectSpellSectionData(wizard.data, target);
   const tradition = resolveSpellcastingTradition(classDef.spellcasting.tradition, subclassEntry);
 
-  const level1Slots = classDef.spellcasting.slots?.[1] ?? {};
+  const ordinarySlots = classDef.spellcasting.slots?.[1] ?? {};
+  const level1Slots = sectionData.flexiblePreparation === true && supportsFlexiblePreparation(classDef)
+    ? getFlexibleSpellSlots(ordinarySlots, 1)
+    : ordinarySlots;
   let totalCantrips = Array.isArray(level1Slots.cantrips) ? level1Slots.cantrips[0] + level1Slots.cantrips[1] : (level1Slots.cantrips ?? 5);
   let totalRank1 = Array.isArray(level1Slots[1]) ? level1Slots[1][0] + level1Slots[1][1] : (level1Slots[1] ?? 2);
 
@@ -221,6 +233,7 @@ function projectSpellSectionData(data, target = 'primary') {
     return {
       ...data,
       class: data.dualClass ?? null,
+      flexiblePreparation: data.dualFlexiblePreparation === true,
       subclass: data.dualSubclass ?? null,
       spells: data.dualSpells ?? { cantrips: [], rank1: [] },
       curriculumSpells: data.dualCurriculumSpells ?? { cantrips: [], rank1: [] },

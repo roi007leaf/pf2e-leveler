@@ -119,6 +119,7 @@ async function applyCreationFeatGrants(actor, data) {
 function projectDualClassCreationData(data) {
   return {
     ...data,
+    flexiblePreparation: data.dualFlexiblePreparation === true,
     class: data.dualClass ?? null,
     subclass: data.dualSubclass ?? null,
     ...getClassSelectionData(data, 'dualClass'),

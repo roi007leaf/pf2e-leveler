@@ -84,6 +84,24 @@ describe('applySpells', () => {
     jest.restoreAllMocks();
   });
 
+  test('preserves imported flexible wizard slots without touching curriculum', async () => {
+    const curriculum = { id: 'curriculum', type: 'spellcastingEntry', name: 'Wizard Curriculum', system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared' } } };
+    actor.items = [curriculum, { id: 'wizard', type: 'spellcastingEntry', name: 'Wizard Spells', system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared', flexible: true }, ability: { value: 'int' } } }];
+    await applySpells(actor, { classSlug: 'wizard', levels: { 4: {} } }, 4);
+    expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [expect.objectContaining({ _id: 'wizard', 'system.slots.slot0.max': 5, 'system.slots.slot1.max': 2, 'system.slots.slot2.max': 2 })]);
+    expect(actor.updateEmbeddedDocuments.mock.calls.flatMap((call) => call[1]).some((update) => update._id === 'curriculum')).toBe(false);
+  });
+
+  test('keeps tenth-rank spells separately prepared for flexible casters', async () => {
+    actor.items = [{ id: 'wizard', type: 'spellcastingEntry', name: 'Wizard Spells', system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared', flexible: true }, ability: { value: 'int' } } }];
+    await applySpells(actor, { classSlug: 'wizard', levels: { 19: {} } }, 19);
+    const restricted = actor.createEmbeddedDocuments.mock.calls.flatMap((call) => call[1]).find((entry) => entry.flags?.['pf2e-leveler']?.classRestrictedSpellcastingEntry === 'wizard');
+    expect(restricted.system.prepared).toEqual({ value: 'prepared', flexible: false });
+    const updates = actor.updateEmbeddedDocuments.mock.calls.flatMap((call) => call[1]);
+    expect(updates.find((update) => update._id === 'wizard')).toMatchObject({ 'system.slots.slot9.max': 2, 'system.slots.slot10.max': 0 });
+    expect(updates.find((update) => update._id !== 'wizard')).toMatchObject({ 'system.slots.slot10.max': 1 });
+  });
+
   test('adds dragon breath for draconic advanced bloodline even if stored focus UUID resolves to the wrong spell', async () => {
     const originalGame = global.game;
     const plan = {

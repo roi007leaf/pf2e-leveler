@@ -43,6 +43,22 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     });
   });
 
+  it('creates native flexible druid preparation with reduced daily slots', async () => {
+    const actor = {
+      items: [],
+      createEmbeddedDocuments: jest.fn(async (_type, docs) => docs.map((doc) => ({ id: 'flexible', ...doc }))),
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+    await new CasterBaseHandler()._applySpellcasting(actor, {
+      class: { slug: 'druid', name: 'Druid' }, flexiblePreparation: true,
+      spells: { cantrips: [], rank1: [] },
+    });
+    const entry = actor.createEmbeddedDocuments.mock.calls.flatMap((call) => call[1]).find((doc) => doc.type === 'spellcastingEntry');
+    expect(entry.system.prepared.flexible).toBe(true);
+    expect(entry.flags['pf2e-leveler'].classSpellcastingEntry).toBe('druid');
+    expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [expect.objectContaining({ 'system.slots.slot0.max': 3, 'system.slots.slot1.max': 2 })]);
+  });
+
   it('preserves object-valued elemental bloodline choices when resolving granted spells', async () => {
     const handler = new CasterBaseHandler();
     const subclass = { slug: 'bloodline-elemental', name: 'Elemental' };
@@ -59,6 +75,47 @@ describe('CasterBaseHandler._applySpellcasting', () => {
     expect(await handler.resolveGrantedSpells({
       subclass: { ...subclass, choices: { elementalBloodline: { damageType: 'fire', slug: 'fire' } } },
     })).toEqual(expected);
+  });
+
+  it('embeds native flexible feature without duplicated subclass or dedication grants', async () => {
+    const source = { _id: 'native-id', name: 'Flexible Spell Preparation', type: 'feat', system: { slug: 'flexible-spell-preparation', rules: [{ key: 'ChoiceSet' }, { key: 'GrantItem' }, { key: 'RollOption', option: 'feature:flexible-spell-preparation' }] } };
+    global.fromUuid.mockResolvedValue({ type: 'feat', toObject: () => source });
+    const actor = { items: [], createEmbeddedDocuments: jest.fn(async () => []) };
+    await new CasterBaseHandler()._applyFlexibleFeature(actor);
+    const created = actor.createEmbeddedDocuments.mock.calls[0][1][0];
+    expect(created.system.rules).toEqual([{ key: 'RollOption', option: 'feature:flexible-spell-preparation' }]);
+    expect(created._id).toBeUndefined();
+    expect(created.flags.core.sourceId).toBe('Compendium.pf2e.classfeatures.Item.Upf1LXtWNJ6eB5sm');
+    actor.items.push({ ...created, slug: 'flexible-spell-preparation' });
+    await new CasterBaseHandler()._applyFlexibleFeature(actor);
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledTimes(1);
+    expect(source.system.rules).toHaveLength(3);
+  });
+
+  it('clears native flexible flag when creation choice disabled on existing class entry', async () => {
+    const actor = {
+      items: [{ id: 'druid', type: 'spellcastingEntry', name: 'Druid Spells', system: { tradition: { value: 'primal' }, prepared: { value: 'prepared', flexible: true } } }],
+      updateEmbeddedDocuments: jest.fn(async () => []),
+    };
+    await new CasterBaseHandler()._applySpellcasting(actor, { class: { slug: 'druid', name: 'Druid' }, flexiblePreparation: false, spells: { cantrips: [], rank1: [] } });
+    expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [expect.objectContaining({ _id: 'druid', 'system.prepared.flexible': false })]);
+    expect(actor.updateEmbeddedDocuments).toHaveBeenCalledWith('Item', [expect.objectContaining({ _id: 'druid', 'system.slots.slot0.max': 5 })]);
+  });
+
+  it.each([false, true])('removes module feature only when no other class remains flexible: %s', async (otherFlexible) => {
+    const druid = { id: 'druid', type: 'spellcastingEntry', name: 'Druid Spells', system: { tradition: { value: 'primal' }, prepared: { value: 'prepared', flexible: true } } };
+    const actor = {
+      items: [druid,
+        { id: 'owned-feature', type: 'feat', flags: { 'pf2e-leveler': { flexiblePreparationFeature: true } } },
+        { id: 'user-feature', type: 'feat', slug: 'flexible-spell-preparation' },
+        { id: 'wizard', type: 'spellcastingEntry', flags: { 'pf2e-leveler': { classSpellcastingEntry: 'wizard' } }, system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared', flexible: otherFlexible } } },
+      ],
+      updateEmbeddedDocuments: jest.fn(async () => []),
+      deleteEmbeddedDocuments: jest.fn(async () => []),
+    };
+    await new CasterBaseHandler()._applySpellcasting(actor, { class: { slug: 'druid', name: 'Druid' }, flexiblePreparation: false, spells: { cantrips: [], rank1: [] } });
+    if (otherFlexible) expect(actor.deleteEmbeddedDocuments).not.toHaveBeenCalled();
+    else expect(actor.deleteEmbeddedDocuments).toHaveBeenCalledWith('Item', ['owned-feature']);
   });
 
   it('adds only selected or granted spells for prepared non-spellbook casters', async () => {

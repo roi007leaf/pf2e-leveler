@@ -6,6 +6,7 @@ import { capitalize } from '../../utils/pf2e-api.js';
 import { classUsesPhysicalSpellbook, ensureActorHasSpellbook } from '../../utils/spellcasting-support.js';
 import { findMagusPrimaryEntry, isRemasteredMagus } from '../../utils/magus-spellcasting.js';
 import { refillFocusPool } from '../../utils/focus-pool.js';
+import { supportsFlexiblePreparation, getFlexibleSpellSlots, findClassSpellcastingEntry, ensureFlexibleRank10Entry } from '../../utils/flexible-spellcasting.js';
 
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 
@@ -168,7 +169,9 @@ export class CasterBaseHandler extends BaseClassHandler {
     const tradition = sc ? this._resolveTradition(sc.tradition, data.subclass) : 'arcane';
     const prepared = sc ? (sc.type === 'dual' ? 'prepared' : sc.type) : 'prepared';
     const ability = classDef?.slug === 'magus' ? 'int' : classDef?.keyAbility?.length === 1 ? classDef.keyAbility[0] : 'cha';
-    let entry = classDef?.slug === 'magus' ? findMagusPrimaryEntry(actor) : this._findSpellcastingEntry(actor, {
+    const flexible = supportsFlexiblePreparation(classDef) && data.flexiblePreparation === true;
+    let entry = classDef?.slug === 'magus' ? findMagusPrimaryEntry(actor) : findClassSpellcastingEntry(actor, {
+      classSlug: classDef?.slug,
       name: entryName,
       prepared,
       tradition,
@@ -183,9 +186,10 @@ export class CasterBaseHandler extends BaseClassHandler {
         {
           name: entryName,
           type: 'spellcastingEntry',
+          flags: { 'pf2e-leveler': { classSpellcastingEntry: classDef.slug } },
           system: {
             tradition: { value: tradition },
-            prepared: { value: prepared },
+            prepared: { value: prepared, ...(flexible ? { flexible: true } : {}) },
             ability: { value: ability },
             proficiency: { value: 1 },
           },
@@ -195,6 +199,11 @@ export class CasterBaseHandler extends BaseClassHandler {
     }
 
     if (!entry) return;
+    if (supportsFlexiblePreparation(classDef)) {
+      await actor.updateEmbeddedDocuments('Item', [{ _id: entry.id, 'system.prepared.flexible': flexible, 'flags.pf2e-leveler.classSpellcastingEntry': classDef.slug }]);
+      if (flexible) await this._applyFlexibleFeature(actor);
+      else await this._removeUnusedFlexibleFeature(actor, entry.id);
+    }
 
     if (classUsesPhysicalSpellbook(classDef?.slug)) {
       await ensureActorHasSpellbook(actor);
@@ -204,7 +213,12 @@ export class CasterBaseHandler extends BaseClassHandler {
     const remasteredMagus = classDef?.slug === 'magus' && isRemasteredMagus(actor, data.class);
     const currentSlots = classDef?.spellcasting?.slots?.[actorLevel] ?? classDef?.spellcasting?.slots?.[1] ?? null;
     if (currentSlots) {
-      const slotUpdate = this._buildPrimarySlotUpdate(entry, currentSlots, classDef);
+      const slotUpdate = this._buildPrimarySlotUpdate(entry, flexible ? getFlexibleSpellSlots(currentSlots, actorLevel) : currentSlots, classDef);
+      if (flexible) {
+        slotUpdate['system.slots.slot10.max'] = 0;
+        slotUpdate['system.slots.slot10.value'] = 0;
+        await ensureFlexibleRank10Entry(actor, entry, classDef, currentSlots);
+      }
       await actor.updateEmbeddedDocuments('Item', [slotUpdate]);
     }
 
@@ -223,6 +237,36 @@ export class CasterBaseHandler extends BaseClassHandler {
       spellData.system.location = { value: entry.id };
       await actor.createEmbeddedDocuments('Item', [spellData]);
     }
+  }
+
+  async _applyFlexibleFeature(actor) {
+    const featureUuid = 'Compendium.pf2e.classfeatures.Item.Upf1LXtWNJ6eB5sm';
+    if (getActorItems(actor).some((item) => (item.slug ?? item.system?.slug) === 'flexible-spell-preparation' || item.flags?.core?.sourceId === featureUuid)) return;
+    const feature = await fromUuid(featureUuid).catch(() => null);
+    if (feature?.type !== 'feat') return;
+    const source = foundry.utils.deepClone(feature.toObject());
+    delete source._id;
+    source.flags ??= {};
+    source.flags.core ??= {};
+    source.flags.core.sourceId = featureUuid;
+    source.flags['pf2e-leveler'] ??= {};
+    source.flags['pf2e-leveler'].flexiblePreparationFeature = true;
+    source.system.rules = (source.system.rules ?? []).filter((rule) => rule.key !== 'ChoiceSet' && rule.key !== 'GrantItem');
+    await actor.createEmbeddedDocuments('Item', [source]);
+  }
+
+  async _removeUnusedFlexibleFeature(actor, disabledEntryId) {
+    const items = getActorItems(actor);
+    const anotherFlexibleEntry = items.some((item) => item.id !== disabledEntryId
+      && item.type === 'spellcastingEntry'
+      && item.system?.prepared?.value === 'prepared'
+      && item.system.prepared.flexible === true
+      && !item.flags?.['pf2e-leveler']?.archetypeSpellcastingEntry
+      && !item.flags?.['pf2e-leveler']?.customSpellcastingEntry
+      && !item.flags?.['pf2e-leveler']?.classRestrictedSpellcastingEntry);
+    if (anotherFlexibleEntry) return;
+    const ownedFeatureIds = items.filter((item) => item.type === 'feat' && item.flags?.['pf2e-leveler']?.flexiblePreparationFeature === true).map((item) => item.id);
+    if (ownedFeatureIds.length > 0) await actor.deleteEmbeddedDocuments('Item', ownedFeatureIds);
   }
 
   async _applyFocusSpells(actor, data) {

@@ -8,6 +8,7 @@ import { buildCompendiumUuid, getCompendiumPacksForCategory } from '../system-su
 import { resolveSf2eSpellcastingTradition } from '../utils/sf2e-spellcasting.js';
 import { findMagusPrimaryEntry, isRemasteredMagus } from '../utils/magus-spellcasting.js';
 import { getSpellSelectionRank } from '../utils/signature-spells.js';
+import { findClassSpellcastingEntry, isFlexibleClassEntry, getFlexibleSpellSlots, ensureFlexibleRank10Entry } from '../utils/flexible-spellcasting.js';
 
 const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
 const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
@@ -188,6 +189,7 @@ async function ensureSpellcastingEntries(actor, classDef) {
     entries.primary = await findOrCreateEntry(actor, {
       name: `${capitalize(classDef.slug)} Spells`,
       magusPrimary: classDef.slug === 'magus',
+      classSlug: classDef.slug,
       tradition,
       prepared: sc.type,
       ability,
@@ -253,7 +255,7 @@ function resolveActorSpellAbility(actor, classDef) {
 }
 
 async function findOrCreateEntry(actor, config) {
-  const existing = config.magusPrimary ? findMagusPrimaryEntry(actor) : actor.items.find(
+  const existing = config.magusPrimary ? findMagusPrimaryEntry(actor) : config.classSlug && !config.flagKey ? findClassSpellcastingEntry(actor, config) : actor.items.find(
     (i) =>
       i.type === 'spellcastingEntry' &&
       (config.flagKey
@@ -280,11 +282,12 @@ function buildEntryData(config) {
   return {
     name: config.name,
     type: 'spellcastingEntry',
-    ...(config.flagKey
+    ...(config.flagKey || config.classSlug
       ? {
           flags: {
             'pf2e-leveler': {
-              [config.flagKey]: config.flagValue ?? true,
+              ...(config.flagKey ? { [config.flagKey]: config.flagValue ?? true } : {}),
+              ...(config.classSlug && !config.flagKey ? { classSpellcastingEntry: config.classSlug } : {}),
             },
           },
         }
@@ -400,7 +403,17 @@ async function updateSpellSlots(actor, entries, slots, classDef, level) {
       updates.push(buildBoundedPrimarySlotUpdate(entries.primary, slots));
       if (entries.studious && entries.studious.id !== entries.primary.id) updates.push(buildMagusStudiousSlotUpdate(entries.studious, getMagusStudiousRankForLevel(level)));
     } else {
-      updates.push(buildSlotUpdate(entries.primary, slots, 0));
+      const flexible = isFlexibleClassEntry(entries.primary, classDef);
+      const effectiveSlots = flexible ? getFlexibleSpellSlots(slots, level) : slots;
+      const update = buildSlotUpdate(entries.primary, effectiveSlots, 0);
+      if (flexible) {
+        update['system.slots.slot0.max'] = effectiveSlots.cantrips;
+        update['system.slots.slot0.value'] = effectiveSlots.cantrips;
+        update['system.slots.slot10.max'] = 0;
+        update['system.slots.slot10.value'] = 0;
+        entries.restricted = await ensureFlexibleRank10Entry(actor, entries.primary, classDef, slots);
+      }
+      updates.push(update);
     }
   }
 
@@ -475,7 +488,8 @@ async function addPlannedSpells(actor, entries, levelData, classSlug = null, inc
     const spell = await resolveSpell(spellPlan.uuid);
     if (!spell) continue;
 
-    const entry = resolveTargetEntry(actor, entries, spellPlan.entryType);
+    const isClassSpell = !spellPlan.entryType || spellPlan.entryType === 'primary' || spellPlan.entryType === `class:${classSlug}`;
+    const entry = Number(spellPlan.rank) === 10 && entries.restricted && isClassSpell ? entries.restricted : resolveTargetEntry(actor, entries, spellPlan.entryType);
     if (!entry) continue;
 
     const sourceUuid = spell.uuid ?? spellPlan.uuid;
