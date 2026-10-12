@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.9.2
+
+### Fixed
+
+- **Scholar replacement skill count** - Selecting an already-trained skill such as Arcana for a Wizard now adds the missing replacement skill choice, preserving the same total trained skills as selecting an untrained background skill
+
 ## 3.9.1
 
 ### Fixed

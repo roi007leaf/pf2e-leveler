@@ -361,7 +361,11 @@ export async function getBackgroundTrainedSkills(wizard) {
 
   for (const rule of filterBackgroundGrantRules(item.system?.rules ?? [], choiceContext)) {
     if (rule?.key !== 'ActiveEffectLike') continue;
-    const match = String(rule?.path ?? '').match(/^system\.skills\.([^.]+)\.rank$/);
+    const path = String(rule?.path ?? '').replace(/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g, (_reference, flag) => {
+      const selected = choiceContext.choices[flag];
+      return typeof selected === 'string' ? selected : '';
+    });
+    const match = path.match(/^system\.skills\.([^.]+)\.rank$/);
     if (!match || Number(rule?.value) < 1) continue;
     const skill = normalizeSkillSlug(match[1]);
     if (SKILLS.includes(skill)) skills.add(skill);
@@ -405,6 +409,7 @@ function getSelectedBackgroundChoiceContext(wizard, item) {
 
   return {
     hasChoiceSets: choiceRules.length > 0,
+    choices: storedChoices,
     selectedValues,
     labels: [...new Set(labels.filter(Boolean))],
   };

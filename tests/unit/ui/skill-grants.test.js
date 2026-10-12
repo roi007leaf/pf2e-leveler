@@ -726,6 +726,44 @@ describe('CharacterWizard skills step grants', () => {
     expect(athleticsIndex).toBeGreaterThan(craftingIndex);
   });
 
+  it.each(['pf2e', 'system'])('keeps Scholar total at eight when selecting Arcana or Nature using %s choices', async (namespace) => {
+    const scholar = {
+      uuid: 'background-scholar',
+      type: 'background',
+      name: 'Scholar',
+      system: {
+        trainedSkills: { value: [], lore: ['Academia Lore'] },
+        description: { value: "<p>You're trained in your choice of the Arcana, Nature, Occultism, or Religion skill, and gain the @UUID[Compendium.pf2e.feats-srd.Item.Assurance] skill feat in your chosen skill. You're also trained in the Academia Lore skill.</p>" },
+        rules: [
+          { key: 'ChoiceSet', flag: 'skill', choices: [{ value: 'arcana', label: 'Arcana' }, { value: 'nature', label: 'Nature' }] },
+          { key: 'ActiveEffectLike', mode: 'upgrade', path: `system.skills.{item|flags.${namespace}.rulesSelections.skill}.rank`, value: 1 },
+          { key: 'GrantItem', uuid: 'Compendium.pf2e.feats-srd.Item.Assurance', preselectChoices: { assurance: `{item|flags.${namespace}.rulesSelections.skill}` } },
+        ],
+      },
+    };
+    global.fromUuid = jest.fn(async (uuid) => uuid === 'background-scholar' ? scholar : uuid === 'class-wizard' ? {
+      system: { trainedSkills: { additional: 2, value: ['arcana'] } },
+    } : null);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { slug: 'wizard', uuid: 'class-wizard', name: 'Wizard' };
+    wizard.data.background = { uuid: 'background-scholar', name: 'Scholar' };
+    wizard._computeIntMod = jest.fn(async () => 4);
+
+    for (const [skill, choices, granted] of [['arcana', 7, 1], ['nature', 6, 2], ['arcana', 7, 1]]) {
+      wizard.data.grantedFeatChoices = { 'background-scholar': { skill } };
+      expect(await wizard._getBackgroundTrainedSkills()).toEqual([skill]);
+      expect(await wizard._getAdditionalSkillCount()).toBe(choices);
+      const context = await wizard._buildSkillContext();
+      expect(context.filter((entry) => entry.autoTrained)).toHaveLength(granted);
+      wizard.currentStep = 19;
+      expect((await wizard._getStepContext()).maxSkills).toBe(choices);
+      expect(choices + granted).toBe(8);
+    }
+    wizard.data.grantedFeatChoices = {};
+    expect(await wizard._getBackgroundTrainedSkills()).toEqual([]);
+    expect(await wizard._getAdditionalSkillCount()).toBe(6);
+  });
+
   it('adds an extra selectable skill when background and class auto-train the same skill', async () => {
     global.fromUuid = jest.fn(async (uuid) => {
       if (uuid === 'class-uuid') {
