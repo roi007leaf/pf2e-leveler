@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.10.0
+
+### Added
+
+- **Advanced spell filters** - Filter spells by casting actions, listed defenses, targets, area shape and size, range, duration, and sustained casting in the shared sheet, character creation, and level planner spell picker (#112)
+- **Duration units** - Enter duration bounds in seconds, rounds, minutes, hours, or days; switching units preserves the same limits
+
+### Improved
+
+- **Spell filter controls** - Collapsible advanced filters include a clear button, aligned checkbox labels, and selection preservation while filtering
+
 ## 3.9.2
 
 ### Fixed

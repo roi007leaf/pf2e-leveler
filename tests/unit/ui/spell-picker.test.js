@@ -40,6 +40,139 @@ describe('SpellPicker', () => {
     });
   });
 
+  test.each([true, false])('advanced filter controls combine filters, preserve selections and reset (GM: %s)', async (isGM) => {
+    game.user.isGM = isGM;
+    const picker = new SpellPicker(createMockActor({ items: [] }), 'any', -1, jest.fn(), { multiSelect: true });
+    const cone = makeSpell('cone', 'Cone', 1, ['arcane']);
+    Object.assign(cone.system, { time: { value: '2' }, defense: { save: { statistic: 'reflex' } }, area: { type: 'cone', value: 30 }, duration: { sustained: true } });
+    const burst = makeSpell('burst', 'Burst', 1, ['arcane']);
+    Object.assign(burst.system, { time: { value: '2' }, defense: { save: { statistic: 'reflex' } }, area: { type: 'burst', value: 20 }, duration: { sustained: false } });
+    picker.allSpells = [cone, burst];
+    picker.selectedSpellUuids.add('burst');
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <input type="checkbox" data-spell-filter="actions" value="2">
+      <input type="checkbox" data-spell-filter="areas" value="cone">
+      <input type="number" min="0" data-spell-filter="areaMin">
+      <select data-spell-filter="sustained"><option value=""></option><option value="yes"></option></select>
+      <span data-section-summary="advanced"></span>
+      <button data-action="resetSpellFilters"></button>
+    `;
+    picker.element = root;
+    picker._scheduleListUpdate = jest.fn();
+    picker._onRender();
+    for (const key of ['actions', 'areas']) {
+      const input = root.querySelector(`[data-spell-filter="${key}"]`);
+      input.checked = true;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const minimum = root.querySelector('[data-spell-filter="areaMin"]');
+    minimum.value = '30';
+    minimum.dispatchEvent(new Event('change', { bubbles: true }));
+    const sustained = root.querySelector('[data-spell-filter="sustained"]');
+    sustained.value = 'yes';
+    sustained.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['cone']);
+    expect(root.querySelector('[data-section-summary="advanced"]').textContent).toBe('(4)');
+    const context = await picker._prepareContext();
+    expect(context.advancedFilters.activeCount).toBe(4);
+    expect(context.filterSections.advanced.collapsed).toBe(true);
+    expect(picker.selectedSpellUuids.has('burst')).toBe(true);
+    root.querySelector('[data-action="resetSpellFilters"]').click();
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['cone', 'burst']);
+    expect(minimum.value).toBe('');
+    expect(sustained.value).toBe('');
+    expect(root.querySelector('[data-spell-filter="areas"]').checked).toBe(false);
+    expect(picker.selectedSpellUuids.has('burst')).toBe(true);
+  });
+
+  test.each([true, false])('range and duration bounds use controls and reset without losing choices (GM: %s)', async (isGM) => {
+    game.user.isGM = isGM;
+    const picker = new SpellPicker(createMockActor({ items: [] }), 'any', -1, jest.fn(), { multiSelect: true });
+    const close = makeSpell('close', 'Close', 1, ['arcane']);
+    Object.assign(close.system, { range: { value: '30 feet' }, target: { value: '1 creature' }, duration: { value: '1 minute' } });
+    const far = makeSpell('far', 'Far', 1, ['arcane']);
+    Object.assign(far.system, { range: { value: '120 feet' }, target: { value: 'up to 4 creatures' }, duration: { value: '1 hour' } });
+    picker.allSpells = [close, far];
+    picker.selectedSpellUuids.add('far');
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <input type="checkbox" data-spell-filter="targets" value="single">
+      <input type="checkbox" data-spell-filter="ranges" value="distance">
+      <input type="number" min="0" data-spell-filter="rangeMin">
+      <input type="number" min="0" data-spell-filter="rangeMax">
+      <input type="number" min="0" data-spell-filter="durationMin">
+      <input type="number" min="0" data-spell-filter="durationMax">
+      <button data-action="resetSpellFilters"></button>
+    `;
+    picker.element = root;
+    picker._scheduleListUpdate = jest.fn();
+    picker._onRender();
+    for (const [key, value] of Object.entries({ targets: 'single', ranges: 'distance', rangeMin: '30', rangeMax: '60', durationMin: '60', durationMax: '60' })) {
+      const input = root.querySelector(`[data-spell-filter="${key}"]`);
+      if (input.type === 'checkbox') input.checked = true;
+      else input.value = value;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['close']);
+    const context = await picker._prepareContext();
+    expect(context.advancedFilters).toEqual(expect.objectContaining({ rangeMin: '30', rangeMax: '60', durationMin: '60', durationMax: '60', activeCount: 6 }));
+    root.querySelector('[data-action="resetSpellFilters"]').click();
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['close', 'far']);
+    expect(root.querySelector('[data-spell-filter="durationMax"]').value).toBe('');
+    expect(picker.selectedSpellUuids.has('far')).toBe(true);
+  });
+
+  test('duration units convert bounds and preserve their meaning when switched', async () => {
+    const picker = new SpellPicker(createMockActor({ items: [] }), 'any', -1, jest.fn());
+    const short = makeSpell('short', 'Short', 1, ['arcane']);
+    short.system.duration = { value: '2 rounds' };
+    const long = makeSpell('long', 'Long', 1, ['arcane']);
+    long.system.duration = { value: '1 minute' };
+    picker.allSpells = [short, long];
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <select data-action="changeDurationUnit"><option value="seconds">Seconds</option><option value="rounds">Rounds</option><option value="minutes">Minutes</option></select>
+      <input type="number" min="0" step="any" data-spell-filter="durationMax">
+      <button data-action="resetSpellFilters"></button>
+    `;
+    picker.element = root;
+    picker._scheduleListUpdate = jest.fn();
+    picker._onRender();
+    const unit = root.querySelector('select');
+    unit.value = 'rounds';
+    unit.dispatchEvent(new Event('change', { bubbles: true }));
+    const maximum = root.querySelector('input');
+    maximum.value = '2';
+    maximum.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(picker.spellFilters.durationMax).toBe('12');
+    expect(picker._filterSpells().map((spell) => spell.uuid)).toEqual(['short']);
+    unit.value = 'minutes';
+    unit.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(maximum.value).toBe('0.2');
+    expect(picker.spellFilters.durationMax).toBe('12');
+    const context = await picker._prepareContext();
+    expect(context.advancedFilters.durationMax).toBe('0.2');
+    expect(context.advancedFilters.durationUnits.find((option) => option.value === 'minutes').selected).toBe(true);
+    expect(context.advancedFilters.activeCount).toBe(1);
+    root.querySelector('button').click();
+    expect(maximum.value).toBe('');
+    expect(picker._filterSpells()).toHaveLength(2);
+  });
+
+  test('advanced section toggles without losing search or filter state', async () => {
+    const picker = new SpellPicker(createMockActor({ items: [] }), 'arcane', 1, jest.fn());
+    picker.searchText = 'magic';
+    picker.spellFilters.actions = ['2'];
+    picker.render = jest.fn();
+    picker._toggleFilterSection('advanced');
+    const context = await picker._prepareContext();
+    expect(context.filterSections.advanced.collapsed).toBe(false);
+    expect(context.searchText).toBe('magic');
+    expect(context.advancedFilters.groups[0].options.find((option) => option.value === '2').selected).toBe(true);
+    expect(picker.render).toHaveBeenCalledWith(false);
+  });
+
   test('prepares inactive publication metadata when all publications are selected', async () => {
     const actor = createMockActor({ items: [] });
     const picker = new SpellPicker(actor, 'arcane', 1, jest.fn(), { excludedSelections: [] });

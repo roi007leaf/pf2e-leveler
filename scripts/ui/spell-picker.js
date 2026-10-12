@@ -4,6 +4,7 @@ import { isRarityAllowedForCurrentUser, getAllowedRaritiesForCurrentUser } from 
 import { annotateGuidance, filterDisallowedForCurrentUser, matchesGuidanceTagFilter, getGuidanceTagLabels, GUIDANCE_TAG_VALUES } from '../access/content-guidance.js';
 import { filterPublicationsForCurrentUser, isRemasterItem, itemHasExcludedTechTrait, buildPublicationGroupChips, getPublicationGroupMembers } from '../access/source-classification.js';
 import { openContentGuidanceMenu } from './content-guidance-menu.js';
+import { createSpellFilters, matchesSpellFilters } from './shared/spell-filters.js';
 import {
   applyRarityFilter,
   applyPublicationFilter,
@@ -18,6 +19,7 @@ import {
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const RARITY_VALUES = ['common', 'uncommon', 'rare', 'unique'];
+const DURATION_UNIT_SECONDS = { seconds: 1, rounds: 6, minutes: 60, hours: 3600, days: 86400 };
 
 let cachedSpells = null;
 let cachedSpellSourceSignature = '';
@@ -78,8 +80,11 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     this.lockedRarities = new Set();
     this.selectedGuidanceTags = new Set();
     this.selectedPublications = new Set();
+    this.spellFilters = createSpellFilters();
+    this.durationUnit = 'seconds';
     this.filterSections = {
       publications: true,
+      advanced: true,
     };
     this.searchText = '';
     this.sortMode = options.sortMode ?? this._getDefaultSortMode();
@@ -176,6 +181,8 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       spells: this.filteredSpells.map((spell) => this._toTemplateSpell(spell)),
+      advancedFilters: this._getAdvancedFiltersContext(),
+      searchText: this.searchText,
       filterSections: this._getFilterSections(),
       publicationOptions,
       publicationGroupChips,
@@ -271,6 +278,32 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }, { signal });
 
     el.addEventListener('change', (e) => {
+      const durationUnit = e.target.closest?.('[data-action="changeDurationUnit"]');
+      if (durationUnit) {
+        if (!Object.hasOwn(DURATION_UNIT_SECONDS, durationUnit.value)) return;
+        this.durationUnit = durationUnit.value;
+        this._updateFilterControlState();
+        return;
+      }
+      const advancedInput = e.target.closest?.('[data-spell-filter]');
+      if (advancedInput) {
+        const key = advancedInput.dataset.spellFilter;
+        if (!Object.hasOwn(this.spellFilters, key) || !advancedInput.checkValidity()) return;
+        if (Array.isArray(this.spellFilters[key])) {
+          const values = new Set(this.spellFilters[key]);
+          if (advancedInput.checked) values.add(advancedInput.value);
+          else values.delete(advancedInput.value);
+          this.spellFilters[key] = [...values];
+        } else {
+          const value = advancedInput.value;
+          this.spellFilters[key] = value !== '' && ['durationMin', 'durationMax'].includes(key)
+            ? String(Number(value) * DURATION_UNIT_SECONDS[this.durationUnit])
+            : value;
+        }
+        this._updateFilterControlState();
+        this._scheduleListUpdate();
+        return;
+      }
       const sortSelect = e.target.closest?.('[data-action="changeSort"]');
       if (sortSelect) {
         this.sortMode = sortSelect.value || this._getDefaultSortMode();
@@ -299,6 +332,14 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
       const action = target.dataset.action;
       const uuid = target.closest('.spell-option')?.dataset?.uuid || target.dataset.uuid;
+
+      if (action === 'resetSpellFilters') {
+        e.preventDefault();
+        this.spellFilters = createSpellFilters();
+        this._updateFilterControlState();
+        this._scheduleListUpdate();
+        return;
+      }
 
       if (action === 'openContentGuidance') {
         e.preventDefault();
@@ -596,6 +637,7 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _filterSpells({ ignoreRarity = false } = {}) {
     let spells = filterDisallowedForCurrentUser([...this.allSpells]);
+    spells = spells.filter((spell) => matchesSpellFilters(spell, this.spellFilters));
     spells = applyPublicationFilter(
       spells,
       this.selectedPublications,
@@ -785,6 +827,20 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     const root = this._getRootElement();
     if (!root) return;
 
+    for (const input of root.querySelectorAll('[data-spell-filter]')) {
+      const key = input.dataset.spellFilter;
+      const value = ['durationMin', 'durationMax'].includes(key)
+        ? this._getDurationInputValue(this.spellFilters[key])
+        : this.spellFilters[key];
+      if (Array.isArray(value)) input.checked = value.includes(input.value);
+      else input.value = value;
+    }
+    const advancedSummary = root.querySelector('[data-section-summary="advanced"]');
+    if (advancedSummary) {
+      const count = this._getAdvancedFiltersContext().activeCount;
+      advancedSummary.textContent = count ? `(${count})` : '';
+    }
+
     const logicButton = root.querySelector('[data-action="toggleTraitLogic"]');
     if (logicButton) logicButton.textContent = this.traitLogic === 'and' ? 'AND' : 'OR';
 
@@ -838,10 +894,68 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getFilterSections() {
     return {
+      advanced: { collapsed: this.filterSections.advanced === true },
       publications: buildPublicationFilterSectionState(
         this.selectedPublications,
         this._publicationTitles,
         this.filterSections?.publications,
+      ),
+    };
+  }
+
+  _getAdvancedFiltersContext() {
+    const labels = (key) => game.i18n.localize(`PF2E_LEVELER.SPELLS.ADVANCED.${key}`);
+    const groups = [
+      ['actions', 'ACTIONS', [
+        ['1', 'ONE_ACTION'], ['2', 'TWO_ACTIONS'], ['3', 'THREE_ACTIONS'],
+        ['reaction', 'REACTION'], ['free', 'FREE'], ['long', 'LONG_CAST'],
+      ]],
+      ['defenses', 'DEFENSES', [
+        ['ac', 'AC'], ['fortitude', 'FORTITUDE'], ['reflex', 'REFLEX'],
+        ['will', 'WILL'], ['none', 'NONE'],
+      ]],
+      ['areas', 'AREA_SHAPE', [
+        ['burst', 'BURST'], ['cone', 'CONE'], ['emanation', 'EMANATION'], ['line', 'LINE'],
+        ['cube', 'CUBE'], ['square', 'SQUARE'], ['cylinder', 'CYLINDER'], ['none', 'NO_AREA'],
+      ]],
+      ['targets', 'TARGETS', [
+        ['self', 'SELF'], ['single', 'SINGLE_TARGET'], ['multiple', 'MULTIPLE_TARGETS'],
+        ['area', 'AREA_TARGET'], ['none', 'NO_TARGET'], ['other', 'OTHER'],
+      ]],
+      ['ranges', 'RANGE_TYPE', [
+        ['self', 'SELF'], ['touch', 'TOUCH'], ['distance', 'DISTANCE'],
+        ['unlimited', 'UNLIMITED'], ['other', 'OTHER'],
+      ]],
+    ].map(([key, title, options]) => ({
+      key,
+      label: labels(title),
+      options: options.map(([value, label]) => ({
+        value,
+        label: labels(label),
+        selected: this.spellFilters[key].includes(value),
+      })),
+    }));
+    return {
+      groups,
+      areaMin: this.spellFilters.areaMin,
+      areaMax: this.spellFilters.areaMax,
+      rangeMin: this.spellFilters.rangeMin,
+      rangeMax: this.spellFilters.rangeMax,
+      durationMin: this._getDurationInputValue(this.spellFilters.durationMin),
+      durationMax: this._getDurationInputValue(this.spellFilters.durationMax),
+      durationUnits: Object.keys(DURATION_UNIT_SECONDS).map((value) => ({
+        value,
+        label: labels(value.toUpperCase()),
+        selected: this.durationUnit === value,
+      })),
+      sustainedOptions: [['', 'ANY'], ['yes', 'SUSTAINED'], ['no', 'NOT_SUSTAINED']].map(([value, label]) => ({
+        value,
+        label: labels(label),
+        selected: this.spellFilters.sustained === value,
+      })),
+      activeCount: Object.values(this.spellFilters).reduce(
+        (count, value) => count + (Array.isArray(value) ? value.length : Number(value !== '')),
+        0,
       ),
     };
   }
@@ -853,6 +967,10 @@ export class SpellPicker extends HandlebarsApplicationMixin(ApplicationV2) {
       [section]: !this.filterSections?.[section],
     };
     this.render(false);
+  }
+
+  _getDurationInputValue(seconds) {
+    return seconds === '' ? '' : String(Number(seconds) / DURATION_UNIT_SECONDS[this.durationUnit]);
   }
 
   _scheduleListUpdate(delay = 0) {

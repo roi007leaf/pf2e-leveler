@@ -27,6 +27,7 @@
       <div class="picker__filter-group picker__filter-group--compact picker__filter-group--search">
         <input type="text" class="picker__search"
                placeholder="{{localize 'PF2E_LEVELER.SPELLS.SEARCH'}}"
+               value="{{searchText}}"
                data-action="searchSpells">
         {{#if isGM}}
         <button type="button" class="picker__settings-gear" data-action="openContentGuidance"
@@ -34,6 +35,71 @@
           <i class="fa-solid fa-gear"></i>
         </button>
         {{/if}}
+      </div>
+
+      <div class="picker__filter-group picker__filter-group--collapsible" data-section="advanced">
+        <button type="button" class="picker__section-toggle" data-action="toggleFilterSection" data-section="advanced"
+                aria-expanded="{{#if filterSections.advanced.collapsed}}false{{else}}true{{/if}}">
+          <span>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.TITLE"}}</span>
+          <span class="picker__section-meta">
+            <span class="picker__section-summary" data-section-summary="advanced">{{#if advancedFilters.activeCount}}({{advancedFilters.activeCount}}){{/if}}</span>
+            <i class="fa-solid fa-chevron-down picker__section-chevron" aria-hidden="true"></i>
+          </span>
+        </button>
+        {{#unless filterSections.advanced.collapsed}}
+        <div class="picker__section-body spell-picker__advanced">
+          {{#each advancedFilters.groups}}
+          <fieldset>
+            <legend class="picker__filter-label">{{this.label}}</legend>
+            <div class="spell-picker__filter-choices">
+              {{#each this.options}}
+              <label class="spell-picker__filter-choice">
+                <input type="checkbox" data-spell-filter="{{../key}}" value="{{this.value}}" {{#if this.selected}}checked{{/if}}>
+                <span>{{this.label}}</span>
+              </label>
+              {{/each}}
+            </div>
+          </fieldset>
+          {{/each}}
+          <fieldset>
+            <legend class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.AREA_SIZE"}}</legend>
+            <div class="spell-picker__filter-choices">
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MIN"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="areaMin" value="{{advancedFilters.areaMin}}"></label>
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MAX"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="areaMax" value="{{advancedFilters.areaMax}}"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.RANGE_SIZE"}}</legend>
+            <div class="spell-picker__filter-choices">
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MIN"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="rangeMin" value="{{advancedFilters.rangeMin}}"></label>
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MAX"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="rangeMax" value="{{advancedFilters.rangeMax}}"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.DURATION_SIZE"}}</legend>
+            <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.DURATION_UNIT"}}
+              <select class="picker__select picker__select--compact" data-action="changeDurationUnit">
+                {{#each advancedFilters.durationUnits}}
+                <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+                {{/each}}
+              </select>
+            </label>
+            <div class="spell-picker__filter-choices">
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MIN"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="durationMin" value="{{advancedFilters.durationMin}}"></label>
+              <label>{{localize "PF2E_LEVELER.SPELLS.ADVANCED.MAX"}}<input class="picker__search picker__search--compact" type="number" min="0" step="any" data-spell-filter="durationMax" value="{{advancedFilters.durationMax}}"></label>
+            </div>
+          </fieldset>
+          <label class="picker__filter-label">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.DURATION"}}
+            <select class="picker__select picker__select--compact" data-spell-filter="sustained">
+              {{#each advancedFilters.sustainedOptions}}
+              <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.label}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <p class="spell-picker__filter-hint">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.HINT"}}</p>
+          <button type="button" class="picker__prereq-toggle" data-action="resetSpellFilters">{{localize "PF2E_LEVELER.SPELLS.ADVANCED.RESET"}}</button>
+        </div>
+        {{/unless}}
       </div>
 
       <div class="picker__filter-group picker__filter-group--utility">
