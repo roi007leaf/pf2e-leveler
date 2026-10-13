@@ -426,6 +426,10 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
       changed = true;
     }
 
+    if (this._backfillMissingFeatsFromActor(plan, options)) {
+      changed = true;
+    }
+
     if (changed) savePlan(this.actor, plan);
 
     // Flag if any stored feats are missing skillRules (pre-1.3.5 plans)
@@ -772,20 +776,48 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     return false;
   }
 
-  _seedPlanFeatsFromActor(actor, plan, options) {
+  // Fills empty historical slots of an existing plan from actor feats with an explicit slot location,
+  // e.g. Workbench ancestral paragon feats taken before the plan existed or the variant was enabled.
+  _backfillMissingFeatsFromActor(plan, options = this._getVariantOptions()) {
+    const plannedIds = new Set();
+    for (const levelData of Object.values(plan?.levels ?? {})) {
+      for (const key of FEAT_KEYS) {
+        for (const feat of levelData?.[key] ?? []) {
+          if (feat?.uuid) plannedIds.add(feat.uuid);
+          if (feat?.slug) plannedIds.add(feat.slug);
+        }
+      }
+    }
+
+    return this._seedPlanFeatsFromActor(this.actor, plan, options, {
+      locationOnly: true,
+      skip: (feat) => plannedIds.has(this._getActorFeatSourceUuid(feat)) || (!!feat.slug && plannedIds.has(feat.slug)),
+    });
+  }
+
+  _getActorFeatSourceUuid(feat) {
+    return feat.sourceId ?? feat.flags?.core?.sourceId ?? feat.uuid;
+  }
+
+  _seedPlanFeatsFromActor(actor, plan, options, { locationOnly = false, skip = null } = {}) {
     const actorLevel = Number(actor?.system?.details?.level?.value ?? 1);
     const actorItems = actor?.items?.contents ?? (Array.isArray(actor?.items) ? actor.items : []);
     const actorFeats = actorItems.filter((item) => item?.type === 'feat' && String(item?.system?.category ?? '').toLowerCase() !== 'classfeature').sort((a, b) => this._getActorFeatTakenLevel(a) - this._getActorFeatTakenLevel(b));
+    let changed = false;
 
     for (const feat of actorFeats) {
-      const placement = this._getActorFeatPlanPlacement(feat, plan, options, actorLevel);
+      if (skip?.(feat)) continue;
+      const placement = locationOnly
+        ? this._getActorFeatPlacementFromLocation(feat, plan, options, actorLevel)
+        : this._getActorFeatPlanPlacement(feat, plan, options, actorLevel);
       if (!placement) continue;
       const { level, category } = placement;
       if (!plan.levels[level] || !FEAT_PLAN_CATEGORIES.has(category)) continue;
       if ((plan.levels[level][category] ?? []).length > 0) continue;
 
+      changed = true;
       setLevelFeat(plan, level, category, {
-        uuid: feat.sourceId ?? feat.flags?.core?.sourceId ?? feat.uuid,
+        uuid: this._getActorFeatSourceUuid(feat),
         name: feat.name,
         slug: feat.slug ?? feat.uuid ?? null,
         img: feat.img ?? null,
@@ -802,6 +834,8 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         skillRulesVersion: 0,
       });
     }
+
+    return changed;
   }
 
   setFocusAnchor(element) {
@@ -2514,7 +2548,7 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         return {
           selectedFeatTypes: ['skill'],
           lockedFeatTypes: ['skill'],
-          ...(await this._buildInvestigatorSkillFeatLimitations(level, buildState)),
+          ...(await this._buildSkillFeatLimitations(level, buildState)),
           maxLevel: level,
         };
       case 'generalFeats':
@@ -2573,6 +2607,19 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
     else this._customPlanOpenLevels.add(level);
     this._capturePlannerScroll();
     this.render(true);
+  }
+
+  async _buildSkillFeatLimitations(level, buildState) {
+    const investigatorLimitations = await this._buildInvestigatorSkillFeatLimitations(level, buildState);
+    if (investigatorLimitations.requiredSkills) return investigatorLimitations;
+
+    const classSlug = String(buildState?.class?.slug ?? this.actor?.class?.slug ?? '').toLowerCase();
+    const restriction = ClassRegistry.get(classSlug, this.actor)?.skillFeatRestriction;
+    if (!restriction?.levels?.includes(level)) return {};
+    return {
+      requiredSkills: [...restriction.skills],
+      selectedSkills: [...restriction.skills],
+    };
   }
 
   async _buildInvestigatorSkillFeatLimitations(level, buildState) {

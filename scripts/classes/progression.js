@@ -104,7 +104,7 @@ function addSecondaryDualClassChoices(choices, primaryClassDef, dualClassDef, le
 function addClassFeatureSkillIncreaseChoices(choices, classDef, level) {
   for (const feature of classDef?.classFeatures ?? []) {
     const benefit = feature?.additionalSkillIncrease;
-    if (feature.level !== level || !benefit) continue;
+    if (!benefit || !(benefit.levels ?? [feature.level]).includes(level)) continue;
 
     const source = `${classDef.slug}:${feature.key}`;
     if (choices.some((choice) => choice.type === 'skillIncrease' && choice.source === source)) continue;

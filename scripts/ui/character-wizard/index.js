@@ -1308,7 +1308,10 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _getCreationSubclassFeatAlias(slug, classState) {
     if (!slug || !classState?.slug || !classState?.subclassType) return null;
-    if (classState.slug === 'bard' && classState.subclassType === 'muse') return `${slug}-muse`;
+    const typeSlug = slugify(classState.subclassType);
+    if (slug.endsWith(`-${typeSlug}`)) return null;
+    const subclassSlugs = [this.data.subclass?.slug, this.data.dualSubclass?.slug].map((value) => String(value ?? '').trim().toLowerCase());
+    if (classState.slug === 'bard' || subclassSlugs.includes(slug)) return `${slug}-${typeSlug}`;
     return null;
   }
 

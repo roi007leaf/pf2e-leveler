@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.12.1
+
+### Fixed
+
+- **Mechanic and Technomancer subclass feats** - Feats requiring an exocortex (e.g. "drone or turret exocortex") or a programming language (e.g. "DPS++ programming language") now recognize the chosen subclass in character creation and the level planner instead of treating programming languages as spoken languages
+- **Mechanic's Ingenuity** - The level planner now adds the bonus Computers/Crafting skill increase and the bonus Computers/Crafting skill feat at levels 3, 7, and 15
+- **Historical feats in existing plans** - Opening the planner now fills empty past-level slots from the actor's slotted feats, so Workbench ancestral paragon feats (and other slotted feats) taken before the plan existed or before the variant was enabled are no longer missing
+
 ## 3.12.0
 
 ### Added

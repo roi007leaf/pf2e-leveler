@@ -2,6 +2,7 @@ import { getAutomaticLoreProficiencies, getChoicesForLevel, getGradualBoostGroup
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { ROGUE } from '../../../scripts/classes/rogue.js';
 import { THAUMATURGE } from '../../../scripts/classes/thaumaturge.js';
+import { MECHANIC } from '../../../scripts/classes/mechanic.js';
 
 describe('getGradualBoostGroupLevels', () => {
   test('returns the first gradual boost set for levels 2 through 5', () => {
@@ -72,6 +73,28 @@ describe('additional class skill increases', () => {
     expect(choices[1]).toEqual(expect.objectContaining({
       source: 'thaumaturge:thaumaturgic-expertise',
     }));
+  });
+});
+
+describe("Mechanic's Ingenuity", () => {
+  test.each([3, 7, 15])('adds a Computers/Crafting skill increase and skill feat at level %i', (level) => {
+    const choices = getChoicesForLevel(MECHANIC, level);
+
+    expect(choices).toEqual(expect.arrayContaining([
+      { type: 'skillFeat' },
+      {
+        type: 'skillIncrease',
+        source: 'mechanic:mechanic-s-ingenuity',
+        label: "Mechanic's Ingenuity",
+        allowedSkills: ['computers', 'crafting'],
+      },
+    ]));
+    expect(MECHANIC.skillFeatRestriction.levels).toContain(level);
+  });
+
+  test('does not add the bonus at other odd levels', () => {
+    expect(getChoicesForLevel(MECHANIC, 5).some((choice) => choice.source === 'mechanic:mechanic-s-ingenuity')).toBe(false);
+    expect(getChoicesForLevel(MECHANIC, 5).some((choice) => choice.type === 'skillFeat')).toBe(false);
   });
 });
 

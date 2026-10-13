@@ -43,6 +43,9 @@ const RANK_CONNECTOR_PATTERN = '(?:in|en)';
 const OR_WORD_PATTERN = '(?:or|ou)';
 const AND_WORD_PATTERN = '(?:and|et)';
 
+// Subclass prerequisites written as "<name> [or <name>] <type>", e.g. "drone or turret exocortex".
+const SHARED_SUFFIX_SUBCLASS_TYPES = ['programming language', 'exocortex'];
+
 const RANK_PATTERN = new RegExp(
   `(${RANK_NAME_PATTERN})\\s+${RANK_CONNECTOR_PATTERN}\\s+(.+)`,
   'iu',
@@ -281,6 +284,9 @@ export function parsePrerequisite(text) {
   const heritageMatch = tryParseHeritageRequirement(baseText, trimmed);
   if (heritageMatch) return heritageMatch;
 
+  const subclassNode = tryParseSharedSuffixSubclassNode(baseText);
+  if (subclassNode?.kind === 'leaf') return { type: 'feat', slug: subclassNode.slug, text: trimmed };
+
   const languageMatch = tryParseLanguageRequirement(baseText, trimmed);
   if (languageMatch) return languageMatch;
 
@@ -302,6 +308,9 @@ export function parsePrerequisiteNode(text) {
 
   const rankAlternativesNode = tryParseRankWithAlternativeSubjects(normalized);
   if (rankAlternativesNode) return rankAlternativesNode;
+
+  const subclassNode = tryParseSharedSuffixSubclassNode(normalized);
+  if (subclassNode) return subclassNode;
 
   const languageNode = tryParseLanguageNode(normalized);
   if (languageNode) return languageNode;
@@ -1252,6 +1261,24 @@ function splitLanguageList(text) {
     .split(/\s*(?:,|\band\b|\bet\b)\s*/i)
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function tryParseSharedSuffixSubclassNode(text) {
+  const normalized = String(text ?? '').trim();
+  for (const subclassType of SHARED_SUFFIX_SUBCLASS_TYPES) {
+    const match = normalized.match(new RegExp(`^(.+?)\\s+${subclassType.replace(/ /g, '\\s+')}$`, 'i'));
+    if (!match) continue;
+
+    const typeSlug = slugify(subclassType);
+    const leaves = match[1]
+      .split(new RegExp(`\\s*,\\s*(?:${OR_WORD_PATTERN}\\s+)?|\\s+${OR_WORD_PATTERN}\\s+`, 'i'))
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ kind: 'leaf', type: 'feat', slug: `${slugify(name)}-${typeSlug}`, text: `${name} ${subclassType}` }));
+    if (leaves.length === 0) return null;
+    return leaves.length === 1 ? { ...leaves[0], text: normalized } : { kind: 'any', text: normalized, children: leaves };
+  }
+  return null;
 }
 
 function tryParseLanguageNode(text) {

@@ -1,3 +1,6 @@
+const INGENUITY_LEVELS = [3, 7, 15];
+const INGENUITY_SKILLS = ['computers', 'crafting'];
+
 export const MECHANIC = {
   slug: 'mechanic',
   nameKey: 'Mechanic',
@@ -7,17 +10,23 @@ export const MECHANIC = {
 
   featSchedule: {
     class: [1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
-    skill: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+    skill: [2, 3, 4, 6, 7, 8, 10, 12, 14, 15, 16, 18, 20],
     general: [3, 7, 11, 15, 19],
     ancestry: [5, 9, 13, 17],
   },
   skillIncreaseSchedule: [3, 5, 7, 9, 11, 13, 15, 17, 19],
   abilityBoostSchedule: [5, 10, 15, 20],
+  skillFeatRestriction: { levels: INGENUITY_LEVELS, skills: INGENUITY_SKILLS },
 
   classFeatures: [
     { level: 3, name: 'Mobile Exocortex', key: 'mobile-exocortex' },
     { level: 3, name: 'Will Expertise', key: 'will-expertise' },
-    { level: 3, name: "Mechanic's Ingenuity", key: 'mechanic-s-ingenuity' },
+    {
+      level: 3,
+      name: "Mechanic's Ingenuity",
+      key: 'mechanic-s-ingenuity',
+      additionalSkillIncrease: { levels: INGENUITY_LEVELS, allowedSkills: INGENUITY_SKILLS },
+    },
     { level: 5, name: 'Mechanic Weapon Expertise', key: 'mechanic-weapon-expertise' },
     { level: 5, name: 'Damage Customizations', key: 'damage-customizations' },
     { level: 7, name: 'Reflex Mastery', key: 'reflex-mastery' },

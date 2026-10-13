@@ -1716,6 +1716,19 @@ describe('CharacterWizard feat step ancestry filtering', () => {
     expect(buildState.ancestryTraits.has('beast-folk')).toBe(true);
   });
 
+  it('aliases the selected subclass with its subclass type for creation prerequisites', async () => {
+    game.settings.get = jest.fn(() => false);
+    const wizard = new CharacterWizard(createMockActor());
+    wizard.data.class = { uuid: 'class-mechanic', slug: 'mechanic', name: 'Mechanic' };
+    wizard.data.subclass = { uuid: 'feature-drone', slug: 'drone', name: 'Drone' };
+
+    const buildState = await wizard._buildCreationFeatBuildState();
+
+    expect(buildState.feats.has('drone')).toBe(true);
+    expect(buildState.feats.has('drone-exocortex')).toBe(true);
+    expect(buildState.feats.has('turret-exocortex')).toBe(false);
+  });
+
   it('keeps generic creature traits out of creation ancestry feat access traits', async () => {
     game.settings.get = jest.fn(() => false);
     const wizard = new CharacterWizard(createMockActor());

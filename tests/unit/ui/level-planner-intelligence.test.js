@@ -1976,4 +1976,37 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     expect(changed).toBe(false);
     expect(planner.plan.levels[2].abilityBoosts).toEqual([]);
   });
+
+  it('backfills historical Workbench ancestral paragon feats into an existing plan', () => {
+    const paragonFeat = (name, slug, level) => ({
+      type: 'feat',
+      name,
+      slug,
+      sourceId: `Compendium.pf2e.feats-srd.Item.${slug}`,
+      system: { category: 'ancestry', level: { value: 1, taken: level }, location: `xdy_ancestryparagon-${level}`, traits: { value: ['elf'] } },
+    });
+    const actor = createMockActor({ system: { details: { level: { value: 12 }, xp: { value: 0, max: 1000 } } } });
+    actor.class.slug = 'alchemist';
+    actor.items = [
+      paragonFeat('Wildborn Magic', 'wildborn-magic', 3),
+      paragonFeat('Elven Persistence', 'elven-persistence', 7),
+      paragonFeat('Already Planned', 'already-planned', 11),
+    ];
+    global.game = {
+      ...global.game,
+      settings: { get: jest.fn((scope, key) => scope === 'pf2e-leveler' && key === 'ancestralParagon') },
+    };
+
+    const planner = new LevelPlanner(actor);
+    planner.plan = createPlan('alchemist', planner._getVariantOptions());
+    planner.plan.levels[5].ancestryFeats = [{ uuid: 'Compendium.pf2e.feats-srd.Item.already-planned', slug: 'already-planned' }];
+
+    const changed = planner._backfillMissingFeatsFromActor(planner.plan, planner._getVariantOptions());
+
+    expect(changed).toBe(true);
+    expect(planner.plan.levels[3].ancestryFeats).toEqual([expect.objectContaining({ slug: 'wildborn-magic' })]);
+    expect(planner.plan.levels[7].ancestryFeats).toEqual([expect.objectContaining({ slug: 'elven-persistence' })]);
+    expect(planner.plan.levels[11]?.ancestryFeats ?? []).toEqual([]);
+    expect(planner._backfillMissingFeatsFromActor(planner.plan, planner._getVariantOptions())).toBe(false);
+  });
 });

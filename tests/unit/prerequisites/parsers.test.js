@@ -6,6 +6,24 @@ import {
 } from '../../../scripts/prerequisites/parsers.js';
 
 describe('parsePrerequisite', () => {
+  test('parses Starfinder subclass suffix prerequisites as subclass feats, not languages', () => {
+    expect(parsePrerequisite('DPS++ programming language')).toEqual(
+      expect.objectContaining({ type: 'feat', slug: 'dps-programming-language' }),
+    );
+    expect(parsePrerequisiteNode('drone exocortex')).toEqual(
+      expect.objectContaining({ kind: 'leaf', type: 'feat', slug: 'drone-exocortex' }),
+    );
+    expect(parsePrerequisiteNode('drone or turret exocortex').children.map((child) => child.slug)).toEqual([
+      'drone-exocortex',
+      'turret-exocortex',
+    ]);
+    expect(parsePrerequisiteNode('FORTRUN or ServoShell programming language').children.map((child) => child.slug)).toEqual([
+      'fortrun-programming-language',
+      'servoshell-programming-language',
+    ]);
+    expect(parsePrerequisiteNode('Draconic or Elven language').children[0].type).toBe('language');
+  });
+
   test('parses skill rank requirement', () => {
     const result = parsePrerequisite('trained in Athletics');
     expect(result.type).toBe('skill');
