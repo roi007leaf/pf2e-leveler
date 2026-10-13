@@ -15,6 +15,17 @@ export function hasEmbeddedSpellChoiceDescription(html, category = 'spells') {
   return getEmbeddedSpellChoiceContexts(html, category).length > 0;
 }
 
+export function getInnateSpellGrantUuids(html) {
+  const uuids = getDescriptionBlocks(html).flatMap((block) => {
+    const text = normalizeDescriptionText(block);
+    if (hasEmbeddedSpellChoiceText(text)) return [];
+    if (!/\binnate spells?\b/u.test(text)) return [];
+    if (!/\b(?:cast|gain|gains|grant|grants|learn)\b/u.test(text)) return [];
+    return extractCompendiumUuidsByCategory(block, 'spells');
+  });
+  return [...new Set(uuids)];
+}
+
 function getDescriptionBlocks(html) {
   const value = String(html ?? '').trim();
   if (!value) return [];

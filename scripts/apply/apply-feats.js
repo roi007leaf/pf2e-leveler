@@ -6,7 +6,7 @@ import {
   extractCompendiumUuidsByCategory,
   isCompendiumUuidInCategory,
 } from '../system-support/profiles.js';
-import { hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
+import { getInnateSpellGrantUuids, hasEmbeddedSpellChoiceDescription } from '../utils/spell-description.js';
 
 const CATEGORY_TO_GROUP = {
   classFeats: 'class',
@@ -148,11 +148,14 @@ async function applyGrantItemSpellsFromFeats(actor, plan, featDatas) {
     // Also scan description for spell UUID references
     const html = featData.system?.description?.value ?? '';
     if (html && !hasEmbeddedSpellChoiceDescription(html)) {
+      const innateUuids = new Set(getInnateSpellGrantUuids(html));
       const descUuids = extractCompendiumUuidsByCategory(html, 'spells');
       for (const uuid of descUuids) {
         if (focusSpells.some((entry) => entry.spell.uuid === uuid)) continue;
         const spell = await fromUuid(uuid).catch(() => null);
-        if (spell && isExplicitFocusSpell(spell)) focusSpells.push({ spell, source: featData });
+        if (spell && (isExplicitFocusSpell(spell) || innateUuids.has(uuid))) {
+          addFeatGrantedSpell(spell, featData, focusSpells, innateSpells);
+        }
       }
     }
   }

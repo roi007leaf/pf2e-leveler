@@ -739,6 +739,36 @@ describe('applyFeats', () => {
     }
   });
 
+  test.each(['customFeats', 'skillFeats', 'generalFeats'])('Arcane Sense adds its described innate cantrip from %s', async (category) => {
+    const featUuid = 'Compendium.pf2e.feats-srd.Item.blMeVamjGz4ODWxq';
+    const spellUuid = 'Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl';
+    const feat = {
+      name: 'Arcane Sense', type: 'feat',
+      system: {
+        slug: 'arcane-sense', level: { value: 1 }, rules: [],
+        description: { value: '<p>Your study of magic allows you to instinctively sense its presence. You can cast 1st-rank @UUID[Compendium.pf2e.spells-srd.Item.gpzpAAAJ1Lza2JVl]{Detect Magic} at will as an arcane innate spell. If you\'re a master in Arcana, the spell is heightened to 3rd rank; if you\'re legendary, it is heightened to 4th rank.</p>' },
+      },
+    };
+    const spell = {
+      name: 'Detect Magic', type: 'spell', flags: { core: { sourceId: spellUuid } },
+      system: { level: { value: 1 }, traits: { value: ['cantrip', 'concentrate', 'manipulate'], traditions: ['arcane', 'divine', 'occult', 'primal'] } },
+    };
+    global.fromUuid = jest.fn(async (uuid) => {
+      const data = uuid === featUuid ? feat : uuid === spellUuid ? spell : null;
+      return data ? { ...data, uuid, toObject: () => foundry.utils.deepClone(data) } : null;
+    });
+    mockActor.createEmbeddedDocuments = jest.fn(async (_type, docs) => {
+      const created = docs.map((doc, index) => ({ ...doc, id: `${doc.type}-${index}` }));
+      mockActor.items.push(...created);
+      return created;
+    });
+    await applyFeats(mockActor, { classSlug: 'rogue', levels: { 2: { [category]: [{ uuid: featUuid, name: feat.name, slug: 'arcane-sense' }] } } }, 2);
+    const innate = mockActor.items.find((item) => item.type === 'spellcastingEntry');
+    expect(innate).toEqual(expect.objectContaining({ system: expect.objectContaining({ prepared: { value: 'innate' }, tradition: { value: 'arcane' } }) }));
+    expect(mockActor.items.find((item) => item.type === 'spell')).toEqual(expect.objectContaining({ name: 'Detect Magic', system: expect.objectContaining({ location: { value: innate.id } }) }));
+    expect(mockActor.update).not.toHaveBeenCalled();
+  });
+
   test('adds non-focus GrantItem spells from ancestry feats as innate spells', async () => {
     mockActor.createEmbeddedDocuments = jest
       .fn()

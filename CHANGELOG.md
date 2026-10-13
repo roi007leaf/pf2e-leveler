@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.11.0
+
+### Fixed
+
+- **Description-only innate spell grants** - Applying feats such as Arcane Sense now adds their explicitly granted innate spells and creates an innate spellcasting entry when needed, including feats selected in bonus, skill, and general slots; incidental spell references and unresolved choices are not granted automatically
+
 ## 3.10.0
 
 ### Added
