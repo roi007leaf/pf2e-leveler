@@ -2,7 +2,7 @@ import { MODULE_ID, MIN_PLAN_LEVEL, MAX_LEVEL, PLAN_STATUS, PERMANENT_ITEM_TYPES
 import { ensureActorClassRegistered, ensureClassItemRegistered, ensureClassRegistry } from '../../classes/ensure.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { getChoicesForLevel, getGradualBoostGroupLevels, getLevelSummary } from '../../classes/progression.js';
-import { createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, setLevelSpellSwap, setLevelSignatureSpell, upsertLevelFeatGrant } from '../../plan/plan-model.js';
+import { createEmptyLevelData, createPlan, getLevelData, setLevelBoosts, setLevelFeat, setLevelSkillIncrease, toggleLevelIntBonusSkill, toggleLevelIntBonusLanguage, addLevelSpell, addLevelReminder, clearLevelReminders, resetLevelData, addLevelFeatRetrain, addLevelSkillRetrain, addLevelCustomFeat, removeLevelCustomFeat, addLevelCustomSkillIncrease, removeLevelCustomSkillIncrease, addLevelCustomSpell, removeLevelCustomSpell, addLevelCustomSpellEntry, removeLevelCustomSpellEntry, setLevelEquipmentSlot, clearLevelEquipmentSlot, addLevelCustomEquipment, removeLevelCustomEquipment, removeLevelSpell, setLevelSpellSwap, setLevelSignatureSpell, upsertLevelFeatGrant } from '../../plan/plan-model.js';
 import { getSpellbookBonusCantripSelectionCount } from '../../plan/spellbook-feats.js';
 import { buildFeatGrantRequirements, buildPlanFormulaProgressionRequirements } from '../../plan/feat-grants.js';
 import { getPlan, savePlan, clearPlan, exportPlan, importPlan } from '../../plan/plan-store.js';
@@ -380,30 +380,12 @@ export class LevelPlanner extends HandlebarsApplicationMixin(ApplicationV2) {
         changed = true;
       }
 
-      for (const key of ['customFeats', 'customSkillIncreases', 'customSpells', 'customSpellEntries']) {
-        if (!Array.isArray(plan.levels[level][key])) {
-          plan.levels[level][key] = [];
-          changed = true;
-        }
-      }
-
-      for (const choice of choices) {
-        if (choice.type === 'spells' && !plan.levels[level].spells) {
-          plan.levels[level].spells = [];
-          changed = true;
-        }
-        if (choice.type === 'abilityBoosts' && !plan.levels[level].abilityBoosts) {
-          plan.levels[level].abilityBoosts = [];
-          changed = true;
-        }
-        if (choice.type === 'abilityBoosts' && !plan.levels[level].intBonusSkills) {
-          plan.levels[level].intBonusSkills = [];
-          changed = true;
-        }
-        if (choice.type === 'abilityBoosts' && !plan.levels[level].intBonusLanguages) {
-          plan.levels[level].intBonusLanguages = [];
-          changed = true;
-        }
+      // Slots added after the plan was created (e.g. a variant enabled later) need their storage too.
+      for (const [key, emptyValue] of Object.entries(createEmptyLevelData(choices))) {
+        const current = plan.levels[level][key];
+        if (current != null && Array.isArray(current) === Array.isArray(emptyValue)) continue;
+        plan.levels[level][key] = emptyValue;
+        changed = true;
       }
     }
 

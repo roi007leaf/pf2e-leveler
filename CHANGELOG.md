@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.12.2
+
+### Fixed
+
+- **Ancestral paragon feats in existing plans** - Plans created before a variant such as Ancestral Paragon was enabled now gain storage for the new slots when opened, so historical Workbench ancestral paragon feats are imported into their levels instead of leaving the slots empty
+
 ## 3.12.1
 
 ### Fixed

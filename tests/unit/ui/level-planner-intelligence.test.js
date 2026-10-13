@@ -1998,12 +1998,14 @@ describe('LevelPlanner intelligence boost planner choices', () => {
     };
 
     const planner = new LevelPlanner(actor);
-    planner.plan = createPlan('alchemist', planner._getVariantOptions());
-    planner.plan.levels[5].ancestryFeats = [{ uuid: 'Compendium.pf2e.feats-srd.Item.already-planned', slug: 'already-planned' }];
+    // Plan created before the paragon variant was enabled has no paragon slot storage.
+    const plan = createPlan('alchemist', {});
+    expect(plan.levels[3].ancestryFeats).toBeUndefined();
+    plan.levels[5].ancestryFeats = [{ uuid: 'Compendium.pf2e.feats-srd.Item.already-planned', slug: 'already-planned' }];
+    planner.plan = plan;
 
-    const changed = planner._backfillMissingFeatsFromActor(planner.plan, planner._getVariantOptions());
+    planner._migratePlan(plan, 'alchemist');
 
-    expect(changed).toBe(true);
     expect(planner.plan.levels[3].ancestryFeats).toEqual([expect.objectContaining({ slug: 'wildborn-magic' })]);
     expect(planner.plan.levels[7].ancestryFeats).toEqual([expect.objectContaining({ slug: 'elven-persistence' })]);
     expect(planner.plan.levels[11]?.ancestryFeats ?? []).toEqual([]);
