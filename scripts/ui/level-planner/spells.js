@@ -1,4 +1,4 @@
-import { MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
+import { ADVANCED_FOCUS_FEAT_SLUGS, GREATER_FOCUS_FEAT_SLUGS, MAX_LEVEL, MIN_PLAN_LEVEL, SPELLBOOK_CLASSES, SUBCLASS_TAGS } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { resolveClassEdition } from '../../classes/editions.js';
 import { computeBuildState } from '../../plan/build-state.js';
@@ -448,22 +448,19 @@ export async function getFocusSpellsForLevel(planner, level, classSlug = null) {
   const buildState = getCachedBuildState(planner, level);
   const ownedFeats = buildState.feats ?? new Set();
 
-  const advancedFeatSlugs = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
-  const greaterFeatSlugs = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
-
-  const hasAdvanced = advancedFeatSlugs.some((slug) => ownedFeats.has(slug));
-  const hasGreater = greaterFeatSlugs.some((slug) => ownedFeats.has(slug));
+  const hasAdvanced = ADVANCED_FOCUS_FEAT_SLUGS.some((slug) => ownedFeats.has(slug));
+  const hasGreater = GREATER_FOCUS_FEAT_SLUGS.some((slug) => ownedFeats.has(slug));
 
   const entries = [];
   if (data.focusSpells.initial && level === 1) {
     entries.push({ uuid: data.focusSpells.initial, tier: 'Initial' });
   }
   if (data.focusSpells.advanced && hasAdvanced) {
-    const featLevel = findFeatLevel(planner, advancedFeatSlugs);
+    const featLevel = findFeatLevel(planner, ADVANCED_FOCUS_FEAT_SLUGS);
     if (featLevel === level) entries.push({ uuid: data.focusSpells.advanced, tier: 'Advanced' });
   }
   if (data.focusSpells.greater && hasGreater) {
-    const featLevel = findFeatLevel(planner, greaterFeatSlugs);
+    const featLevel = findFeatLevel(planner, GREATER_FOCUS_FEAT_SLUGS);
     if (featLevel === level) entries.push({ uuid: data.focusSpells.greater, tier: 'Greater' });
   }
 

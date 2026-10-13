@@ -4,6 +4,7 @@ import { DRUID } from '../../../scripts/classes/druid.js';
 import { FIGHTER } from '../../../scripts/classes/fighter.js';
 import { MAGUS } from '../../../scripts/classes/magus.js';
 import { SORCERER } from '../../../scripts/classes/sorcerer.js';
+import { TECHNOMANCER } from '../../../scripts/classes/technomancer.js';
 import { WIZARD } from '../../../scripts/classes/wizard.js';
 
 describe('applySpells', () => {
@@ -16,6 +17,7 @@ describe('applySpells', () => {
     ClassRegistry.register(SORCERER);
     ClassRegistry.register(MAGUS);
     ClassRegistry.register(WIZARD);
+    ClassRegistry.register(TECHNOMANCER);
   });
 
   beforeEach(() => {
@@ -100,6 +102,41 @@ describe('applySpells', () => {
     const updates = actor.updateEmbeddedDocuments.mock.calls.flatMap((call) => call[1]);
     expect(updates.find((update) => update._id === 'wizard')).toMatchObject({ 'system.slots.slot9.max': 2, 'system.slots.slot10.max': 0 });
     expect(updates.find((update) => update._id !== 'wizard')).toMatchObject({ 'system.slots.slot10.max': 1 });
+  });
+
+  test('adds the technomancer advanced magic hack and new-rank spell cache entry', async () => {
+    const hackUuid = 'Compendium.sf2e.spells.Item.0rAYoJi9vdj1xIwF';
+    const cacheUuid = 'Compendium.sf2e.spells.Item.aqRYNoSvxsVfqglH';
+    const makeSpell = (uuid, name) => ({
+      uuid,
+      name,
+      img: `${name}.png`,
+      system: { traits: { value: [], traditions: ['arcane'] } },
+      toObject: () => ({ name, type: 'spell', system: { traits: { value: [], traditions: ['arcane'] } } }),
+    });
+    global.fromUuid = jest.fn(async (uuid) => {
+      if (uuid === hackUuid) return makeSpell(uuid, 'Magnetic Tuning');
+      if (uuid === cacheUuid) return makeSpell(uuid, 'Unfettered Movement');
+      return null;
+    });
+    actor.items = [
+      { id: 'techno-entry', type: 'spellcastingEntry', name: 'Technomancer Spells', system: { tradition: { value: 'arcane' }, prepared: { value: 'prepared' }, ability: { value: 'int' } } },
+      { type: 'feat', slug: 'fortrun', system: { traits: { otherTags: ['technomancer-programming-language'] } } },
+    ];
+    const plan = {
+      classSlug: 'technomancer',
+      levels: { 7: { classFeats: [{ uuid: 'feat-amh', name: 'Advanced Magic Hack', slug: 'advanced-magic-hack' }] } },
+    };
+
+    const added = await applySpells(actor, plan, 7);
+
+    expect(added).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Magnetic Tuning' }),
+      expect.objectContaining({ name: 'Unfettered Movement', rank: 4 }),
+    ]));
+    expect(actor.createEmbeddedDocuments).toHaveBeenCalledWith('Item', [
+      expect.objectContaining({ name: 'Unfettered Movement', system: expect.objectContaining({ location: { value: 'techno-entry' } }) }),
+    ]);
   });
 
   test('adds dragon breath for draconic advanced bloodline even if stored focus UUID resolves to the wrong spell', async () => {

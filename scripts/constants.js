@@ -46,6 +46,7 @@ export const CLASS_SUBCLASS_TYPES = {
   investigator: 'methodology',
   kineticist: 'gate',
   magus: 'study',
+  mechanic: 'exocortex',
   mystic: 'connection',
   necromancer: 'fatal method',
   operative: 'specialization',
@@ -57,6 +58,7 @@ export const CLASS_SUBCLASS_TYPES = {
   sorcerer: 'bloodline',
   summoner: 'eidolon',
   swashbuckler: 'style',
+  technomancer: 'programming language',
   witch: 'patron',
   witchwarper: 'paradox',
   wizard: 'school',
@@ -76,6 +78,7 @@ export const SUBCLASS_TAGS = {
   investigator: 'investigator-methodology',
   kineticist: 'kineticist-kinetic-gate',
   magus: 'magus-hybrid-study',
+  mechanic: 'mechanic-exocortex',
   mystic: 'mystic-connection',
   necromancer: 'necromancer-fatal-method',
   operative: 'operative-specialization',
@@ -87,6 +90,7 @@ export const SUBCLASS_TAGS = {
   sorcerer: 'sorcerer-bloodline',
   summoner: 'summoner-eidolon',
   swashbuckler: 'swashbuckler-style',
+  technomancer: 'technomancer-programming-language',
   witch: 'witch-patron',
   witchwarper: 'witchwarper-paradox',
   wizard: 'wizard-arcane-school',
@@ -101,7 +105,10 @@ export const ANCESTRY_TRAIT_ALIASES = {
   'half-elf': ['half-elf', 'elf', 'aiuvarin'],
 };
 
-export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus', 'necromancer'];
+export const SPELLBOOK_CLASSES = ['wizard', 'witch', 'magus', 'necromancer', 'technomancer'];
+
+export const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation', 'advanced-magic-hack'];
+export const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation', 'greater-magic-hack'];
 
 export const PLAN_STATUS = {
   COMPLETE: 'complete',

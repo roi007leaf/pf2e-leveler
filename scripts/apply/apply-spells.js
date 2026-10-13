@@ -1,4 +1,4 @@
-import { SUBCLASS_TAGS } from '../constants.js';
+import { ADVANCED_FOCUS_FEAT_SLUGS, GREATER_FOCUS_FEAT_SLUGS, SUBCLASS_TAGS } from '../constants.js';
 import { ClassRegistry } from '../classes/registry.js';
 import { capitalize } from '../utils/pf2e-api.js';
 import { SUBCLASS_SPELLS, resolveSubclassSpells } from '../data/subclass-spells.js';
@@ -10,8 +10,6 @@ import { findMagusPrimaryEntry, isRemasteredMagus } from '../utils/magus-spellca
 import { getSpellSelectionRank } from '../utils/signature-spells.js';
 import { findClassSpellcastingEntry, isFlexibleClassEntry, getFlexibleSpellSlots, ensureFlexibleRank10Entry } from '../utils/flexible-spellcasting.js';
 
-const ADVANCED_FOCUS_FEAT_SLUGS = ['advanced-bloodline', 'advanced-mystery', 'advanced-order', 'advanced-revelation'];
-const GREATER_FOCUS_FEAT_SLUGS = ['greater-bloodline', 'greater-mystery', 'greater-order', 'greater-revelation'];
 const FEAT_KEYS = ['classFeats', 'skillFeats', 'generalFeats', 'ancestryFeats', 'archetypeFeats', 'mythicFeats', 'dualClassFeats', 'customFeats'];
 const MAGUS_STUDIOUS_ENTRY_FLAG = 'magusStudiousEntry';
 const SUBCLASS_FOCUS_SPELL_NAME_OVERRIDES = {

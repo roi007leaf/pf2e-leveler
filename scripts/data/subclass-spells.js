@@ -277,6 +277,11 @@ export const SUBCLASS_SPELLS = {
   'devourer-of-decay': {
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.J7Y7tl0bbdz7TcCc", "cantrip": "Compendium.pf2e.spells-srd.Item.VNv96dJPi0WXKSFN" },
   },
+  // technomancer — DPS++
+  'dps': {
+    focusSpells: { "initial": "Compendium.sf2e.spells.Item.5kzAMtSSpGDJTIWV", "advanced": "Compendium.sf2e.spells.Item.4WIa2Bq7DVgMZfaO", "greater": "Compendium.sf2e.spells.Item.4RKn711m9r9Szu0h" },
+    grantedSpells: { "1": "Compendium.sf2e.spells.Item.SbBqa1HStMrV47fb", "2": "Compendium.sf2e.spells.Item.GB1RVtoFPwyH1B9G", "3": "Compendium.sf2e.spells.Item.Cbj7tDkb2ZTp10Cg", "4": "Compendium.sf2e.spells.Item.Y3G6Y6EDgCY0s3fq", "5": "Compendium.sf2e.spells.Item.oXeEbcUdgJGWHGEJ", "6": "Compendium.sf2e.spells.Item.r7ihOgKv19eJQnik", "7": "Compendium.sf2e.spells.Item.AlbpWWN87yGegoAF", "8": "Compendium.sf2e.spells.Item.C2GYCH3TtUFqPfdX", "9": "Compendium.sf2e.spells.Item.4WS7HrFjwNvTn8T2" },
+  },
   // bard — Enigma
   'enigma': {
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.Gb7SeieEvd0pL2Eh" },
@@ -293,6 +298,11 @@ export const SUBCLASS_SPELLS = {
   'flames': {
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.AspA30tzKCHFWRf0", "advanced": "Compendium.pf2e.spells-srd.Item.bynT1UKaDqr8dLNM" },
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.y6rAdMK6EFlV6U0t", "2": "Compendium.pf2e.spells-srd.Item.ZxHC7V7HtjUsB8zH", "3": "Compendium.pf2e.spells-srd.Item.sxQZ6yqTn0czJxVd", "cantrip": "Compendium.pf2e.spells-srd.Item.6DfLZBl8wKIV03Iq" },
+  },
+  // technomancer — FORTRUN
+  'fortrun': {
+    focusSpells: { "initial": "Compendium.sf2e.spells.Item.1Wp3rkKJQef7K8Tn", "advanced": "Compendium.sf2e.spells.Item.0rAYoJi9vdj1xIwF", "greater": "Compendium.sf2e.spells.Item.0BaSs02dBiL2ASBO" },
+    grantedSpells: { "1": "Compendium.sf2e.spells.Item.gMODOGamz88rgHuf", "2": "Compendium.sf2e.spells.Item.Fr58LDSrbndgld9n", "3": "Compendium.sf2e.spells.Item.o6YCGx4lycsYpww4", "4": "Compendium.sf2e.spells.Item.aqRYNoSvxsVfqglH", "5": "Compendium.sf2e.spells.Item.Ek5XI0aEdZhBgm21", "6": "Compendium.sf2e.spells.Item.yrZA4k2VAqEP8xx7", "7": "Compendium.sf2e.spells.Item.m2xFMNyQiUKQDRaj", "8": "Compendium.sf2e.spells.Item.gLOelTMvex2OgBqV", "9": "Compendium.sf2e.spells.Item.qsNeG9KZpODSACMq" },
   },
   // magus — Inexorable Iron
   'inexorable-iron': {
@@ -419,6 +429,11 @@ export const SUBCLASS_SPELLS = {
   'school-of-unified-magical-theory': {
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.bSDTWUIvgXkBaEv8", "advanced": "Compendium.pf2e.spells-srd.Item.sGenGMmE1ntkXCtN" },
   },
+  // technomancer — Servoshell
+  'servoshell': {
+    focusSpells: { "initial": "Compendium.sf2e.spells.Item.xNU0CX0Wt0MwOHes", "advanced": "Compendium.sf2e.spells.Item.Ws85nL9EIkPV07CX", "greater": "Compendium.sf2e.spells.Item.Is46i6efWR9TqF3e" },
+    grantedSpells: { "1": "Compendium.sf2e.spells.Item.KlJEDmAOk1ztdNFf", "2": "Compendium.sf2e.spells.Item.f8SBoXiXQjlCKqly", "3": "Compendium.sf2e.spells.Item.rBh2PjtbDGAjbcu6", "4": "Compendium.sf2e.spells.Item.Nf6GqoHkNbfWJDQT", "5": "Compendium.sf2e.spells.Item.7WtiWJRYZhT6a9Ey", "6": "Compendium.sf2e.spells.Item.OsOhx3TGIZ7AhD0P", "7": "Compendium.sf2e.spells.Item.fRT0T9sbd8zWc1q9", "8": "Compendium.sf2e.spells.Item.Y3egStSTzL8k86qc", "9": "Compendium.sf2e.spells.Item.64DDZxOrmr4ddqs2" },
+  },
   // witch — Silence in Snow
   'silence-in-snow': {
     grantedSpells: { "1": "Compendium.pf2e.spells-srd.Item.g8QqHpv2CWDwmIm1", "cantrip": "Compendium.pf2e.spells-srd.Item.MraZBLJ4Be3ogmWL" },
@@ -516,6 +531,11 @@ export const SUBCLASS_SPELLS = {
   // ranger — Vindicator
   'vindicator': {
     focusSpells: { "initial": "Compendium.pf2e.spells-srd.Item.LegaamqrflbArbWN" },
+  },
+  // technomancer — Viper
+  'viper': {
+    focusSpells: { "initial": "Compendium.sf2e.spells.Item.FfkyvwVrY3sx9NOQ", "advanced": "Compendium.sf2e.spells.Item.83y4gDfizNDza0BC", "greater": "Compendium.sf2e.spells.Item.WWkRdbzGnP8nVKIv" },
+    grantedSpells: { "1": "Compendium.sf2e.spells.Item.yXD9uU8w8uFD2OBQ", "2": "Compendium.sf2e.spells.Item.vTQvfYu2llKQedmY", "3": "Compendium.sf2e.spells.Item.LQzlKbYjZSMFQawP", "4": "Compendium.sf2e.spells.Item.TUj8eugNqAvB1vVR", "5": "Compendium.sf2e.spells.Item.SwUiVavHKMWG7t5K", "6": "Compendium.sf2e.spells.Item.uqlxMQQeSGWEVjki", "7": "Compendium.sf2e.spells.Item.WG91Z5TiR6oO5FOw", "8": "Compendium.sf2e.spells.Item.CeSh8QcVnqP5OlLj", "9": "Compendium.sf2e.spells.Item.qsNeG9KZpODSACMq" },
   },
   // bard — Warrior
   'warrior': {

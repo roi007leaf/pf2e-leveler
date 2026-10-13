@@ -1,6 +1,21 @@
 import { SUBCLASS_SPELLS, resolveSpellcastingTradition, resolveSubclassSpells } from '../../../scripts/data/subclass-spells.js';
 
 describe('resolveSubclassSpells', () => {
+  test('resolves technomancer programming language spell cache and magic hacks', () => {
+    expect(resolveSubclassSpells('dps')).toEqual({
+      cantrip: null,
+      rank1: 'Compendium.sf2e.spells.Item.SbBqa1HStMrV47fb',
+      focusSpell: 'Compendium.sf2e.spells.Item.5kzAMtSSpGDJTIWV',
+    });
+    expect(resolveSubclassSpells('servoshell', {}, 9)).toEqual(
+      expect.objectContaining({ grantedSpell: 'Compendium.sf2e.spells.Item.64DDZxOrmr4ddqs2' }),
+    );
+    for (const slug of ['dps', 'fortrun', 'servoshell', 'viper']) {
+      expect(Object.keys(SUBCLASS_SPELLS[slug].grantedSpells)).toHaveLength(9);
+      expect(Object.keys(SUBCLASS_SPELLS[slug].focusSpells)).toEqual(['initial', 'advanced', 'greater']);
+    }
+  });
+
   test('maps all three Time mystery revelation spells to their correct tiers', () => {
     expect(SUBCLASS_SPELLS.time.focusSpells).toEqual({
       initial: 'Compendium.pf2e.spells-srd.Item.UbHK19RYbxRXWgWX',

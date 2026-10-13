@@ -15,6 +15,7 @@ import { ExemplarHandler } from './exemplar.js';
 import { InventorHandler } from './inventor.js';
 import { KineticistHandler } from './kineticist.js';
 import { NecromancerHandler } from './necromancer.js';
+import { TechnomancerHandler } from './technomancer.js';
 import { WizardHandler } from './wizard.js';
 import { WitchHandler } from './witch.js';
 
@@ -32,6 +33,7 @@ const handlers = {
   kineticist: new KineticistHandler(),
   necromancer: new NecromancerHandler(),
   summoner: new SummonerHandler(),
+  technomancer: new TechnomancerHandler(),
   wizard: new WizardHandler(),
   witch: new WitchHandler(),
   sorcerer: caster,

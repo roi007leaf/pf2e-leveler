@@ -1,4 +1,4 @@
-import { MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
+import { CLASS_SUBCLASS_TYPES, MODULE_ID, MIXED_ANCESTRY_CHOICE_FLAG, MIXED_ANCESTRY_UUID, SKILLS, ATTRIBUTES, SUBCLASS_TAGS, ANCESTRY_TRAIT_ALIASES, WEALTH_MODES, CHARACTER_WEALTH, PERMANENT_ITEM_TYPES, expandPermanentItemSlots } from '../../constants.js';
 import { ClassRegistry } from '../../classes/registry.js';
 import { ensureClassItemRegistered } from '../../classes/ensure.js';
 import { createCreationData, getClassSelectionData, normalizeCreationData, setAncestry, setHeritage, setMixedAncestry, setBackground, setClass, setDualClass, setImplement, setSubconsciousMind, setThesis, setDeity, setSkills, setLanguages, setLores, setSelectedLoreSkills, addSpell, removeSpell, setGrantedFeatSections, setAncestryFeat, setAncestryParagonFeat, setClassFeat, setDualClassFeat, setSkillFeat, setFeatChoice, getGrantedFeatChoiceValues, upsertCreationFeatGrant, addEquipment, removeCreationFeatGrantSelection, setPermanentItem } from '../../creation/creation-model.js';
@@ -35,36 +35,6 @@ import { getEquipmentTotalCp, getStartingEquipmentBudgetCp } from '../../creatio
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 registerHandlebarsHelpers();
-
-const CREATION_CLASS_SUBCLASS_TYPES = {
-  alchemist: 'research field',
-  animist: 'practice',
-  barbarian: 'instinct',
-  bard: 'muse',
-  champion: 'cause',
-  cleric: 'doctrine',
-  druid: 'order',
-  envoy: 'leadership style',
-  gunslinger: 'way',
-  inventor: 'innovation',
-  investigator: 'methodology',
-  kineticist: 'gate',
-  magus: 'study',
-  mystic: 'connection',
-  necromancer: 'fatal method',
-  operative: 'specialization',
-  oracle: 'mystery',
-  psychic: 'conscious mind',
-  ranger: "hunter's edge",
-  rogue: 'racket',
-  soldier: 'fighting style',
-  sorcerer: 'bloodline',
-  summoner: 'eidolon',
-  swashbuckler: 'style',
-  witch: 'patron',
-  witchwarper: 'paradox',
-  wizard: 'school',
-};
 
 const SKILL_SLUG_ALIASES = {
   acr: 'acrobatics',
@@ -1215,7 +1185,7 @@ export class CharacterWizard extends HandlebarsApplicationMixin(ApplicationV2) {
     const level = Number(this.actor?.system?.details?.level?.value ?? 1) || 1;
     const classState = {
       slug: classSlug,
-      subclassType: classSlug ? (CREATION_CLASS_SUBCLASS_TYPES[classSlug] ?? null) : null,
+      subclassType: classSlug ? (CLASS_SUBCLASS_TYPES[classSlug] ?? null) : null,
     };
     const classes = classState.slug ? [classState] : [];
     const passiveGrantedFeats = await this._collectCreationGrantedFeatEntries([this.data.ancestry, this.data.heritage, this.data.background, this.data.class, this.data.dualClass, subclassEntry, target === 'dualClass' ? this.data.subclass : this.data.dualSubclass]);

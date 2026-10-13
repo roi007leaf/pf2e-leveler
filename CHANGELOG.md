@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.12.0
+
+### Added
+
+- **Starfinder Tech Core classes** - Mechanic and Technomancer (SF2e 1.6.0) are now supported in the creation wizard and level planner, including exocortex and programming language subclass choices
+- **Technomancer spell database** - Character creation offers the full 10-cantrip, five-spell database plus the programming language's 1st-rank spell, the planner adds two database spells per level, and each programming language's spell cache spells and magic hacks (including Advanced and Greater Magic Hack) are granted automatically
+
 ## 3.11.0
 
 ### Fixed

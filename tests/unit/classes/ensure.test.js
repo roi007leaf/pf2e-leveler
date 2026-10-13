@@ -3,6 +3,7 @@ import {
   ensureClassRegistry,
 } from '../../../scripts/classes/ensure.js';
 import { ClassRegistry } from '../../../scripts/classes/registry.js';
+import { CLASS_SUBCLASS_TYPES, SUBCLASS_TAGS } from '../../../scripts/constants.js';
 
 describe('class registry ensure helpers', () => {
   beforeEach(() => {
@@ -38,6 +39,41 @@ describe('class registry ensure helpers', () => {
           class: expect.arrayContaining([1, 2, 20]),
         }),
         skillIncreaseSchedule: expect.arrayContaining([2, 10, 20]),
+      }),
+    );
+  });
+
+  test('loads Starfinder Tech Core Mechanic and Technomancer classes', () => {
+    ensureClassRegistry();
+
+    expect(ClassRegistry.get('mechanic')).toEqual(
+      expect.objectContaining({
+        keyAbility: ['int'],
+        hp: 8,
+        spellcasting: null,
+        featSchedule: expect.objectContaining({
+          class: expect.arrayContaining([1, 2, 20]),
+        }),
+      }),
+    );
+    expect(ClassRegistry.get('technomancer')).toEqual(
+      expect.objectContaining({
+        keyAbility: ['int'],
+        hp: 6,
+        spellcasting: expect.objectContaining({
+          tradition: 'arcane',
+          type: 'prepared',
+        }),
+      }),
+    );
+    expect(ClassRegistry.get('technomancer').spellcasting.slots[1]).toEqual({ cantrips: 5, 1: 2 });
+    expect(CLASS_SUBCLASS_TYPES).toEqual(
+      expect.objectContaining({ mechanic: 'exocortex', technomancer: 'programming language' }),
+    );
+    expect(SUBCLASS_TAGS).toEqual(
+      expect.objectContaining({
+        mechanic: 'mechanic-exocortex',
+        technomancer: 'technomancer-programming-language',
       }),
     );
   });
