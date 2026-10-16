@@ -12,9 +12,21 @@ on:
     branches: [main, dev]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish to Foundry (for example v1.2.2)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Ask Foundry to validate only, without publishing'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     strategy:
@@ -43,6 +55,7 @@ jobs:
         run: npm run test
 
   build:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [test]
     permissions:
@@ -127,11 +140,41 @@ jobs:
   publish-to-foundry:
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'release' && !github.event.release.prerelease
+    if: ${{ always() && (((github.event_name == 'release' && !github.event.release.prerelease) && needs.build.result == 'success') || github.event_name == 'workflow_dispatch') }}
+    permissions:
+      actions: read
+      contents: read
 
     steps:
+      - name: Check The Release Exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '.assets[].name' | grep -qx module.json \
+            || { echo "::error::Release $TAG has no module.json asset; publish it on GitHub first."; exit 1; }
+
+      # Foundry revokes the API key when a package publishes too often: at most one release per 24 hours.
+      - name: Allow One Foundry Release Per 24 Hours
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          since=$(date -u -d '24 hours ago' +%s)
+          gh api "repos/${{ github.repository }}/actions/workflows/main.yml/runs?per_page=100" \
+            --jq '.workflow_runs[] | select(.id != ${{ github.run_id }}) | "\(.id) \(.created_at)"' |
+          while read -r id created; do
+            [ "$(date -u -d "$created" +%s)" -lt "$since" ] && continue
+            published=$(gh api "repos/${{ github.repository }}/actions/runs/$id/jobs" \
+              --jq '[.jobs[] | select(.name == "publish-to-foundry" and .conclusion == "success")] | length')
+            if [ "$published" -gt 0 ]; then
+              echo "::error::Foundry already received a release from run $id at $created (within 24 hours). $TAG stays on GitHub only; its update link works. Publish it later with Run workflow (Publish to Foundry)."
+              exit 1
+            fi
+          done
+
       - name: Publish to Foundry VTT
         uses: JamesIves/fetch-api-data-action@v2
         with:
           endpoint: https://foundryvtt.com/_api/packages/release_version/
-          configuration: '{ "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": "${{ secrets.FVTT_API_TOKEN }}" }, "body": { "id": "pf2e-leveler", "dry-run": false, "release": { "version": "${{github.event.release.tag_name}}", "manifest": "https://github.com/${{github.repository}}/releases/download/${{github.event.release.tag_name}}/module.json", "notes": "https://github.com/${{github.repository}}/blob/main/README.md", "compatibility": { "minimum": "13", "verified": "13", "maximum": "" } } } }'
+          configuration: '{ "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": "${{ secrets.FVTT_API_TOKEN }}" }, "body": { "id": "pf2e-leveler", "dry-run": ${{ github.event_name == ''workflow_dispatch'' && inputs.dry_run || false }}, "release": { "version": "${{ github.event_name == ''workflow_dispatch'' && inputs.tag || github.event.release.tag_name }}", "manifest": "https://github.com/${{github.repository}}/releases/download/${{ github.event_name == ''workflow_dispatch'' && inputs.tag || github.event.release.tag_name }}/module.json", "notes": "https://github.com/${{github.repository}}/blob/main/README.md", "compatibility": { "minimum": "13", "verified": "13", "maximum": "" } } } }'
